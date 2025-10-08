@@ -223,38 +223,32 @@ def best_hour_by_day(hourly: pd.DataFrame, days_nr_map: Dict[dt.date, int]) -> p
 
 
 # ---------------------------
-# UI — Sidebar controls
+# ---------------------------
+# UI — Sidebar controls (fixed location from UTM 19S, WGS84)
 # ---------------------------
 
+# OPTION A: compute lat/lon from UTM (requires pyproj)
+try:
+    import pyproj  # pip install pyproj
+    transformer = pyproj.Transformer.from_crs("EPSG:32719", "EPSG:4326", always_xy=True)
+    lon, lat = transformer.transform(263221.0, 5630634.0)
+    lat, lon = float(lat), float(lon)
+except Exception:
+    # OPTION B: fallback (either defaults or hardcode decimals once you know them)
+    lat, lon = DEFAULT_LAT, DEFAULT_LON
+    st.sidebar.warning("pyproj not installed — using default lat/lon.")
+
 st.sidebar.header("Settings")
-st.sidebar.caption("Location, forecast horizon, and visualization options.")
+st.sidebar.caption(f"Center: lat={lat:.5f}, lon={lon:.5f} (from UTM 19S)")
 
+# Use st.* inside the context, not st.sidebar.*
 with st.sidebar:
-    st.subheader("Location")
-    lat = st.number_input("Latitude", value=DEFAULT_LAT, format="%.6f")
-    lon = st.number_input("Longitude", value=DEFAULT_LON, format="%.6f")
-    st.caption("If you have UTM coordinates, toggle below to convert.")
-    with st.expander("Convert from UTM (optional)"):
-        try:
-            import pyproj  # type: ignore
-            utm_e = st.number_input("UTM Easting (m)", value=263221.0, step=1.0)
-            utm_n = st.number_input("UTM Northing (m)", value=5630634.0, step=1.0)
-            utm_zone = st.selectbox("UTM Zone (South)", options=list(range(17, 21)), index=2, help="Common zones in Chile are 18S–19S; pick the one for your point.")
-            if st.button("Convert UTM → Lat/Lon"):
-                crs = pyproj.CRS.from_string(f"EPSG:327{utm_zone}")  # WGS84 / UTM {zone}S
-                wgs84 = pyproj.CRS.from_epsg(4326)
-                transformer = pyproj.Transformer.from_crs(crs, wgs84, always_xy=True)
-                lon_c, lat_c = transformer.transform(utm_e, utm_n)
-                st.success(f"Converted: lat={lat_c:.6f}, lon={lon_c:.6f}")
-        except Exception as e:
-            st.info("Install `pyproj` to enable UTM conversion.")
+     st.subheader("Forecast horizon")
+     days_ahead = st.slider("Days ahead", min_value=3, max_value=14, value=7)
 
-    st.subheader("Forecast horizon")
-    days_ahead = st.slider("Days ahead", min_value=3, max_value=14, value=7)
-
-    st.subheader("Map sampling radius (km)")
-    radius_km = st.slider("Radius around point", min_value=5, max_value=50, value=20, step=5)
-    grid_step_km = st.slider("Grid step (km)", min_value=2, max_value=10, value=5, step=1)
+     st.subheader("Map sampling radius (km)")
+     radius_km = st.slider("Radius around point (km)", min_value=5, max_value=50, value=20, step=5)
+     grid_step_km = st.slider("Grid step (km)", min_value=2, max_value=10, value=5, step=1)
 
 # ---------------------------
 # Fetch & prepare
@@ -298,12 +292,13 @@ sel_date = dates_sorted[day_idx]
 
 row = haz.loc[haz["date"] == sel_date].iloc[0]
 # Polar axes: Temperature, Humidity, Wind, Days since rain
-axes = ["Temperature (\u00B0C)", "Humidity (%)", "Wind (km/h)", "Days w/o rain"]
+axes = ["Temperature", "Humidity", "Wind", "Days w/o rain"]
 values_real = [row["temp_c"], row["rh_pct"], row["wind_kmh"], row["days_no_rain"]]
 
 # normalize with simple caps for visual balance
 caps = [40, 100, 80, 45]
-values_norm = [min(v / c, 1.0) for v, c in zip(values_real, caps)]
+scores = [row["temp"], row["rh"], row["wind"], row["days"]]
+values_norm = [min(max(s / 25.0, 0.0), 1.0) for s in scores]
 
 theta = np.linspace(0, 2 * np.pi, num=len(axes)+1)
 r = np.array(values_norm + [values_norm[0]])
@@ -314,7 +309,7 @@ fig.add_trace(go.Scatterpolar(
     r=r,
     theta=[a for a in axes] + [axes[0]],
     fill='toself',
-    name='Most dangerous hour (normalized)',
+    name='Risk contribution (normalized to max 25)',
     line=dict(color=color_for_risk(row["total"]))
 ))
 fig.update_polars(radialaxis=dict(range=[0, 1], showticklabels=False))
@@ -334,10 +329,9 @@ with colB:
     st.subheader("Daily values (scored)")
     # Show table with real values and sub-scores
     tbl = pd.DataFrame({
-        "Variable": ["Temperature (\u00B0C)", "Humidity (%)", "Wind speed (km/h)", "Days w/o rain"],
-        "Value": values_real,
-        "Score": [row["temp"], row["rh"], row["wind"], row["days"]],
-        "Contribution": [f"{row['temp']:.1f}", f"{row['rh']:.1f}", f"{row['wind']:.1f}", f"{row['days']:.1f}"]
+    "Variable": ["Temperature (°C)", "Humidity (%)", "Wind speed (km/h)", "Days w/o rain"],
+    "Value": [row["temp_c"], row["rh_pct"], row["wind_kmh"], row["days_no_rain"]],
+    "Score (0–25)": [row["temp"], row["rh"], row["wind"], row["days"]],
     })
 st.dataframe(tbl, use_container_width=True, hide_index=True)
 
