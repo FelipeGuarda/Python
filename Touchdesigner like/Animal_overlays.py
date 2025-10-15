@@ -16,7 +16,7 @@ SAMPLES = 80                 # how many dots around the contour
 NEIGH_RADIUS = 7             # radius (px) to average brightness at a dot
 PAIR_DIST_MAX = 120          # max geometric distance to pair
 INTENSITY_DELTA_MAX = 12     # max |I1-I2| (0–255) to pair
-MIN_SEP = 10                 # min distance between dots after sampling (post-thinning)
+MIN_SEP = 28                 # min distance between dots after sampling (post-thinning)
 
 CURVE_BULGE = 0.20           # 0=straight; 0.1–0.3 is nice
 LINE_THICK = 1
