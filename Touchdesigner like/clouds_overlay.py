@@ -4,7 +4,7 @@ import argparse
 from math import hypot
 
 # ---------------- Tunables ----------------
-SCALE = 1.0
+SCALE = 0.7
 DISPLAY_SCALE = 0.6
 
 # Slow playback/export
@@ -12,10 +12,10 @@ SLOW_FACTOR = 1       # 0.5 = half speed
 FRAME_REPEAT = 1        # repeat frames to slow even more
 
 # Visual density
-MAX_POINTS = 150        # cap total number of dots (auto-thins)
+MAX_POINTS = 10        # cap total number of dots (auto-thins)
 PAIR_DIST_MAX = 400
 INTENSITY_DELTA_MAX = 180
-MIN_SEP = 18
+MIN_SEP = 28
 
 # Aesthetics
 CIRCLE_R = 30
@@ -76,6 +76,8 @@ def main(args):
     fps = cap.get(cv.CAP_PROP_FPS) or 30.0
     out_w, out_h = int(w * SCALE), int(h * SCALE)
     out_fps = max(1.0, fps * SLOW_FACTOR)
+    fps = cap.get(cv.CAP_PROP_FPS) or 30.0
+    show_every_n_frames = int(fps * 1)   # every 2 seconds
 
     writer = None
     if args.save:
@@ -83,6 +85,8 @@ def main(args):
         writer = cv.VideoWriter(args.save, fourcc, out_fps, (out_w, out_h))
 
     mser = cv.MSER_create(5, 80, 5000)
+
+    frame_idx = 0  # before loop starts
 
     while True:
         ok, frame = cap.read()
@@ -94,19 +98,21 @@ def main(args):
         if BLUR_K and BLUR_K % 2 == 1:
             gray = cv.GaussianBlur(gray, (BLUR_K, BLUR_K), 0)
 
-        # MSER regions
-        feats = []
-        regions, _ = mser.detectRegions(gray)
-        for pts in regions:
-            cnt = pts.reshape(-1, 1, 2)
-            a = cv.contourArea(cnt)
-            if 80 <= a <= 4000:
-                M = cv.moments(cnt)
-                if M["m00"] > 0:
-                    cx = M["m10"] / M["m00"]
-                    cy = M["m01"] / M["m00"]
-                    mu = mean_intensity_disk(gray, cx, cy, 5)
-                    feats.append((cx, cy, mu))
+        # Only draw dots every other second
+        if frame_idx % show_every_n_frames == 0:
+            # --- your detection and drawing code goes here ---
+            feats = []
+            regions, _ = mser.detectRegions(gray)
+            for pts in regions:
+                cnt = pts.reshape(-1, 1, 2)
+                a = cv.contourArea(cnt)
+                if 80 <= a <= 4000:
+                    M = cv.moments(cnt)
+                    if M["m00"] > 0:
+                        cx = M["m10"]/M["m00"]
+                        cy = M["m01"]/M["m00"]
+                        mu = mean_intensity_disk(gray, cx, cy, 5)
+                        feats.append((cx, cy, mu))
 
         # thin and limit
         if len(feats) > MAX_POINTS:
@@ -139,17 +145,16 @@ def main(args):
                 draw_text_outline(vis, f"{shared}", (int(mid[0])+5, int(mid[1])-5))
             used.add(i); used.add(j)
 
-        # Preview (scaled)
+        # preview / write
         if args.display:
-            cv.namedWindow("Cloud overlay", cv.WINDOW_NORMAL)
-            pv = vis if DISPLAY_SCALE == 1.0 else cv.resize(vis, (int(out_w*DISPLAY_SCALE), int(out_h*DISPLAY_SCALE)))
             cv.imshow("Cloud overlay", vis)
-            key = cv.waitKey(int(1000 / max(1.0, fps * SLOW_FACTOR))) & 0xFF
-
-
+            if (cv.waitKey(int(1000 / max(1.0, fps * SLOW_FACTOR))) & 0xFF) == ord('q'):
+                break
+    
         if writer:
-            for _ in range(FRAME_REPEAT):
-                writer.write(vis)
+            writer.write(vis)
+
+        frame_idx += 1
 
     cap.release()
     if writer: writer.release()
