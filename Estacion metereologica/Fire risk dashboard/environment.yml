@@ -1,0 +1,15 @@
+name: fire_risk_dashboard
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - streamlit
+  - plotly
+  - pydeck
+  - pandas
+  - numpy
+  - requests
+  - pyproj
+  # Optional extras
+  - jupyterlab
+  - openpyxl
