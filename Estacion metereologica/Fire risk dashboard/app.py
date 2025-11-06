@@ -101,11 +101,12 @@ DAYS_NR_BINS = [
 RISK_COLORS = [
     (0.0, 19.999, "#2e7d32"),   # green
     (20.0, 39.999, "#c0ca33"),  # yellow-green
-    (40.0, 59.999, "#fbc02d"),  # yellow
+    (40.0, 59.999, "#fbc02d"),  # yellow 
     (60.0, 79.999, "#fb8c00"),  # orange
     (80.0, 89.999, "#e53935"),  # red-orange
     (90.0, 100.0, "#b71c1c"),   # dark red
 ]
+
 
 # ---------------------------
 # Utilities
