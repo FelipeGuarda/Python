@@ -27,12 +27,12 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 
-import requests
-import pandas as pd
-import numpy as np
-import streamlit as st
-import plotly.graph_objects as go
-import pydeck as pdk
+import requests # type: ignore
+import pandas as pd # type: ignore
+import numpy as np # type: ignore
+import streamlit as st # type: ignore
+import plotly.graph_objects as go # type: ignore
+import pydeck as pdk # type: ignore
 
 # ---------------------------
 # Config
@@ -106,7 +106,6 @@ RISK_COLORS = [
     (80.0, 89.999, "#e53935"),  # red-orange
     (90.0, 100.0, "#b71c1c"),   # dark red
 ]
-
 
 # ---------------------------
 # Utilities
@@ -290,7 +289,7 @@ def best_hour_by_day(hourly: pd.DataFrame, days_nr_map: Dict[dt.date, int]) -> p
 
 # OPTION A: compute lat/lon from UTM (requires pyproj)
 try:
-    import pyproj  # pip install pyproj
+    import pyproj  # type: ignore # pip install pyproj
     transformer = pyproj.Transformer.from_crs("EPSG:32719", "EPSG:4326", always_xy=True)
     lon, lat = transformer.transform(263221.0, 5630634.0)
     lat, lon = float(lat), float(lon)
