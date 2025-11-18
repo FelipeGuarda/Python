@@ -307,7 +307,13 @@ with st.sidebar:
      days_ahead = st.slider("Days ahead", min_value=3, max_value=14, value=7)
 
      st.subheader("Map sampling radius (km)")
-     radius_km = st.slider("Radius around point (km)", min_value=5, max_value=50, value=20, step=5)
+     radius_km = st.slider(
+        "Radius around point (km)",   # label shown in sidebar
+        min_value=5,                  # minimum allowed value
+        max_value=75,                 # maximum allowed value (was 50)
+        value=33,                     # default selected value (was 20)
+        step=5                        # each increment/decrement
+    )
      grid_step_km = st.slider("Grid step (km)", min_value=2, max_value=10, value=5, step=1)
 
 # ---------------------------
@@ -398,7 +404,7 @@ fig.update_layout(
     showlegend=False,
 )
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 st.caption(f"Most dangerous hour for {sel_date}: {pd.to_datetime(row['timestamp']).strftime('%H:%M')} (local)")
 
@@ -417,7 +423,7 @@ with colB:
     "Value": [row["temp_c"], row["rh_pct"], row["wind_kmh"], row["days_no_rain"]],
     "Score (0–25)": [row["temp"], row["rh"], row["wind"], row["days"]],
     })
-st.dataframe(tbl, use_container_width=True, hide_index=True)
+st.dataframe(tbl, width='stretch', hide_index=True)
 
 # ---------------------------
 # Forecast tab: multi-day outlook
@@ -443,10 +449,11 @@ with st.expander("Forecast — next days"):
     f2.add_trace(go.Scatter(x=haz["date"], y=haz["temp_c"], name="T max (\u00B0C)"))
     f2.add_trace(go.Scatter(x=haz["date"], y=haz["rh_pct"], name="RH min (%)"))
     f2.add_trace(go.Scatter(x=haz["date"], y=haz["wind_kmh"], name="Wind max (km/h)"))
+    f2.add_trace(go.Scatter(x=haz_sorted["date"], y=haz_sorted["days_no_rain"], name="Days without rain"))
     f2.update_layout(height=260, margin=dict(l=30, r=30, t=30, b=30), yaxis_title="Value")
 
-    st.plotly_chart(f1, use_container_width=True)
-    st.plotly_chart(f2, use_container_width=True)
+    st.plotly_chart(f1, width='stretch')
+    st.plotly_chart(f2, width='stretch')
 
 # ---------------------------
 # Regional map: compute risk on a coarse grid for the selected day
@@ -466,12 +473,19 @@ def km_to_deg_lon(km: float, at_lat: float) -> float:
     import math
     return km / (111.320 * math.cos(math.radians(abs(at_lat))))
 
-lat_delta = km_to_deg_lat(radius_km)
-lon_delta = km_to_deg_lon(radius_km, lat)
+# Use 0.1 degree steps to match Open-Meteo granularity (~11 km per cell)
+# In coordinate grid code — patch like this (as before):
+step_deg = 0.1
+span_deg_lat = km_to_deg_lat(radius_km)
+span_deg_lon = km_to_deg_lon(radius_km, lat)
 
-n_steps = max(2, int((radius_km * 2) / grid_step_km))
-lat_steps = np.linspace(lat - lat_delta, lat + lat_delta, n_steps)
-lon_steps = np.linspace(lon - lon_delta, lon + lon_delta, n_steps)
+lat_min = lat - span_deg_lat
+lat_max = lat + span_deg_lat
+lon_min = lon - span_deg_lon
+lon_max = lon + span_deg_lon
+
+lat_steps = np.arange(lat_min, lat_max + step_deg, step_deg)
+lon_steps = np.arange(lon_min, lon_max + step_deg, step_deg)
 
 points = [(float(la), float(lo)) for la in lat_steps for lo in lon_steps]
 
@@ -540,30 +554,35 @@ if show_overlay:
 
         grid_df["color"] = grid_df["color_hex"].apply(hex_to_rgb_list)
 
+        # ---- DEBUG: Show risk and color mappings in Streamlit ----
+        st.write("Grid risk and assigned colors (first 10):")
+        st.write(grid_df[["lat", "lon", "temp_c", "rh_pct", "wind_kmh", "days_no_rain", "risk", "color_hex"]].head(20))
+
         layer = pdk.Layer(
             "HexagonLayer",
             data=grid_df,
             get_position="[lon, lat]",
             get_fill_color="color",
-            radius=5000,           # adjust for grid smoothness (~5 km cells)
-            opacity=0.55,          # semi-transparent
+            radius=5500,
+            opacity=0.15,
             extruded=False,
             pickable=True,
         )
 
         view_state = pdk.ViewState(latitude=lat, longitude=lon, zoom=9)
 
+
         tooltip = {
             "html": (
-                "<b>Risk:</b> {risk}<br/>"
-                "<b>Most dangerous hour:</b> {timestamp}<br/>"
-                "<b>T:</b> {temp_c}&deg;C<br/>"
-                "<b>RH:</b> {rh_pct}%<br/>"
-                "<b>Wind:</b> {wind_kmh} km/h<br/>"
-                "<b>Days w/o rain:</b> {days_no_rain}"
+                "<b>Risk:</b> {risk}<br>"
+                "<b>T:</b> {temp_c}°C<br>"
+                "<b>RH:</b> {rh_pct}%<br>"
+                "<b>Wind:</b> {wind_kmh} km/h<br>"
+                "<b>Days no rain:</b> {days_no_rain}"
             ),
             "style": {"backgroundColor": "#222", "color": "white"},
         }
+
 
         st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip=tooltip))
 
