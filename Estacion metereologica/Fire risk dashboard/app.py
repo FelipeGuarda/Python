@@ -27,19 +27,18 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 
-import requests
-import pandas as pd
-import numpy as np
-import streamlit as st
-import plotly.graph_objects as go
-import pydeck as pdk
+import requests # type: ignore
+import pandas as pd # type: ignore
+import numpy as np # type: ignore
+import streamlit as st # type: ignore
+import plotly.graph_objects as go # type: ignore
+import pydeck as pdk # type: ignore
 
 # ---------------------------
 # Config
 # ---------------------------
 st.set_page_config(
     page_title="Fire Risk Dashboard — Bosque Pehuén",
-    page_icon="🔥",
     layout="wide",
 )
 
@@ -51,18 +50,61 @@ DEFAULT_LAT = -39.45
 DEFAULT_LON = -71.80
 
 # Score tables (as provided)
-TEMP_BINS = [(-np.inf, 0, 2.7), (0, 5, 5.4), (6, 10, 8.1), (11, 15, 10.8), (16, 20, 13.5), (21, 25, 16.2), (26, 30, 18.9), (31, 35, 21.6), (35, np.inf, 25.0)]
-RH_BINS = [(0, 10, 25.0), (11, 20, 22.5), (21, 30, 20.0), (31, 40, 17.5), (41, 50, 15.0), (51, 60, 12.5), (61, 70, 10.0), (71, 80, 7.5), (81, 90, 5.0), (91, 100, 2.5)]
-WIND_BINS = [(-np.inf, 1, 3.125), (1, 5, 6.25), (6, 10, 9.375), (11, 15, 12.5), (16, 20, 15.625), (21, 25, 18.75), (26, 30, 21.875), (30, np.inf, 25.0)]
-DAYS_NR_BINS = [(-np.inf, 1, 2.5), (1, 5, 5.0), (6, 10, 7.5), (11, 15, 10.0), (16, 20, 12.5), (21, 25, 15.0), (26, 30, 17.5), (31, 35, 20.0), (36, 40, 22.5), (40, np.inf, 25.0)]
+TEMP_BINS = [
+    (-np.inf, 0, 2.7),
+    (0, 5, 5.4),
+    (6, 10, 8.1),
+    (11, 15, 10.8),
+    (16, 20, 13.5),
+    (21, 25, 16.2),
+    (26, 30, 18.9),
+    (31, 35, 21.6),
+    (35, np.inf, 25.0)
+]
+RH_BINS = [
+    (0, 10, 25.0),
+    (11, 20, 22.5),
+    (21, 30, 20.0),
+    (31, 40, 17.5),
+    (41, 50, 15.0),
+    (51, 60, 12.5),
+    (61, 70, 10.0),
+    (71, 80, 7.5),
+    (81, 90, 5.0),
+    (91, 100, 2.5)
+]
+WIND_BINS = [
+    (-np.inf, 3.0, 1.5),
+    (3.0, 5.9, 3.0),
+    (6.0, 8.9, 4.5),
+    (9.0, 11.9, 6.0),
+    (12.0, 14.9, 7.5),
+    (15.0, 17.9, 9.0),
+    (18.0, 20.9, 10.5),
+    (21.0, 23.9, 12.0),
+    (24.0, 26.9, 13.5),
+    (27.0, np.inf, 15.0),
+]
+DAYS_NR_BINS = [
+    (0, 1, 3.5),
+    (2, 4, 7.0),
+    (5, 7, 10.5),
+    (8, 10, 14.0),
+    (11, 13, 17.5),
+    (14, 16, 21.0),
+    (17, 19, 24.5),
+    (20, 22, 28.0),
+    (23, 25, 31.5),
+    (26, np.inf, 35.0),
+]
 
 RISK_COLORS = [
-    (0, 20, "#2e7d32"),
-    (21, 40, "#7cb342"),
-    (41, 60, "#f9a825"),
-    (61, 80, "#ef6c00"),
-    (81, 90, "#d84315"),
-    (91, 100, "#c62828"),
+    (0.0, 19.999, "#2e7d32"),   # green
+    (20.0, 39.999, "#c0ca33"),  # yellow-green
+    (40.0, 59.999, "#fbc02d"),  # yellow 
+    (60.0, 79.999, "#fb8c00"),  # orange
+    (80.0, 89.999, "#e53935"),  # red-orange
+    (90.0, 100.0, "#b71c1c"),   # dark red
 ]
 
 # ---------------------------
@@ -94,10 +136,11 @@ def risk_components(temp_c: float, rh_pct: float, wind_kmh: float, days_no_rain:
 
 
 def color_for_risk(total: float) -> str:
-    for lo, hi, col in RISK_COLORS:
-        if total >= lo and total <= hi:
+    """Return hex color for risk score, enforcing correct numeric mapping."""
+    for lo, hi, col in sorted(RISK_COLORS, key=lambda x: x[0]):
+        if lo <= total <= hi:
             return col
-    return "#c62828"
+    return RISK_COLORS[-1][2]  # default highest (dark red)
 
 
 # ---------------------------
@@ -185,40 +228,57 @@ def compute_days_without_rain(daily_df: pd.DataFrame, rain_threshold_mm: float =
 
 
 def best_hour_by_day(hourly: pd.DataFrame, days_nr_map: Dict[dt.date, int]) -> pd.DataFrame:
-    """For each date, compute risk *per hour* and pick the hour with the highest total score.
-    Uses per-hour temp (\u00B0C), RH (%), wind (km/h), and the day-level days_no_rain for that date.
-    Returns one row per date with the *hour that maximizes total risk* and its variables.
+    """
+    Compute risk scores for 14:00–16:00 hours and average them per day.
+    Uses temp (°C), RH (%), wind (km/h), and daily days_without_rain from days_nr_map.
+    Returns one row per date with averaged values and risk scores.
     """
     rows = []
     for d, sub in hourly.groupby("date"):
         if sub.empty:
             continue
-        # ensure km/h exists
-        if "wind_kmh" not in sub.columns:
-            sub = sub.copy()
-            sub["wind_kmh"] = sub["wind_ms"] * 3.6
-        # days without rain is daily, apply to all hours of the same date
+
+        # ensure km/h exists and numeric
+        sub = sub.copy()
+        sub["wind_kmh"] = pd.to_numeric(sub["wind_ms"], errors="coerce") * 3.6
+        sub["hour"] = pd.to_datetime(sub["timestamp"]).dt.hour
+
+        # select 14–16 local hours (2–4 PM)
+        sub_window = sub[(sub["hour"] >= 14) & (sub["hour"] <= 16)]
+        if sub_window.empty:
+            continue
+
         dnr = int(days_nr_map.get(d, 0))
-        # compute risk by hour
-        comps = sub.apply(lambda r: risk_components(float(r["temp_c"]), float(r["rh_pct"]), float(r["wind_kmh"]), dnr), axis=1)
+
+        # compute risk components for each hour
+        comps = sub_window.apply(
+            lambda r: risk_components(
+                float(r["temp_c"]),
+                float(r["rh_pct"]),
+                float(r["wind_kmh"]),
+                dnr,
+            ),
+            axis=1,
+        )
         comp_df = pd.DataFrame(list(comps))
-        sub2 = pd.concat([sub.reset_index(drop=True), comp_df], axis=1)
-        # pick row with max total
-        idx = int(sub2["total"].idxmax())
-        best = sub2.iloc[idx]
+        sub2 = pd.concat([sub_window.reset_index(drop=True), comp_df], axis=1)
+
+        # average over 2–4 PM window
+        mean_row = sub2.mean(numeric_only=True)
         rows.append({
             "date": d,
-            "timestamp": best["timestamp"],
-            "temp_c": float(best["temp_c"]),
-            "rh_pct": float(best["rh_pct"]),
-            "wind_kmh": float(best["wind_kmh"]),
+            "timestamp": sub2["timestamp"].iloc[0],  # representative start hour
+            "temp_c": float(mean_row["temp_c"]),
+            "rh_pct": float(mean_row["rh_pct"]),
+            "wind_kmh": float(mean_row["wind_kmh"]),
             "days_no_rain": dnr,
-            "temp": float(best["temp"]),
-            "rh": float(best["rh"]),
-            "wind": float(best["wind"]),
-            "days": float(best["days"]),
-            "total": float(best["total"]),
+            "temp": float(mean_row["temp"]),
+            "rh": float(mean_row["rh"]),
+            "wind": float(mean_row["wind"]),
+            "days": float(mean_row["days"]),
+            "total": float(mean_row["total"]),
         })
+
     return pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
 
 
@@ -229,7 +289,7 @@ def best_hour_by_day(hourly: pd.DataFrame, days_nr_map: Dict[dt.date, int]) -> p
 
 # OPTION A: compute lat/lon from UTM (requires pyproj)
 try:
-    import pyproj  # pip install pyproj
+    import pyproj  # type: ignore # pip install pyproj
     transformer = pyproj.Transformer.from_crs("EPSG:32719", "EPSG:4326", always_xy=True)
     lon, lat = transformer.transform(263221.0, 5630634.0)
     lat, lon = float(lat), float(lon)
@@ -247,7 +307,13 @@ with st.sidebar:
      days_ahead = st.slider("Days ahead", min_value=3, max_value=14, value=7)
 
      st.subheader("Map sampling radius (km)")
-     radius_km = st.slider("Radius around point (km)", min_value=5, max_value=50, value=20, step=5)
+     radius_km = st.slider(
+        "Radius around point (km)",   # label shown in sidebar
+        min_value=5,                  # minimum allowed value
+        max_value=75,                 # maximum allowed value (was 50)
+        value=33,                     # default selected value (was 20)
+        step=5                        # each increment/decrement
+    )
      grid_step_km = st.slider("Grid step (km)", min_value=2, max_value=10, value=5, step=1)
 
 # ---------------------------
@@ -303,18 +369,42 @@ values_norm = [min(max(s / 25.0, 0.0), 1.0) for s in scores]
 theta = np.linspace(0, 2 * np.pi, num=len(axes)+1)
 r = np.array(values_norm + [values_norm[0]])
 
-# Plotly Polar
+# Plotly Polar (IRM discrete color mapping)
+risk_color = color_for_risk(float(row["total"]))
+
+# convert hex → rgba with ~50 % opacity
+def hex_to_rgba(hex_color: str, alpha: float = 0.5) -> str:
+    hex_color = hex_color.lstrip("#")
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha})"
+
+fill_color = hex_to_rgba(risk_color, 0.5)
+
 fig = go.Figure()
 fig.add_trace(go.Scatterpolar(
     r=r,
     theta=[a for a in axes] + [axes[0]],
-    fill='toself',
-    name='Risk contribution (normalized to max 25)',
-    line=dict(color=color_for_risk(row["total"]))
+    fill="toself",
+    name="Risk contribution (normalized to max 25)",
+    line=dict(color=risk_color, width=3),
+    fillcolor=fill_color,
 ))
-fig.update_polars(radialaxis=dict(range=[0, 1], showticklabels=False))
-fig.update_layout(height=520, margin=dict(l=30, r=30, t=30, b=30))
-st.plotly_chart(fig, use_container_width=True)
+
+fig.update_polars(
+    radialaxis=dict(range=[0, 1], showticklabels=False, gridcolor="#dddddd", gridwidth=0.5),
+    angularaxis=dict(tickfont=dict(size=12), gridcolor="#eeeeee", gridwidth=0.5),
+)
+
+fig.update_layout(
+    height=520,
+    margin=dict(l=30, r=30, t=30, b=30),
+    polar_bgcolor="#fafafa",
+    showlegend=False,
+)
+
+st.plotly_chart(fig, width='stretch')
 
 st.caption(f"Most dangerous hour for {sel_date}: {pd.to_datetime(row['timestamp']).strftime('%H:%M')} (local)")
 
@@ -333,32 +423,49 @@ with colB:
     "Value": [row["temp_c"], row["rh_pct"], row["wind_kmh"], row["days_no_rain"]],
     "Score (0–25)": [row["temp"], row["rh"], row["wind"], row["days"]],
     })
-st.dataframe(tbl, use_container_width=True, hide_index=True)
+st.dataframe(tbl, width='stretch', hide_index=True)
 
 # ---------------------------
 # Forecast tab: multi-day outlook
 # ---------------------------
 with st.expander("Forecast — next days"):
-    # Small multiples style with Plotly lines
+    # --- Risk bar chart (sorted by date, consistent discrete color mapping) ---
+    haz_sorted = haz.sort_values("date")
+
     f1 = go.Figure()
-    f1.add_trace(go.Bar(x=haz["date"], y=haz["total"], name="Risk (0-100)", marker_color=[color_for_risk(x) for x in haz["total"]]))
-    f1.update_layout(height=260, margin=dict(l=30, r=30, t=30, b=30), yaxis_title="Risk")
+    f1.add_trace(go.Bar(
+        x=haz_sorted["date"],
+        y=haz_sorted["total"],
+        name="Risk (0–100)",
+        marker_color=[color_for_risk(x) for x in haz_sorted["total"]],
+    ))
+    f1.update_layout(
+        height=260,
+        margin=dict(l=30, r=30, t=30, b=30),
+        yaxis_title="Risk (0–100)",
+    )
 
     f2 = go.Figure()
     f2.add_trace(go.Scatter(x=haz["date"], y=haz["temp_c"], name="T max (\u00B0C)"))
     f2.add_trace(go.Scatter(x=haz["date"], y=haz["rh_pct"], name="RH min (%)"))
     f2.add_trace(go.Scatter(x=haz["date"], y=haz["wind_kmh"], name="Wind max (km/h)"))
+    f2.add_trace(go.Scatter(x=haz_sorted["date"], y=haz_sorted["days_no_rain"], name="Days without rain"))
     f2.update_layout(height=260, margin=dict(l=30, r=30, t=30, b=30), yaxis_title="Value")
 
-    st.plotly_chart(f1, use_container_width=True)
-    st.plotly_chart(f2, use_container_width=True)
+    st.plotly_chart(f1, width='stretch')
+    st.plotly_chart(f2, width='stretch')
 
 # ---------------------------
 # Regional map: compute risk on a coarse grid for the selected day
 # ---------------------------
-st.subheader("Regional risk map (coarse grid)")
+# ---------------------------
+# Regional map: optional "risk grid" overlay (hexagonal)
+# ---------------------------
+st.subheader("Regional risk map")
 
-# Build grid
+show_overlay = st.toggle("Show risk grid overlay", value=False)
+
+# Build coordinate grid
 def km_to_deg_lat(km: float) -> float:
     return km / 110.574
 
@@ -366,14 +473,22 @@ def km_to_deg_lon(km: float, at_lat: float) -> float:
     import math
     return km / (111.320 * math.cos(math.radians(abs(at_lat))))
 
-lat_delta = km_to_deg_lat(radius_km)
-lon_delta = km_to_deg_lon(radius_km, lat)
+# Use 0.1 degree steps to match Open-Meteo granularity (~11 km per cell)
+# In coordinate grid code — patch like this (as before):
+step_deg = 0.1
+span_deg_lat = km_to_deg_lat(radius_km)
+span_deg_lon = km_to_deg_lon(radius_km, lat)
 
-n_steps = max(2, int((radius_km * 2) / grid_step_km))
-lat_steps = np.linspace(lat - lat_delta, lat + lat_delta, n_steps)
-lon_steps = np.linspace(lon - lon_delta, lon + lon_delta, n_steps)
+lat_min = lat - span_deg_lat
+lat_max = lat + span_deg_lat
+lon_min = lon - span_deg_lon
+lon_max = lon + span_deg_lon
 
-# Sample center-day hazard for each grid point using *most dangerous hour* logic
+lat_steps = np.arange(lat_min, lat_max + step_deg, step_deg)
+lon_steps = np.arange(lon_min, lon_max + step_deg, step_deg)
+
+points = [(float(la), float(lo)) for la in lat_steps for lo in lon_steps]
+
 @st.cache_data(ttl=1800)
 def grid_forecast(points, target_date: dt.date) -> pd.DataFrame:
     rows = []
@@ -384,9 +499,10 @@ def grid_forecast(points, target_date: dt.date) -> pd.DataFrame:
             h_day = h[h["date"] == target_date].copy()
             if h_day.empty:
                 continue
-            h_day["wind_kmh"] = h_day["wind_ms"] * 3.6
 
-            # daily days-no-rain via threshold logic
+            # Single conversion
+            h_day["wind_kmh"] = pd.to_numeric(h_day["wind_ms"], errors="coerce") * 3.6
+
             dd = dct["daily"]
             dd2 = compute_days_without_rain(dd, 2.0)
             rec = dd2.loc[dd2["date"] == target_date]
@@ -394,77 +510,84 @@ def grid_forecast(points, target_date: dt.date) -> pd.DataFrame:
                 continue
             days_nr = int(rec["days_no_rain"].iloc[0])
 
-            # compute hourly risk and choose most dangerous hour
-            comps = h_day.apply(lambda r: risk_components(float(r["temp_c"]),
-                                                         float(r["rh_pct"]),
-                                                         float(r["wind_kmh"]),
-                                                         days_nr), axis=1)
+            comps = h_day.apply(
+                lambda r: risk_components(
+                    float(r["temp_c"]),
+                    float(r["rh_pct"]),
+                    float(r["wind_kmh"]),
+                    days_nr,
+                ),
+                axis=1,
+            )
             comp_df = pd.DataFrame(list(comps))
             h2 = pd.concat([h_day.reset_index(drop=True), comp_df], axis=1)
-            idx = int(h2["total"].idxmax())
-            best = h2.iloc[idx]
+            best = h2.loc[h2["total"].idxmax()]
+
             rows.append({
                 "lat": float(la),
                 "lon": float(lo),
-                "date": target_date,
+                "risk": float(best["total"]),
                 "timestamp": best["timestamp"],
                 "temp_c": float(best["temp_c"]),
                 "rh_pct": float(best["rh_pct"]),
                 "wind_kmh": float(best["wind_kmh"]),
                 "days_no_rain": days_nr,
-                "risk": float(best["total"]),
             })
         except Exception:
             continue
     return pd.DataFrame(rows)
 
-points = [(float(la), float(lo)) for la in lat_steps for lo in lon_steps]
+if show_overlay:
+    with st.spinner("Computing regional risk grid..."):
+        grid_df = grid_forecast(points, sel_date)
 
-with st.spinner("Computing regional risk..."):
-    grid_df = grid_forecast(points, sel_date)
-
-# Normalize types for pydeck
-if grid_df is None or grid_df.empty:
-    st.info("No grid data for the selected day.")
-else:
-    grid_df = grid_df.copy()
-    grid_df["date"] = grid_df["date"].astype(str)
-    if "timestamp" in grid_df.columns:
+    if grid_df.empty:
+        st.info("No grid data for the selected day.")
+    else:
+        grid_df["color_hex"] = grid_df["risk"].apply(color_for_risk)
         grid_df["timestamp"] = pd.to_datetime(grid_df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M")
-    for col in ["risk", "temp_c", "rh_pct", "wind_kmh", "lat", "lon"]:
-        grid_df[col] = grid_df[col].astype(float)
-    grid_df["days_no_rain"] = grid_df["days_no_rain"].astype(int)
 
-    def color_rgb(risk: float):
-        col = color_for_risk(risk).lstrip("#")
-        return [int(col[i:i+2], 16) for i in (0, 2, 4)]
+        # Convert hex colors to RGB lists
+        def hex_to_rgb_list(hex_color: str):
+            hex_color = hex_color.lstrip("#")
+            return [int(hex_color[i:i+2], 16) for i in (0, 2, 4)]
 
-    grid_df["color"] = grid_df["risk"].apply(color_rgb)
+        grid_df["color"] = grid_df["color_hex"].apply(hex_to_rgb_list)
 
-    layer = pdk.Layer(
-        "ScatterplotLayer",
-        data=grid_df,
-        get_position="[lon, lat]",
-        get_fill_color="color",
-        get_radius=300,
-        pickable=True,
-    )
+        # ---- DEBUG: Show risk and color mappings in Streamlit ----
+        st.write("Grid risk and assigned colors (first 10):")
+        st.write(grid_df[["lat", "lon", "temp_c", "rh_pct", "wind_kmh", "days_no_rain", "risk", "color_hex"]].head(20))
 
-    view_state = pdk.ViewState(latitude=lat, longitude=lon, zoom=9)
+        layer = pdk.Layer(
+            "HexagonLayer",
+            data=grid_df,
+            get_position="[lon, lat]",
+            get_fill_color="color",
+            radius=5500,
+            opacity=0.15,
+            extruded=False,
+            pickable=True,
+        )
 
-    tooltip = {
-        "html": (
-            "<b>Risk:</b> {risk}<br/>"
-            "<b>Most dangerous hour:</b> {timestamp}<br/>"
-            "<b>T:</b> {temp_c}&deg;C<br/>"
-            "<b>RH:</b> {rh_pct}%<br/>"
-            "<b>Wind:</b> {wind_kmh} km/h<br/>"
-            "<b>Days no rain:</b> {days_no_rain}"
-        ),
-        "style": {"backgroundColor": "#222", "color": "white"},
-    }
+        view_state = pdk.ViewState(latitude=lat, longitude=lon, zoom=9)
 
-    st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip=tooltip))
+
+        tooltip = {
+            "html": (
+                "<b>Risk:</b> {risk}<br>"
+                "<b>T:</b> {temp_c}°C<br>"
+                "<b>RH:</b> {rh_pct}%<br>"
+                "<b>Wind:</b> {wind_kmh} km/h<br>"
+                "<b>Days no rain:</b> {days_no_rain}"
+            ),
+            "style": {"backgroundColor": "#222", "color": "white"},
+        }
+
+
+        st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip=tooltip))
+
+else:
+    st.caption("Overlay disabled — base map only (toggle above to view regional risk grid).")
 
 # ---------------------------
 # Data download
