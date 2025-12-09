@@ -348,20 +348,28 @@ with colA:
     st.subheader("Daily Polar — Variables & Risk")
     
     # Date selector with quick buttons
-    col_date1, col_date2, col_date3, col_date4, col_date5 = st.columns(5)
+    col_date1, col_date2, col_date3, col_date4 = st.columns(4)
     
     with col_date1:
         if st.button("Today", use_container_width=True):
             today_idx = int(np.clip(np.searchsorted(dates_sorted, TODAY.date()), 0, len(dates_sorted)-1))
             if today_idx < len(dates_sorted):
                 st.session_state.selected_date = dates_sorted[today_idx]
+                st.rerun()
     
     with col_date2:
         if st.button("Yesterday", use_container_width=True):
             yesterday = (TODAY - pd.Timedelta(days=1)).date()
             yest_idx = int(np.clip(np.searchsorted(dates_sorted, yesterday), 0, len(dates_sorted)-1))
-            if yest_idx < len(dates_sorted) and dates_sorted[yest_idx] == yesterday:
-                st.session_state.selected_date = dates_sorted[yest_idx]
+            if yest_idx < len(dates_sorted):
+                # Find closest date to yesterday
+                if dates_sorted[yest_idx] == yesterday:
+                    st.session_state.selected_date = dates_sorted[yest_idx]
+                elif yest_idx > 0 and abs((dates_sorted[yest_idx-1] - yesterday).days) < abs((dates_sorted[yest_idx] - yesterday).days):
+                    st.session_state.selected_date = dates_sorted[yest_idx-1]
+                else:
+                    st.session_state.selected_date = dates_sorted[yest_idx]
+                st.rerun()
     
     with col_date3:
         if st.button("Last Week", use_container_width=True):
@@ -369,6 +377,7 @@ with colA:
             lw_idx = int(np.clip(np.searchsorted(dates_sorted, last_week), 0, len(dates_sorted)-1))
             if lw_idx < len(dates_sorted):
                 st.session_state.selected_date = dates_sorted[lw_idx]
+                st.rerun()
     
     with col_date4:
         if st.button("Next 7 Days", use_container_width=True):
@@ -376,21 +385,21 @@ with colA:
             nw_idx = int(np.clip(np.searchsorted(dates_sorted, next_week), 0, len(dates_sorted)-1))
             if nw_idx < len(dates_sorted):
                 st.session_state.selected_date = dates_sorted[nw_idx]
+                st.rerun()
     
-    with col_date5:
-        pass  # Spacer
-    
-    # Date picker
-    min_date = dates_sorted[0] if dates_sorted else TODAY.date()
-    max_date = dates_sorted[-1] if dates_sorted else TODAY.date()
-    
-    selected_date_input = st.date_input(
-        "Select date",
-        value=st.session_state.selected_date if st.session_state.selected_date in dates_sorted else dates_sorted[0] if dates_sorted else TODAY.date(),
-        min_value=min_date,
-        max_value=max_date,
-        key="date_picker"
-    )
+    # Date picker - centered and shorter
+    col_picker1, col_picker2, col_picker3 = st.columns([1, 3, 1])
+    with col_picker2:
+        min_date = dates_sorted[0] if dates_sorted else TODAY.date()
+        max_date = dates_sorted[-1] if dates_sorted else TODAY.date()
+        
+        selected_date_input = st.date_input(
+            "Select date",
+            value=st.session_state.selected_date if st.session_state.selected_date in dates_sorted else dates_sorted[0] if dates_sorted else TODAY.date(),
+            min_value=min_date,
+            max_value=max_date,
+            key="date_picker"
+        )
     
     # Update session state if date picker changed
     if selected_date_input in dates_sorted:
@@ -538,14 +547,43 @@ with colB:
             # Draw wind arrow (wind direction is where wind comes FROM, so arrow points opposite)
             # For display, we show where wind is going (opposite of wind_dir)
             arrow_angle_deg = (avg_wind_dir + 180) % 360  # Reverse direction
-            arrow_length = 0.7
+            arrow_length = 0.75
             
+            # Main arrow line
             compass_fig.add_trace(go.Scatterpolar(
-                r=[0.1, arrow_length],
+                r=[0.05, arrow_length],
                 theta=[arrow_angle_deg, arrow_angle_deg],
-                mode='lines+markers',
-                line=dict(color='#e53935', width=5),
-                marker=dict(size=[0, 15], color=['#e53935', '#e53935'], symbol=['circle', 'arrow-up']),
+                mode='lines',
+                line=dict(color='#e53935', width=4),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+            
+            # Arrow head - create a small triangle
+            arrow_head_angle = np.radians(arrow_angle_deg)
+            head_size = 0.1
+            # Three points for arrow head triangle
+            head_center_r = arrow_length
+            head_center_theta = arrow_angle_deg
+            
+            # Points of the triangle
+            tip_r = arrow_length + head_size
+            tip_theta = arrow_angle_deg
+            
+            left_r = arrow_length - head_size * 0.3
+            left_theta = (arrow_angle_deg - 30) % 360
+            
+            right_r = arrow_length - head_size * 0.3
+            right_theta = (arrow_angle_deg + 30) % 360
+            
+            # Draw arrow head as filled shape
+            compass_fig.add_trace(go.Scatterpolar(
+                r=[left_r, tip_r, right_r, left_r],
+                theta=[left_theta, tip_theta, right_theta, left_theta],
+                mode='lines',
+                fill='toself',
+                fillcolor='#e53935',
+                line=dict(color='#e53935', width=2),
                 showlegend=False,
                 hoverinfo='skip'
             ))
@@ -604,72 +642,83 @@ col_fc1, col_fc2 = st.columns([1, 10])
 with col_fc1:
     if st.button("Expand to 2 weeks" if not st.session_state.forecast_expanded else "Show 7+7 days"):
         st.session_state.forecast_expanded = not st.session_state.forecast_expanded
+        st.rerun()
 
 # Filter data based on view
-haz_sorted = haz.sort_values("date")
+haz_sorted = haz.sort_values("date").copy()
 today_date = TODAY.date()
 
 if st.session_state.forecast_expanded:
     # Last 7 days + next 14 days
     start_date = today_date - pd.Timedelta(days=7)
     end_date = today_date + pd.Timedelta(days=14)
-    haz_filtered = haz_sorted[(haz_sorted["date"] >= start_date) & (haz_sorted["date"] <= end_date)]
     view_label = "Last 7 days + Next 14 days"
 else:
     # Last 7 days + next 7 days (default)
     start_date = today_date - pd.Timedelta(days=7)
     end_date = today_date + pd.Timedelta(days=7)
-    haz_filtered = haz_sorted[(haz_sorted["date"] >= start_date) & (haz_sorted["date"] <= end_date)]
     view_label = "Last 7 days + Next 7 days"
+
+# Filter by date (ensure date column is date type for comparison)
+haz_filtered = haz_sorted[
+    (pd.to_datetime(haz_sorted["date"]).dt.date >= start_date) & 
+    (pd.to_datetime(haz_sorted["date"]).dt.date <= end_date)
+].copy()
 
 if not haz_filtered.empty:
     st.caption(view_label)
     
-    with st.expander("View forecast charts", expanded=True):
-        # --- Risk bar chart (sorted by date, consistent discrete color mapping) ---
-        f1 = go.Figure()
-        f1.add_trace(go.Bar(
-            x=haz_filtered["date"],
-            y=haz_filtered["total"],
-            name="Risk (0–100)",
-            marker_color=[color_for_risk(x) for x in haz_filtered["total"]],
-        ))
-        
-        # Add vertical line for today
+    # Always show charts (removed expander)
+    # --- Risk bar chart (sorted by date, consistent discrete color mapping) ---
+    f1 = go.Figure()
+    f1.add_trace(go.Bar(
+        x=haz_filtered["date"],
+        y=haz_filtered["total"],
+        name="Risk (0–100)",
+        marker_color=[color_for_risk(x) for x in haz_filtered["total"]],
+    ))
+    
+    # Add vertical line for today (convert date to string for vline)
+    # Check if today is in the filtered dates
+    haz_dates = pd.to_datetime(haz_filtered["date"]).dt.date
+    if (haz_dates == today_date).any():
         f1.add_vline(
-            x=today_date,
+            x=str(today_date),
             line_dash="dash",
             line_color="red",
             annotation_text="Today",
             annotation_position="top"
         )
-        
-        f1.update_layout(
-            height=260,
-            margin=dict(l=30, r=30, t=30, b=30),
-            yaxis_title="Risk (0–100)",
-            xaxis_title="Date",
-        )
+    
+    f1.update_layout(
+        height=260,
+        margin=dict(l=30, r=30, t=30, b=30),
+        yaxis_title="Risk (0–100)",
+        xaxis_title="Date",
+    )
 
-        f2 = go.Figure()
-        f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["temp_c"], name="T max (\u00B0C)", mode='lines+markers'))
-        f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["rh_pct"], name="RH min (%)", mode='lines+markers'))
-        f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["wind_kmh"], name="Wind max (km/h)", mode='lines+markers'))
-        f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["days_no_rain"], name="Days without rain", mode='lines+markers'))
-        
-        # Add vertical line for today
+    f2 = go.Figure()
+    f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["temp_c"], name="T max (\u00B0C)", mode='lines+markers'))
+    f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["rh_pct"], name="RH min (%)", mode='lines+markers'))
+    f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["wind_kmh"], name="Wind max (km/h)", mode='lines+markers'))
+    f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["days_no_rain"], name="Days without rain", mode='lines+markers'))
+    
+    # Add vertical line for today (convert date to string for vline)
+    # Check if today is in the filtered dates
+    haz_dates = pd.to_datetime(haz_filtered["date"]).dt.date
+    if (haz_dates == today_date).any():
         f2.add_vline(
-            x=today_date,
+            x=str(today_date),
             line_dash="dash",
             line_color="red",
             annotation_text="Today",
             annotation_position="top"
         )
-        
-        f2.update_layout(height=260, margin=dict(l=30, r=30, t=30, b=30), yaxis_title="Value", xaxis_title="Date")
+    
+    f2.update_layout(height=260, margin=dict(l=30, r=30, t=30, b=30), yaxis_title="Value", xaxis_title="Date")
 
-        st.plotly_chart(f1, width='stretch')
-        st.plotly_chart(f2, width='stretch')
+    st.plotly_chart(f1, width='stretch')
+    st.plotly_chart(f2, width='stretch')
 else:
     st.info("No forecast data available for the selected range.")
 
