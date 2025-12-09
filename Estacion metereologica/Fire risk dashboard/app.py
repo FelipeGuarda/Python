@@ -650,13 +650,13 @@ today_date = TODAY.date()
 
 if st.session_state.forecast_expanded:
     # Last 7 days + next 14 days
-    start_date = today_date - pd.Timedelta(days=7)
-    end_date = today_date + pd.Timedelta(days=14)
+    start_date = today_date - dt.timedelta(days=7)
+    end_date = today_date + dt.timedelta(days=14)
     view_label = "Last 7 days + Next 14 days"
 else:
     # Last 7 days + next 7 days (default)
-    start_date = today_date - pd.Timedelta(days=7)
-    end_date = today_date + pd.Timedelta(days=7)
+    start_date = today_date - dt.timedelta(days=7)
+    end_date = today_date + dt.timedelta(days=7)
     view_label = "Last 7 days + Next 7 days"
 
 # Filter by date (ensure date column is date type for comparison)
@@ -756,7 +756,7 @@ lon_steps = np.arange(araucania_lon_min, araucania_lon_max + step_deg, step_deg)
 points = [(float(la), float(lo)) for la in lat_steps for lo in lon_steps]
 
 @st.cache_data(ttl=1800)
-def grid_forecast(points, target_date: dt.date) -> pd.DataFrame:
+def grid_forecast(points, target_date: dt.date, days_ahead: int) -> pd.DataFrame:
     rows = []
     for la, lo in points:
         try:
@@ -815,7 +815,7 @@ layers = []
 # Add risk grid overlay if toggled
 if show_overlay:
     with st.spinner("Computing regional risk grid..."):
-        grid_df = grid_forecast(points, st.session_state.selected_date)
+        grid_df = grid_forecast(points, st.session_state.selected_date, days_ahead)
 
     if grid_df.empty:
         st.info("No grid data for the selected day.")
