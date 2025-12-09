@@ -670,20 +670,25 @@ if not haz_filtered.empty:
     
     # Always show charts (removed expander)
     # --- Risk bar chart (sorted by date, consistent discrete color mapping) ---
+    # Convert dates to datetime for proper x-axis handling
+    haz_dates_dt = pd.to_datetime(haz_filtered["date"])
+    
     f1 = go.Figure()
     f1.add_trace(go.Bar(
-        x=haz_filtered["date"],
+        x=haz_dates_dt,
         y=haz_filtered["total"],
         name="Risk (0–100)",
         marker_color=[color_for_risk(x) for x in haz_filtered["total"]],
     ))
     
-    # Add vertical line for today (convert date to string for vline)
+    # Add vertical line for today
     # Check if today is in the filtered dates
-    haz_dates = pd.to_datetime(haz_filtered["date"]).dt.date
+    haz_dates = haz_dates_dt.dt.date
     if (haz_dates == today_date).any():
+        # Convert today_date to datetime for vline
+        today_datetime = pd.Timestamp(today_date)
         f1.add_vline(
-            x=str(today_date),
+            x=today_datetime,
             line_dash="dash",
             line_color="red",
             annotation_text="Today",
@@ -698,17 +703,18 @@ if not haz_filtered.empty:
     )
 
     f2 = go.Figure()
-    f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["temp_c"], name="T max (\u00B0C)", mode='lines+markers'))
-    f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["rh_pct"], name="RH min (%)", mode='lines+markers'))
-    f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["wind_kmh"], name="Wind max (km/h)", mode='lines+markers'))
-    f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["days_no_rain"], name="Days without rain", mode='lines+markers'))
+    f2.add_trace(go.Scatter(x=haz_dates_dt, y=haz_filtered["temp_c"], name="T max (\u00B0C)", mode='lines+markers'))
+    f2.add_trace(go.Scatter(x=haz_dates_dt, y=haz_filtered["rh_pct"], name="RH min (%)", mode='lines+markers'))
+    f2.add_trace(go.Scatter(x=haz_dates_dt, y=haz_filtered["wind_kmh"], name="Wind max (km/h)", mode='lines+markers'))
+    f2.add_trace(go.Scatter(x=haz_dates_dt, y=haz_filtered["days_no_rain"], name="Days without rain", mode='lines+markers'))
     
-    # Add vertical line for today (convert date to string for vline)
+    # Add vertical line for today
     # Check if today is in the filtered dates
-    haz_dates = pd.to_datetime(haz_filtered["date"]).dt.date
     if (haz_dates == today_date).any():
+        # Convert today_date to datetime for vline
+        today_datetime = pd.Timestamp(today_date)
         f2.add_vline(
-            x=str(today_date),
+            x=today_datetime,
             line_dash="dash",
             line_color="red",
             annotation_text="Today",
