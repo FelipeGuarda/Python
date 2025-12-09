@@ -685,14 +685,30 @@ if not haz_filtered.empty:
     # Check if today is in the filtered dates
     haz_dates = haz_dates_dt.dt.date
     if (haz_dates == today_date).any():
-        # Convert today_date to datetime for vline
+        # Use add_shape instead of add_vline to avoid Timestamp arithmetic issues
         today_datetime = pd.Timestamp(today_date)
-        f1.add_vline(
+        f1.add_shape(
+            type="line",
+            x0=today_datetime,
+            x1=today_datetime,
+            y0=0,
+            y1=1,
+            yref="paper",
+            line=dict(color="red", width=2, dash="dash"),
+        )
+        # Add annotation for "Today" label
+        f1.add_annotation(
             x=today_datetime,
-            line_dash="dash",
-            line_color="red",
-            annotation_text="Today",
-            annotation_position="top"
+            y=1,
+            yref="paper",
+            text="Today",
+            showarrow=False,
+            font=dict(color="red"),
+            bgcolor="white",
+            bordercolor="red",
+            borderwidth=1,
+            xanchor="center",
+            yanchor="bottom"
         )
     
     f1.update_layout(
@@ -711,14 +727,30 @@ if not haz_filtered.empty:
     # Add vertical line for today
     # Check if today is in the filtered dates
     if (haz_dates == today_date).any():
-        # Convert today_date to datetime for vline
+        # Use add_shape instead of add_vline to avoid Timestamp arithmetic issues
         today_datetime = pd.Timestamp(today_date)
-        f2.add_vline(
+        f2.add_shape(
+            type="line",
+            x0=today_datetime,
+            x1=today_datetime,
+            y0=0,
+            y1=1,
+            yref="paper",
+            line=dict(color="red", width=2, dash="dash"),
+        )
+        # Add annotation for "Today" label
+        f2.add_annotation(
             x=today_datetime,
-            line_dash="dash",
-            line_color="red",
-            annotation_text="Today",
-            annotation_position="top"
+            y=1,
+            yref="paper",
+            text="Today",
+            showarrow=False,
+            font=dict(color="red"),
+            bgcolor="white",
+            bordercolor="red",
+            borderwidth=1,
+            xanchor="center",
+            yanchor="bottom"
         )
     
     f2.update_layout(height=260, margin=dict(l=30, r=30, t=30, b=30), yaxis_title="Value", xaxis_title="Date")
