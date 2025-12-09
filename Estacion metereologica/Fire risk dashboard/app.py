@@ -303,18 +303,13 @@ st.sidebar.caption(f"Center: lat={lat:.5f}, lon={lon:.5f} (from UTM 19S)")
 
 # Use st.* inside the context, not st.sidebar.*
 with st.sidebar:
-     st.subheader("Forecast horizon")
-     days_ahead = st.slider("Days ahead", min_value=3, max_value=14, value=7)
-
-     st.subheader("Map sampling radius (km)")
-     radius_km = st.slider(
-        "Radius around point (km)",   # label shown in sidebar
-        min_value=5,                  # minimum allowed value
-        max_value=75,                 # maximum allowed value (was 50)
-        value=33,                     # default selected value (was 20)
-        step=5                        # each increment/decrement
-    )
-     grid_step_km = st.slider("Grid step (km)", min_value=2, max_value=10, value=5, step=1)
+     st.subheader("Data Fetching")
+     days_ahead = st.slider("Forecast days to fetch", min_value=7, max_value=14, value=14, 
+                           help="Number of forecast days to retrieve from API. Higher values provide more forecast data but may take longer to load.")
+     
+     st.subheader("Map Settings")
+     st.caption("Map covers entire Araucania region")
+     st.info("💡 Toggle 'Show risk grid overlay' on the map to view risk hexagons and wind currents")
 
 # ---------------------------
 # Fetch & prepare
@@ -335,13 +330,11 @@ days_nr_map = dict(zip(_daily["date"], _daily["days_no_rain"]))
 
 haz = best_hour_by_day(hourly, days_nr_map)
 
-# Today-focused default selection
+# Initialize session state for date synchronization
 dates_sorted = haz["date"].tolist()
-sel_idx = int(np.clip(np.searchsorted(dates_sorted, TODAY.date()), 0, len(dates_sorted)-1))
-
-# Today-focused default selection
-dates_sorted = haz["date"].tolist()
-sel_idx = int(np.clip(np.searchsorted(dates_sorted, TODAY.date()), 0, len(dates_sorted)-1))
+if "selected_date" not in st.session_state:
+    today_idx = int(np.clip(np.searchsorted(dates_sorted, TODAY.date()), 0, len(dates_sorted)-1))
+    st.session_state.selected_date = dates_sorted[today_idx] if today_idx < len(dates_sorted) else dates_sorted[-1]
 
 st.title("🔥 Fire-Risk Dashboard — Bosque Pehuén")
 st.caption(f"Auto-updated • Source: Open-Meteo • Timezone: {TZ}")
@@ -353,8 +346,64 @@ colA, colB = st.columns([2, 1], gap="large")
 
 with colA:
     st.subheader("Daily Polar — Variables & Risk")
-day_idx = st.slider("Select day", min_value=0, max_value=len(dates_sorted)-1, value=sel_idx, format="%d")
-sel_date = dates_sorted[day_idx]
+    
+    # Date selector with quick buttons
+    col_date1, col_date2, col_date3, col_date4, col_date5 = st.columns(5)
+    
+    with col_date1:
+        if st.button("Today", use_container_width=True):
+            today_idx = int(np.clip(np.searchsorted(dates_sorted, TODAY.date()), 0, len(dates_sorted)-1))
+            if today_idx < len(dates_sorted):
+                st.session_state.selected_date = dates_sorted[today_idx]
+    
+    with col_date2:
+        if st.button("Yesterday", use_container_width=True):
+            yesterday = (TODAY - pd.Timedelta(days=1)).date()
+            yest_idx = int(np.clip(np.searchsorted(dates_sorted, yesterday), 0, len(dates_sorted)-1))
+            if yest_idx < len(dates_sorted) and dates_sorted[yest_idx] == yesterday:
+                st.session_state.selected_date = dates_sorted[yest_idx]
+    
+    with col_date3:
+        if st.button("Last Week", use_container_width=True):
+            last_week = (TODAY - pd.Timedelta(days=7)).date()
+            lw_idx = int(np.clip(np.searchsorted(dates_sorted, last_week), 0, len(dates_sorted)-1))
+            if lw_idx < len(dates_sorted):
+                st.session_state.selected_date = dates_sorted[lw_idx]
+    
+    with col_date4:
+        if st.button("Next 7 Days", use_container_width=True):
+            next_week = (TODAY + pd.Timedelta(days=7)).date()
+            nw_idx = int(np.clip(np.searchsorted(dates_sorted, next_week), 0, len(dates_sorted)-1))
+            if nw_idx < len(dates_sorted):
+                st.session_state.selected_date = dates_sorted[nw_idx]
+    
+    with col_date5:
+        pass  # Spacer
+    
+    # Date picker
+    min_date = dates_sorted[0] if dates_sorted else TODAY.date()
+    max_date = dates_sorted[-1] if dates_sorted else TODAY.date()
+    
+    selected_date_input = st.date_input(
+        "Select date",
+        value=st.session_state.selected_date if st.session_state.selected_date in dates_sorted else dates_sorted[0] if dates_sorted else TODAY.date(),
+        min_value=min_date,
+        max_value=max_date,
+        key="date_picker"
+    )
+    
+    # Update session state if date picker changed
+    if selected_date_input in dates_sorted:
+        st.session_state.selected_date = selected_date_input
+        sel_date = selected_date_input
+    else:
+        # Find closest date
+        closest_idx = int(np.clip(np.searchsorted(dates_sorted, selected_date_input), 0, len(dates_sorted)-1))
+        if closest_idx < len(dates_sorted):
+            st.session_state.selected_date = dates_sorted[closest_idx]
+            sel_date = dates_sorted[closest_idx]
+        else:
+            sel_date = st.session_state.selected_date
 
 row = haz.loc[haz["date"] == sel_date].iloc[0]
 # Polar axes: Temperature, Humidity, Wind, Days since rain
@@ -406,6 +455,12 @@ fig.update_layout(
 
 st.plotly_chart(fig, width='stretch')
 
+# Show forecast/historical indicator
+is_forecast = sel_date > TODAY.date()
+indicator_text = "🔮 Forecast" if is_forecast else "📊 Historical"
+indicator_color = "#2196F3" if is_forecast else "#757575"
+st.markdown(f"<div style='text-align:center;padding:8px;background:{indicator_color}20;border-radius:6px;color:{indicator_color};font-weight:bold;'>{indicator_text}</div>", unsafe_allow_html=True)
+
 st.caption(f"Most dangerous hour for {sel_date}: {pd.to_datetime(row['timestamp']).strftime('%H:%M')} (local)")
 
 with colB:
@@ -414,6 +469,116 @@ with colB:
     st.subheader("Risk index")
     st.metric(label=str(sel_date), value=f"{total:0.0f} / 100")
     st.markdown(f"<div style='height:12px;width:100%;background:{col};border-radius:6px;'></div>", unsafe_allow_html=True)
+    
+    # Wind direction compass
+    st.write("\n")
+    st.subheader("Wind direction")
+    
+    # Get wind direction for selected date (from hourly data)
+    hourly_sel = hourly[hourly["date"] == sel_date]
+    if not hourly_sel.empty:
+        # Get wind direction from the same hour window (14-16)
+        hourly_sel_copy = hourly_sel.copy()
+        hourly_sel_copy["hour"] = pd.to_datetime(hourly_sel_copy["timestamp"]).dt.hour
+        wind_window = hourly_sel_copy[(hourly_sel_copy["hour"] >= 14) & (hourly_sel_copy["hour"] <= 16)]
+        
+        if not wind_window.empty:
+            avg_wind_dir = float(wind_window["wind_dir"].mean())
+            avg_wind_speed = float(wind_window["wind_kmh"].mean())
+            
+            # Create compass visualization using polar plot
+            compass_fig = go.Figure()
+            
+            # Draw compass circle (outer ring)
+            angles_circle = np.linspace(0, 360, 100)
+            compass_fig.add_trace(go.Scatterpolar(
+                r=[1]*100,
+                theta=angles_circle,
+                mode='lines',
+                line=dict(color='#333', width=2),
+                showlegend=False,
+                hoverinfo='skip',
+                fill='none'
+            ))
+            
+            # Draw inner grid circles
+            for r_val in [0.25, 0.5, 0.75]:
+                compass_fig.add_trace(go.Scatterpolar(
+                    r=[r_val]*100,
+                    theta=angles_circle,
+                    mode='lines',
+                    line=dict(color='#ddd', width=1, dash='dot'),
+                    showlegend=False,
+                    hoverinfo='skip',
+                    fill='none'
+                ))
+            
+            # Draw cardinal direction markers
+            for direction, angle in [("N", 0), ("E", 90), ("S", 180), ("W", 270)]:
+                # Outer marker
+                compass_fig.add_trace(go.Scatterpolar(
+                    r=[0.9, 1.0],
+                    theta=[angle, angle],
+                    mode='lines',
+                    line=dict(color='#666', width=2),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ))
+                # Label (using text annotation on regular plot)
+                compass_fig.add_annotation(
+                    text=direction,
+                    x=0.5 + 0.45 * np.cos(np.radians(angle)),
+                    y=0.5 + 0.45 * np.sin(np.radians(angle)),
+                    showarrow=False,
+                    font=dict(size=16, color='#333', family="Arial Black"),
+                    xref="paper",
+                    yref="paper"
+                )
+            
+            # Draw wind arrow (wind direction is where wind comes FROM, so arrow points opposite)
+            # For display, we show where wind is going (opposite of wind_dir)
+            arrow_angle_deg = (avg_wind_dir + 180) % 360  # Reverse direction
+            arrow_length = 0.7
+            
+            compass_fig.add_trace(go.Scatterpolar(
+                r=[0.1, arrow_length],
+                theta=[arrow_angle_deg, arrow_angle_deg],
+                mode='lines+markers',
+                line=dict(color='#e53935', width=5),
+                marker=dict(size=[0, 15], color=['#e53935', '#e53935'], symbol=['circle', 'arrow-up']),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+            
+            compass_fig.update_polars(
+                radialaxis=dict(range=[0, 1], showticklabels=False, showgrid=False, showline=False),
+                angularaxis=dict(
+                    showticklabels=True,
+                    tickmode='array',
+                    tickvals=[0, 90, 180, 270],
+                    ticktext=['N', 'E', 'S', 'W'],
+                    tickfont=dict(size=12),
+                    showgrid=True,
+                    gridcolor='#ddd',
+                    gridwidth=1,
+                    rotation=90,
+                    direction='counterclockwise'
+                )
+            )
+            
+            compass_fig.update_layout(
+                height=200,
+                margin=dict(l=20, r=20, t=20, b=20),
+                polar_bgcolor="#fafafa",
+                showlegend=False,
+            )
+            
+            st.plotly_chart(compass_fig, use_container_width=True, config={'displayModeBar': False})
+            st.caption(f"{avg_wind_dir:.0f}° ({avg_wind_speed:.1f} km/h)")
+        else:
+            st.info("Wind data not available for this date")
+    else:
+        st.info("No hourly data for this date")
 
     st.write("\n")
     st.subheader("Daily values (scored)")
@@ -428,44 +593,98 @@ st.dataframe(tbl, width='stretch', hide_index=True)
 # ---------------------------
 # Forecast tab: multi-day outlook
 # ---------------------------
-with st.expander("Forecast — next days"):
-    # --- Risk bar chart (sorted by date, consistent discrete color mapping) ---
-    haz_sorted = haz.sort_values("date")
+st.subheader("Forecast — Risk Evolution")
 
-    f1 = go.Figure()
-    f1.add_trace(go.Bar(
-        x=haz_sorted["date"],
-        y=haz_sorted["total"],
-        name="Risk (0–100)",
-        marker_color=[color_for_risk(x) for x in haz_sorted["total"]],
-    ))
-    f1.update_layout(
-        height=260,
-        margin=dict(l=30, r=30, t=30, b=30),
-        yaxis_title="Risk (0–100)",
-    )
+# Initialize forecast view state
+if "forecast_expanded" not in st.session_state:
+    st.session_state.forecast_expanded = False
 
-    f2 = go.Figure()
-    f2.add_trace(go.Scatter(x=haz["date"], y=haz["temp_c"], name="T max (\u00B0C)"))
-    f2.add_trace(go.Scatter(x=haz["date"], y=haz["rh_pct"], name="RH min (%)"))
-    f2.add_trace(go.Scatter(x=haz["date"], y=haz["wind_kmh"], name="Wind max (km/h)"))
-    f2.add_trace(go.Scatter(x=haz_sorted["date"], y=haz_sorted["days_no_rain"], name="Days without rain"))
-    f2.update_layout(height=260, margin=dict(l=30, r=30, t=30, b=30), yaxis_title="Value")
+# Forecast view toggle
+col_fc1, col_fc2 = st.columns([1, 10])
+with col_fc1:
+    if st.button("Expand to 2 weeks" if not st.session_state.forecast_expanded else "Show 7+7 days"):
+        st.session_state.forecast_expanded = not st.session_state.forecast_expanded
 
-    st.plotly_chart(f1, width='stretch')
-    st.plotly_chart(f2, width='stretch')
+# Filter data based on view
+haz_sorted = haz.sort_values("date")
+today_date = TODAY.date()
+
+if st.session_state.forecast_expanded:
+    # Last 7 days + next 14 days
+    start_date = today_date - pd.Timedelta(days=7)
+    end_date = today_date + pd.Timedelta(days=14)
+    haz_filtered = haz_sorted[(haz_sorted["date"] >= start_date) & (haz_sorted["date"] <= end_date)]
+    view_label = "Last 7 days + Next 14 days"
+else:
+    # Last 7 days + next 7 days (default)
+    start_date = today_date - pd.Timedelta(days=7)
+    end_date = today_date + pd.Timedelta(days=7)
+    haz_filtered = haz_sorted[(haz_sorted["date"] >= start_date) & (haz_sorted["date"] <= end_date)]
+    view_label = "Last 7 days + Next 7 days"
+
+if not haz_filtered.empty:
+    st.caption(view_label)
+    
+    with st.expander("View forecast charts", expanded=True):
+        # --- Risk bar chart (sorted by date, consistent discrete color mapping) ---
+        f1 = go.Figure()
+        f1.add_trace(go.Bar(
+            x=haz_filtered["date"],
+            y=haz_filtered["total"],
+            name="Risk (0–100)",
+            marker_color=[color_for_risk(x) for x in haz_filtered["total"]],
+        ))
+        
+        # Add vertical line for today
+        f1.add_vline(
+            x=today_date,
+            line_dash="dash",
+            line_color="red",
+            annotation_text="Today",
+            annotation_position="top"
+        )
+        
+        f1.update_layout(
+            height=260,
+            margin=dict(l=30, r=30, t=30, b=30),
+            yaxis_title="Risk (0–100)",
+            xaxis_title="Date",
+        )
+
+        f2 = go.Figure()
+        f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["temp_c"], name="T max (\u00B0C)", mode='lines+markers'))
+        f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["rh_pct"], name="RH min (%)", mode='lines+markers'))
+        f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["wind_kmh"], name="Wind max (km/h)", mode='lines+markers'))
+        f2.add_trace(go.Scatter(x=haz_filtered["date"], y=haz_filtered["days_no_rain"], name="Days without rain", mode='lines+markers'))
+        
+        # Add vertical line for today
+        f2.add_vline(
+            x=today_date,
+            line_dash="dash",
+            line_color="red",
+            annotation_text="Today",
+            annotation_position="top"
+        )
+        
+        f2.update_layout(height=260, margin=dict(l=30, r=30, t=30, b=30), yaxis_title="Value", xaxis_title="Date")
+
+        st.plotly_chart(f1, width='stretch')
+        st.plotly_chart(f2, width='stretch')
+else:
+    st.info("No forecast data available for the selected range.")
 
 # ---------------------------
 # Regional map: compute risk on a coarse grid for the selected day
 # ---------------------------
-# ---------------------------
-# Regional map: optional "risk grid" overlay (hexagonal)
-# ---------------------------
 st.subheader("Regional risk map")
+st.caption(f"Showing risk for: {st.session_state.selected_date}")
 
-show_overlay = st.toggle("Show risk grid overlay", value=False)
+# Toggle for overlay (map always visible)
+col_map1, col_map2 = st.columns([1, 10])
+with col_map1:
+    show_overlay = st.toggle("Show risk grid overlay", value=False)
 
-# Build coordinate grid
+# Build coordinate grid for Araucania region (~38-40°S, 71-73°W)
 def km_to_deg_lat(km: float) -> float:
     return km / 110.574
 
@@ -473,19 +692,17 @@ def km_to_deg_lon(km: float, at_lat: float) -> float:
     import math
     return km / (111.320 * math.cos(math.radians(abs(at_lat))))
 
+# Araucania region bounds
+araucania_lat_min = -40.0
+araucania_lat_max = -38.0
+araucania_lon_min = -73.0
+araucania_lon_max = -71.0
+
 # Use 0.1 degree steps to match Open-Meteo granularity (~11 km per cell)
-# In coordinate grid code — patch like this (as before):
 step_deg = 0.1
-span_deg_lat = km_to_deg_lat(radius_km)
-span_deg_lon = km_to_deg_lon(radius_km, lat)
 
-lat_min = lat - span_deg_lat
-lat_max = lat + span_deg_lat
-lon_min = lon - span_deg_lon
-lon_max = lon + span_deg_lon
-
-lat_steps = np.arange(lat_min, lat_max + step_deg, step_deg)
-lon_steps = np.arange(lon_min, lon_max + step_deg, step_deg)
+lat_steps = np.arange(araucania_lat_min, araucania_lat_max + step_deg, step_deg)
+lon_steps = np.arange(araucania_lon_min, araucania_lon_max + step_deg, step_deg)
 
 points = [(float(la), float(lo)) for la in lat_steps for lo in lon_steps]
 
@@ -523,6 +740,9 @@ def grid_forecast(points, target_date: dt.date) -> pd.DataFrame:
             h2 = pd.concat([h_day.reset_index(drop=True), comp_df], axis=1)
             best = h2.loc[h2["total"].idxmax()]
 
+            # Get wind direction from best row (h2 includes all columns from h_day including wind_dir)
+            wind_dir_val = float(best.get("wind_dir", 0.0)) if "wind_dir" in best.index else 0.0
+            
             rows.append({
                 "lat": float(la),
                 "lon": float(lo),
@@ -531,15 +751,22 @@ def grid_forecast(points, target_date: dt.date) -> pd.DataFrame:
                 "temp_c": float(best["temp_c"]),
                 "rh_pct": float(best["rh_pct"]),
                 "wind_kmh": float(best["wind_kmh"]),
+                "wind_dir": wind_dir_val,
                 "days_no_rain": days_nr,
             })
         except Exception:
             continue
     return pd.DataFrame(rows)
 
+# Always show base map, overlay is optional
+layers = []
+
+# Base map is always visible (pydeck shows base map by default)
+
+# Add risk grid overlay if toggled
 if show_overlay:
     with st.spinner("Computing regional risk grid..."):
-        grid_df = grid_forecast(points, sel_date)
+        grid_df = grid_forecast(points, st.session_state.selected_date)
 
     if grid_df.empty:
         st.info("No grid data for the selected day.")
@@ -554,40 +781,122 @@ if show_overlay:
 
         grid_df["color"] = grid_df["color_hex"].apply(hex_to_rgb_list)
 
-        # ---- DEBUG: Show risk and color mappings in Streamlit ----
-        st.write("Grid risk and assigned colors (first 10):")
-        st.write(grid_df[["lat", "lon", "temp_c", "rh_pct", "wind_kmh", "days_no_rain", "risk", "color_hex"]].head(20))
-
-        layer = pdk.Layer(
+        # Risk hexagon layer
+        risk_layer = pdk.Layer(
             "HexagonLayer",
             data=grid_df,
             get_position="[lon, lat]",
             get_fill_color="color",
             radius=5500,
-            opacity=0.15,
+            opacity=0.25,
             extruded=False,
             pickable=True,
         )
+        layers.append(risk_layer)
+        
+        # Wind currents layer (arrows showing wind direction)
+        # Sample every 3rd point to avoid overcrowding
+        wind_df = grid_df.iloc[::3].copy()
+        
+        # Create wind vectors (wind direction is where wind comes FROM)
+        # For visualization, we'll show arrows pointing in the direction wind is going
+        wind_vectors = []
+        for idx, row in wind_df.iterrows():
+            wind_dir_rad = np.radians(row["wind_dir"] + 180)  # Reverse direction
+            wind_speed = row["wind_kmh"]
+            # Scale arrow length based on wind speed (max ~50 km/h = 0.05 degrees)
+            arrow_length_deg = min(wind_speed / 1000.0, 0.05)
+            
+            # Calculate end point
+            end_lat = row["lat"] + arrow_length_deg * np.cos(wind_dir_rad)
+            end_lon = row["lon"] + arrow_length_deg * np.sin(wind_dir_rad) / np.cos(np.radians(row["lat"]))
+            
+            wind_vectors.append({
+                "start_lat": row["lat"],
+                "start_lon": row["lon"],
+                "end_lat": end_lat,
+                "end_lon": end_lon,
+                "wind_speed": wind_speed,
+                "wind_dir": row["wind_dir"]
+            })
+        
+        if wind_vectors:
+            wind_df_vectors = pd.DataFrame(wind_vectors)
+            
+            # Create line layer for wind vectors
+            wind_layer = pdk.Layer(
+                "LineLayer",
+                data=wind_df_vectors,
+                get_source_position="[start_lon, start_lat]",
+                get_target_position="[end_lon, end_lat]",
+                get_color=[255, 100, 100, 180],  # Red with transparency
+                get_width=2,
+                pickable=True,
+            )
+            layers.append(wind_layer)
 
-        view_state = pdk.ViewState(latitude=lat, longitude=lon, zoom=9)
+# Bosque Pehuen highlight (always visible)
+# Create circle around Bosque Pehuen
+circle_points = []
+num_points = 64
+for i in range(num_points + 1):
+    angle = 2 * np.pi * i / num_points
+    # Circle radius ~5km
+    radius_deg = 5.0 / 111.0  # ~5km in degrees
+    circle_lat = lat + radius_deg * np.cos(angle)
+    circle_lon = lon + radius_deg * np.sin(angle) / np.cos(np.radians(lat))
+    circle_points.append([circle_lon, circle_lat])
 
+# Close the circle
+circle_points.append(circle_points[0])
 
-        tooltip = {
-            "html": (
-                "<b>Risk:</b> {risk}<br>"
-                "<b>T:</b> {temp_c}°C<br>"
-                "<b>RH:</b> {rh_pct}%<br>"
-                "<b>Wind:</b> {wind_kmh} km/h<br>"
-                "<b>Days no rain:</b> {days_no_rain}"
-            ),
-            "style": {"backgroundColor": "#222", "color": "white"},
-        }
+bosque_highlight = pdk.Layer(
+    "PolygonLayer",
+    data=[{"coordinates": [circle_points]}],
+    get_polygon="coordinates",
+    get_fill_color=[255, 215, 0, 60],  # Gold with transparency
+    get_line_color=[255, 140, 0, 255],  # Orange border
+    get_line_width=3,
+    pickable=False,
+)
+layers.append(bosque_highlight)
 
+# Marker for Bosque Pehuen center
+bosque_marker = pdk.Layer(
+    "ScatterplotLayer",
+    data=[{"lon": lon, "lat": lat, "name": "Bosque Pehuén"}],
+    get_position="[lon, lat]",
+    get_color=[255, 140, 0, 255],  # Orange
+    get_radius=200,
+    pickable=True,
+)
+layers.append(bosque_marker)
 
-        st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip=tooltip))
+# View state centered on Araucania region
+center_lat = (araucania_lat_min + araucania_lat_max) / 2
+center_lon = (araucania_lon_min + araucania_lon_max) / 2
 
-else:
-    st.caption("Overlay disabled — base map only (toggle above to view regional risk grid).")
+view_state = pdk.ViewState(
+    latitude=center_lat,
+    longitude=center_lon,
+    zoom=8,
+    pitch=0,
+    bearing=0
+)
+
+tooltip = {
+    "html": (
+        "<b>Risk:</b> {risk}<br>"
+        "<b>T:</b> {temp_c}°C<br>"
+        "<b>RH:</b> {rh_pct}%<br>"
+        "<b>Wind:</b> {wind_kmh} km/h<br>"
+        "<b>Days no rain:</b> {days_no_rain}"
+    ),
+    "style": {"backgroundColor": "#222", "color": "white"},
+}
+
+# Render map (always visible, layers added conditionally)
+st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tooltip, map_style="mapbox://styles/mapbox/light-v9"))
 
 # ---------------------------
 # Data download
