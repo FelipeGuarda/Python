@@ -148,6 +148,7 @@ with colA:
         else:
             sel_date = st.session_state.selected_date
 
+    # Data preparation
     row = haz.loc[haz["date"] == sel_date].iloc[0]
 
     # Create and display polar plot
