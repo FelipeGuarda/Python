@@ -58,7 +58,7 @@ def create_polar_plot(row: pd.Series) -> go.Figure:
     return fig
 
 
-def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float) -> go.Figure:
+def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float, risk_color: str = "#e53935") -> go.Figure:
     """Create wind direction compass visualization."""
     compass_fig = go.Figure()
     
@@ -97,37 +97,32 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float) -> go.Figure
             hoverinfo='skip'
         ))
     
-    # Draw wind arrow - using standard meteorological convention (wind coming FROM)
+    # Draw wind direction wedge - using standard meteorological convention (wind coming FROM)
     # In Plotly polar plots, 0° is at top (North), angles increase counterclockwise
-    arrow_angle_deg = (avg_wind_dir + 180) % 360  # Wind direction (where wind is coming from)
-    arrow_length = 0.75
+    wind_dir_deg = (avg_wind_dir + 180) % 360  # Wind direction (where wind is coming from)
+    wedge_length = 0.75
+    wedge_width = 30  # Angular width of the wedge in degrees
     
-    # Main arrow line
+    # Calculate wedge boundaries
+    left_theta = (wind_dir_deg - wedge_width / 2) % 360
+    right_theta = (wind_dir_deg + wedge_width / 2) % 360
+    
+    # Create points for the wedge shape: center -> left edge -> outer arc -> right edge -> center
+    num_arc_points = 20
+    arc_thetas = np.linspace(left_theta, right_theta, num_arc_points)
+    
+    # Build wedge coordinates: start at center, go to left edge, follow arc, go to right edge, back to center
+    wedge_r = [0.0, wedge_length] + list([wedge_length] * num_arc_points) + [0.0]
+    wedge_theta = [wind_dir_deg, left_theta] + list(arc_thetas) + [wind_dir_deg]
+    
+    # Add wind direction wedge
     compass_fig.add_trace(go.Scatterpolar(
-        r=[0.05, arrow_length],
-        theta=[arrow_angle_deg, arrow_angle_deg],
-        mode='lines',
-        line=dict(color='#e53935', width=4),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
-    # Arrow head triangle
-    head_size = 0.1
-    tip_r = arrow_length + head_size
-    tip_theta = arrow_angle_deg
-    left_r = arrow_length - head_size * 0.3
-    left_theta = (arrow_angle_deg - 30) % 360
-    right_r = arrow_length - head_size * 0.3
-    right_theta = (arrow_angle_deg + 30) % 360
-    
-    compass_fig.add_trace(go.Scatterpolar(
-        r=[left_r, tip_r, right_r, left_r],
-        theta=[left_theta, tip_theta, right_theta, left_theta],
+        r=wedge_r,
+        theta=wedge_theta,
         mode='lines',
         fill='toself',
-        fillcolor='#e53935',
-        line=dict(color='#e53935', width=2),
+        fillcolor=risk_color,
+        line=dict(color=risk_color, width=2),
         showlegend=False,
         hoverinfo='skip'
     ))

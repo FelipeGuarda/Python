@@ -185,7 +185,7 @@ with colB:
             avg_wind_dir = float(wind_window["wind_dir"].mean())
             avg_wind_speed = float(wind_window["wind_kmh"].mean())
             
-            compass_fig = create_wind_compass(avg_wind_dir, avg_wind_speed)
+            compass_fig = create_wind_compass(avg_wind_dir, avg_wind_speed, risk_color=col)
             st.plotly_chart(compass_fig, use_container_width=True, config={'displayModeBar': False})
             st.caption(f"{avg_wind_dir:.0f}° ({avg_wind_speed:.1f} km/h)")
         else:
