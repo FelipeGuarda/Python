@@ -280,7 +280,7 @@ tooltip = {
     "style": {"backgroundColor": "#222", "color": "white"},
 }
 
-st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tooltip, map_style="mapbox://styles/mapbox/light-v9"))
+st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tooltip, map_style="carto-positron"))
 
 # ---------------------------
 # Data Download
