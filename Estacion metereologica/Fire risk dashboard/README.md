@@ -72,6 +72,63 @@ It automatically retrieves data from Open-Meteo, processes them, computes risk s
 - a multi-day risk forecast, and
 - a regional map displaying modelled risk gradients.
 
+3.1 Project structure and modular architecture
+
+The codebase is organized into a modular architecture that separates concerns for maintainability, testability, and clarity. The application was refactored from a monolithic `app.py` into specialized modules, each handling a distinct responsibility.
+
+**Module overview:**
+
+| Module | Purpose | Key Functions |
+|--------|---------|---------------|
+| `app.py` | Main Streamlit application entry point | Orchestrates UI, data flow, and user interactions |
+| `config.py` | Configuration constants and parameters | Scoring bins, risk color schemes, geographic bounds, timezone settings |
+| `data_fetcher.py` | External API data retrieval | `fetch_open_meteo()` — fetches hourly/daily weather data with caching |
+| `risk_calculator.py` | Fire risk computation logic | `risk_components()`, `compute_days_without_rain()`, `best_hour_by_day()`, `color_for_risk()` |
+| `visualizations.py` | Chart and plot generation | `create_polar_plot()`, `create_wind_compass()`, `create_forecast_charts()` |
+| `map_utils.py` | Regional map visualization utilities | `create_araucania_grid()`, `grid_forecast()`, `create_map_layers()`, `create_map_view_state()` |
+
+**Data flow:**
+
+1. **Data fetching** (`data_fetcher.py`): Retrieves raw meteorological data from Open-Meteo API
+2. **Risk calculation** (`risk_calculator.py`): Processes raw data to compute risk scores using configurable scoring bins
+3. **Visualization** (`visualizations.py`): Generates interactive Plotly charts from computed risk data
+4. **UI orchestration** (`app.py`): Coordinates all modules, manages Streamlit session state, and renders the dashboard
+
+**Module dependencies:**
+
+```
+app.py
+├── config.py (constants, scoring bins, geographic bounds)
+├── data_fetcher.py (API data retrieval)
+│   └── config.py (timezone)
+├── risk_calculator.py (risk computation)
+│   └── config.py (scoring bins, risk colors)
+├── visualizations.py (chart generation)
+│   └── risk_calculator.py (color_for_risk)
+└── map_utils.py (map utilities)
+    ├── data_fetcher.py (grid data fetching)
+    ├── risk_calculator.py (risk computation)
+    └── config.py (geographic bounds, grid step)
+```
+
+**Benefits of modular structure:**
+
+- **Separation of concerns**: Each module has a single, well-defined responsibility
+- **Reusability**: Functions can be imported and used independently
+- **Testability**: Individual modules can be tested in isolation
+- **Maintainability**: Changes to scoring logic, visualization, or data sources are localized
+- **Clarity**: Code organization makes the codebase easier to understand and navigate
+
+**For AI replication:**
+
+When replicating or extending this codebase, maintain the modular structure:
+- Keep configuration constants in `config.py`
+- Isolate API calls in `data_fetcher.py`
+- Centralize risk calculation logic in `risk_calculator.py`
+- Separate visualization code in `visualizations.py`
+- Keep map-specific utilities in `map_utils.py`
+- Use `app.py` only for Streamlit UI orchestration and data flow coordination
+
 
 4. Environment and reproducibility
 
