@@ -58,7 +58,7 @@ The dashboard is developed in Python 3.11 using open-source libraries:
 | ------------------ | ------------------------------------------- |
 | **Streamlit**      | User interface and app framework            |
 | **Plotly**         | Interactive polar and time-series charts    |
-| **Pydeck**         | Spatial visualization of regional risk maps |
+| **Pydeck**         | Spatial visualization of regional risk maps (uses Carto basemap) |
 | **Pandas / NumPy** | Data management and computation             |
 | **PyProj**         | Coordinate conversion (UTM → WGS 84)        |
 | **Requests**       | API calls to Open-Meteo                     |
@@ -69,8 +69,9 @@ It automatically retrieves data from Open-Meteo, processes them, computes risk s
 
 - a daily polar plot showing variable contributions,
 - a tabular summary of scores,
-- a multi-day risk forecast, and
-- a regional map displaying modelled risk gradients.
+- a multi-day risk forecast,
+- a wind compass with wind rose-style wedge visualization (color-coded by risk level), and
+- a regional map displaying modelled risk gradients with geographic context.
 
 3.1 Project structure and modular architecture
 
@@ -150,7 +151,26 @@ streamlit, plotly, pydeck, pandas, numpy, requests, and pyproj.
 - Open-Meteo (2022–2025). Weather Forecast API. Retrieved from https://open-meteo.com/en/docs
 - Gil-Romera, G., et al. (2023). “Environmental Forest Fire Danger Rating Systems and Indices Around the Globe: A Review.” Land, 12(1), 194. https://doi.org/10.3390/land12010194
 
-6. Future development
+6. Recent updates (2025)
+
+**Regional risk map improvements:**
+- Fixed base map display issue by switching from Mapbox (requires API key) to Carto basemap (`carto-positron` style)
+- The map now displays the geographic context of the Araucania region without requiring external API key configuration
+- All overlay layers (risk grid hexagons, wind vectors, Bosque Pehuén marker) continue to function as before
+
+**Wind compass visualization enhancements:**
+- Replaced arrow-based wind direction indicator with wind rose-style wedge visualization
+- The wedge extends from the center of the compass in the direction the wind is coming from, following standard meteorological convention
+- Wind compass wedge color now dynamically matches the fire risk index color for the selected day, providing visual consistency across the dashboard
+- The wedge uses a 30-degree angular width and extends to 75% of the compass radius for clear visibility
+
+**Technical details:**
+- Map basemap: Changed from `mapbox://styles/mapbox/light-v9` to `carto-positron` in `app.py`
+- Wind compass: Updated `create_wind_compass()` function in `visualizations.py` to accept `risk_color` parameter and render wedge instead of arrow
+- Color integration: Wind compass now receives the risk color calculated from `color_for_risk()` function, ensuring visual consistency with the risk index display
+
+
+7. Future development
 
 - Integration of local station data to compare observed vs. modelled conditions.
 - Addition of legend and spatial interpolation for the regional risk map.
