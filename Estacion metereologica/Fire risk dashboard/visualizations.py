@@ -98,40 +98,39 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float) -> go.Figure
         ))
     
     # Draw wind arrow - using standard meteorological convention (wind coming FROM)
-    arrow_angle_deg = avg_wind_dir
+    # In Plotly polar plots, 0° is at top (North), angles increase counterclockwise
+    arrow_angle_deg = (avg_wind_dir + 180) % 360  # Wind direction (where wind is coming from)
     arrow_length = 0.75
     
-    # Calculate arrow endpoints in paper coordinates
-    # Convert polar coordinates to paper coordinates (polar plot is centered at 0.5, 0.5)
-    arrow_rad = np.radians(arrow_angle_deg)
-    # In Plotly polar plots, 0° is at top (North), angles increase counterclockwise
-    # Paper coordinates: center is (0.5, 0.5), radius 0.5 for full plot
-    start_r = 0.05
-    end_r = arrow_length
+    # Main arrow line
+    compass_fig.add_trace(go.Scatterpolar(
+        r=[0.05, arrow_length],
+        theta=[arrow_angle_deg, arrow_angle_deg],
+        mode='lines',
+        line=dict(color='#e53935', width=4),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
     
-    # Calculate positions: sin for x (horizontal), cos for y (vertical, but Plotly y increases downward)
-    # Adjust for Plotly's coordinate system where 0° is at top
-    tip_x = 0.5 + 0.5 * end_r * np.sin(arrow_rad)
-    tip_y = 0.5 - 0.5 * end_r * np.cos(arrow_rad)  # Negative because y increases downward
-    base_x = 0.5 + 0.5 * start_r * np.sin(arrow_rad)
-    base_y = 0.5 - 0.5 * start_r * np.cos(arrow_rad)
+    # Arrow head triangle
+    head_size = 0.1
+    tip_r = arrow_length + head_size
+    tip_theta = arrow_angle_deg
+    left_r = arrow_length - head_size * 0.3
+    left_theta = (arrow_angle_deg - 30) % 360
+    right_r = arrow_length - head_size * 0.3
+    right_theta = (arrow_angle_deg + 30) % 360
     
-    # Add arrow using annotation (draws both line and arrowhead)
-    compass_fig.add_annotation(
-        ax=base_x,
-        ay=base_y,
-        x=tip_x,
-        y=tip_y,
-        axref="paper",
-        ayref="paper",
-        xref="paper",
-        yref="paper",
-        arrowhead=2,
-        arrowsize=1.5,
-        arrowwidth=4,
-        arrowcolor='#e53935',
-        showarrow=True
-    )
+    compass_fig.add_trace(go.Scatterpolar(
+        r=[left_r, tip_r, right_r, left_r],
+        theta=[left_theta, tip_theta, right_theta, left_theta],
+        mode='lines',
+        fill='toself',
+        fillcolor='#e53935',
+        line=dict(color='#e53935', width=2),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
     
     compass_fig.update_polars(
         radialaxis=dict(range=[0, 1], showticklabels=False, showgrid=False, showline=False),
