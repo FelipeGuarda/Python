@@ -86,7 +86,7 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float) -> go.Figure
             fill='none'
         ))
     
-    # Draw cardinal direction markers
+    # Draw cardinal direction markers (lines only, labels come from ticklabels)
     for direction, angle in [("N", 0), ("E", 90), ("S", 180), ("W", 270)]:
         compass_fig.add_trace(go.Scatterpolar(
             r=[0.9, 1.0],
@@ -96,49 +96,42 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float) -> go.Figure
             showlegend=False,
             hoverinfo='skip'
         ))
-        compass_fig.add_annotation(
-            text=direction,
-            x=0.5 + 0.45 * np.cos(np.radians(angle)),
-            y=0.5 + 0.45 * np.sin(np.radians(angle)),
-            showarrow=False,
-            font=dict(size=16, color='#333', family="Arial Black"),
-            xref="paper",
-            yref="paper"
-        )
     
-    # Draw wind arrow
-    arrow_angle_deg = (avg_wind_dir + 180) % 360
+    # Draw wind arrow - using standard meteorological convention (wind coming FROM)
+    arrow_angle_deg = avg_wind_dir
     arrow_length = 0.75
     
-    # Main arrow line
-    compass_fig.add_trace(go.Scatterpolar(
-        r=[0.05, arrow_length],
-        theta=[arrow_angle_deg, arrow_angle_deg],
-        mode='lines',
-        line=dict(color='#e53935', width=4),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
+    # Calculate arrow endpoints in paper coordinates
+    # Convert polar coordinates to paper coordinates (polar plot is centered at 0.5, 0.5)
+    arrow_rad = np.radians(arrow_angle_deg)
+    # In Plotly polar plots, 0° is at top (North), angles increase counterclockwise
+    # Paper coordinates: center is (0.5, 0.5), radius 0.5 for full plot
+    start_r = 0.05
+    end_r = arrow_length
     
-    # Arrow head triangle
-    head_size = 0.1
-    tip_r = arrow_length + head_size
-    tip_theta = arrow_angle_deg
-    left_r = arrow_length - head_size * 0.3
-    left_theta = (arrow_angle_deg - 30) % 360
-    right_r = arrow_length - head_size * 0.3
-    right_theta = (arrow_angle_deg + 30) % 360
+    # Calculate positions: sin for x (horizontal), cos for y (vertical, but Plotly y increases downward)
+    # Adjust for Plotly's coordinate system where 0° is at top
+    tip_x = 0.5 + 0.5 * end_r * np.sin(arrow_rad)
+    tip_y = 0.5 - 0.5 * end_r * np.cos(arrow_rad)  # Negative because y increases downward
+    base_x = 0.5 + 0.5 * start_r * np.sin(arrow_rad)
+    base_y = 0.5 - 0.5 * start_r * np.cos(arrow_rad)
     
-    compass_fig.add_trace(go.Scatterpolar(
-        r=[left_r, tip_r, right_r, left_r],
-        theta=[left_theta, tip_theta, right_theta, left_theta],
-        mode='lines',
-        fill='toself',
-        fillcolor='#e53935',
-        line=dict(color='#e53935', width=2),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
+    # Add arrow using annotation (draws both line and arrowhead)
+    compass_fig.add_annotation(
+        ax=base_x,
+        ay=base_y,
+        x=tip_x,
+        y=tip_y,
+        axref="paper",
+        ayref="paper",
+        xref="paper",
+        yref="paper",
+        arrowhead=2,
+        arrowsize=1.5,
+        arrowwidth=4,
+        arrowcolor='#e53935',
+        showarrow=True
+    )
     
     compass_fig.update_polars(
         radialaxis=dict(range=[0, 1], showticklabels=False, showgrid=False, showline=False),
@@ -147,7 +140,7 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float) -> go.Figure
             tickmode='array',
             tickvals=[0, 90, 180, 270],
             ticktext=['N', 'E', 'S', 'W'],
-            tickfont=dict(size=12),
+            tickfont=dict(size=12, weight='bold'),
             showgrid=True,
             gridcolor='#ddd',
             gridwidth=1,
@@ -158,9 +151,21 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float) -> go.Figure
     
     compass_fig.update_layout(
         height=200,
-        margin=dict(l=20, r=20, t=20, b=20),
+        margin=dict(l=20, r=20, t=20, b=40),
         polar_bgcolor="#fafafa",
         showlegend=False,
+    )
+    
+    # Add clarifying text below the plot
+    compass_fig.add_annotation(
+        text="Shows direction wind is coming from",
+        x=0.5,
+        y=-0.15,
+        xref="paper",
+        yref="paper",
+        showarrow=False,
+        font=dict(size=10, color='#666'),
+        xanchor="center"
     )
     
     return compass_fig
