@@ -148,19 +148,19 @@ with colA:
         else:
             sel_date = st.session_state.selected_date
 
-row = haz.loc[haz["date"] == sel_date].iloc[0]
+    row = haz.loc[haz["date"] == sel_date].iloc[0]
 
-# Create and display polar plot
-fig = create_polar_plot(row)
-st.plotly_chart(fig, width='stretch')
+    # Create and display polar plot
+    fig = create_polar_plot(row)
+    st.plotly_chart(fig, width='stretch')
 
-# Forecast/historical indicator
-is_forecast = sel_date > TODAY.date()
-indicator_text = "🔮 Forecast" if is_forecast else "📊 Historical"
-indicator_color = "#2196F3" if is_forecast else "#757575"
-st.markdown(f"<div style='text-align:center;padding:8px;background:{indicator_color}20;border-radius:6px;color:{indicator_color};font-weight:bold;'>{indicator_text}</div>", unsafe_allow_html=True)
+    # Forecast/historical indicator
+    is_forecast = sel_date > TODAY.date()
+    indicator_text = "🔮 Forecast" if is_forecast else "📊 Historical"
+    indicator_color = "#2196F3" if is_forecast else "#757575"
+    st.markdown(f"<div style='text-align:center;padding:8px;background:{indicator_color}20;border-radius:6px;color:{indicator_color};font-weight:bold;'>{indicator_text}</div>", unsafe_allow_html=True)
 
-st.caption(f"Most dangerous hour for {sel_date}: {pd.to_datetime(row['timestamp']).strftime('%H:%M')} (local)")
+    st.caption(f"Most dangerous hour for {sel_date}: {pd.to_datetime(row['timestamp']).strftime('%H:%M')} (local)")
 
 # Right column: Risk index and wind compass
 with colB:
