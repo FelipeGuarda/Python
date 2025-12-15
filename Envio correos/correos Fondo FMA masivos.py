@@ -109,7 +109,7 @@ for _, row in df.iterrows():
         server.login(sender_email, app_password)
         server.send_message(msg)
 
-    print(f"✅ Enviado a {email_destino} — Estado: {Estado}")
-    time.sleep(2)  # ⏸️ small pause to prevent Gmail throttling
+    print(f"Enviado a {email_destino} — Estado: {Estado}")
+    time.sleep(2)  # small pause to prevent Gmail throttling
     
-print("🎉 Todos los correos fueron enviados correctamente.")
+print("Todos los correos fueron enviados correctamente.")

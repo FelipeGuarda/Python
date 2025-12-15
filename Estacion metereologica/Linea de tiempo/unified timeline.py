@@ -19,7 +19,7 @@ for file in dat_files:
                 break
 
         if header_line_index is None:
-            print(f"⚠️ No TIMESTAMP header found in {os.path.basename(file)}")
+            print(f"No TIMESTAMP header found in {os.path.basename(file)}")
             continue
 
         # Read from the detected header line
@@ -35,16 +35,16 @@ for file in dat_files:
 
         # Parse timestamps
         if 'TIMESTAMP' not in df.columns:
-            print(f"⚠️ After parsing, still no TIMESTAMP in {os.path.basename(file)} — columns: {df.columns.tolist()}")
+            print(f"After parsing, still no TIMESTAMP in {os.path.basename(file)} — columns: {df.columns.tolist()}")
             continue
 
         df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], errors='coerce')
         df['source_file'] = os.path.basename(file)
         df_list.append(df)
-        print(f"✅ Loaded: {os.path.basename(file)} ({len(df)} rows)")
+        print(f"Loaded: {os.path.basename(file)} ({len(df)} rows)")
 
     except Exception as e:
-        print(f"⚠️ Error reading {os.path.basename(file)}: {e}")
+        print(f"Error reading {os.path.basename(file)}: {e}")
 
 # Combine and sort all
 if df_list:
@@ -53,6 +53,6 @@ if df_list:
 
     output_file = os.path.join(folder_path, "merged_timeline.csv")
     merged_df.to_csv(output_file, index=False)
-    print(f"\n✅ Merged file created successfully: {output_file}")
+    print(f"\nMerged file created successfully: {output_file}")
 else:
-    print("\n❌ No valid data files found.")
+    print("\nNo valid data files found.")
