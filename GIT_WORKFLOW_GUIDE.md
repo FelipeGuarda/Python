@@ -42,21 +42,21 @@ If you're working solo, local commits are fine. Push when ready to merge.
 ```
 Your branch: modifies app.py
 Other branch: modifies visualizations.py
-Result: ✅ Auto-merge, no conflicts
+Result: Auto-merge, no conflicts
 ```
 
 ### Scenario 2: No Conflict (Same File, Different Sections)
 ```
 Your branch: modifies app.py lines 150-165
 Other branch: modifies app.py lines 200-250
-Result: ✅ Auto-merge, no conflicts (Git is smart!)
+Result: Auto-merge, no conflicts (Git is smart!)
 ```
 
 ### Scenario 3: Conflict (Same File, Overlapping Lines)
 ```
 Your branch: modifies app.py lines 150-165
 Other branch: modifies app.py lines 160-170
-Result: ⚠️ CONFLICT - needs manual resolution
+Result: CONFLICT - needs manual resolution
 ```
 
 ## What Happens During Merge with Conflicts
@@ -127,9 +127,9 @@ git merge --no-commit --no-ff other-branch-name
 ## Your Current Situation
 
 **What to do now:**
-1. ✅ Commit your changes (recommended before other work)
-2. ✅ Push your branch (optional but good practice)
-3. ✅ When ready, merge to `main`:
+1. Commit your changes (recommended before other work)
+2. Push your branch (optional but good practice)
+3. When ready, merge to `main`:
    ```powershell
    git checkout main
    git merge fix-polar-plot-positioning
@@ -155,18 +155,18 @@ Timeline:
 Day 1: You commit "fix-polar-plot-positioning" (modifies app.py lines 150-165)
 Day 2: Other agent creates "add-export-feature" branch
        - Modifies app.py lines 280-300 (different area)
-       - No conflict! ✅
+       - No conflict!
 Day 3: You merge your branch to main
 Day 4: Other agent merges their branch to main
-       - Git auto-merges both changes ✅
+       - Git auto-merges both changes
 ```
 
 ## Summary
 
-- ✅ **Commit early and often** - creates checkpoints
-- ✅ **Different files = safe** - no conflicts
-- ✅ **Same file, different areas = usually safe** - Git auto-merges
-- ⚠️ **Same file, same area = conflicts** - need manual resolution
-- ✅ **Conflicts are fixable** - Git helps you resolve them
-- ✅ **Test after merging** - always verify everything works
+- **Commit early and often** - creates checkpoints
+- **Different files = safe** - no conflicts
+- **Same file, different areas = usually safe** - Git auto-merges
+- **Same file, same area = conflicts** - need manual resolution
+- **Conflicts are fixable** - Git helps you resolve them
+- **Test after merging** - always verify everything works
 

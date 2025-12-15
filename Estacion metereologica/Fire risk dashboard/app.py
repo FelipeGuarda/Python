@@ -52,7 +52,7 @@ with st.sidebar:
     
     st.subheader("Map Settings")
     st.caption("Map covers entire Araucania region")
-    st.info("💡 Toggle 'Show risk grid overlay' on the map to view risk hexagons and wind currents")
+    st.info("Toggle 'Show risk grid overlay' on the map to view risk hexagons and wind currents")
 
 # ---------------------------
 # Fetch & prepare data
@@ -73,7 +73,7 @@ if "selected_date" not in st.session_state:
     today_idx = int(np.clip(np.searchsorted(dates_sorted, TODAY.date()), 0, len(dates_sorted)-1))
     st.session_state.selected_date = dates_sorted[today_idx] if today_idx < len(dates_sorted) else dates_sorted[-1]
 
-st.title("🔥 Fire-Risk Dashboard — Bosque Pehuén")
+st.title("Fire-Risk Dashboard — Bosque Pehuén")
 st.caption(f"Auto-updated • Source: Open-Meteo • Timezone: {TZ}")
 
 # ---------------------------
@@ -157,7 +157,7 @@ with colA:
 
     # Forecast/historical indicator
     is_forecast = sel_date > TODAY.date()
-    indicator_text = "🔮 Forecast" if is_forecast else "📊 Historical"
+    indicator_text = "Forecast" if is_forecast else "Historical"
     indicator_color = "#2196F3" if is_forecast else "#757575"
     st.markdown(f"<div style='text-align:center;padding:8px;background:{indicator_color}20;border-radius:6px;color:{indicator_color};font-weight:bold;'>{indicator_text}</div>", unsafe_allow_html=True)
 
