@@ -1,172 +1,227 @@
-# Git Workflow Guide for Multi-Agent Development
+# Git Workflow Guide for Home–Work Solo Dev
 
-## Current Situation
-- **Branch**: `fix-polar-plot-positioning`
-- **Modified file**: `app.py` (lines ~150-165)
-- **Status**: Uncommitted changes
+This guide explains **where your work lives** (local vs remote, main vs feature branches) and a **fast, repeatable workflow** for moving work between computers.
 
-## Best Practice Workflow
+---
 
-### Step 1: Commit Your Current Work
-```powershell
-cd "C:\Dev\Python\Estacion metereologica\Fire risk dashboard"
-git add app.py
-git commit -m "Fix polar plot positioning - move plot inside colA column context"
+## Mental Model: Where Is My Work?
+
+For any branch name (for example `main` or `fix-polar-plot-positioning`), think of three layers:
+
+- `origin/main`: The branch on GitHub. This is the **source of truth** shared between home and work.
+- Local `main`: The same branch on each computer. It can be **ahead of** or **behind** `origin/main`.
+- Local feature branches: `fix-polar-plot-positioning`, `new-legend`, etc. Created from a local branch and optionally pushed to `origin/<branch>`.
+
+A typical life cycle for a feature:
+
+1. Start from updated `main` on one machine.
+2. Create a feature branch (e.g. `fix-polar-plot-positioning`) from `main`.
+3. Commit on that branch locally; push to `origin/fix-polar-plot-positioning` when you want to move it between machines or back it up.
+4. On another machine, fetch and check out that feature branch and continue working.
+5. When done, merge the feature branch into `main`, push `main`, then delete the finished branch.
+
+You can always inspect where things are with:
+
+```bash
+git branch -vv # shows which local branches track which remotes, ahead/behind
+git log --oneline --graph --decorate --all | head
 ```
 
-### Step 2: Before Starting New Work with Another Agent
+---
 
-**Option A: Push your branch (recommended)**
-```powershell
-git push -u origin fix-polar-plot-positioning
-```
-This backs up your work and makes it visible to others.
+## Daily Start: Sync With GitHub
 
-**Option B: Just commit locally**
-If you're working solo, local commits are fine. Push when ready to merge.
+Always begin a session by making sure `main` matches GitHub:
 
-### Step 3: Starting New Work
-
-**For other agents working on different files:**
-- They can create new branches from `main` or your branch
-- No conflicts expected if files don't overlap
-
-**For other agents working on the same file (`app.py`):**
-- They should create a branch from `main` (not your branch)
-- Or wait until you merge your branch first
-- If they modify different sections, Git usually auto-merges
-
-## Conflict Scenarios
-
-### Scenario 1: No Conflict (Different Files)
-```
-Your branch: modifies app.py
-Other branch: modifies visualizations.py
-Result: Auto-merge, no conflicts
+```bash
+git checkout main
+git pull origin main
 ```
 
-### Scenario 2: No Conflict (Same File, Different Sections)
-```
-Your branch: modifies app.py lines 150-165
-Other branch: modifies app.py lines 200-250
-Result: Auto-merge, no conflicts (Git is smart!)
-```
+This ensures home, work, and GitHub all converge on the same `main` tip before you branch or continue work.
 
-### Scenario 3: Conflict (Same File, Overlapping Lines)
-```
-Your branch: modifies app.py lines 150-165
-Other branch: modifies app.py lines 160-170
-Result: CONFLICT - needs manual resolution
+If you are about to resume an existing feature branch:
+
+```bash
+git checkout my-feature
+git pull --ff-only # optional: fast-forward local branch to origin/my-feature
 ```
 
-## What Happens During Merge with Conflicts
+---
 
-When you merge branches with conflicts:
+## Starting a New Feature
 
-1. **Git detects the conflict:**
-   ```
-   Auto-merging app.py
-   CONFLICT (content): Merge conflict in app.py
-   ```
+From an updated `main`:
 
-2. **Git marks the conflict in the file:**
-   ```python
-   <<<<<<< HEAD (your current branch)
-   # Your code here
-   =======
-   # Other branch's code here
-   >>>>>>> other-branch-name
-   ```
-
-3. **You resolve manually:**
-   - Edit the file to keep the code you want
-   - Remove the conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`)
-   - Test that everything works
-
-4. **Complete the merge:**
-   ```powershell
-   git add app.py
-   git commit -m "Merge branch 'other-branch' - resolved conflicts"
-   ```
-
-## Recommended Strategy for Your Project
-
-### Strategy 1: Sequential Work (Safest)
-1. Commit and merge your branch first
-2. Then start new work from updated `main`
-3. **Pros**: No conflicts, clear history
-4. **Cons**: Slower, can't work in parallel
-
-### Strategy 2: Parallel Work with Communication
-1. Commit your branch (don't merge yet)
-2. Tell other agents which files you modified
-3. They avoid those files or coordinate changes
-4. **Pros**: Faster, parallel development
-5. **Cons**: Requires coordination
-
-### Strategy 3: Feature Branches (Best for Teams)
-1. Each feature gets its own branch
-2. Work in parallel on different features
-3. Merge to `main` one at a time
-4. **Pros**: Organized, scalable
-5. **Cons**: Need to manage multiple branches
-
-## Checking for Potential Conflicts
-
-Before merging, you can check what would conflict:
-
-```powershell
-# See what files changed in your branch
-git diff main..fix-polar-plot-positioning --name-only
-
-# See what would conflict (dry-run merge)
-git merge --no-commit --no-ff other-branch-name
-# If conflicts, abort: git merge --abort
+```bash
+git checkout main
+git pull origin main # ensure main is current
+git checkout -b my-feature # create feature branch from main
 ```
 
-## Your Current Situation
+Now all commits for this feature stay on `my-feature` until you decide to merge.
 
-**What to do now:**
-1. Commit your changes (recommended before other work)
-2. Push your branch (optional but good practice)
-3. When ready, merge to `main`:
-   ```powershell
-   git checkout main
-   git merge fix-polar-plot-positioning
-   git push origin main
-   ```
+---
 
-**For other agents:**
-- If they work on `visualizations.py`, `risk_calculator.py`, etc. → No conflicts
-- If they work on `app.py` but different sections → Usually no conflicts
-- If they work on same `app.py` lines → Will have conflicts (need coordination)
+## Working and Committing
 
-## Conflict Resolution Tips
+While coding on a feature branch:
 
-1. **Use a merge tool**: `git mergetool` opens a visual diff tool
-2. **Keep both changes**: Sometimes you need code from both branches
-3. **Test after resolving**: Always test after resolving conflicts
-4. **Ask for help**: If unsure, don't guess - ask or review both versions
-
-## Example: Safe Parallel Work
-
-```
-Timeline:
-Day 1: You commit "fix-polar-plot-positioning" (modifies app.py lines 150-165)
-Day 2: Other agent creates "add-export-feature" branch
-       - Modifies app.py lines 280-300 (different area)
-       - No conflict!
-Day 3: You merge your branch to main
-Day 4: Other agent merges their branch to main
-       - Git auto-merges both changes
+```bash
+git status
+git add <files>
+git commit -m "Describe what changed"
 ```
 
-## Summary
+Push to GitHub when you want the work available on the other machine or safely backed up:
 
-- **Commit early and often** - creates checkpoints
-- **Different files = safe** - no conflicts
-- **Same file, different areas = usually safe** - Git auto-merges
-- **Same file, same area = conflicts** - need manual resolution
-- **Conflicts are fixable** - Git helps you resolve them
-- **Test after merging** - always verify everything works
+**First push** (creates remote tracking branch):
 
+```bash
+git push -u origin my-feature
+```
+
+**Later pushes** on same branch:
+
+```bash
+git push
+```
+
+This creates `origin/my-feature` on GitHub, which you can then pull from your other computer.
+
+---
+
+## Switching Between Home and Work
+
+When you move to another machine and want to continue the same feature:
+
+1. **Sync main with GitHub:**
+
+```bash
+git checkout main
+git pull origin main
+```
+
+2. **Make sure you see the remote feature branch:**
+
+```bash
+git fetch origin
+```
+
+3. **Check out the feature branch:**
+
+```bash
+git checkout my-feature # first time: creates local branch tracking origin/my-feature
+```
+
+4. **(Optional) fast-forward if needed:**
+
+```bash
+git pull --ff-only
+```
+
+Now you are on the same feature branch with the same commits, ready to continue work.
+
+---
+
+## Finishing a Feature: Merge Into main
+
+Once the feature is ready and tested on one machine:
+
+1. **Make sure main is up to date:**
+
+```bash
+git checkout main
+git pull origin main
+```
+
+2. **Merge your feature branch into main:**
+
+```bash
+git merge --no-ff my-feature # or just git merge my-feature if you are fine with fast-forward
+```
+
+3. **Run tests, then publish to GitHub:**
+
+```bash
+git push origin main
+```
+
+At this point, all commits from `my-feature` live in `main` (both locally and on GitHub).
+
+---
+
+## Cleaning Up Finished Branches
+
+After a successful merge to `main`, the feature branch becomes redundant. Best practice is to delete it to keep your branch list clean:
+
+**Delete local branch** (only if it is fully merged):
+
+```bash
+git branch -d my-feature
+```
+
+**Delete remote branch on GitHub:**
+
+```bash
+git push origin --delete my-feature
+```
+
+Deleting the branch **does not delete the commits**. They are preserved in `main`’s history, and you can always find them via `git log` or by commit hash.
+
+---
+
+## Handling Build Artifacts (e.g. __pycache__)
+
+Python generates `__pycache__` and `.pyc` files that should not be tracked by Git.
+
+**One-time cleanup:**
+
+**Add to .gitignore:**
+
+```bash
+echo "pycache/" >> .gitignore
+echo "*.pyc" >> .gitignore
+git add .gitignore
+```
+
+**Stop tracking existing cached files:**
+
+```bash
+git rm -r --cached **/pycache || true
+git rm --cached $(git ls-files "*.pyc") || true
+git commit -m "Stop tracking pycache and .pyc files"
+git push origin main
+```
+
+After this, `__pycache__` and `.pyc` files will no longer appear as modified; they remain only as local artifacts.
+
+---
+
+## Conflict Scenarios (Short Version)
+
+- Different files → no conflict; Git auto-merges.
+- Same file, different areas → usually no conflict; Git can merge both changes.
+- Same file, same lines → conflict; you must resolve manually.
+
+During a conflict:
+
+1. Git marks conflicts with `<<<<<<<`, `=======`, `>>>>>>>` in the file.
+2. Edit the file to the desired final version and remove the markers.
+3. Test, then:
+
+```bash
+git add <file>
+git commit -m "Resolve merge conflict in <file>"
+```
+
+---
+
+## Summary Checklist
+
+- **Start session:** `git checkout main && git pull origin main`
+- **New work:** `git checkout -b my-feature main`
+- **Save progress:** `git add ... && git commit ... && git push`
+- **Switch machine:** `git fetch origin && git checkout my-feature`
+- **Finish feature:** merge into `main`, push `main`
+- **Clean up:** delete local and remote feature branch after merge
