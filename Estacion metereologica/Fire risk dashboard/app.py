@@ -14,8 +14,8 @@ from __future__ import annotations
 import datetime as dt
 import pandas as pd
 import numpy as np
-import streamlit as st
-import pydeck as pdk
+import streamlit as st  # pyright: ignore[reportMissingImports]
+import pydeck as pdk  # pyright: ignore[reportMissingImports]
 
 # Local imports
 from config import TZ, TODAY, DEFAULT_LAT, DEFAULT_LON
@@ -34,7 +34,7 @@ st.set_page_config(
 # Sidebar controls
 # ---------------------------
 try:
-    import pyproj
+    import pyproj  # pyright: ignore[reportMissingImports]
     transformer = pyproj.Transformer.from_crs("EPSG:32719", "EPSG:4326", always_xy=True)
     lon, lat = transformer.transform(263221.0, 5630634.0)
     lat, lon = float(lat), float(lon)
@@ -148,20 +148,19 @@ with colA:
         else:
             sel_date = st.session_state.selected_date
 
-    # Data preparation
-    row = haz.loc[haz["date"] == sel_date].iloc[0]
+row = haz.loc[haz["date"] == sel_date].iloc[0]
 
-    # Create and display polar plot
-    fig = create_polar_plot(row)
-    st.plotly_chart(fig, width='stretch')
+# Create and display polar plot
+fig = create_polar_plot(row)
+st.plotly_chart(fig, width='stretch')
 
-    # Forecast/historical indicator
-    is_forecast = sel_date > TODAY.date()
-    indicator_text = "Forecast" if is_forecast else "Historical"
-    indicator_color = "#2196F3" if is_forecast else "#757575"
-    st.markdown(f"<div style='text-align:center;padding:8px;background:{indicator_color}20;border-radius:6px;color:{indicator_color};font-weight:bold;'>{indicator_text}</div>", unsafe_allow_html=True)
+# Forecast/historical indicator
+is_forecast = sel_date > TODAY.date()
+indicator_text = "Forecast" if is_forecast else "Historical"
+indicator_color = "#2196F3" if is_forecast else "#757575"
+st.markdown(f"<div style='text-align:center;padding:8px;background:{indicator_color}20;border-radius:6px;color:{indicator_color};font-weight:bold;'>{indicator_text}</div>", unsafe_allow_html=True)
 
-    st.caption(f"Most dangerous hour for {sel_date}: {pd.to_datetime(row['timestamp']).strftime('%H:%M')} (local)")
+st.caption(f"Most dangerous hour for {sel_date}: {pd.to_datetime(row['timestamp']).strftime('%H:%M')} (local)")
 
 # Right column: Risk index and wind compass
 with colB:
@@ -185,7 +184,7 @@ with colB:
             avg_wind_dir = float(wind_window["wind_dir"].mean())
             avg_wind_speed = float(wind_window["wind_kmh"].mean())
             
-            compass_fig = create_wind_compass(avg_wind_dir, avg_wind_speed, risk_color=col)
+            compass_fig = create_wind_compass(avg_wind_dir, avg_wind_speed)
             st.plotly_chart(compass_fig, use_container_width=True, config={'displayModeBar': False})
             st.caption(f"{avg_wind_dir:.0f}° ({avg_wind_speed:.1f} km/h)")
         else:
@@ -280,7 +279,7 @@ tooltip = {
     "style": {"backgroundColor": "#222", "color": "white"},
 }
 
-st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tooltip, map_style="carto-positron"))
+st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tooltip, map_style=pdk.map_styles.LIGHT))
 
 # ---------------------------
 # Data Download
