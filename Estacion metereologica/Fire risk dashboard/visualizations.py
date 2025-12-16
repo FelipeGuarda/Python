@@ -134,7 +134,7 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float, risk_color: 
             tickmode='array',
             tickvals=[0, 90, 180, 270],
             ticktext=['N', 'E', 'S', 'W'],
-            tickfont=dict(size=12, weight='bold'),
+            tickfont=dict(size=16, weight='bold'),
             showgrid=True,
             gridcolor='#ddd',
             gridwidth=1,
@@ -144,8 +144,8 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float, risk_color: 
     )
     
     compass_fig.update_layout(
-        height=200,
-        margin=dict(l=20, r=20, t=20, b=40),
+        height=280,
+        margin=dict(l=20, r=20, t=20, b=60),
         polar_bgcolor="#fafafa",
         showlegend=False,
     )
@@ -154,11 +154,11 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float, risk_color: 
     compass_fig.add_annotation(
         text="Shows direction wind is coming from",
         x=0.5,
-        y=-0.15,
+        y=-0.25,
         xref="paper",
         yref="paper",
         showarrow=False,
-        font=dict(size=10, color='#666'),
+        font=dict(size=12, color='#666'),
         xanchor="center"
     )
     
