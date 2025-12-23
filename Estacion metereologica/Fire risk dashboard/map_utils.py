@@ -176,12 +176,13 @@ def create_wind_flow_field(wind_data: dict) -> list:
     flow_direction_rad = np.radians((wind_dir + 180) % 360)
     
     # Create grid of starting points distributed across the entire region
-    # Fewer streaks with more spacing for cleaner look
-    num_streaks_lat = 4  # Vertical distribution
-    num_streaks_lon = 6  # Horizontal distribution (reduced from 12)
+    # More vertical lines, fewer horizontal streaks per line for clean appearance
+    num_streaks_lat = 11  # Vertical distribution (11 latitude lines)
+    num_streaks_lon = 4   # Horizontal distribution (4 streaks per line)
+    # Total: 44 streaks evenly distributed
     
     # Distribute evenly across the region with margins
-    lat_positions = np.linspace(ARAUCANIA_LAT_MIN + 0.3, ARAUCANIA_LAT_MAX - 0.3, num_streaks_lat)
+    lat_positions = np.linspace(ARAUCANIA_LAT_MIN + 0.2, ARAUCANIA_LAT_MAX - 0.2, num_streaks_lat)
     lon_positions = np.linspace(ARAUCANIA_LON_MIN + 0.3, ARAUCANIA_LON_MAX - 0.3, num_streaks_lon)
     
     streamlines = []
