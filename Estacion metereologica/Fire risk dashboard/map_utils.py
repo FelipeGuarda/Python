@@ -181,10 +181,11 @@ def create_wind_flow_field(wind_data: dict) -> list:
     num_streaks_lon = 6   # Horizontal distribution (6 streaks per line, extended to west)
     # Total: 66 streaks evenly distributed
     
-    # Distribute evenly across the region - shifted west to cover entire land mass
+    # Distribute evenly across the region
     lat_positions = np.linspace(ARAUCANIA_LAT_MIN + 0.2, ARAUCANIA_LAT_MAX - 0.2, num_streaks_lat)
-    # Extend further west: ARAUCANIA_LON_MIN is -73.0, so start near -72.9 to cover ocean
-    lon_positions = np.linspace(-72.9, -71.3, num_streaks_lon)
+    # Extend west from ocean (-73.0) to east edge (-71.0)
+    # Start at -73.0 (western ocean edge) and extend across land mass
+    lon_positions = np.linspace(-73.0, -71.0, num_streaks_lon)
     
     streamlines = []
     base_color = wind_speed_to_color(wind_speed)
