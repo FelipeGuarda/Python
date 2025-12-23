@@ -83,58 +83,37 @@ with colA:
                 st.rerun()
     
     with col_date2:
-        if st.button("Yesterday", use_container_width=True):
-            yesterday = (TODAY - pd.Timedelta(days=1)).date()
-            yest_idx = int(np.clip(np.searchsorted(dates_sorted, yesterday), 0, len(dates_sorted)-1))
-            if yest_idx < len(dates_sorted):
-                if dates_sorted[yest_idx] == yesterday:
-                    st.session_state.selected_date = dates_sorted[yest_idx]
-                elif yest_idx > 0 and abs((dates_sorted[yest_idx-1] - yesterday).days) < abs((dates_sorted[yest_idx] - yesterday).days):
-                    st.session_state.selected_date = dates_sorted[yest_idx-1]
+        if st.button("Tomorrow", use_container_width=True):
+            tomorrow = (TODAY + pd.Timedelta(days=1)).date()
+            tom_idx = int(np.clip(np.searchsorted(dates_sorted, tomorrow), 0, len(dates_sorted)-1))
+            if tom_idx < len(dates_sorted):
+                if dates_sorted[tom_idx] == tomorrow:
+                    st.session_state.selected_date = dates_sorted[tom_idx]
+                elif tom_idx > 0 and abs((dates_sorted[tom_idx-1] - tomorrow).days) < abs((dates_sorted[tom_idx] - tomorrow).days):
+                    st.session_state.selected_date = dates_sorted[tom_idx-1]
                 else:
-                    st.session_state.selected_date = dates_sorted[yest_idx]
+                    st.session_state.selected_date = dates_sorted[tom_idx]
                 st.rerun()
     
     with col_date3:
-        if st.button("Last Week", use_container_width=True):
-            last_week = (TODAY - pd.Timedelta(days=7)).date()
-            lw_idx = int(np.clip(np.searchsorted(dates_sorted, last_week), 0, len(dates_sorted)-1))
-            if lw_idx < len(dates_sorted):
-                st.session_state.selected_date = dates_sorted[lw_idx]
+        if st.button("Next 3 days", use_container_width=True):
+            next_3_days = (TODAY + pd.Timedelta(days=3)).date()
+            n3_idx = int(np.clip(np.searchsorted(dates_sorted, next_3_days), 0, len(dates_sorted)-1))
+            if n3_idx < len(dates_sorted):
+                st.session_state.selected_date = dates_sorted[n3_idx]
                 st.rerun()
     
     with col_date4:
-        if st.button("Next 7 Days", use_container_width=True):
+        if st.button("Next 7 days", use_container_width=True):
             next_week = (TODAY + pd.Timedelta(days=7)).date()
             nw_idx = int(np.clip(np.searchsorted(dates_sorted, next_week), 0, len(dates_sorted)-1))
             if nw_idx < len(dates_sorted):
                 st.session_state.selected_date = dates_sorted[nw_idx]
                 st.rerun()
     
-    # Date picker
-    col_picker1, col_picker2, col_picker3 = st.columns([1, 3, 1])
-    with col_picker2:
-        min_date = dates_sorted[0] if dates_sorted else TODAY.date()
-        max_date = dates_sorted[-1] if dates_sorted else TODAY.date()
-        
-        selected_date_input = st.date_input(
-            "Select date",
-            value=st.session_state.selected_date if st.session_state.selected_date in dates_sorted else dates_sorted[0] if dates_sorted else TODAY.date(),
-            min_value=min_date,
-            max_value=max_date,
-            key="date_picker"
-        )
-    
-    if selected_date_input in dates_sorted:
-        st.session_state.selected_date = selected_date_input
-        sel_date = selected_date_input
-    else:
-        closest_idx = int(np.clip(np.searchsorted(dates_sorted, selected_date_input), 0, len(dates_sorted)-1))
-        if closest_idx < len(dates_sorted):
-            st.session_state.selected_date = dates_sorted[closest_idx]
-            sel_date = dates_sorted[closest_idx]
-        else:
-            sel_date = st.session_state.selected_date
+    # Display selected date prominently
+    sel_date = st.session_state.selected_date
+    st.markdown(f"<div style='text-align:center;font-size:24px;font-weight:bold;padding:12px;margin:10px 0;'>{sel_date}</div>", unsafe_allow_html=True)
 
     row = haz.loc[haz["date"] == sel_date].iloc[0]
 
@@ -149,7 +128,7 @@ with colA:
     with legend_col:
         st.markdown("<br>", unsafe_allow_html=True)  # Spacing
         st.markdown("**Risk Color Legend**", unsafe_allow_html=True)
-        legend_html = "<div style='font-size:11px;'>"
+        legend_html = "<div style='font-size:15px;'>"
         for lo, hi, col in sorted(RISK_COLORS, key=lambda x: x[0]):
             if hi == 100.0:
                 label = f"{lo:.0f}+"
