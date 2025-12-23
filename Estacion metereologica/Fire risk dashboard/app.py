@@ -169,7 +169,7 @@ with colB:
     col = color_for_risk(total)
     st.subheader("Risk index")
     st.metric(label=str(sel_date), value=f"{total:0.0f} / 100")
-    st.markdown(f"<div style='height:12px;width:100%;background:{col};border-radius:6px;'></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='height:12px;width:{total}%;background:{col};border-radius:6px;'></div>", unsafe_allow_html=True)
     
     # Wind compass
     st.write("\n")
