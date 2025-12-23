@@ -176,7 +176,7 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float, risk_color: 
     return compass_fig
 
 
-def create_forecast_charts(haz_filtered: pd.DataFrame, today_date) -> Tuple[go.Figure, go.Figure]:
+def create_forecast_charts(haz_filtered: pd.DataFrame, selected_date) -> Tuple[go.Figure, go.Figure]:
     """Create forecast risk bar chart and variables line chart."""
     haz_dates_dt = pd.to_datetime(haz_filtered["date"])
     
@@ -189,24 +189,24 @@ def create_forecast_charts(haz_filtered: pd.DataFrame, today_date) -> Tuple[go.F
         marker_color=[color_for_risk(x) for x in haz_filtered["total"]],
     ))
     
-    # Add vertical line for today
+    # Add vertical line for selected date
     haz_dates = haz_dates_dt.dt.date
-    if (haz_dates == today_date).any():
-        today_datetime = pd.Timestamp(today_date)
+    if (haz_dates == selected_date).any():
+        selected_datetime = pd.Timestamp(selected_date)
         f1.add_shape(
             type="line",
-            x0=today_datetime,
-            x1=today_datetime,
+            x0=selected_datetime,
+            x1=selected_datetime,
             y0=0,
             y1=1,
             yref="paper",
             line=dict(color="red", width=2, dash="dash"),
         )
         f1.add_annotation(
-            x=today_datetime,
+            x=selected_datetime,
             y=1,
             yref="paper",
-            text="Today",
+            text="Selected",
             showarrow=False,
             font=dict(color="red"),
             bgcolor="white",
@@ -230,22 +230,22 @@ def create_forecast_charts(haz_filtered: pd.DataFrame, today_date) -> Tuple[go.F
     f2.add_trace(go.Scatter(x=haz_dates_dt, y=haz_filtered["wind_kmh"], name="Wind max (km/h)", mode='lines+markers'))
     f2.add_trace(go.Scatter(x=haz_dates_dt, y=haz_filtered["days_no_rain"], name="Days without rain", mode='lines+markers'))
     
-    if (haz_dates == today_date).any():
-        today_datetime = pd.Timestamp(today_date)
+    if (haz_dates == selected_date).any():
+        selected_datetime = pd.Timestamp(selected_date)
         f2.add_shape(
             type="line",
-            x0=today_datetime,
-            x1=today_datetime,
+            x0=selected_datetime,
+            x1=selected_datetime,
             y0=0,
             y1=1,
             yref="paper",
             line=dict(color="red", width=2, dash="dash"),
         )
         f2.add_annotation(
-            x=today_datetime,
+            x=selected_datetime,
             y=1,
             yref="paper",
-            text="Today",
+            text="Selected",
             showarrow=False,
             font=dict(color="red"),
             bgcolor="white",
