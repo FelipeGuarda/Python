@@ -22,7 +22,7 @@ from config import TZ, TODAY, RISK_COLORS
 from data_fetcher import fetch_open_meteo
 from risk_calculator import compute_days_without_rain, best_hour_by_day, color_for_risk
 from visualizations import create_polar_plot, create_wind_compass, create_forecast_charts
-from map_utils import create_araucania_grid, grid_forecast, create_map_layers, create_map_view_state
+from map_utils import create_map_layers, create_map_view_state
 
 # Page config
 st.set_page_config(
@@ -228,39 +228,35 @@ else:
 # ---------------------------
 # Regional Map
 # ---------------------------
-st.subheader("Regional risk map")
-st.caption(f"Showing risk for: {st.session_state.selected_date}")
+st.subheader("Regional wind map")
+st.caption(f"Showing wind patterns for: {st.session_state.selected_date}")
 
-col_map1, col_map2 = st.columns([1, 10])
-with col_map1:
-    show_overlay = st.toggle("Show risk grid overlay", value=False)
+# Get wind data for selected date
+sel_date = st.session_state.selected_date
+row = haz.loc[haz["date"] == sel_date].iloc[0]
+hourly_sel = hourly[hourly["date"] == sel_date]
 
-points = create_araucania_grid()
-layers = []
+wind_data = {}
+if not hourly_sel.empty:
+    hourly_sel_copy = hourly_sel.copy()
+    hourly_sel_copy["hour"] = pd.to_datetime(hourly_sel_copy["timestamp"]).dt.hour
+    wind_window = hourly_sel_copy[(hourly_sel_copy["hour"] >= 14) & (hourly_sel_copy["hour"] <= 16)]
+    
+    if not wind_window.empty:
+        wind_data = {
+            'wind_dir': float(wind_window["wind_dir"].mean()),
+            'wind_speed': float(wind_window["wind_kmh"].mean()),
+            'lat': lat,
+            'lon': lon
+        }
 
-if show_overlay:
-    with st.spinner("Computing regional risk grid..."):
-        grid_df = grid_forecast(points, st.session_state.selected_date, days_ahead)
-
-    if grid_df.empty:
-        st.info("No grid data for the selected day.")
-    else:
-        grid_df["timestamp"] = pd.to_datetime(grid_df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M")
-        layers = create_map_layers(grid_df, lat, lon)
-else:
-    # Still show Bosque Pehuen highlight even without overlay
-    layers = create_map_layers(pd.DataFrame(), lat, lon)
+# Create map layers with wind flow field
+layers = create_map_layers(wind_data, lat, lon)
 
 view_state = create_map_view_state()
 
 tooltip = {
-    "html": (
-        "<b>Risk:</b> {risk}<br>"
-        "<b>T:</b> {temp_c}°C<br>"
-        "<b>RH:</b> {rh_pct}%<br>"
-        "<b>Wind:</b> {wind_kmh} km/h<br>"
-        "<b>Days no rain:</b> {days_no_rain}"
-    ),
+    "html": "<b>Bosque Pehuén</b><br>Wind: {wind_speed:.1f} km/h<br>Direction: {wind_dir:.0f}°",
     "style": {"backgroundColor": "#222", "color": "white"},
 }
 
