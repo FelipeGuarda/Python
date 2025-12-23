@@ -181,9 +181,9 @@ def create_wind_flow_field(wind_data: dict) -> list:
     num_streaks_lon = 6   # Horizontal distribution (6 streaks per line, extended to west)
     # Total: 66 streaks evenly distributed
     
-    # Distribute evenly across the region - extend further west to cover ocean
+    # Distribute evenly across the region - shifted west to cover entire land mass
     lat_positions = np.linspace(ARAUCANIA_LAT_MIN + 0.2, ARAUCANIA_LAT_MAX - 0.2, num_streaks_lat)
-    lon_positions = np.linspace(ARAUCANIA_LON_MIN + 0.1, ARAUCANIA_LON_MAX - 0.3, num_streaks_lon)
+    lon_positions = np.linspace(ARAUCANIA_LON_MIN + 0.05, ARAUCANIA_LON_MAX - 0.5, num_streaks_lon)
     
     streamlines = []
     base_color = wind_speed_to_color(wind_speed)
@@ -309,7 +309,7 @@ def create_map_view_state() -> pdk.ViewState:
     return pdk.ViewState(
         latitude=center_lat,
         longitude=center_lon,
-        zoom=8,
+        zoom=8.5,     # Default zoom - balanced view showing Bosque Pehuén and wind patterns
         min_zoom=7,   # Limit zoom out (prevents seeing too much)
         max_zoom=12,  # Limit zoom in (keeps context visible)
         pitch=0,
