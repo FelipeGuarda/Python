@@ -105,54 +105,26 @@ def create_map_layers(grid_df: pd.DataFrame, lat: float, lon: float) -> list:
     layers = []
     
     if not grid_df.empty:
-        # Risk heatmap layer
+        # Risk heatmap layer - using HeatmapLayer with radius (meters) for zoom-independent display
+        # Radius in meters (~30km) for smooth blending that doesn't change with zoom
+        radius_meters = 30000
+        
+        # Create color scale from RISK_COLORS
         risk_color_scale = create_risk_color_scale()
+        
         risk_layer = pdk.Layer(
             "HeatmapLayer",
             data=grid_df,
             get_position="[lon, lat]",
             get_weight="risk",
             colorScale=risk_color_scale,
-            radiusPixels=80,
+            radius=radius_meters,
             intensity=1.0,
             threshold=0.05,
-            opacity=0.6,
+            opacity=0.7,
             pickable=True,
         )
         layers.append(risk_layer)
-        
-        # Wind currents layer
-        wind_df = grid_df.iloc[::3].copy()
-        wind_vectors = []
-        for idx, row in wind_df.iterrows():
-            wind_dir_rad = np.radians(row["wind_dir"] + 180)
-            wind_speed = row["wind_kmh"]
-            arrow_length_deg = min(wind_speed / 1000.0, 0.05)
-            
-            end_lat = row["lat"] + arrow_length_deg * np.cos(wind_dir_rad)
-            end_lon = row["lon"] + arrow_length_deg * np.sin(wind_dir_rad) / np.cos(np.radians(row["lat"]))
-            
-            wind_vectors.append({
-                "start_lat": row["lat"],
-                "start_lon": row["lon"],
-                "end_lat": end_lat,
-                "end_lon": end_lon,
-                "wind_speed": wind_speed,
-                "wind_dir": row["wind_dir"]
-            })
-        
-        if wind_vectors:
-            wind_df_vectors = pd.DataFrame(wind_vectors)
-            wind_layer = pdk.Layer(
-                "LineLayer",
-                data=wind_df_vectors,
-                get_source_position="[start_lon, start_lat]",
-                get_target_position="[end_lon, end_lat]",
-                get_color=[255, 100, 100, 180],
-                get_width=2,
-                pickable=True,
-            )
-            layers.append(wind_layer)
 
     # Bosque Pehuen highlight (always visible)
     circle_points = []
