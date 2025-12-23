@@ -14,15 +14,15 @@ from __future__ import annotations
 import datetime as dt
 import pandas as pd
 import numpy as np
-import streamlit as st
-import pydeck as pdk
+import streamlit as st  # pyright: ignore[reportMissingImports]
+import pydeck as pdk  # pyright: ignore[reportMissingImports]
 
 # Local imports
-from config import TZ, TODAY, DEFAULT_LAT, DEFAULT_LON
+from config import TZ, TODAY, RISK_COLORS
 from data_fetcher import fetch_open_meteo
 from risk_calculator import compute_days_without_rain, best_hour_by_day, color_for_risk
 from visualizations import create_polar_plot, create_wind_compass, create_forecast_charts
-from map_utils import create_araucania_grid, grid_forecast, create_map_layers, create_map_view_state
+from map_utils import create_map_layers, create_map_view_state
 
 # Page config
 st.set_page_config(
@@ -31,28 +31,16 @@ st.set_page_config(
 )
 
 # ---------------------------
-# Sidebar controls
+# Default settings (previously in sidebar)
 # ---------------------------
-try:
-    import pyproj
-    transformer = pyproj.Transformer.from_crs("EPSG:32719", "EPSG:4326", always_xy=True)
-    lon, lat = transformer.transform(263221.0, 5630634.0)
-    lat, lon = float(lat), float(lon)
-except Exception:
-    lat, lon = DEFAULT_LAT, DEFAULT_LON
-    st.sidebar.warning("pyproj not installed — using default lat/lon.")
+# Center: lat=-39.44132, lon=-71.75140 (from UTM 19S)
+lat = -39.44132
+lon = -71.75140
 
-st.sidebar.header("Settings")
-st.sidebar.caption(f"Center: lat={lat:.5f}, lon={lon:.5f} (from UTM 19S)")
+# Forecast days to fetch: 14
+days_ahead = 14
 
-with st.sidebar:
-    st.subheader("Data Fetching")
-    days_ahead = st.slider("Forecast days to fetch", min_value=7, max_value=14, value=14, 
-                          help="Number of forecast days to retrieve from API.")
-    
-    st.subheader("Map Settings")
-    st.caption("Map covers entire Araucania region")
-    st.info("Toggle 'Show risk grid overlay' on the map to view risk hexagons and wind currents")
+# Map covers entire Araucania region
 
 # ---------------------------
 # Fetch & prepare data
@@ -88,72 +76,67 @@ with colA:
     col_date1, col_date2, col_date3, col_date4 = st.columns(4)
     
     with col_date1:
-        if st.button("Today", use_container_width=True):
+        if st.button("Today", width='stretch'):
             today_idx = int(np.clip(np.searchsorted(dates_sorted, TODAY.date()), 0, len(dates_sorted)-1))
             if today_idx < len(dates_sorted):
                 st.session_state.selected_date = dates_sorted[today_idx]
                 st.rerun()
     
     with col_date2:
-        if st.button("Yesterday", use_container_width=True):
-            yesterday = (TODAY - pd.Timedelta(days=1)).date()
-            yest_idx = int(np.clip(np.searchsorted(dates_sorted, yesterday), 0, len(dates_sorted)-1))
-            if yest_idx < len(dates_sorted):
-                if dates_sorted[yest_idx] == yesterday:
-                    st.session_state.selected_date = dates_sorted[yest_idx]
-                elif yest_idx > 0 and abs((dates_sorted[yest_idx-1] - yesterday).days) < abs((dates_sorted[yest_idx] - yesterday).days):
-                    st.session_state.selected_date = dates_sorted[yest_idx-1]
+        if st.button("Tomorrow", width='stretch'):
+            tomorrow = (TODAY + pd.Timedelta(days=1)).date()
+            tom_idx = int(np.clip(np.searchsorted(dates_sorted, tomorrow), 0, len(dates_sorted)-1))
+            if tom_idx < len(dates_sorted):
+                if dates_sorted[tom_idx] == tomorrow:
+                    st.session_state.selected_date = dates_sorted[tom_idx]
+                elif tom_idx > 0 and abs((dates_sorted[tom_idx-1] - tomorrow).days) < abs((dates_sorted[tom_idx] - tomorrow).days):
+                    st.session_state.selected_date = dates_sorted[tom_idx-1]
                 else:
-                    st.session_state.selected_date = dates_sorted[yest_idx]
+                    st.session_state.selected_date = dates_sorted[tom_idx]
                 st.rerun()
     
     with col_date3:
-        if st.button("Last Week", use_container_width=True):
-            last_week = (TODAY - pd.Timedelta(days=7)).date()
-            lw_idx = int(np.clip(np.searchsorted(dates_sorted, last_week), 0, len(dates_sorted)-1))
-            if lw_idx < len(dates_sorted):
-                st.session_state.selected_date = dates_sorted[lw_idx]
+        if st.button("Next 3 days", width='stretch'):
+            next_3_days = (TODAY + pd.Timedelta(days=3)).date()
+            n3_idx = int(np.clip(np.searchsorted(dates_sorted, next_3_days), 0, len(dates_sorted)-1))
+            if n3_idx < len(dates_sorted):
+                st.session_state.selected_date = dates_sorted[n3_idx]
                 st.rerun()
     
     with col_date4:
-        if st.button("Next 7 Days", use_container_width=True):
+        if st.button("Next 7 days", width='stretch'):
             next_week = (TODAY + pd.Timedelta(days=7)).date()
             nw_idx = int(np.clip(np.searchsorted(dates_sorted, next_week), 0, len(dates_sorted)-1))
             if nw_idx < len(dates_sorted):
                 st.session_state.selected_date = dates_sorted[nw_idx]
                 st.rerun()
     
-    # Date picker
-    col_picker1, col_picker2, col_picker3 = st.columns([1, 3, 1])
-    with col_picker2:
-        min_date = dates_sorted[0] if dates_sorted else TODAY.date()
-        max_date = dates_sorted[-1] if dates_sorted else TODAY.date()
-        
-        selected_date_input = st.date_input(
-            "Select date",
-            value=st.session_state.selected_date if st.session_state.selected_date in dates_sorted else dates_sorted[0] if dates_sorted else TODAY.date(),
-            min_value=min_date,
-            max_value=max_date,
-            key="date_picker"
-        )
-    
-    if selected_date_input in dates_sorted:
-        st.session_state.selected_date = selected_date_input
-        sel_date = selected_date_input
-    else:
-        closest_idx = int(np.clip(np.searchsorted(dates_sorted, selected_date_input), 0, len(dates_sorted)-1))
-        if closest_idx < len(dates_sorted):
-            st.session_state.selected_date = dates_sorted[closest_idx]
-            sel_date = dates_sorted[closest_idx]
-        else:
-            sel_date = st.session_state.selected_date
+    # Display selected date prominently
+    sel_date = st.session_state.selected_date
+    st.markdown(f"<div style='text-align:center;font-size:24px;font-weight:bold;padding:12px;margin:10px 0;'>{sel_date}</div>", unsafe_allow_html=True)
 
-    # Data preparation
     row = haz.loc[haz["date"] == sel_date].iloc[0]
 
-    # Create and display polar plot
+    # Create and display polar plot with legend
     fig = create_polar_plot(row)
-    st.plotly_chart(fig, width='stretch')
+    
+    # Display plot and legend side by side
+    plot_col, legend_col = st.columns([5, 1])
+    with plot_col:
+        st.plotly_chart(fig, width='stretch')
+    
+    with legend_col:
+        st.markdown("<br>", unsafe_allow_html=True)  # Spacing
+        st.markdown("**Risk Color Legend**", unsafe_allow_html=True)
+        legend_html = "<div style='font-size:15px;'>"
+        for lo, hi, col in sorted(RISK_COLORS, key=lambda x: x[0]):
+            if hi == 100.0:
+                label = f"{lo:.0f}+"
+            else:
+                label = f"{lo:.0f}-{hi:.0f}"
+            legend_html += f"<div style='display:flex;align-items:center;margin-bottom:6px;'><div style='width:20px;height:12px;background:{col};border-radius:3px;margin-right:8px;border:1px solid #ccc;'></div><span>{label}</span></div>"
+        legend_html += "</div>"
+        st.markdown(legend_html, unsafe_allow_html=True)
 
     # Forecast/historical indicator
     is_forecast = sel_date > TODAY.date()
@@ -165,11 +148,12 @@ with colA:
 
 # Right column: Risk index and wind compass
 with colB:
+    row = haz.loc[haz["date"] == sel_date].iloc[0]
     total = float(row["total"]) if not pd.isna(row["total"]) else 0.0
     col = color_for_risk(total)
     st.subheader("Risk index")
     st.metric(label=str(sel_date), value=f"{total:0.0f} / 100")
-    st.markdown(f"<div style='height:12px;width:100%;background:{col};border-radius:6px;'></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='height:12px;width:{total}%;background:{col};border-radius:6px;'></div>", unsafe_allow_html=True)
     
     # Wind compass
     st.write("\n")
@@ -186,7 +170,7 @@ with colB:
             avg_wind_speed = float(wind_window["wind_kmh"].mean())
             
             compass_fig = create_wind_compass(avg_wind_dir, avg_wind_speed, risk_color=col)
-            st.plotly_chart(compass_fig, use_container_width=True, config={'displayModeBar': False})
+            st.plotly_chart(compass_fig, width='stretch', config={'displayModeBar': False})
             st.caption(f"{avg_wind_dir:.0f}° ({avg_wind_speed:.1f} km/h)")
         else:
             st.info("Wind data not available for this date")
@@ -235,7 +219,7 @@ haz_filtered = haz_sorted[
 
 if not haz_filtered.empty:
     st.caption(view_label)
-    f1, f2 = create_forecast_charts(haz_filtered, today_date)
+    f1, f2 = create_forecast_charts(haz_filtered, st.session_state.selected_date)
     st.plotly_chart(f1, width='stretch')
     st.plotly_chart(f2, width='stretch')
 else:
@@ -244,43 +228,39 @@ else:
 # ---------------------------
 # Regional Map
 # ---------------------------
-st.subheader("Regional risk map")
-st.caption(f"Showing risk for: {st.session_state.selected_date}")
+st.subheader("Regional wind map")
+st.caption(f"Showing wind patterns for: {st.session_state.selected_date}")
 
-col_map1, col_map2 = st.columns([1, 10])
-with col_map1:
-    show_overlay = st.toggle("Show risk grid overlay", value=False)
+# Get wind data for selected date
+sel_date = st.session_state.selected_date
+row = haz.loc[haz["date"] == sel_date].iloc[0]
+hourly_sel = hourly[hourly["date"] == sel_date]
 
-points = create_araucania_grid()
-layers = []
+wind_data = {}
+if not hourly_sel.empty:
+    hourly_sel_copy = hourly_sel.copy()
+    hourly_sel_copy["hour"] = pd.to_datetime(hourly_sel_copy["timestamp"]).dt.hour
+    wind_window = hourly_sel_copy[(hourly_sel_copy["hour"] >= 14) & (hourly_sel_copy["hour"] <= 16)]
+    
+    if not wind_window.empty:
+        wind_data = {
+            'wind_dir': float(wind_window["wind_dir"].mean()),
+            'wind_speed': float(wind_window["wind_kmh"].mean()),
+            'lat': lat,
+            'lon': lon
+        }
 
-if show_overlay:
-    with st.spinner("Computing regional risk grid..."):
-        grid_df = grid_forecast(points, st.session_state.selected_date, days_ahead)
+# Create map layers with wind flow field
+layers = create_map_layers(wind_data, lat, lon)
 
-    if grid_df.empty:
-        st.info("No grid data for the selected day.")
-    else:
-        grid_df["timestamp"] = pd.to_datetime(grid_df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M")
-        layers = create_map_layers(grid_df, lat, lon)
-else:
-    # Still show Bosque Pehuen highlight even without overlay
-    layers = create_map_layers(pd.DataFrame(), lat, lon)
-
-view_state = create_map_view_state()
+view_state = create_map_view_state(center_lat=lat, center_lon=lon)
 
 tooltip = {
-    "html": (
-        "<b>Risk:</b> {risk}<br>"
-        "<b>T:</b> {temp_c}°C<br>"
-        "<b>RH:</b> {rh_pct}%<br>"
-        "<b>Wind:</b> {wind_kmh} km/h<br>"
-        "<b>Days no rain:</b> {days_no_rain}"
-    ),
+    "html": "<b>Bosque Pehuén</b><br>Wind: {wind_speed:.1f} km/h<br>Direction: {wind_dir:.0f}°",
     "style": {"backgroundColor": "#222", "color": "white"},
 }
 
-st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tooltip, map_style="carto-positron"))
+st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state, tooltip=tooltip, map_style=pdk.map_styles.LIGHT))
 
 # ---------------------------
 # Data Download

@@ -9,10 +9,11 @@ import numpy as np
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
+from scipy.interpolate import griddata
 
 from data_fetcher import fetch_open_meteo
 from risk_calculator import risk_components, compute_days_without_rain, color_for_risk
-from config import ARAUCANIA_LAT_MIN, ARAUCANIA_LAT_MAX, ARAUCANIA_LON_MIN, ARAUCANIA_LON_MAX, MAP_GRID_STEP_DEG
+from config import ARAUCANIA_LAT_MIN, ARAUCANIA_LAT_MAX, ARAUCANIA_LON_MIN, ARAUCANIA_LON_MAX, MAP_GRID_STEP_DEG, RISK_COLORS
 
 
 def km_to_deg_lat(km: float) -> float:
@@ -90,59 +91,176 @@ def hex_to_rgb_list(hex_color: str) -> list:
     return [int(hex_color[i:i+2], 16) for i in (0, 2, 4)]
 
 
-def create_map_layers(grid_df: pd.DataFrame, lat: float, lon: float) -> list:
-    """Create map layers for risk visualization."""
+def create_risk_color_scale() -> list:
+    """Create color scale for heatmap from RISK_COLORS."""
+    # Extract colors from RISK_COLORS and convert to RGB tuples
+    color_scale = []
+    for lo, hi, hex_col in sorted(RISK_COLORS, key=lambda x: x[0]):
+        rgb = hex_to_rgb_list(hex_col)
+        color_scale.append(rgb)
+    return color_scale
+
+
+def interpolate_risk_grid(grid_df: pd.DataFrame, resolution: float = 0.1) -> pd.DataFrame:
+    """
+    Interpolate sparse risk grid to create smooth heatmap.
+    
+    Args:
+        grid_df: DataFrame with lat, lon, risk columns
+        resolution: Grid resolution in degrees for interpolated points
+    
+    Returns:
+        DataFrame with interpolated points
+    """
+    if grid_df.empty:
+        return grid_df
+    
+    # Original sparse points
+    points = grid_df[['lon', 'lat']].values
+    values = grid_df['risk'].values
+    
+    # Create dense interpolation grid
+    lon_range = np.arange(ARAUCANIA_LON_MIN, ARAUCANIA_LON_MAX + resolution, resolution)
+    lat_range = np.arange(ARAUCANIA_LAT_MIN, ARAUCANIA_LAT_MAX + resolution, resolution)
+    lon_grid, lat_grid = np.meshgrid(lon_range, lat_range)
+    
+    # Interpolate using cubic method for smooth transitions
+    risk_interpolated = griddata(points, values, (lon_grid, lat_grid), method='cubic', fill_value=0)
+    
+    # Clip negative values from cubic interpolation
+    risk_interpolated = np.clip(risk_interpolated, 0, 100)
+    
+    # Flatten and create DataFrame
+    interpolated_df = pd.DataFrame({
+        'lat': lat_grid.flatten(),
+        'lon': lon_grid.flatten(),
+        'risk': risk_interpolated.flatten()
+    })
+    
+    # Remove points with very low risk (likely extrapolation artifacts)
+    interpolated_df = interpolated_df[interpolated_df['risk'] > 1.0]
+    
+    return interpolated_df
+
+
+def wind_speed_to_color(speed_kmh: float) -> list:
+    """Convert wind speed to RGBA color."""
+    if speed_kmh < 10:
+        return [100, 200, 255, 180]  # Light cyan - calm
+    elif speed_kmh < 20:
+        return [200, 255, 100, 180]  # Lime - moderate
+    elif speed_kmh < 30:
+        return [255, 165, 0, 180]    # Orange - high
+    else:
+        return [255, 50, 50, 180]     # Red - extreme
+
+
+def create_wind_flow_field(wind_data: dict) -> list:
+    """
+    Create flow field lines showing wind patterns with directional fading.
+    
+    Args:
+        wind_data: Dict with 'wind_dir', 'wind_speed', 'lat', 'lon'
+    
+    Returns:
+        List of pydeck layers for wind visualization
+    """
+    if not wind_data or 'wind_dir' not in wind_data:
+        return []
+    
+    wind_dir = wind_data['wind_dir']
+    wind_speed = wind_data['wind_speed']
+    
+    # Convert wind direction to radians (meteorological: direction wind comes FROM)
+    # We want to show where it's blowing TO, so add 180°
+    flow_direction_rad = np.radians((wind_dir + 180) % 360)
+    
+    # Create grid of starting points distributed across the entire region
+    # More vertical lines, extended horizontal coverage to include ocean on the west
+    num_streaks_lat = 11  # Vertical distribution (11 latitude lines)
+    num_streaks_lon = 6   # Horizontal distribution (6 streaks per line, extended to west)
+    # Total: 66 streaks evenly distributed
+    
+    # Distribute evenly across the region
+    lat_positions = np.linspace(ARAUCANIA_LAT_MIN + 0.2, ARAUCANIA_LAT_MAX - 0.2, num_streaks_lat)
+    # Extend west from ocean (-73.0) to east edge (-71.0)
+    # Start at -73.0 (western ocean edge) and extend across land mass
+    lon_positions = np.linspace(-73.0, -71.0, num_streaks_lon)
+    
+    streamlines = []
+    base_color = wind_speed_to_color(wind_speed)
+    
+    # Generate streamlines from grid points
+    for start_lat in lat_positions:
+        for start_lon in lon_positions:
+            current_lat = start_lat
+            current_lon = start_lon
+            
+            # Shorter streaks: 6-8 segments, smaller steps
+            num_segments = 7
+            step_size_deg = 0.04  # ~4km per step = ~28km total length
+            
+            for step in range(num_segments):
+                # Calculate next point in wind direction
+                dlat = step_size_deg * np.cos(flow_direction_rad)
+                dlon = step_size_deg * np.sin(flow_direction_rad) / np.cos(np.radians(current_lat))
+                
+                next_lat = current_lat + dlat
+                next_lon = current_lon + dlon
+                
+                # Create opacity gradient: fade from transparent to opaque (shows direction)
+                # Start: low alpha (transparent), End: high alpha (opaque) - shows where wind is heading
+                opacity_start = 20 + int((step / num_segments) * 180)
+                opacity_end = 20 + int(((step + 1) / num_segments) * 180)
+                
+                # Store segment with gradient colors
+                color_start = base_color[:3] + [opacity_start]
+                color_end = base_color[:3] + [opacity_end]
+                
+                streamlines.append({
+                    'start_lat': current_lat,
+                    'start_lon': current_lon,
+                    'end_lat': next_lat,
+                    'end_lon': next_lon,
+                    'color_start': color_start,
+                    'color_end': color_end,
+                    'wind_speed': wind_speed,
+                })
+                
+                current_lat = next_lat
+                current_lon = next_lon
+    
+    # Create DataFrame for pydeck
+    if not streamlines:
+        return []
+    
+    streamlines_df = pd.DataFrame(streamlines)
+    
+    # Create flow field layer with gradient effect
+    # Use source color for start and target color for end
+    flow_layer = pdk.Layer(
+        "LineLayer",
+        data=streamlines_df,
+        get_source_position="[start_lon, start_lat]",
+        get_target_position="[end_lon, end_lat]",
+        get_color="color_start",
+        get_width=2.5,
+        width_min_pixels=1.5,
+        width_max_pixels=3,
+        pickable=False,
+    )
+    
+    return [flow_layer]
+
+
+def create_map_layers(wind_data: dict, lat: float, lon: float) -> list:
+    """Create map layers with wind flow field visualization."""
     layers = []
     
-    if not grid_df.empty:
-        grid_df["color_hex"] = grid_df["risk"].apply(color_for_risk)
-        grid_df["color"] = grid_df["color_hex"].apply(hex_to_rgb_list)
-
-        # Risk hexagon layer
-        risk_layer = pdk.Layer(
-            "HexagonLayer",
-            data=grid_df,
-            get_position="[lon, lat]",
-            get_fill_color="color",
-            radius=5500,
-            opacity=0.25,
-            extruded=False,
-            pickable=True,
-        )
-        layers.append(risk_layer)
-        
-        # Wind currents layer
-        wind_df = grid_df.iloc[::3].copy()
-        wind_vectors = []
-        for idx, row in wind_df.iterrows():
-            wind_dir_rad = np.radians(row["wind_dir"] + 180)
-            wind_speed = row["wind_kmh"]
-            arrow_length_deg = min(wind_speed / 1000.0, 0.05)
-            
-            end_lat = row["lat"] + arrow_length_deg * np.cos(wind_dir_rad)
-            end_lon = row["lon"] + arrow_length_deg * np.sin(wind_dir_rad) / np.cos(np.radians(row["lat"]))
-            
-            wind_vectors.append({
-                "start_lat": row["lat"],
-                "start_lon": row["lon"],
-                "end_lat": end_lat,
-                "end_lon": end_lon,
-                "wind_speed": wind_speed,
-                "wind_dir": row["wind_dir"]
-            })
-        
-        if wind_vectors:
-            wind_df_vectors = pd.DataFrame(wind_vectors)
-            wind_layer = pdk.Layer(
-                "LineLayer",
-                data=wind_df_vectors,
-                get_source_position="[start_lon, start_lat]",
-                get_target_position="[end_lon, end_lat]",
-                get_color=[255, 100, 100, 180],
-                get_width=2,
-                pickable=True,
-            )
-            layers.append(wind_layer)
+    # Add wind flow field if wind data is available
+    if wind_data:
+        wind_layers = create_wind_flow_field(wind_data)
+        layers.extend(wind_layers)
 
     # Bosque Pehuen highlight (always visible)
     circle_points = []
@@ -166,9 +284,15 @@ def create_map_layers(grid_df: pd.DataFrame, lat: float, lon: float) -> list:
     )
     layers.append(bosque_highlight)
 
+    # Add wind data to marker for tooltip
+    marker_data = [{"lon": lon, "lat": lat, "name": "Bosque Pehuén"}]
+    if wind_data:
+        marker_data[0]["wind_speed"] = wind_data.get('wind_speed', 0)
+        marker_data[0]["wind_dir"] = wind_data.get('wind_dir', 0)
+    
     bosque_marker = pdk.Layer(
         "ScatterplotLayer",
-        data=[{"lon": lon, "lat": lat, "name": "Bosque Pehuén"}],
+        data=marker_data,
         get_position="[lon, lat]",
         get_color=[255, 140, 0, 255],
         get_radius=200,
@@ -179,15 +303,19 @@ def create_map_layers(grid_df: pd.DataFrame, lat: float, lon: float) -> list:
     return layers
 
 
-def create_map_view_state() -> pdk.ViewState:
-    """Create view state centered on Araucania region."""
-    center_lat = (ARAUCANIA_LAT_MIN + ARAUCANIA_LAT_MAX) / 2
-    center_lon = (ARAUCANIA_LON_MIN + ARAUCANIA_LON_MAX) / 2
+def create_map_view_state(center_lat: float = None, center_lon: float = None) -> pdk.ViewState:
+    """Create view state centered on specified location or Araucania region."""
+    # Use provided coordinates or default to region center
+    if center_lat is None or center_lon is None:
+        center_lat = (ARAUCANIA_LAT_MIN + ARAUCANIA_LAT_MAX) / 2
+        center_lon = (ARAUCANIA_LON_MIN + ARAUCANIA_LON_MAX) / 2
     
     return pdk.ViewState(
         latitude=center_lat,
         longitude=center_lon,
-        zoom=8,
+        zoom=8.5,     # Default zoom - balanced view showing Bosque Pehuén and wind patterns
+        min_zoom=7,   # Limit zoom out (prevents seeing too much)
+        max_zoom=12,  # Limit zoom in (keeps context visible)
         pitch=0,
         bearing=0
     )

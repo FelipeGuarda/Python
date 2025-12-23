@@ -81,7 +81,7 @@ ARAUCANIA_LAT_MAX = -38.0
 ARAUCANIA_LON_MIN = -73.0
 ARAUCANIA_LON_MAX = -71.0
 
-# Map grid step (degrees)
-MAP_GRID_STEP_DEG = 0.1
+# Map grid step (degrees) - sparse grid for API calls
+MAP_GRID_STEP_DEG = 0.5
 
 
