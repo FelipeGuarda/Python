@@ -219,7 +219,7 @@ haz_filtered = haz_sorted[
 
 if not haz_filtered.empty:
     st.caption(view_label)
-    f1, f2 = create_forecast_charts(haz_filtered, today_date)
+    f1, f2 = create_forecast_charts(haz_filtered, st.session_state.selected_date)
     st.plotly_chart(f1, width='stretch')
     st.plotly_chart(f2, width='stretch')
 else:
