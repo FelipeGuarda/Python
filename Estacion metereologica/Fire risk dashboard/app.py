@@ -155,12 +155,7 @@ with colA:
                 label = f"{lo:.0f}+"
             else:
                 label = f"{lo:.0f}-{hi:.0f}"
-            legend_html += f"""
-            <div style='display:flex;align-items:center;margin-bottom:6px;'>
-                <div style='width:20px;height:12px;background:{col};border-radius:3px;margin-right:8px;border:1px solid #ccc;'></div>
-                <span>{label}</span>
-            </div>
-            """
+            legend_html += f"<div style='display:flex;align-items:center;margin-bottom:6px;'><div style='width:20px;height:12px;background:{col};border-radius:3px;margin-right:8px;border:1px solid #ccc;'></div><span>{label}</span></div>"
         legend_html += "</div>"
         st.markdown(legend_html, unsafe_allow_html=True)
 
