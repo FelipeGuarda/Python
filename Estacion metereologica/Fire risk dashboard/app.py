@@ -18,7 +18,7 @@ import streamlit as st  # pyright: ignore[reportMissingImports]
 import pydeck as pdk  # pyright: ignore[reportMissingImports]
 
 # Local imports
-from config import TZ, TODAY
+from config import TZ, TODAY, RISK_COLORS
 from data_fetcher import fetch_open_meteo
 from risk_calculator import compute_days_without_rain, best_hour_by_day, color_for_risk
 from visualizations import create_polar_plot, create_wind_compass, create_forecast_charts
@@ -138,9 +138,31 @@ with colA:
 
     row = haz.loc[haz["date"] == sel_date].iloc[0]
 
-    # Create and display polar plot
+    # Create and display polar plot with legend
     fig = create_polar_plot(row)
-    st.plotly_chart(fig, width='stretch')
+    
+    # Display plot and legend side by side
+    plot_col, legend_col = st.columns([5, 1])
+    with plot_col:
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with legend_col:
+        st.markdown("<br>", unsafe_allow_html=True)  # Spacing
+        st.markdown("**Risk Color Legend**", unsafe_allow_html=True)
+        legend_html = "<div style='font-size:11px;'>"
+        for lo, hi, col in sorted(RISK_COLORS, key=lambda x: x[0]):
+            if hi == 100.0:
+                label = f"{lo:.0f}+"
+            else:
+                label = f"{lo:.0f}-{hi:.0f}"
+            legend_html += f"""
+            <div style='display:flex;align-items:center;margin-bottom:6px;'>
+                <div style='width:20px;height:12px;background:{col};border-radius:3px;margin-right:8px;border:1px solid #ccc;'></div>
+                <span>{label}</span>
+            </div>
+            """
+        legend_html += "</div>"
+        st.markdown(legend_html, unsafe_allow_html=True)
 
     # Forecast/historical indicator
     is_forecast = sel_date > TODAY.date()
