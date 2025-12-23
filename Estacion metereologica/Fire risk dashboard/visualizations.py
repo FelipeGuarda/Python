@@ -100,7 +100,18 @@ def create_wind_compass(avg_wind_dir: float, avg_wind_speed: float, risk_color: 
     # Draw wind direction wedge - using standard meteorological convention (wind coming FROM)
     # In Plotly polar plots, 0° is at top (North), angles increase counterclockwise
     wind_dir_deg = (avg_wind_dir + 180) % 360  # Wind direction (where wind is coming from)
-    wedge_length = 0.75
+    
+    # Scale wedge length based on wind speed (km/h)
+    # Map wind speed from 0-50 km/h to wedge length 0.3-0.9
+    min_wind_speed = 0.0
+    max_wind_speed = 50.0
+    min_wedge_length = 0.3
+    max_wedge_length = 0.9
+    
+    # Normalize wind speed to 0-1 range and map to wedge length
+    normalized_speed = np.clip((avg_wind_speed - min_wind_speed) / (max_wind_speed - min_wind_speed), 0.0, 1.0)
+    wedge_length = min_wedge_length + normalized_speed * (max_wedge_length - min_wedge_length)
+    
     wedge_width = 30  # Angular width of the wedge in degrees
     
     # Calculate wedge boundaries
