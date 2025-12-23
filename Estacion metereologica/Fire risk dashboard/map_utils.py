@@ -105,24 +105,29 @@ def create_map_layers(grid_df: pd.DataFrame, lat: float, lon: float) -> list:
     layers = []
     
     if not grid_df.empty:
-        # Risk heatmap layer - using HeatmapLayer with radius (meters) for zoom-independent display
-        # Radius in meters (~30km) for smooth blending that doesn't change with zoom
-        radius_meters = 30000
+        # Risk visualization using ScatterplotLayer with individual colors per point
+        # Add color column based on actual risk values - each point gets its own color
+        grid_df = grid_df.copy()
+        grid_df["color_hex"] = grid_df["risk"].apply(color_for_risk)
+        grid_df["color_rgb"] = grid_df["color_hex"].apply(lambda x: hex_to_rgb_list(x) + [180])  # RGBA with alpha
         
-        # Create color scale from RISK_COLORS
-        risk_color_scale = create_risk_color_scale()
+        # ScatterplotLayer with large radius for heatmap-like appearance
+        # Using radius in meters for zoom-independent sizing (~20km per point for good overlap)
+        radius_meters = 20000
         
         risk_layer = pdk.Layer(
-            "HeatmapLayer",
+            "ScatterplotLayer",
             data=grid_df,
             get_position="[lon, lat]",
-            get_weight="risk",
-            colorScale=risk_color_scale,
-            radius=radius_meters,
-            intensity=1.0,
-            threshold=0.05,
-            opacity=0.7,
+            get_fill_color="color_rgb",
+            get_radius=radius_meters,
+            radius_scale=1,
+            radius_min_pixels=3,
+            radius_max_pixels=200,
+            line_width_min_pixels=0,
+            opacity=0.6,
             pickable=True,
+            auto_highlight=True,
         )
         layers.append(risk_layer)
 
