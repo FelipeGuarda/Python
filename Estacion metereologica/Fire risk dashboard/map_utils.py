@@ -157,7 +157,7 @@ def wind_speed_to_color(speed_kmh: float) -> list:
 
 def create_wind_flow_field(wind_data: dict) -> list:
     """
-    Create flow field lines showing wind patterns.
+    Create flow field lines showing wind patterns with directional fading.
     
     Args:
         wind_data: Dict with 'wind_dir', 'wind_speed', 'lat', 'lon'
@@ -170,32 +170,33 @@ def create_wind_flow_field(wind_data: dict) -> list:
     
     wind_dir = wind_data['wind_dir']
     wind_speed = wind_data['wind_speed']
-    center_lat = wind_data['lat']
-    center_lon = wind_data['lon']
     
     # Convert wind direction to radians (meteorological: direction wind comes FROM)
     # We want to show where it's blowing TO, so add 180°
     flow_direction_rad = np.radians((wind_dir + 180) % 360)
     
-    # Create starting points in a grid pattern around the region
+    # Create two horizontal latitude lines evenly distributed across Araucania
+    lat_line_1 = ARAUCANIA_LAT_MIN + (ARAUCANIA_LAT_MAX - ARAUCANIA_LAT_MIN) * 0.33
+    lat_line_2 = ARAUCANIA_LAT_MIN + (ARAUCANIA_LAT_MAX - ARAUCANIA_LAT_MIN) * 0.67
+    
+    # Number of streaks per line
+    num_streaks_per_line = 12
+    
+    # Create starting points evenly distributed along longitude
+    lon_positions = np.linspace(ARAUCANIA_LON_MIN + 0.15, ARAUCANIA_LON_MAX - 0.15, num_streaks_per_line)
+    
     streamlines = []
-    num_lines_lat = 5
-    num_lines_lon = 6
+    base_color = wind_speed_to_color(wind_speed)
     
-    lat_range = np.linspace(ARAUCANIA_LAT_MIN + 0.2, ARAUCANIA_LAT_MAX - 0.2, num_lines_lat)
-    lon_range = np.linspace(ARAUCANIA_LON_MIN + 0.2, ARAUCANIA_LON_MAX - 0.2, num_lines_lon)
-    
-    # Generate streamlines
-    for start_lat in lat_range:
-        for start_lon in lon_range:
-            # Create a streamline from this starting point
-            path_points = []
-            current_lat = start_lat
+    # Generate streamlines from both latitude lines
+    for lat_line in [lat_line_1, lat_line_2]:
+        for start_lon in lon_positions:
+            current_lat = lat_line
             current_lon = start_lon
             
-            # Number of segments per streamline
-            num_segments = 15
-            step_size_deg = 0.08  # ~8-9km per step
+            # Shorter streaks: 6-8 segments, smaller steps
+            num_segments = 7
+            step_size_deg = 0.04  # ~4km per step = ~28km total length
             
             for step in range(num_segments):
                 # Calculate next point in wind direction
@@ -205,14 +206,23 @@ def create_wind_flow_field(wind_data: dict) -> list:
                 next_lat = current_lat + dlat
                 next_lon = current_lon + dlon
                 
-                # Store segment
+                # Create opacity gradient: fade from opaque to transparent
+                # Start: 200 alpha, End: 0 alpha (shows direction)
+                opacity_start = 200 - int((step / num_segments) * 180)
+                opacity_end = 200 - int(((step + 1) / num_segments) * 180)
+                
+                # Store segment with gradient colors
+                color_start = base_color[:3] + [opacity_start]
+                color_end = base_color[:3] + [opacity_end]
+                
                 streamlines.append({
                     'start_lat': current_lat,
                     'start_lon': current_lon,
                     'end_lat': next_lat,
                     'end_lon': next_lon,
+                    'color_start': color_start,
+                    'color_end': color_end,
                     'wind_speed': wind_speed,
-                    'wind_dir': wind_dir
                 })
                 
                 current_lat = next_lat
@@ -223,15 +233,15 @@ def create_wind_flow_field(wind_data: dict) -> list:
         return []
     
     streamlines_df = pd.DataFrame(streamlines)
-    color = wind_speed_to_color(wind_speed)
     
-    # Create flow field layer
+    # Create flow field layer with gradient effect
+    # Use source color for start and target color for end
     flow_layer = pdk.Layer(
         "LineLayer",
         data=streamlines_df,
         get_source_position="[start_lon, start_lat]",
         get_target_position="[end_lon, end_lat]",
-        get_color=color,
+        get_color="color_start",
         get_width=2.5,
         width_min_pixels=1.5,
         width_max_pixels=3,
