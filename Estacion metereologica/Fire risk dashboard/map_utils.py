@@ -12,7 +12,7 @@ import streamlit as st
 
 from data_fetcher import fetch_open_meteo
 from risk_calculator import risk_components, compute_days_without_rain, color_for_risk
-from config import ARAUCANIA_LAT_MIN, ARAUCANIA_LAT_MAX, ARAUCANIA_LON_MIN, ARAUCANIA_LON_MAX, MAP_GRID_STEP_DEG
+from config import ARAUCANIA_LAT_MIN, ARAUCANIA_LAT_MAX, ARAUCANIA_LON_MIN, ARAUCANIA_LON_MAX, MAP_GRID_STEP_DEG, RISK_COLORS
 
 
 def km_to_deg_lat(km: float) -> float:
@@ -90,23 +90,33 @@ def hex_to_rgb_list(hex_color: str) -> list:
     return [int(hex_color[i:i+2], 16) for i in (0, 2, 4)]
 
 
+def create_risk_color_scale() -> list:
+    """Create color scale for heatmap from RISK_COLORS."""
+    # Extract colors from RISK_COLORS and convert to RGB tuples
+    color_scale = []
+    for lo, hi, hex_col in sorted(RISK_COLORS, key=lambda x: x[0]):
+        rgb = hex_to_rgb_list(hex_col)
+        color_scale.append(rgb)
+    return color_scale
+
+
 def create_map_layers(grid_df: pd.DataFrame, lat: float, lon: float) -> list:
     """Create map layers for risk visualization."""
     layers = []
     
     if not grid_df.empty:
-        grid_df["color_hex"] = grid_df["risk"].apply(color_for_risk)
-        grid_df["color"] = grid_df["color_hex"].apply(hex_to_rgb_list)
-
-        # Risk hexagon layer
+        # Risk heatmap layer
+        risk_color_scale = create_risk_color_scale()
         risk_layer = pdk.Layer(
-            "HexagonLayer",
+            "HeatmapLayer",
             data=grid_df,
             get_position="[lon, lat]",
-            get_fill_color="color",
-            radius=5500,
-            opacity=0.25,
-            extruded=False,
+            get_weight="risk",
+            colorScale=risk_color_scale,
+            radiusPixels=80,
+            intensity=1.0,
+            threshold=0.05,
+            opacity=0.6,
             pickable=True,
         )
         layers.append(risk_layer)
