@@ -18,7 +18,7 @@ import streamlit as st  # pyright: ignore[reportMissingImports]
 import pydeck as pdk  # pyright: ignore[reportMissingImports]
 
 # Local imports
-from config import TZ, TODAY, DEFAULT_LAT, DEFAULT_LON
+from config import TZ, TODAY
 from data_fetcher import fetch_open_meteo
 from risk_calculator import compute_days_without_rain, best_hour_by_day, color_for_risk
 from visualizations import create_polar_plot, create_wind_compass, create_forecast_charts
@@ -31,28 +31,16 @@ st.set_page_config(
 )
 
 # ---------------------------
-# Sidebar controls
+# Default settings (previously in sidebar)
 # ---------------------------
-try:
-    import pyproj  # pyright: ignore[reportMissingImports]
-    transformer = pyproj.Transformer.from_crs("EPSG:32719", "EPSG:4326", always_xy=True)
-    lon, lat = transformer.transform(263221.0, 5630634.0)
-    lat, lon = float(lat), float(lon)
-except Exception:
-    lat, lon = DEFAULT_LAT, DEFAULT_LON
-    st.sidebar.warning("pyproj not installed — using default lat/lon.")
+# Center: lat=-39.44132, lon=-71.75140 (from UTM 19S)
+lat = -39.44132
+lon = -71.75140
 
-st.sidebar.header("Settings")
-st.sidebar.caption(f"Center: lat={lat:.5f}, lon={lon:.5f} (from UTM 19S)")
+# Forecast days to fetch: 14
+days_ahead = 14
 
-with st.sidebar:
-    st.subheader("Data Fetching")
-    days_ahead = st.slider("Forecast days to fetch", min_value=7, max_value=14, value=14, 
-                          help="Number of forecast days to retrieve from API.")
-    
-    st.subheader("Map Settings")
-    st.caption("Map covers entire Araucania region")
-    st.info("Toggle 'Show risk grid overlay' on the map to view risk hexagons and wind currents")
+# Map covers entire Araucania region
 
 # ---------------------------
 # Fetch & prepare data
