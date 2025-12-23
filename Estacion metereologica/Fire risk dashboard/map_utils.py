@@ -183,7 +183,8 @@ def create_wind_flow_field(wind_data: dict) -> list:
     
     # Distribute evenly across the region - shifted west to cover entire land mass
     lat_positions = np.linspace(ARAUCANIA_LAT_MIN + 0.2, ARAUCANIA_LAT_MAX - 0.2, num_streaks_lat)
-    lon_positions = np.linspace(ARAUCANIA_LON_MIN + 0.05, ARAUCANIA_LON_MAX - 0.5, num_streaks_lon)
+    # Extend further west: ARAUCANIA_LON_MIN is -73.0, so start near -72.9 to cover ocean
+    lon_positions = np.linspace(-72.9, -71.3, num_streaks_lon)
     
     streamlines = []
     base_color = wind_speed_to_color(wind_speed)
@@ -301,10 +302,12 @@ def create_map_layers(wind_data: dict, lat: float, lon: float) -> list:
     return layers
 
 
-def create_map_view_state() -> pdk.ViewState:
-    """Create view state centered on Araucania region."""
-    center_lat = (ARAUCANIA_LAT_MIN + ARAUCANIA_LAT_MAX) / 2
-    center_lon = (ARAUCANIA_LON_MIN + ARAUCANIA_LON_MAX) / 2
+def create_map_view_state(center_lat: float = None, center_lon: float = None) -> pdk.ViewState:
+    """Create view state centered on specified location or Araucania region."""
+    # Use provided coordinates or default to region center
+    if center_lat is None or center_lon is None:
+        center_lat = (ARAUCANIA_LAT_MIN + ARAUCANIA_LAT_MAX) / 2
+        center_lon = (ARAUCANIA_LON_MIN + ARAUCANIA_LON_MAX) / 2
     
     return pdk.ViewState(
         latitude=center_lat,

@@ -253,7 +253,7 @@ if not hourly_sel.empty:
 # Create map layers with wind flow field
 layers = create_map_layers(wind_data, lat, lon)
 
-view_state = create_map_view_state()
+view_state = create_map_view_state(center_lat=lat, center_lon=lon)
 
 tooltip = {
     "html": "<b>Bosque Pehuén</b><br>Wind: {wind_speed:.1f} km/h<br>Direction: {wind_dir:.0f}°",
