@@ -175,23 +175,22 @@ def create_wind_flow_field(wind_data: dict) -> list:
     # We want to show where it's blowing TO, so add 180°
     flow_direction_rad = np.radians((wind_dir + 180) % 360)
     
-    # Create two horizontal latitude lines evenly distributed across Araucania
-    lat_line_1 = ARAUCANIA_LAT_MIN + (ARAUCANIA_LAT_MAX - ARAUCANIA_LAT_MIN) * 0.33
-    lat_line_2 = ARAUCANIA_LAT_MIN + (ARAUCANIA_LAT_MAX - ARAUCANIA_LAT_MIN) * 0.67
+    # Create grid of starting points distributed across the entire region
+    # Fewer streaks with more spacing for cleaner look
+    num_streaks_lat = 4  # Vertical distribution
+    num_streaks_lon = 6  # Horizontal distribution (reduced from 12)
     
-    # Number of streaks per line
-    num_streaks_per_line = 12
-    
-    # Create starting points evenly distributed along longitude
-    lon_positions = np.linspace(ARAUCANIA_LON_MIN + 0.15, ARAUCANIA_LON_MAX - 0.15, num_streaks_per_line)
+    # Distribute evenly across the region with margins
+    lat_positions = np.linspace(ARAUCANIA_LAT_MIN + 0.3, ARAUCANIA_LAT_MAX - 0.3, num_streaks_lat)
+    lon_positions = np.linspace(ARAUCANIA_LON_MIN + 0.3, ARAUCANIA_LON_MAX - 0.3, num_streaks_lon)
     
     streamlines = []
     base_color = wind_speed_to_color(wind_speed)
     
-    # Generate streamlines from both latitude lines
-    for lat_line in [lat_line_1, lat_line_2]:
+    # Generate streamlines from grid points
+    for start_lat in lat_positions:
         for start_lon in lon_positions:
-            current_lat = lat_line
+            current_lat = start_lat
             current_lon = start_lon
             
             # Shorter streaks: 6-8 segments, smaller steps
@@ -206,10 +205,10 @@ def create_wind_flow_field(wind_data: dict) -> list:
                 next_lat = current_lat + dlat
                 next_lon = current_lon + dlon
                 
-                # Create opacity gradient: fade from opaque to transparent
-                # Start: 200 alpha, End: 0 alpha (shows direction)
-                opacity_start = 200 - int((step / num_segments) * 180)
-                opacity_end = 200 - int(((step + 1) / num_segments) * 180)
+                # Create opacity gradient: fade from transparent to opaque (shows direction)
+                # Start: low alpha (transparent), End: high alpha (opaque) - shows where wind is heading
+                opacity_start = 20 + int((step / num_segments) * 180)
+                opacity_end = 20 + int(((step + 1) / num_segments) * 180)
                 
                 # Store segment with gradient colors
                 color_start = base_color[:3] + [opacity_start]
