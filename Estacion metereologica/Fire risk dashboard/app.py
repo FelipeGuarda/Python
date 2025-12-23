@@ -76,14 +76,14 @@ with colA:
     col_date1, col_date2, col_date3, col_date4 = st.columns(4)
     
     with col_date1:
-        if st.button("Today", use_container_width=True):
+        if st.button("Today", width='stretch'):
             today_idx = int(np.clip(np.searchsorted(dates_sorted, TODAY.date()), 0, len(dates_sorted)-1))
             if today_idx < len(dates_sorted):
                 st.session_state.selected_date = dates_sorted[today_idx]
                 st.rerun()
     
     with col_date2:
-        if st.button("Tomorrow", use_container_width=True):
+        if st.button("Tomorrow", width='stretch'):
             tomorrow = (TODAY + pd.Timedelta(days=1)).date()
             tom_idx = int(np.clip(np.searchsorted(dates_sorted, tomorrow), 0, len(dates_sorted)-1))
             if tom_idx < len(dates_sorted):
@@ -96,7 +96,7 @@ with colA:
                 st.rerun()
     
     with col_date3:
-        if st.button("Next 3 days", use_container_width=True):
+        if st.button("Next 3 days", width='stretch'):
             next_3_days = (TODAY + pd.Timedelta(days=3)).date()
             n3_idx = int(np.clip(np.searchsorted(dates_sorted, next_3_days), 0, len(dates_sorted)-1))
             if n3_idx < len(dates_sorted):
@@ -104,7 +104,7 @@ with colA:
                 st.rerun()
     
     with col_date4:
-        if st.button("Next 7 days", use_container_width=True):
+        if st.button("Next 7 days", width='stretch'):
             next_week = (TODAY + pd.Timedelta(days=7)).date()
             nw_idx = int(np.clip(np.searchsorted(dates_sorted, next_week), 0, len(dates_sorted)-1))
             if nw_idx < len(dates_sorted):
@@ -123,7 +123,7 @@ with colA:
     # Display plot and legend side by side
     plot_col, legend_col = st.columns([5, 1])
     with plot_col:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     
     with legend_col:
         st.markdown("<br>", unsafe_allow_html=True)  # Spacing
@@ -170,7 +170,7 @@ with colB:
             avg_wind_speed = float(wind_window["wind_kmh"].mean())
             
             compass_fig = create_wind_compass(avg_wind_dir, avg_wind_speed, risk_color=col)
-            st.plotly_chart(compass_fig, use_container_width=True, config={'displayModeBar': False})
+            st.plotly_chart(compass_fig, width='stretch', config={'displayModeBar': False})
             st.caption(f"{avg_wind_dir:.0f}° ({avg_wind_speed:.1f} km/h)")
         else:
             st.info("Wind data not available for this date")
