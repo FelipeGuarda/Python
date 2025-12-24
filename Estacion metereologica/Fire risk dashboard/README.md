@@ -30,15 +30,18 @@ Easting = 263221 m, Northing = 5630634 m (≈ lat -39.61°, lon -71.71°).
 
 2.2 Variables and scoring
 
-Each variable is assigned a partial score from 0 to 25 points according to predefined ranges, producing a total risk index from 0 to 100 points.
+Each variable is assigned a partial score according to predefined ranges, producing a total risk index from 0 to 100 points.
 Humidity contributes inversely (high humidity → lower risk), while the remaining variables contribute directly.
+The variables are weighted differently: temperature and humidity each contribute up to 25 points, wind speed up to 15 points, and days without rain up to 35 points.
+
+Risk scores are computed for the afternoon hours (14:00–16:00 local time, 2–4 PM) when fire danger typically peaks, and these values are averaged to produce a single daily risk score per day.
 
 | Variable          | Unit | Relationship with risk | Scoring range |
 | ----------------- | ---- | ---------------------- | ------------- |
 | Air temperature   | °C   | Positive               | 0–25          |
 | Relative humidity | %    | Inverse                | 0–25          |
-| Wind speed        | km/h | Positive               | 0–25          |
-| Days without rain | days | Positive               | 0–25          |
+| Wind speed        | km/h | Positive               | 0–15          |
+| Days without rain | days | Positive               | 0–35          |
 
 
 2.3 Output interpretation
@@ -89,8 +92,8 @@ The codebase is organized into a modular architecture that separates concerns fo
 
 **Data flow:**
 
-1. **Data fetching** (`data_fetcher.py`): Retrieves raw meteorological data from Open-Meteo API
-2. **Risk calculation** (`risk_calculator.py`): Processes raw data to compute risk scores using configurable scoring bins
+1. **Data fetching** (`data_fetcher.py`): Retrieves raw meteorological data from Open-Meteo API (hourly and daily forecasts, plus 60 days of historical data)
+2. **Risk calculation** (`risk_calculator.py`): Processes raw data to compute risk scores using configurable scoring bins. Hourly data from 14:00–16:00 (2–4 PM) is averaged per day to compute daily risk scores.
 3. **Visualization** (`visualizations.py`): Generates interactive Plotly charts from computed risk data
 4. **UI orchestration** (`app.py`): Coordinates all modules, manages Streamlit session state, and renders the dashboard
 
@@ -160,7 +163,7 @@ streamlit, plotly, pydeck, pandas, numpy, and requests.
 - Replaced arrow-based wind direction indicator with wind rose-style wedge visualization
 - The wedge extends from the center of the compass in the direction the wind is coming from, following standard meteorological convention
 - Wind compass wedge color now dynamically matches the fire risk index color for the selected day, providing visual consistency across the dashboard
-- The wedge uses a 30-degree angular width and extends to 75% of the compass radius for clear visibility
+- The wedge uses a 30-degree angular width and extends up to 90% of the compass radius (scaled by wind speed) for clear visibility
 
 **Technical details:**
 - Map basemap: Uses `pdk.map_styles.LIGHT` (Carto basemap) in `app.py`
