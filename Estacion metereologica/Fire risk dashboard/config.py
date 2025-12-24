@@ -10,10 +10,6 @@ import pandas as pd
 TZ = "America/Santiago"
 TODAY = pd.Timestamp.now(tz=TZ).normalize()
 
-# Default approximate lat/lon for Bosque Pehuén / Palguín area
-DEFAULT_LAT = -39.45
-DEFAULT_LON = -71.80
-
 # Score tables (0-25 points each, sum to 100)
 TEMP_BINS = [
     (-np.inf, 0, 2.7),
@@ -80,8 +76,5 @@ ARAUCANIA_LAT_MIN = -40.0
 ARAUCANIA_LAT_MAX = -38.0
 ARAUCANIA_LON_MIN = -73.0
 ARAUCANIA_LON_MAX = -71.0
-
-# Map grid step (degrees) - sparse grid for API calls
-MAP_GRID_STEP_DEG = 0.5
 
 
