@@ -6,8 +6,6 @@ Stack: Streamlit + Plotly + pydeck + Open-Meteo
 How to run
     pip install -r requirements.txt
     streamlit run app.py
-
-Optional (for UTM conversion): pip install pyproj
 """
 
 from __future__ import annotations
