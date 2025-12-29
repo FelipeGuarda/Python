@@ -3,8 +3,8 @@
 Configuration constants for Fire Risk Dashboard
 """
 
-import numpy as np
-import pandas as pd
+import numpy as np  # pyright: ignore[reportMissingImports]
+import pandas as pd  # pyright: ignore[reportMissingImports]
 
 # Timezone
 TZ = "America/Santiago"
