@@ -92,7 +92,7 @@ The codebase is organized into a modular architecture that separates concerns fo
 
 **Data flow:**
 
-1. **Data fetching** (`data_fetcher.py`): Retrieves raw meteorological data from Open-Meteo API (hourly and daily forecasts, plus 60 days of historical data)
+1. **Data fetching** (`data_fetcher.py`): Retrieves raw meteorological data from Open-Meteo API (hourly and daily forecasts)
 2. **Risk calculation** (`risk_calculator.py`): Processes raw data to compute risk scores using configurable scoring bins. Hourly data from 14:00–16:00 (2–4 PM) is averaged per day to compute daily risk scores.
 3. **Visualization** (`visualizations.py`): Generates interactive Plotly charts from computed risk data
 4. **UI orchestration** (`app.py`): Coordinates all modules, manages Streamlit session state, and renders the dashboard
@@ -111,25 +111,6 @@ app.py
 └── map_utils.py (map utilities)
     └── config.py (geographic bounds)
 ```
-
-**Benefits of modular structure:**
-
-- **Separation of concerns**: Each module has a single, well-defined responsibility
-- **Reusability**: Functions can be imported and used independently
-- **Testability**: Individual modules can be tested in isolation
-- **Maintainability**: Changes to scoring logic, visualization, or data sources are localized
-- **Clarity**: Code organization makes the codebase easier to understand and navigate
-
-**For AI replication:**
-
-When replicating or extending this codebase, maintain the modular structure:
-- Keep configuration constants in `config.py`
-- Isolate API calls in `data_fetcher.py`
-- Centralize risk calculation logic in `risk_calculator.py`
-- Separate visualization code in `visualizations.py`
-- Keep map-specific utilities in `map_utils.py`
-- Use `app.py` only for Streamlit UI orchestration and data flow coordination
-
 
 4. Environment and reproducibility
 
