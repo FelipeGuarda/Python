@@ -153,7 +153,148 @@ streamlit, plotly, pydeck, pandas, numpy, and requests.
 - Map visualization: `create_wind_flow_field()` in `map_utils.py` generates directional wind streamlines with opacity gradients
 
 
-7. Future development
+7. Machine Learning Fire Prediction
+
+This dashboard includes a **Random Forest classifier** trained on 20 years of Chilean fire history to provide data-driven fire probability predictions.
+
+### How it works
+
+The ML model uses the **same 4 weather variables** as the rule-based risk index:
+- Temperature (°C)
+- Relative humidity (%)
+- Wind speed (km/h)
+- Consecutive days without rain
+
+### Training data
+
+- **Source**: Historical fire scar dataset from Datos para Resiliencia (`doi:10.71578/XAZAKP`)
+- **Region**: La Araucanía (same as dashboard focus area)
+- **Time period**: 2015-2024
+- **Samples**: 616 fires + 616 non-fire days (balanced dataset)
+- **Features**: Afternoon weather conditions (14:00-16:00) matched to fire dates
+
+### Model performance
+
+- **Accuracy**: 80% on test set
+- **Cross-validation**: 81% (±8%)
+- **ROC AUC**: 0.85 (good discrimination)
+
+### Feature importance
+
+The model learned that these variables matter most for fire prediction:
+1. **Days without rain**: 38% importance (most critical)
+2. **Temperature**: 37% importance
+3. **Wind speed**: 17% importance
+4. **Relative humidity**: 8% importance
+
+This validates the Chilean fire danger standards used in the rule-based scoring system!
+
+### Dashboard integration
+
+The ML prediction appears in the dashboard alongside the rule-based risk index:
+- **Rule-Based Risk Index**: Uses Chilean fire danger standards (fixed scoring bins)
+- **ML Fire Probability**: Learned from actual fire patterns (data-driven)
+- **Agreement indicator**: Shows when both methods agree (within 15 points)
+
+### Scripts for ML workflow
+
+- `prepare_training_data.py` - Downloads fire data and fetches historical weather to build training dataset
+- `train_fire_model.py` - Trains Random Forest model and generates evaluation plots
+- `fire_model.pkl` - Trained model (loaded automatically by dashboard)
+
+### Retraining the model
+
+To retrain with more data or different parameters:
+
+```bash
+# 1. Prepare training data (adjust MAX_SAMPLES in script if needed)
+python prepare_training_data.py
+
+# 2. Train model
+python train_fire_model.py
+
+# 3. Review evaluation plots:
+#    - feature_importance.png
+#    - confusion_matrix.png
+#    - roc_curve.png
+
+# 4. Restart dashboard to load new model
+streamlit run app.py
+```
+
+8. Data download utility (pyDataverse)
+
+This project includes a helper script (`download_dataverse.py`) for downloading datasets from **Datos para Resiliencia** (https://datospararesiliencia.cl) using the pyDataverse library.
+
+### Installation
+
+```bash
+pip install pyDataverse==0.3.3
+```
+
+This package is already included in the `fire_risk_dashboard` conda environment.
+
+### Obtaining an API key
+
+1. Visit https://datospararesiliencia.cl
+2. Log in or create an account
+3. Navigate to your user profile → Developer Tools
+4. Generate an API key
+
+### Usage examples
+
+**List available files in a dataset:**
+
+```bash
+python download_dataverse.py --api-key YOUR_API_KEY --dataset-id "doi:10.71578/XAZAKP" --list-files
+```
+
+**Download all files as a single zip:**
+
+```bash
+python download_dataverse.py --api-key YOUR_API_KEY --dataset-id "doi:10.71578/XAZAKP" --download-all
+```
+
+**Download all files individually:**
+
+```bash
+python download_dataverse.py --api-key YOUR_API_KEY --dataset-id "doi:10.71578/XAZAKP" --download-all --individual
+```
+
+**Download specific files:**
+
+```bash
+python download_dataverse.py --api-key YOUR_API_KEY --dataset-id "doi:10.71578/XAZAKP" --files "filename1.csv" "filename2.geojson"
+```
+
+**Using environment variables (recommended for security):**
+
+In bash (Git Bash / MSYS):
+```bash
+export DATAVERSE_API_KEY="your-api-key-here"
+export DATAVERSE_DATASET_ID="doi:10.71578/XAZAKP"
+python download_dataverse.py --download-all
+```
+
+In PowerShell:
+```powershell
+$env:DATAVERSE_API_KEY="your-api-key-here"
+$env:DATAVERSE_DATASET_ID="doi:10.71578/XAZAKP"
+python download_dataverse.py --download-all
+```
+
+### Default dataset
+
+The script defaults to dataset `doi:10.71578/XAZAKP` (Chilean fire scar database) from Datos para Resiliencia. You can override this with `--dataset-id` or the `DATAVERSE_DATASET_ID` environment variable.
+
+For more information, see the script's built-in help:
+
+```bash
+python download_dataverse.py --help
+```
+
+
+8. Future development
 
 - Integration of local station data to compare observed vs. modelled conditions.
 - Automated data archiving and alert system for high-risk thresholds.

@@ -1,2 +1,11 @@
 __pycache__/
 *.pyc
+
+# ML model directory data (exclude large training data)
+ml_model/data/*.geojson
+ml_model/training_data.csv
+ml_model/fire_data_summary.txt
+
+# Keep model artifacts (small and needed for dashboard)
+# ml_model/fire_model.pkl
+# ml_model/plots/*.png
