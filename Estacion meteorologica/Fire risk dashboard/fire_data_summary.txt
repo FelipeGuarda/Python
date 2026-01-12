@@ -1,0 +1,52 @@
+Total fires: 12250
+Columns: ['fireID', 'season', 'code', 'cut_reg', 'region_conaf', 'name_conaf', 'area_conaf', 'ign_date_conaf', 'ctrl_date_conaf', 'lat', 'lon', 'firescar', 'folderloc', 'firescar_img_name', 'prefire_img_name', 'postfire_img_name', 'rdnbr_img_name', 'sev_img_name', 'firescar_vec_name', 'sev_vec_name', 'north_lat', 'south_lat', 'west_lon', 'east_lon', 'width', 'height', 'total_area', 'area_unchs', 'area_lows', 'area_mods', 'area_hs', 'firescar_poly', 'sev_poly', 'overlap', 'obs', 'centroid_lon', 'centroid_lat']
+
+Data types:
+fireID                object
+season                object
+code                  object
+cut_reg               object
+region_conaf          object
+name_conaf            object
+area_conaf           float64
+ign_date_conaf        object
+ctrl_date_conaf       object
+lat                  float64
+lon                  float64
+firescar               int64
+folderloc             object
+firescar_img_name     object
+prefire_img_name      object
+postfire_img_name     object
+rdnbr_img_name        object
+sev_img_name          object
+firescar_vec_name     object
+sev_vec_name          object
+north_lat            float64
+south_lat            float64
+west_lon             float64
+east_lon             float64
+width                float64
+height               float64
+total_area           float64
+area_unchs           float64
+area_lows            float64
+area_mods            float64
+area_hs              float64
+firescar_poly        float64
+sev_poly             float64
+overlap               object
+obs                   object
+centroid_lon          object
+centroid_lat          object
+dtype: object
+
+First few records:
+     fireID season  ... centroid_lon centroid_lat
+0   ID10000   1986  ...         None         None
+1  ID100000   2003  ...         None         None
+2   ID10002   1986  ...         None         None
+3  ID100027   2003  ...         None         None
+4   ID10003   1986  ...         None         None
+
+[5 rows x 37 columns]

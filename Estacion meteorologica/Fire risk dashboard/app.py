@@ -14,6 +14,8 @@ import pandas as pd
 import numpy as np
 import streamlit as st  # pyright: ignore[reportMissingImports]
 import pydeck as pdk  # pyright: ignore[reportMissingImports]
+import joblib
+from pathlib import Path
 
 # Local imports
 from config import TZ, TODAY, RISK_COLORS
@@ -22,11 +24,42 @@ from risk_calculator import compute_days_without_rain, best_hour_by_day, color_f
 from visualizations import create_polar_plot, create_wind_compass, create_forecast_charts
 from map_utils import create_map_layers, create_map_view_state
 
+# ---------------------------
+# ML Model Loading
+# ---------------------------
+@st.cache_resource
+def load_ml_model():
+    """Load trained ML fire prediction model (cached)."""
+    model_path = Path("ml_model") / "fire_model.pkl"
+    if model_path.exists():
+        try:
+            model = joblib.load(model_path)
+            return model
+        except Exception as e:
+            st.warning(f"Could not load ML model: {e}")
+            return None
+    return None
+
+def predict_fire_probability(model, temp_c: float, rh_pct: float, wind_kmh: float, days_no_rain: int) -> float:
+    """Predict fire probability using ML model. Returns probability as percentage (0-100)."""
+    if model is None:
+        return None
+    try:
+        X = [[temp_c, rh_pct, wind_kmh, days_no_rain]]
+        proba = model.predict_proba(X)[0][1]  # Probability of fire class (class 1)
+        return proba * 100  # Convert to percentage
+    except Exception as e:
+        st.warning(f"ML prediction error: {e}")
+        return None
+
 # Page config
 st.set_page_config(
     page_title="Fire Risk Dashboard — Bosque Pehuén",
     layout="wide",
 )
+
+# Load ML model
+ml_model = load_ml_model()
 
 # ---------------------------
 # Default settings (previously in sidebar)
@@ -149,9 +182,47 @@ with colB:
     row = haz.loc[haz["date"] == sel_date].iloc[0]
     total = float(row["total"]) if not pd.isna(row["total"]) else 0.0
     col = color_for_risk(total)
-    st.subheader("Risk index")
+    
+    # Rule-based risk index
+    st.subheader("Rule-Based Risk Index")
     st.metric(label=str(sel_date), value=f"{total:0.0f} / 100")
     st.markdown(f"<div style='height:12px;width:{total}%;background:{col};border-radius:6px;'></div>", unsafe_allow_html=True)
+    st.caption("Based on Chilean fire danger standards")
+    
+    # ML prediction (if model is loaded)
+    if ml_model is not None:
+        st.write("\n")
+        st.subheader("ML Fire Probability")
+        
+        ml_prob = predict_fire_probability(
+            ml_model,
+            float(row["temp_c"]),
+            float(row["rh_pct"]),
+            float(row["wind_kmh"]),
+            int(row["days_no_rain"])
+        )
+        
+        if ml_prob is not None:
+            # Use same color scheme for consistency
+            ml_risk_score = ml_prob  # ML probability maps to 0-100 scale
+            ml_col = color_for_risk(ml_risk_score)
+            
+            st.metric(label=str(sel_date), value=f"{ml_prob:0.1f}%")
+            st.markdown(f"<div style='height:12px;width:{ml_prob}%;background:{ml_col};border-radius:6px;'></div>", unsafe_allow_html=True)
+            st.caption("Trained on 20 years of Chilean fire data")
+            
+            # Agreement indicator
+            agreement_threshold = 15  # Within 15 points = agreement
+            agreement = abs(total - ml_prob) <= agreement_threshold
+            agreement_icon = "✓" if agreement else "⚠"
+            agreement_text = "Methods agree" if agreement else "Methods differ"
+            agreement_color = "#4caf50" if agreement else "#ff9800"
+            
+            st.markdown(
+                f"<div style='padding:8px;background:{agreement_color}20;border-radius:6px;color:{agreement_color};text-align:center;margin-top:8px;'>"
+                f"{agreement_icon} {agreement_text}</div>",
+                unsafe_allow_html=True
+            )
     
     # Wind compass
     st.write("\n")

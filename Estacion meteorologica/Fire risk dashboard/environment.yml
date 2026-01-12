@@ -10,6 +10,13 @@ dependencies:
   - numpy
   - requests
   - pyproj
+  # ML dependencies
+  - scikit-learn
+  - joblib
+  - matplotlib
+  # Data download
+  - pip:
+    - pyDataverse==0.3.3
   # Optional extras
   - jupyterlab
   - openpyxl
