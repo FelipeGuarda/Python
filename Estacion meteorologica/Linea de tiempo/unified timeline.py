@@ -2,7 +2,7 @@ import pandas as pd # type: ignore
 import glob
 import os
 
-folder_path = r"C:\Dev\Python\Estacion metereologica\Linea de tiempo"
+folder_path = r"C:\Dev\Python\Estacion meteorologica\Linea de tiempo"
 dat_files = glob.glob(os.path.join(folder_path, "*.dat"))
 
 df_list = []
