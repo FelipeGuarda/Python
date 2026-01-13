@@ -45,7 +45,13 @@ def predict_fire_probability(model, temp_c: float, rh_pct: float, wind_kmh: floa
     if model is None:
         return None
     try:
-        X = [[temp_c, rh_pct, wind_kmh, days_no_rain]]
+        # Create DataFrame with feature names matching training data
+        X = pd.DataFrame({
+            'temp_c': [temp_c],
+            'rh_pct': [rh_pct],
+            'wind_kmh': [wind_kmh],
+            'days_no_rain': [days_no_rain]
+        })
         proba = model.predict_proba(X)[0][1]  # Probability of fire class (class 1)
         return proba * 100  # Convert to percentage
     except Exception as e:
