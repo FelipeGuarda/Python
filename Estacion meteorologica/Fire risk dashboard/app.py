@@ -21,7 +21,7 @@ from pathlib import Path
 from config import TZ, TODAY, RISK_COLORS
 from data_fetcher import fetch_open_meteo
 from risk_calculator import compute_days_without_rain, best_hour_by_day, color_for_risk
-from visualizations import create_polar_plot, create_wind_compass, create_forecast_charts
+from visualizations import create_polar_plot, create_wind_compass, create_forecast_charts, create_dual_gauge, load_validation_results, get_validation_modal_content
 from map_utils import create_map_layers, create_map_view_state
 
 # ---------------------------
@@ -66,6 +66,110 @@ st.set_page_config(
 
 # Load ML model
 ml_model = load_ml_model()
+
+# ---------------------------
+# Modal dialog for validation details
+# ---------------------------
+@st.dialog("Statistical Validation Results")
+def show_validation_modal(selected_date, rule_based_risk, ml_probability):
+    """Display statistical validation details in a modal dialog."""
+    validation, has_plot = get_validation_modal_content()
+    
+    if validation is None:
+        st.warning("Validation results not available. Run `python ml_model/validate_model_agreement.py` to generate.")
+        return
+    
+    # Header with selected date
+    st.markdown(f"### Comparison for {selected_date}")
+    
+    # Current day's comparison
+    difference = rule_based_risk - ml_probability
+    abs_difference = abs(difference)
+    
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        st.metric("Rule-Based Risk", f"{rule_based_risk:.1f}")
+    with col_b:
+        st.metric("ML Probability", f"{ml_probability:.1f}%")
+    with col_c:
+        st.metric("Difference", f"{difference:+.1f} pts")
+    
+    # Check if within limits
+    ba = validation['bland_altman']
+    within_limits = (difference >= ba['lower_limit']) and (difference <= ba['upper_limit'])
+    
+    if within_limits:
+        st.success(f"✓ Within expected range (95% limits: {ba['lower_limit']:.1f} to {ba['upper_limit']:.1f} pts)")
+    else:
+        st.warning(f"! Outside expected range (95% limits: {ba['lower_limit']:.1f} to {ba['upper_limit']:.1f} pts)")
+    
+    st.markdown("---")
+    
+    # Overall validation statistics
+    st.markdown("### Overall Statistical Validation")
+    
+    if validation.get('is_mock_data', False):
+        st.info("Note: Currently showing demonstration data. Run validation with real training data for actual results.")
+    
+    # Key statistics
+    st.markdown("#### Statistical Tests")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric(
+            "McNemar's Test p-value",
+            f"{validation['mcnemar']['p_value']:.3f}",
+            help="Tests for systematic disagreement. p > 0.05 means no significant difference."
+        )
+        interpretation = "No significant difference" if validation['mcnemar']['p_value'] > 0.05 else "Significant difference"
+        st.caption(f"**{interpretation}**")
+    
+    with col2:
+        ccc = validation['concordance_coefficient']
+        st.metric(
+            "Concordance Coefficient",
+            f"{ccc:.3f}",
+            help="Measures agreement strength. >0.90=strong, 0.75-0.90=moderate, <0.75=poor"
+        )
+        if ccc > 0.90:
+            strength = "Strong agreement"
+        elif ccc > 0.75:
+            strength = "Moderate agreement"
+        else:
+            strength = "Limited agreement"
+        st.caption(f"**{strength}**")
+    
+    # Bland-Altman results
+    st.markdown("#### Bland-Altman Limits")
+    st.caption("Expected range of differences across all predictions")
+    
+    col3, col4, col5 = st.columns(3)
+    
+    with col3:
+        st.metric("Mean Difference", f"{ba['mean_diff']:.1f} pts")
+    with col4:
+        st.metric("Lower Limit (-1.96 SD)", f"{ba['lower_limit']:.1f} pts")
+    with col5:
+        st.metric("Upper Limit (+1.96 SD)", f"{ba['upper_limit']:.1f} pts")
+    
+    st.caption(f"{ba['pct_within_limits']:.1f}% of predictions fall within these limits")
+    
+    # Show plot if available
+    if has_plot:
+        st.markdown("#### Bland-Altman Plot")
+        st.image("ml_model/plots/bland_altman.png", use_container_width=True)
+    
+    # Interpretation
+    st.markdown("#### Interpretation")
+    st.markdown(validation['interpretation'])
+    
+    # Sample size
+    st.caption(f"Based on {validation['n_samples']:,} historical samples ({validation['n_fires']:,} fires, {validation['n_samples']-validation['n_fires']:,} non-fires)")
+    
+    # Close button
+    if st.button("Close", type="primary", use_container_width=True):
+        st.rerun()
 
 # ---------------------------
 # Default settings (previously in sidebar)
@@ -189,17 +293,8 @@ with colB:
     total = float(row["total"]) if not pd.isna(row["total"]) else 0.0
     col = color_for_risk(total)
     
-    # Rule-based risk index
-    st.subheader("Rule-Based Risk Index")
-    st.metric(label=str(sel_date), value=f"{total:0.0f} / 100")
-    st.markdown(f"<div style='height:12px;width:{total}%;background:{col};border-radius:6px;'></div>", unsafe_allow_html=True)
-    st.caption("Based on Chilean fire danger standards")
-    
-    # ML prediction (if model is loaded)
+    # Dual gauge visualization (rule-based risk + ML probability)
     if ml_model is not None:
-        st.write("\n")
-        st.subheader("ML Fire Probability")
-        
         ml_prob = predict_fire_probability(
             ml_model,
             float(row["temp_c"]),
@@ -209,26 +304,57 @@ with colB:
         )
         
         if ml_prob is not None:
-            # Use same color scheme for consistency
-            ml_risk_score = ml_prob  # ML probability maps to 0-100 scale
-            ml_col = color_for_risk(ml_risk_score)
+            st.subheader("Risk Comparison")
+            gauge_fig = create_dual_gauge(total, ml_prob, sel_date)
+            st.plotly_chart(gauge_fig, use_container_width=True, config={'displayModeBar': False})
             
-            st.metric(label=str(sel_date), value=f"{ml_prob:0.1f}%")
-            st.markdown(f"<div style='height:12px;width:{ml_prob}%;background:{ml_col};border-radius:6px;'></div>", unsafe_allow_html=True)
-            st.caption("Trained on 20 years of Chilean fire data")
+            # Captions under gauges
+            col_cap1, col_cap2 = st.columns(2)
+            with col_cap1:
+                st.caption("Based on Chilean fire danger standards")
+            with col_cap2:
+                st.caption("Trained on 20 years of Chilean fire data")
             
-            # Agreement indicator
-            agreement_threshold = 15  # Within 15 points = agreement
-            agreement = abs(total - ml_prob) <= agreement_threshold
-            agreement_icon = "✓" if agreement else "⚠"
-            agreement_text = "Methods agree" if agreement else "Methods differ"
+            # Agreement indicator based on statistical validation
+            validation = load_validation_results()
+            difference = abs(total - ml_prob)
+            
+            # Use Bland-Altman limits if available
+            if 'bland_altman' in validation:
+                upper_limit = abs(validation['bland_altman']['upper_limit'])
+                agreement = difference <= upper_limit
+                agreement_text = "Methods agree (within statistical limits)" if agreement else "Methods differ (outside expected range)"
+            else:
+                # Fallback to simple threshold
+                agreement = difference <= 15
+                agreement_text = "Methods agree" if agreement else "Methods differ"
+            
             agreement_color = "#4caf50" if agreement else "#ff9800"
             
-            st.markdown(
-                f"<div style='padding:8px;background:{agreement_color}20;border-radius:6px;color:{agreement_color};text-align:center;margin-top:8px;'>"
-                f"{agreement_icon} {agreement_text}</div>",
-                unsafe_allow_html=True
-            )
+            # Agreement indicator with info button
+            col_agree, col_info = st.columns([4, 1])
+            with col_agree:
+                st.markdown(
+                    f"<div style='padding:8px;background:{agreement_color}20;border-radius:6px;color:{agreement_color};text-align:center;'>"
+                    f"{agreement_text}</div>",
+                    unsafe_allow_html=True
+                )
+            
+            with col_info:
+                if st.button("ℹ️", key="validation_info", help="View statistical validation details"):
+                    show_validation_modal(sel_date, total, ml_prob)
+        else:
+            # Fallback if ML prediction fails
+            st.subheader("Rule-Based Risk Index")
+            st.metric(label=str(sel_date), value=f"{total:0.0f} / 100")
+            st.markdown(f"<div style='height:12px;width:{total}%;background:{col};border-radius:6px;'></div>", unsafe_allow_html=True)
+            st.caption("Based on Chilean fire danger standards")
+    else:
+        # If ML model not loaded, show only rule-based risk
+        st.subheader("Rule-Based Risk Index")
+        st.metric(label=str(sel_date), value=f"{total:0.0f} / 100")
+        st.markdown(f"<div style='height:12px;width:{total}%;background:{col};border-radius:6px;'></div>", unsafe_allow_html=True)
+        st.caption("Based on Chilean fire danger standards")
     
     # Wind compass
     st.write("\n")

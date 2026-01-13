@@ -260,3 +260,131 @@ def create_forecast_charts(haz_filtered: pd.DataFrame, selected_date) -> Tuple[g
     return f1, f2
 
 
+def load_validation_results() -> dict:
+    """Load validation results from JSON file."""
+    import json
+    from pathlib import Path
+    
+    results_path = Path("ml_model") / "validation_results.json"
+    
+    if not results_path.exists():
+        # Return default values if validation hasn't been run
+        return {
+            'bland_altman': {
+                'upper_limit': 25.0,
+                'lower_limit': -25.0,
+                'mean_diff': 0.0
+            },
+            'agreement_status': 'unknown'
+        }
+    
+    with open(results_path, 'r') as f:
+        return json.load(f)
+
+
+def create_dual_gauge(rule_based_risk: float, ml_probability: float, selected_date) -> go.Figure:
+    """
+    Create dual semi-circular gauge visualization comparing rule-based risk and ML probability.
+    
+    Args:
+        rule_based_risk: Risk score from rule-based calculation (0-100)
+        ml_probability: Fire probability from ML model (0-100)
+        selected_date: Date being displayed
+    
+    Returns:
+        Plotly figure with two gauge indicators
+    """
+    from config import RISK_COLORS
+    
+    # Build color steps for gauge from RISK_COLORS
+    # Gauge expects steps as list of dicts with 'range' and 'color'
+    steps = []
+    for lo, hi, color in RISK_COLORS:
+        steps.append({'range': [lo, hi], 'color': color})
+    
+    # Create figure with subplots (1 row, 2 columns)
+    from plotly.subplots import make_subplots
+    
+    fig = make_subplots(
+        rows=1, cols=2,
+        specs=[[{'type': 'indicator'}, {'type': 'indicator'}]],
+        horizontal_spacing=0.1
+    )
+    
+    # Rule-based gauge (left)
+    fig.add_trace(go.Indicator(
+        mode="gauge+number",
+        value=rule_based_risk,
+        number={'suffix': "", 'font': {'size': 28}},
+        title={'text': "Rule-Based Risk", 'font': {'size': 16}},
+        gauge={
+            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#666"},
+            'bar': {'color': "rgba(0,0,0,0)", 'thickness': 0.001},  # Invisible bar
+            'bgcolor': "white",
+            'borderwidth': 2,
+            'bordercolor': "#ccc",
+            'steps': steps,
+            'threshold': {
+                'line': {'color': "#333", 'width': 4},
+                'thickness': 0.85,
+                'value': rule_based_risk
+            }
+        }
+    ), row=1, col=1)
+    
+    # ML probability gauge (right)
+    fig.add_trace(go.Indicator(
+        mode="gauge+number",
+        value=ml_probability,
+        number={'suffix': "%", 'font': {'size': 28}},
+        title={'text': "ML Fire Probability", 'font': {'size': 16}},
+        gauge={
+            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#666"},
+            'bar': {'color': "rgba(0,0,0,0)", 'thickness': 0.001},  # Invisible bar
+            'bgcolor': "white",
+            'borderwidth': 2,
+            'bordercolor': "#ccc",
+            'steps': steps,
+            'threshold': {
+                'line': {'color': "#333", 'width': 4},
+                'thickness': 0.85,
+                'value': ml_probability
+            }
+        }
+    ), row=1, col=2)
+    
+    # Update layout
+    fig.update_layout(
+        height=300,
+        margin=dict(l=20, r=20, t=40, b=20),
+        paper_bgcolor="#fafafa",
+        font={'family': "Arial, sans-serif"}
+    )
+    
+    return fig
+
+
+def get_validation_modal_content():
+    """
+    Prepare content for statistical validation modal.
+    Returns tuple of (validation_dict, has_plot).
+    """
+    import json
+    from pathlib import Path
+    
+    results_path = Path("ml_model") / "validation_results.json"
+    plot_path = Path("ml_model") / "plots" / "bland_altman.png"
+    
+    # Load validation results
+    if results_path.exists():
+        with open(results_path, 'r') as f:
+            validation = json.load(f)
+    else:
+        validation = None
+    
+    # Check if plot exists
+    has_plot = plot_path.exists()
+    
+    return validation, has_plot
+
+
