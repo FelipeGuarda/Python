@@ -56,9 +56,40 @@ streamlit run app.py
 ## Model Details
 
 - **Algorithm**: Random Forest (100 trees)
-- **Features**: temp_c, rh_pct, wind_kmh, days_no_rain
+- **Features**: temp_c, rh_pct, wind_kmh, days_no_rain (weather-only model)
 - **Training data**: 616 fires + 616 non-fires from Araucania (2015-2024)
 - **Current performance**: 80% accuracy, 0.85 ROC AUC
+
+### Spatial Capabilities (Future Enhancement)
+
+The current model uses **weather variables only** and predicts the same fire probability for any location with identical weather conditions. However, the training dataset (`training_data.csv`) **includes latitude and longitude** for each sample, enabling location-specific predictions.
+
+**To add spatial awareness:**
+
+1. The training data already contains `lat` and `lon` columns (lines 250-251 in `prepare_training_data.py`)
+2. These spatial features are currently excluded during training (line 58 in `train_fire_model.py`)
+3. To enable location-specific predictions, modify `train_fire_model.py`:
+
+```python
+# Change from:
+feature_cols = ['temp_c', 'rh_pct', 'wind_kmh', 'days_no_rain']
+
+# To:
+feature_cols = ['temp_c', 'rh_pct', 'wind_kmh', 'days_no_rain', 'lat', 'lon']
+```
+
+4. Retrain the model with the new feature set
+5. Update `app.py` to pass lat/lon when predicting
+
+**Benefits of spatial model:**
+- Learn geographic patterns (proximity to forests, topography via lat/lon, land use)
+- Generate regional risk heat maps showing high-risk areas across Araucania
+- Identify spatial risk factors beyond weather alone
+
+**Visualization opportunities:**
+- Heat map overlay on regional map showing ML-predicted risk across grid points
+- Compare risk between different locations with same weather forecast
+- Identify geographic hot spots for fire occurrence
 
 ## Configuration
 
@@ -90,7 +121,90 @@ For each day, it predicts fire probability:
 probability = model.predict_proba([[temp, humidity, wind, dry_days]])[0][1]
 ```
 
-Then displays alongside the rule-based risk index.
+**Visualization:** The dashboard displays both risk metrics using dual semi-circular gauges that allow intuitive visual comparison between the rule-based risk index and ML fire probability. Color zones indicate risk levels (green/yellow/orange/red), and an agreement indicator shows whether the two methods are aligned.
+
+## Statistical Validation
+
+The dashboard includes statistical validation comparing the rule-based risk method and ML predictions. This validation uses actual historical fire data to determine if the two methods agree significantly.
+
+### Running Validation
+
+```bash
+cd ml_model
+python validate_model_agreement.py
+```
+
+This generates:
+- `validation_results.json` - Statistical test results
+- `plots/bland_altman.png` - Bland-Altman agreement plot
+
+### Statistical Tests Performed
+
+1. **McNemar's Test**: Tests for systematic disagreement between methods
+   - p > 0.05 = no significant difference
+   
+2. **Concordance Correlation Coefficient (CCC)**: Measures agreement strength
+   - ρc > 0.90 = strong agreement
+   - ρc 0.75-0.90 = moderate agreement
+   - ρc < 0.75 = poor agreement
+
+3. **Bland-Altman Analysis**: Defines limits of agreement
+   - Calculates mean difference and 95% confidence limits
+   - Shows expected range of differences between methods
+
+4. **Correlation Analysis**: Pearson and Spearman correlations
+
+### Viewing Results in Dashboard
+
+Click the "ℹ️" button next to the agreement indicator to view:
+- Statistical test results
+- Bland-Altman plot
+- Interpretation of agreement status
+
+The agreement indicator uses Bland-Altman limits (data-driven) rather than arbitrary thresholds.
+
+### Re-running Validation
+
+After retraining the model or updating training data:
+
+```bash
+python prepare_training_data.py  # Update training data
+python train_fire_model.py        # Retrain model
+python validate_model_agreement.py  # Re-run validation
+```
+
+### Mock vs Real Data
+
+If `training_data.csv` doesn't exist, the validation script generates mock results for demonstration. These allow you to test the feature before running the time-intensive data preparation step.
+
+## Creating a Spatial Model Variant
+
+To experiment with spatial features while keeping the current weather-only model:
+
+1. **Create a copy of the training script:**
+   ```bash
+   cp train_fire_model.py train_spatial_model.py
+   ```
+
+2. **Modify the feature list** in `train_spatial_model.py`:
+   ```python
+   feature_cols = ['temp_c', 'rh_pct', 'wind_kmh', 'days_no_rain', 'lat', 'lon']
+   ```
+
+3. **Save to a different filename:**
+   ```python
+   MODEL_OUTPUT_PATH = Path(__file__).parent / "fire_model_spatial.pkl"
+   ```
+
+4. **Train both models:**
+   ```bash
+   python train_fire_model.py          # Weather-only model
+   python train_spatial_model.py       # Spatial model
+   ```
+
+5. **Compare performance** by reviewing the evaluation plots for each model
+
+This approach lets you test spatial features without overwriting your current model. You can then choose which model performs better for your use case.
 
 ## See Also
 
