@@ -70,43 +70,17 @@ ml_model = load_ml_model()
 # ---------------------------
 # Modal dialog for validation details
 # ---------------------------
-@st.dialog("Statistical Validation Results")
-def show_validation_modal(selected_date, rule_based_risk, ml_probability):
-    """Display statistical validation details in a modal dialog."""
+@st.dialog("Statistical Validation")
+def show_validation_modal():
+    """Display overall statistical validation details in a modal dialog."""
     validation, has_plot = get_validation_modal_content()
     
     if validation is None:
         st.warning("Validation results not available. Run `python ml_model/validate_model_agreement.py` to generate.")
         return
     
-    # Header with selected date
-    st.markdown(f"### Comparison for {selected_date}")
-    
-    # Current day's comparison
-    difference = rule_based_risk - ml_probability
-    abs_difference = abs(difference)
-    
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        st.metric("Rule-Based Risk", f"{rule_based_risk:.1f}")
-    with col_b:
-        st.metric("ML Probability", f"{ml_probability:.1f}%")
-    with col_c:
-        st.metric("Difference", f"{difference:+.1f} pts")
-    
-    # Check if within limits
-    ba = validation['bland_altman']
-    within_limits = (difference >= ba['lower_limit']) and (difference <= ba['upper_limit'])
-    
-    if within_limits:
-        st.success(f"✓ Within expected range (95% limits: {ba['lower_limit']:.1f} to {ba['upper_limit']:.1f} pts)")
-    else:
-        st.warning(f"! Outside expected range (95% limits: {ba['lower_limit']:.1f} to {ba['upper_limit']:.1f} pts)")
-    
-    st.markdown("---")
-    
-    # Overall validation statistics
-    st.markdown("### Overall Statistical Validation")
+    # Header
+    st.markdown("### Overall Method Comparison")
     
     if validation.get('is_mock_data', False):
         st.info("Note: Currently showing demonstration data. Run validation with real training data for actual results.")
@@ -144,6 +118,7 @@ def show_validation_modal(selected_date, rule_based_risk, ml_probability):
     st.markdown("#### Bland-Altman Limits")
     st.caption("Expected range of differences across all predictions")
     
+    ba = validation['bland_altman']
     col3, col4, col5 = st.columns(3)
     
     with col3:
@@ -315,34 +290,67 @@ with colB:
             with col_cap2:
                 st.caption("Trained on 20 years of Chilean fire data")
             
-            # Agreement indicator based on statistical validation
+            # Date-specific comparison component
+            st.write("\n")
             validation = load_validation_results()
-            difference = abs(total - ml_prob)
+            difference = total - ml_prob
+            abs_difference = abs(difference)
             
-            # Use Bland-Altman limits if available
+            # Determine agreement status using Bland-Altman limits
             if 'bland_altman' in validation:
-                upper_limit = abs(validation['bland_altman']['upper_limit'])
-                agreement = difference <= upper_limit
-                agreement_text = "Methods agree (within statistical limits)" if agreement else "Methods differ (outside expected range)"
+                ba = validation['bland_altman']
+                within_limits = abs_difference <= abs(ba['upper_limit'])
+                
+                if within_limits:
+                    status_color = "#4caf50"  # green
+                    status_icon = "✓"
+                    status_text = "Within expected range"
+                else:
+                    status_color = "#ff9800"  # orange
+                    status_icon = "!"
+                    status_text = "Outside expected range"
+                
+                # Tooltip with limits explanation
+                tooltip_help = f"{status_text}. Based on historical validation, 95% of differences fall within {ba['lower_limit']:.1f} to {ba['upper_limit']:.1f} pts."
             else:
-                # Fallback to simple threshold
-                agreement = difference <= 15
-                agreement_text = "Methods agree" if agreement else "Methods differ"
+                # Fallback without validation
+                within_limits = abs_difference <= 15
+                status_color = "#4caf50" if within_limits else "#ff9800"
+                status_icon = "✓" if within_limits else "!"
+                status_text = "Within threshold" if within_limits else "Outside threshold"
+                tooltip_help = f"{status_text} (using ±15 pt threshold)"
             
-            agreement_color = "#4caf50" if agreement else "#ff9800"
+            # Display comparison with hover tooltip
+            col_comp, col_info = st.columns([4, 1])
             
-            # Agreement indicator with info button
-            col_agree, col_info = st.columns([4, 1])
-            with col_agree:
-                st.markdown(
-                    f"<div style='padding:8px;background:{agreement_color}20;border-radius:6px;color:{agreement_color};text-align:center;'>"
-                    f"{agreement_text}</div>",
-                    unsafe_allow_html=True
-                )
+            with col_comp:
+                st.markdown(f"""
+                <div style='
+                    padding:16px;
+                    background:{status_color}20;
+                    border-left:4px solid {status_color};
+                    border-radius:6px;
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:center;
+                    align-items:center;
+                    min-height:80px;
+                    cursor:help;
+                    text-align:center;
+                ' title='{tooltip_help}'>
+                    <div style='font-size:24px;font-weight:700;color:#333;margin-bottom:8px;'>
+                        {difference:+.1f} pts
+                    </div>
+                    <div style='font-size:16px;color:{status_color};font-weight:600;display:flex;align-items:center;gap:6px;'>
+                        <span style='font-size:20px;'>{status_icon}</span>
+                        <span>{status_text}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col_info:
-                if st.button("ℹ️", key="validation_info", help="View statistical validation details"):
-                    show_validation_modal(sel_date, total, ml_prob)
+                if st.button("ℹ️", key="validation_info", help="View full statistical validation"):
+                    show_validation_modal()
         else:
             # Fallback if ML prediction fails
             st.subheader("Rule-Based Risk Index")
