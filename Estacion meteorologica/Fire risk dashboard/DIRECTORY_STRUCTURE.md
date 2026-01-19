@@ -45,11 +45,11 @@ Fire risk dashboard/
     │   └── train_fire_model.py         # Train & evaluate model
     │
     ├── Model & Data
-    │   ├── fire_model.pkl              # Trained Random Forest
-    │   └── training_data.csv           # Training dataset
+    │   ├── fire_model.pkl              # Trained Random Forest (included)
+    │   └── training_data.csv           # Training dataset (generated, gitignored)
     │
-    ├── data/                           # Raw fire data
-    │   └── cicatrices_incendios_resumen.geojson
+    ├── data/                           # Raw fire data (generated, gitignored)
+    │   └── cicatrices_incendios_resumen.geojson  # Downloaded via prepare_training_data.py
     │
     └── plots/                          # Evaluation plots
         ├── feature_importance.png
@@ -96,7 +96,7 @@ streamlit run app.py
 ✅ **Clean root directory** — Only core dashboard files visible
 ✅ **Organized ML components** — All in one subdirectory
 ✅ **Easy navigation** — Clear separation of concerns
-✅ **Git-friendly** — Large data files in `ml_model/data/` (gitignored)
+✅ **Git-friendly** — Large data files in `ml_model/data/` and `training_data.csv` are gitignored (generated artifacts)
 ✅ **Scalable** — Easy to add more ML experiments in `ml_model/`
 
 ## Path Updates Made
