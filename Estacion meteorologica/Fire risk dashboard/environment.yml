@@ -9,7 +9,6 @@ dependencies:
   - pandas
   - numpy
   - requests
-  - pyproj
   # ML dependencies
   - scikit-learn
   - joblib

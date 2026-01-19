@@ -133,7 +133,8 @@ def show_validation_modal():
     # Show plot if available
     if has_plot:
         st.markdown("#### Bland-Altman Plot")
-        st.image("ml_model/plots/bland_altman.png", use_container_width=True)
+        # use_container_width is deprecated; use width='stretch' for the same behavior
+        st.image("ml_model/plots/bland_altman.png", width="stretch")
     
     # Interpretation
     st.markdown("#### Interpretation")
@@ -143,7 +144,8 @@ def show_validation_modal():
     st.caption(f"Based on {validation['n_samples']:,} historical samples ({validation['n_fires']:,} fires, {validation['n_samples']-validation['n_fires']:,} non-fires)")
     
     # Close button
-    if st.button("Close", type="primary", use_container_width=True):
+    # use_container_width is deprecated; width='stretch' keeps the full-width style
+    if st.button("Close", type="primary", width="stretch"):
         st.rerun()
 
 # ---------------------------
@@ -281,7 +283,8 @@ with colB:
         if ml_prob is not None:
             st.subheader("Risk Comparison")
             gauge_fig = create_dual_gauge(total, ml_prob, sel_date)
-            st.plotly_chart(gauge_fig, use_container_width=True, config={'displayModeBar': False})
+            # use_container_width is deprecated; width='stretch' preserves layout
+            st.plotly_chart(gauge_fig, width="stretch", config={'displayModeBar': False})
             
             # Captions under gauges
             col_cap1, col_cap2 = st.columns(2)
