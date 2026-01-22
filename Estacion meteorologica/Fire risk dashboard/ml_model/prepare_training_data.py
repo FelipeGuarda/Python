@@ -43,7 +43,7 @@ START_YEAR = 2015  # Focus on recent years (Open-Meteo historical data available
 END_YEAR = 2024
 
 # Sampling (set to None to use all data, or set a number for faster testing)
-MAX_SAMPLES = 50  # e.g., 200 for quick test, None for full dataset
+MAX_SAMPLES = None  # e.g., 200 for quick test, None for full dataset
 
 # File paths (relative to ml_model directory)
 FIRE_GEOJSON_PATH = Path(__file__).parent / "data" / "cicatrices_incendios_resumen.geojson"
