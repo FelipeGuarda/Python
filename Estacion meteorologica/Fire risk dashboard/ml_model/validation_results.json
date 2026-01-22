@@ -1,28 +1,28 @@
 {
-  "n_samples": 1232,
-  "n_fires": 616,
-  "is_mock_data": true,
+  "n_samples": 1230,
+  "n_fires": 615,
+  "is_mock_data": false,
   "mcnemar": {
-    "p_value": 0.234,
-    "interpretation": "No significant difference",
-    "both_correct": 950,
-    "both_wrong": 180,
-    "disagreements": 102
+    "p_value": 0.0,
+    "interpretation": "Significant difference",
+    "both_correct": 956,
+    "both_wrong": 44,
+    "disagreements": 230
   },
-  "concordance_coefficient": 0.82,
+  "concordance_coefficient": 0.5723338772955224,
   "bland_altman": {
-    "mean_diff": -5.012964322008286,
-    "std_diff": 10.955152297052477,
-    "lower_limit": -26.48506282423114,
-    "upper_limit": 16.459134180214566,
-    "pct_within_limits": 95.2
+    "mean_diff": 8.381887043816022,
+    "std_diff": 29.696832906612745,
+    "lower_limit": -49.82390545314496,
+    "upper_limit": 66.587679540777,
+    "pct_within_limits": 99.51219512195122
   },
   "correlation": {
-    "pearson_r": 0.78,
-    "pearson_p": 0.0001,
-    "spearman_r": 0.76,
-    "spearman_p": 0.0001
+    "pearson_r": 0.8045559618722832,
+    "pearson_p": 3.5536290519560135e-280,
+    "spearman_r": 0.8310145087409777,
+    "spearman_p": 0.0
   },
-  "interpretation": "The two methods show no statistically significant difference with moderate agreement. Agreement is within \u00b128.6 points for 95% of cases.",
-  "agreement_status": "agree"
+  "interpretation": "The two methods show statistically significant differences with limited agreement Agreement is within \u00b166.6 points for 95% of cases.",
+  "agreement_status": "differ"
 }
