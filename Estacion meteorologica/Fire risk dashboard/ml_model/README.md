@@ -7,22 +7,22 @@ This directory contains all machine learning components for the fire risk dashbo
 ```
 ml_model/
 ├── README.md                           # This file
-├── QUICK_START_ML.md                   # Quick start guide
-├── ML_IMPLEMENTATION_SUMMARY.md        # Complete documentation
-│
 ├── prepare_training_data.py            # Step 1: Build training dataset
 ├── train_fire_model.py                 # Step 2: Train model
+├── validate_model_agreement.py         # Statistical validation script
 │
-├── fire_model.pkl                      # Trained Random Forest model (included in repo)
-├── training_data.csv                   # Training dataset (generated, gitignored - run prepare_training_data.py)
+├── fire_model.pkl                      # Trained Random Forest model
+├── training_data.csv                   # Training dataset (generated)
+├── validation_results.json             # Validation statistics
 │
-├── data/                               # Raw data (generated, gitignored)
-│   └── cicatrices_incendios_resumen.geojson  # Historical fires from Dataverse (downloaded by prepare_training_data.py)
+├── data/                               # Raw data (gitignored)
+│   └── cicatrices_incendios_resumen.geojson  # Historical fires from Dataverse
 │
 └── plots/                              # Evaluation plots
-    ├── feature_importance.png          # Shows what ML learned
+    ├── feature_importance.png          # Feature importance analysis
     ├── confusion_matrix.png            # Prediction accuracy breakdown
-    └── roc_curve.png                   # Discrimination ability
+    ├── roc_curve.png                   # Model discrimination ability
+    └── bland_altman.png                # Agreement analysis plot
 ```
 
 ## Quick Start
@@ -37,66 +37,13 @@ streamlit run app.py
 
 The dashboard automatically loads `ml_model/fire_model.pkl` and displays ML predictions.
 
-### 2. Retrain Model (from this directory)
-
-```bash
-cd ml_model
-
-# Step 1: Prepare training data (~1-2 hours for full dataset)
-python prepare_training_data.py
-
-# Step 2: Train model (~5 minutes)
-python train_fire_model.py
-
-# Step 3: Return to root and restart dashboard
-cd ..
-streamlit run app.py
-```
 
 ## Model Details
 
 - **Algorithm**: Random Forest (100 trees)
 - **Features**: temp_c, rh_pct, wind_kmh, days_no_rain (weather-only model)
-- **Training data**: 616 fires + 616 non-fires from Araucania (2015-2024)
-- **Current performance**: 80% accuracy, 0.85 ROC AUC
-
-### Spatial Capabilities (Future Enhancement)
-
-The current model uses **weather variables only** and predicts the same fire probability for any location with identical weather conditions. However, the training dataset (`training_data.csv`) **includes latitude and longitude** for each sample, enabling location-specific predictions.
-
-**To add spatial awareness:**
-
-1. The training data already contains `lat` and `lon` columns (lines 250-251 in `prepare_training_data.py`)
-2. These spatial features are currently excluded during training (line 58 in `train_fire_model.py`)
-3. To enable location-specific predictions, modify `train_fire_model.py`:
-
-```python
-# Change from:
-feature_cols = ['temp_c', 'rh_pct', 'wind_kmh', 'days_no_rain']
-
-# To:
-feature_cols = ['temp_c', 'rh_pct', 'wind_kmh', 'days_no_rain', 'lat', 'lon']
-```
-
-4. Retrain the model with the new feature set
-5. Update `app.py` to pass lat/lon when predicting
-
-**Benefits of spatial model:**
-- Learn geographic patterns (proximity to forests, topography via lat/lon, land use)
-- Generate regional risk heat maps showing high-risk areas across Araucania
-- Identify spatial risk factors beyond weather alone
-
-**Visualization opportunities:**
-- Heat map overlay on regional map showing ML-predicted risk across grid points
-- Compare risk between different locations with same weather forecast
-- Identify geographic hot spots for fire occurrence
-
-## Configuration
-
-Edit `prepare_training_data.py` to adjust:
-- `MAX_SAMPLES`: Set to `None` for full dataset, or a number (e.g., 50) for quick testing
-- `START_YEAR`, `END_YEAR`: Adjust time range
-- `MIN_FIRE_SIZE_HA`: Filter by fire size
+- **Training data**: 616 fires + 616 non-fires from Araucania (1984-2018)
+- **Current performance**: 87.8% accuracy, 0.94 ROC AUC
 
 ## Files Explanation
 
@@ -156,59 +103,11 @@ This generates:
 
 ### Viewing Results in Dashboard
 
-Click the "ℹ️" button next to the agreement indicator to view:
+Click the information button next to the agreement indicator to view:
 - Statistical test results
 - Bland-Altman plot
 - Interpretation of agreement status
 
 The agreement indicator uses Bland-Altman limits (data-driven) rather than arbitrary thresholds.
 
-### Re-running Validation
-
-After retraining the model or updating training data:
-
-```bash
-python prepare_training_data.py  # Update training data
-python train_fire_model.py        # Retrain model
-python validate_model_agreement.py  # Re-run validation
-```
-
-### Mock vs Real Data
-
-If `training_data.csv` doesn't exist, the validation script generates mock results for demonstration. These allow you to test the feature before running the time-intensive data preparation step.
-
-## Creating a Spatial Model Variant
-
-To experiment with spatial features while keeping the current weather-only model:
-
-1. **Create a copy of the training script:**
-   ```bash
-   cp train_fire_model.py train_spatial_model.py
-   ```
-
-2. **Modify the feature list** in `train_spatial_model.py`:
-   ```python
-   feature_cols = ['temp_c', 'rh_pct', 'wind_kmh', 'days_no_rain', 'lat', 'lon']
-   ```
-
-3. **Save to a different filename:**
-   ```python
-   MODEL_OUTPUT_PATH = Path(__file__).parent / "fire_model_spatial.pkl"
-   ```
-
-4. **Train both models:**
-   ```bash
-   python train_fire_model.py          # Weather-only model
-   python train_spatial_model.py       # Spatial model
-   ```
-
-5. **Compare performance** by reviewing the evaluation plots for each model
-
-This approach lets you test spatial features without overwriting your current model. You can then choose which model performs better for your use case.
-
-## See Also
-
-- `QUICK_START_ML.md` — 5-minute test guide
-- `ML_IMPLEMENTATION_SUMMARY.md` — Complete documentation with presentation tips
-- `../README.md` — Main dashboard documentation
 

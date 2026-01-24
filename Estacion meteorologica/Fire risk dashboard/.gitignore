@@ -1,11 +1,31 @@
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 
-# ML model directory data (exclude large training data)
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ML model data (large files)
 ml_model/data/*.geojson
 ml_model/training_data.csv
-ml_model/fire_data_summary.txt
 
-# Keep model artifacts (small and needed for dashboard)
-# ml_model/fire_model.pkl
-# ml_model/plots/*.png
+# Keep these files (needed for dashboard)
+!ml_model/fire_model.pkl
+!ml_model/validation_results.json
+!ml_model/plots/*.png
