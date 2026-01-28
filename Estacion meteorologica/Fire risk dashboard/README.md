@@ -133,7 +133,7 @@ app.py
 
 4. Environment and reproducibility
 
-The project is distributed with a Conda environment file (environment.yml) ensuring reproducible execution across platforms.
+The project is distributed with a Conda environment file (environment.yml) ensuring reproducible execution across platforms. You can use conda after downloading miniforge (https://github.com/conda-forge/miniforge)
 
 To recreate the environment:
 
