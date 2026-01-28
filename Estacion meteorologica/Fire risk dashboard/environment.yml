@@ -2,20 +2,26 @@ name: fire_risk_dashboard
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
-  - streamlit
-  - plotly
-  - pydeck
-  - pandas
-  - numpy
-  - requests
-  # ML dependencies
-  - scikit-learn
-  - joblib
-  - matplotlib
-  # Data download
+  # Core runtime (pinned)
+  - python=3.11.14
+  - numpy=2.4.1
+  - pandas=2.3.3
+  - plotly=6.5.2
+  - pydeck=0.9.1
+  - requests=2.32.5
+
+  # ML dependencies (pinned)
+  - scikit-learn=1.8.0
+  - joblib=1.5.3
+  - matplotlib=3.10.8
+  - scipy=1.17.0
+  - streamlit=1.53.1
+
+  # Optional extras (pinned)
+  - jupyterlab=4.5.3
+  - openpyxl=3.1.5
+
+  # Pip deps (pinned)
+  - pip
   - pip:
-    - pyDataverse==0.3.3
-  # Optional extras
-  - jupyterlab
-  - openpyxl
+      - pydataverse==0.3.3

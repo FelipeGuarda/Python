@@ -133,16 +133,62 @@ app.py
 
 4. Environment and reproducibility
 
-The project is distributed with a Conda environment file (environment.yml) ensuring reproducible execution across platforms. You can use conda after downloading miniforge (https://github.com/conda-forge/miniforge)
+The project is distributed with Conda environment files to make installs reproducible.
 
-To recreate the environment:
+**4.1 Prerequisites**
 
+**Miniforge/Conda** (recommended method):
+- All OS: Download from https://github.com/conda-forge/miniforge
+- Windows: Use the installer; check "Add to PATH" option
+- macOS/Linux: Run the `.sh` installer in terminal
+
+**First-time conda setup** (required once after installing Miniforge):
+```
+conda init bash
+```
+Then **close and reopen your terminal**. This enables the `conda activate` command. On Windows with PowerShell, use `conda init powershell` instead.
+
+**Python 3.11** (only needed for pip method):
+- Windows: Download from https://python.org (check "Add to PATH")
+- macOS: `brew install python@3.11` or download from python.org
+- Linux: `sudo apt install python3.11 python3.11-venv` or equivalent
+
+**4.2 Installation**
+
+**Recommended (conda — works on Windows / macOS / Linux):**
+
+```
 conda env create -f environment.yml
 conda activate fire_risk_dashboard
 streamlit run app.py
+```
 
-The file specifies Python 3.11 and the following key dependencies:
-streamlit, plotly, pydeck, pandas, numpy, requests, scikit-learn, and joblib.
+**Alternative (pip — works on any OS with Python 3.11):**
+
+```
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Both `environment.yml` and `requirements.txt` are **fully version-pinned** for reproducibility.
+
+**4.3 Troubleshooting**
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `conda: command not found` | Miniforge not installed or not in PATH | Install Miniforge and restart terminal |
+| `CondaError: Run 'conda init'...` | Shell not initialized for conda | Run `conda init bash` (or `powershell`), then **close and reopen terminal** |
+| `CondaValueError: prefix already exists` | Environment already exists | Run `conda env remove -n fire_risk_dashboard` first |
+| Solver hangs or takes forever | Package conflicts or slow network | Try `conda clean --all` then retry; or use `mamba` instead of `conda` |
+| `SSL: CERTIFICATE_VERIFY_FAILED` | Corporate firewall/proxy | Configure proxy or run `conda config --set ssl_verify false` (temporary) |
+| `PermissionError` (macOS/Linux) | Using sudo with conda | Never use `sudo` with conda; reinstall Miniforge in user directory |
+| Long path errors (Windows) | Windows 260-char path limit | Extract the zip to a shorter path (e.g., `C:\projects\`) |
+| `Python 3.11 not found` (pip method) | Wrong Python version | Install Python 3.11; use `python3.11` instead of `python` |
+| Apple Silicon (M1/M2/M3) issues | Package not built for arm64 | Try `CONDA_SUBDIR=osx-64 conda env create -f environment.yml` |
 
 5. Dual Risk Assessment Methodology
 
