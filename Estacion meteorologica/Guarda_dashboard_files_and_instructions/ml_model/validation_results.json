@@ -1,0 +1,28 @@
+{
+  "n_samples": 1230,
+  "n_fires": 615,
+  "is_mock_data": false,
+  "mcnemar": {
+    "p_value": 0.0,
+    "interpretation": "Significant difference",
+    "both_correct": 956,
+    "both_wrong": 44,
+    "disagreements": 230
+  },
+  "concordance_coefficient": 0.5723338772955224,
+  "bland_altman": {
+    "mean_diff": 8.381887043816022,
+    "std_diff": 29.696832906612745,
+    "lower_limit": -49.82390545314496,
+    "upper_limit": 66.587679540777,
+    "pct_within_limits": 99.51219512195122
+  },
+  "correlation": {
+    "pearson_r": 0.8045559618722832,
+    "pearson_p": 3.5536290519560135e-280,
+    "spearman_r": 0.8310145087409777,
+    "spearman_p": 0.0
+  },
+  "interpretation": "The two methods show statistically significant differences with limited agreement Agreement is within \u00b166.6 points for 95% of cases.",
+  "agreement_status": "differ"
+}

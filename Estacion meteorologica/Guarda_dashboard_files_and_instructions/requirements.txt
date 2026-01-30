@@ -1,0 +1,10 @@
+streamlit
+pandas
+numpy
+plotly
+pydeck
+requests
+scikit-learn>=1.3.0
+joblib
+matplotlib
+pyDataverse==0.3.3
