@@ -54,6 +54,15 @@ python volumetric_bird_songs.py path/to/your/birdsong.wav --output-dir my_output
 # Only polar animation
 python volumetric_bird_songs.py birdsong.wav --viz-type polar
 
+# Only volumetric surface (static) - NEW! CT-scan-like solid 3D surface
+python volumetric_bird_songs.py birdsong.wav --viz-type volumetric-static
+
+# Only volumetric surface (animated) - NEW! Progressive build animation
+python volumetric_bird_songs.py birdsong.wav --viz-type volumetric-animated
+
+# Both volumetric surfaces - NEW!
+python volumetric_bird_songs.py birdsong.wav --viz-type volumetric
+
 # Only 3D diamond (mirrored)
 python volumetric_bird_songs.py birdsong.wav --viz-type diamond-mirror
 
@@ -140,6 +149,67 @@ An animated circular plot that plays through the bird song over time. The circle
 - Warm colors (red/yellow) = bright, sharp sounds
 - Cool colors (blue/purple) = mellow, dark sounds
 
+### Volumetric Surface - Static (`volumetric_static.html`) **NEW!**
+
+**Best for**: CT-scan-like solid 3D visualization, understanding overall structure, presentations
+
+A true volumetric 3D surface that shows the bird song as a solid, filled object:
+- Y-axis = Time (vertical progression)
+- X-axis = ±Frequency (mirrored symmetrically)
+- Z-axis = ±Amplitude (mirrored symmetrically)
+- **Surface color** = Amplitude intensity (color-mapped across entire surface)
+
+**Key features**:
+- Solid, filled triangulated mesh (not just scattered points)
+- CT-scan-like appearance with smooth surfaces
+- Entire surface color-mapped to amplitude using Viridis colorscale
+- Interactive 3D rotation and zoom
+- Shows the complete song structure at once
+
+**Interpretation tips**:
+- Wide bulges = loud or frequency-rich sections
+- Narrow sections = quieter or simpler calls
+- Color gradient shows amplitude variations throughout
+- Overall shape reveals call complexity and temporal patterns
+
+### Volumetric Surface - Animated (`volumetric_animated.html`) **NEW!**
+
+**Best for**: Watching the call evolve, understanding temporal structure, dynamic presentations
+
+Same as the static volumetric surface, but builds progressively over time **with synchronized audio playback**:
+- Starts from the beginning of the audio
+- Progressively reveals/builds the 3D surface as time advances
+- **Plays the actual bird song synchronized with the visualization**
+- Shows how the volumetric shape grows during the bird call
+
+**Controls**:
+- **▶ Play with Audio** button - plays both animation AND audio together
+- **⏸ Pause** button - pauses both simultaneously
+- Volume slider for audio control
+- Real-time audio time display
+- Interactive 3D rotation while playing
+- Automatically synchronized - no manual coordination needed
+
+**Audio Synchronization**:
+- Audio embedded directly in the HTML file
+- Real-time synchronization (updates every 50ms)
+- Animation frames automatically match audio timestamp
+- Hear and see the bird song simultaneously
+
+**Interpretation tips**:
+- **Listen and watch together** to understand how sound maps to shape
+- Hear pitch changes as the shape expands/contracts
+- Notice how loud parts create larger bulges in the surface
+- Pause at any point to examine specific moments
+- Rotate while playing to see different perspectives
+- Observe how amplitude colors change through time
+
+**Advantages over scattered-point visualizations**:
+- True volumetric appearance (like medical CT scans)
+- Solid surfaces make 3D shape clear and intuitive
+- Color mapping across surfaces (not just vertices)
+- Professional, publication-ready appearance
+
 ### 3D Diamond - Mirrored (`diamond_3d_mirror.html`)
 
 **Best for**: Simple 3D exploration, symmetric visualization
@@ -224,12 +294,15 @@ Thanks to librosa and soundfile, you can use:
 
 | Goal | Recommended Visualization |
 |------|--------------------------|
-| Presentation to non-technical audience | Polar Animation |
-| Quick exploration | Polar Animation |
+| Presentation to non-technical audience | Polar Animation or Volumetric Animated |
+| Quick exploration | Polar Animation or Volumetric Static |
+| Understanding overall call structure | Volumetric Static |
+| Watching call evolution over time | Volumetric Animated |
 | Understanding pitch/loudness patterns | Dashboard |
-| Research paper | 3D Diamond Multi-Feature |
+| Research paper / Publication | Volumetric Static or 3D Diamond Multi-Feature |
 | Comparing multiple bird species | Polar Animation (create one per species) |
 | Teaching acoustics | Dashboard |
+| CT-scan-like 3D visualization | Volumetric Static or Volumetric Animated |
 
 ### Interpretation Guide
 
