@@ -748,6 +748,25 @@ class BirdSongVisualizer:
             vertices_z.extend([0, 0, amp, -amp])
             colors.extend([amp_color] * 4)
         
+        # Calculate fixed axis ranges based on complete data extent
+        # Add padding for better visualization
+        padding = 0.1
+        x_min, x_max = min(vertices_x), max(vertices_x)
+        y_min, y_max = min(vertices_y), max(vertices_y)
+        z_min, z_max = min(vertices_z), max(vertices_z)
+        
+        x_range = x_max - x_min
+        y_range = y_max - y_min
+        z_range = z_max - z_min
+        
+        fixed_x_range = [x_min - padding * x_range, x_max + padding * x_range]
+        fixed_y_range = [y_min - padding * y_range, y_max + padding * y_range]
+        fixed_z_range = [z_min - padding * z_range, z_max + padding * z_range]
+        
+        print(f"  Fixed X range: [{fixed_x_range[0]:.2f}, {fixed_x_range[1]:.2f}]")
+        print(f"  Fixed Y range: [{fixed_y_range[0]:.2f}, {fixed_y_range[1]:.2f}]")
+        print(f"  Fixed Z range: [{fixed_z_range[0]:.2f}, {fixed_z_range[1]:.2f}]")
+        
         # Create animation frames
         frames = []
         
@@ -879,18 +898,49 @@ class BirdSongVisualizer:
             frames=frames
         )
         
+        # Fixed camera position for stable viewing during playback
+        # Position: looking from front-right-above, watching time progress along Y axis
+        fixed_camera = dict(
+            eye=dict(x=1.5, y=-0.3, z=0.8),  # Front-right view
+            up=dict(x=0, y=0, z=1),           # Z is up
+            center=dict(x=0, y=0.3, z=0)      # Look slightly ahead in time
+        )
+        
         # Add animation controls
         fig.update_layout(
-            title=f"Volumetric Surface Animation<br>{Path(self.audio_path).name}",
+            title=f"Volumetric Bird Song<br><sub>{Path(self.audio_path).name}</sub>",
             scene=dict(
-                xaxis_title="← Frequency (Hz) →",
-                yaxis_title="Time (s)",
-                zaxis_title="← Amplitude →",
-                camera=dict(
-                    eye=dict(x=1.8, y=1.8, z=1.2),
-                    up=dict(x=0, y=1, z=0)
+                # Fixed axis ranges to prevent jumping
+                xaxis=dict(
+                    title="Frequency",
+                    range=fixed_x_range,
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.1)',
+                    showticklabels=False,  # Hide tick labels for cleaner view
+                    showline=False,
+                    zeroline=False,
                 ),
-                aspectmode='data',
+                yaxis=dict(
+                    title="Time",
+                    range=fixed_y_range,
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.1)',
+                    showticklabels=False,  # Hide tick labels for cleaner view
+                    showline=False,
+                    zeroline=False,
+                ),
+                zaxis=dict(
+                    title="Amplitude",
+                    range=fixed_z_range,
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.1)',
+                    showticklabels=False,  # Hide tick labels for cleaner view
+                    showline=False,
+                    zeroline=False,
+                ),
+                camera=fixed_camera,
+                aspectmode='manual',
+                aspectratio=dict(x=1, y=2, z=1),  # Elongate along time axis
                 bgcolor='rgb(10, 10, 10)'
             ),
             paper_bgcolor='rgb(20, 20, 20)',
@@ -959,104 +1009,554 @@ class BirdSongVisualizer:
         # Embed audio and add synchronization JavaScript
         audio_data_uri = self._audio_to_base64()
         
-        # Calculate frame timings
-        frame_times = [times[int(f.name)] for f in frames]
+        # Calculate frame timings (convert to plain Python floats for JavaScript)
+        frame_times = [float(times[int(f.name)]) for f in frames]
         
-        # Create simplified JavaScript that hooks into Plotly's Play button
+        # Create unified audio-visual synchronization with single Play/Pause button
         sync_script = f'''
+<style>
+/* Hide Plotly's default Play/Pause buttons but keep the slider for testing */
+.updatemenu-container .updatemenu-button {{
+    display: none !important;
+}}
+/* Keep slider visible for testing - drag it to verify animation works */
+
+/* Unified control panel */
+#unified-control {{
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 15px 25px;
+    border-radius: 50px;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}}
+
+#unified-play-btn {{
+    background: linear-gradient(135deg, #e94560 0%, #0f3460 100%);
+    color: white;
+    border: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(233,69,96,0.4);
+}}
+
+#unified-play-btn:hover {{
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(233,69,96,0.6);
+}}
+
+#unified-play-btn:disabled {{
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}}
+
+#control-info {{
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}}
+
+#control-status {{
+    font-size: 14px;
+    font-weight: bold;
+}}
+
+#control-time {{
+    font-size: 12px;
+    font-family: monospace;
+    opacity: 0.8;
+}}
+
+/* Progress bar */
+#progress-container {{
+    width: 200px;
+    height: 6px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    cursor: pointer;
+}}
+
+#progress-bar {{
+    height: 100%;
+    background: linear-gradient(90deg, #e94560, #0f3460);
+    width: 0%;
+    transition: width 0.1s linear;
+}}
+
+/* Volume control */
+#volume-control {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}}
+
+#volume-slider {{
+    width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    cursor: pointer;
+}}
+
+#volume-slider::-webkit-slider-thumb {{
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #e94560;
+    border-radius: 50%;
+    cursor: pointer;
+}}
+
+/* Mode toggle button */
+#mode-toggle {{
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}}
+
+#mode-toggle:hover {{
+    background: rgba(255,255,255,0.2);
+}}
+
+#mode-toggle.explore-mode {{
+    background: rgba(233,69,96,0.3);
+    border-color: #e94560;
+}}
+</style>
+
+<div id="unified-control">
+    <button id="unified-play-btn" title="Play/Pause">▶</button>
+    <div id="control-info">
+        <div id="control-status">Loading audio...</div>
+        <div id="control-time">0:00 / 0:00</div>
+    </div>
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+    <div id="volume-control">
+        <span style="font-size: 14px;">🔊</span>
+        <input type="range" id="volume-slider" min="0" max="100" value="75">
+    </div>
+    <button id="mode-toggle" title="Toggle between Watch Mode (fixed camera) and Explore Mode (rotate freely)">🎬 Watch</button>
+</div>
+
 <script>
-// Audio synchronization - hooks into Plotly's Play/Pause buttons
+// Unified audio-visual synchronization system
 (function() {{
-    const audioDataUri = '{audio_data_uri}';
-    const frameTimestamps = {frame_times};
-    const duration = {self.duration};
+    console.log('🎵 Initializing unified audio-visual sync...');
     
-    // Create audio element
-    const audio = new Audio(audioDataUri);
+    const frameTimestamps = {frame_times};
+    const duration = {float(self.duration)};
+    const totalFrames = frameTimestamps.length;
+    
+    // Fixed camera position for stable viewing during playback
+    const fixedCamera = {{
+        eye: {{ x: 1.5, y: -0.3, z: 0.8 }},
+        up: {{ x: 0, y: 0, z: 1 }},
+        center: {{ x: 0, y: 0.3, z: 0 }}
+    }};
+    
+    console.log('📊 Total frames:', totalFrames);
+    console.log('⏱️ Duration:', duration.toFixed(2), 'seconds');
+    console.log('🎬 First few timestamps:', frameTimestamps.slice(0, 5));
+    
+    // UI Elements
+    const playBtn = document.getElementById('unified-play-btn');
+    const statusEl = document.getElementById('control-status');
+    const timeEl = document.getElementById('control-time');
+    const progressBar = document.getElementById('progress-bar');
+    const progressContainer = document.getElementById('progress-container');
+    const volumeSlider = document.getElementById('volume-slider');
+    const modeToggle = document.getElementById('mode-toggle');
+    
+    // Create audio element with embedded data
+    const audio = document.createElement('audio');
     audio.preload = 'auto';
     audio.volume = 0.75;
     
+    // State
     let isPlaying = false;
-    let syncInterval = null;
-    const plotlyDiv = document.querySelector('.plotly-graph-div');
+    let isExploreMode = false;  // false = Watch Mode (fixed camera), true = Explore Mode (free rotation)
+    let isLoaded = false;
+    let animationFrame = null;
+    let plotlyDiv = null;
+    let lastFrameIdx = -1;
     
-    // Sync animation frame to audio time
-    function syncToAudio() {{
-        if (!isPlaying || audio.paused) return;
+    // Check for Plotly frames after a short delay
+    setTimeout(function() {{
+        const div = document.querySelector('.plotly-graph-div');
+        if (div && div._fullLayout && div._fullLayout._plots) {{
+            console.log('✅ Plotly div found');
+        }}
+        if (div && div._transitionData && div._transitionData._frames) {{
+            const frames = div._transitionData._frames;
+            console.log('🎬 Plotly frames available:', frames.length);
+            if (frames.length > 0) {{
+                console.log('🎬 Frame names:', frames.slice(0, 5).map(f => f.name));
+            }}
+        }} else {{
+            console.warn('⚠️ No Plotly frames found! Animation may not work.');
+            console.log('div._transitionData:', div ? div._transitionData : 'no div');
+        }}
+    }}, 1000);
+    
+    // Format time as M:SS
+    function formatTime(seconds) {{
+        if (isNaN(seconds)) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return mins + ':' + secs.toString().padStart(2, '0');
+    }}
+    
+    function updateStatus(msg) {{
+        if (statusEl) statusEl.textContent = msg;
+    }}
+    
+    function updateTimeDisplay() {{
+        if (timeEl) {{
+            timeEl.textContent = formatTime(audio.currentTime) + ' / ' + formatTime(duration);
+        }}
+        if (progressBar) {{
+            const pct = (audio.currentTime / duration) * 100;
+            progressBar.style.width = pct + '%';
+        }}
+    }}
+    
+    // Find Plotly div
+    function findPlotlyDiv() {{
+        if (!plotlyDiv) {{
+            plotlyDiv = document.querySelector('.plotly-graph-div');
+        }}
+        return plotlyDiv;
+    }}
+    
+    // Binary search for closest frame
+    function findClosestFrame(time) {{
+        let low = 0;
+        let high = frameTimestamps.length - 1;
         
-        const currentTime = audio.currentTime;
-        let closestIdx = 0;
-        let minDiff = Math.abs(frameTimestamps[0] - currentTime);
-        
-        for (let i = 1; i < frameTimestamps.length; i++) {{
-            const diff = Math.abs(frameTimestamps[i] - currentTime);
-            if (diff < minDiff) {{
-                minDiff = diff;
-                closestIdx = i;
+        while (low < high) {{
+            const mid = Math.floor((low + high) / 2);
+            if (frameTimestamps[mid] < time) {{
+                low = mid + 1;
+            }} else {{
+                high = mid;
             }}
         }}
         
+        // Check if previous frame is closer
+        if (low > 0 && Math.abs(frameTimestamps[low - 1] - time) < Math.abs(frameTimestamps[low] - time)) {{
+            return low - 1;
+        }}
+        return low;
+    }}
+    
+    // Get frames from Plotly figure for direct data access
+    let plotlyFrames = null;
+    
+    function getPlotlyFrames() {{
+        if (plotlyFrames) return plotlyFrames;
+        const div = findPlotlyDiv();
+        if (div && div._transitionData && div._transitionData._frames) {{
+            plotlyFrames = div._transitionData._frames;
+            console.log('✅ Cached', plotlyFrames.length, 'Plotly frames');
+        }}
+        return plotlyFrames;
+    }}
+    
+    // Lock camera to fixed position (for Watch mode)
+    function lockCamera(div) {{
+        if (!div || isExploreMode) return;
+        
         try {{
-            Plotly.animate(plotlyDiv, [String(frameTimestamps[closestIdx])], {{
-                mode: 'immediate',
-                transition: {{ duration: 0 }},
-                frame: {{ duration: 0, redraw: false }}
+            Plotly.relayout(div, {{
+                'scene.camera': fixedCamera
             }});
-        }} catch(e) {{}}
-    }}
-    
-    // Start playback
-    function startAudioPlayback() {{
-        if (isPlaying) return;
-        isPlaying = true;
-        audio.currentTime = 0;
-        audio.play().catch(e => console.error('Audio failed:', e));
-        syncInterval = setInterval(syncToAudio, 30);
-    }}
-    
-    // Stop playback
-    function stopAudioPlayback() {{
-        isPlaying = false;
-        audio.pause();
-        if (syncInterval) {{
-            clearInterval(syncInterval);
-            syncInterval = null;
+        }} catch(e) {{
+            // Silently ignore camera lock errors
         }}
     }}
     
-    // Auto-reset when audio ends
-    audio.addEventListener('ended', () => {{
-        stopAudioPlayback();
+    // Main sync loop using requestAnimationFrame for smooth animation
+    let cameraLockCounter = 0;
+    
+    function syncLoop() {{
+        if (!isPlaying) return;
+        
+        const div = findPlotlyDiv();
+        if (!div) {{
+            console.warn('Plotly div not found, retrying...');
+            animationFrame = requestAnimationFrame(syncLoop);
+            return;
+        }}
+        
+        const currentTime = audio.currentTime;
+        const frameIdx = findClosestFrame(currentTime);
+        
+        // Only update if frame changed
+        if (frameIdx !== lastFrameIdx) {{
+            lastFrameIdx = frameIdx;
+            
+            // Update status to show current frame
+            const modeLabel = isExploreMode ? '🔄 Explore' : '🎬 Watch';
+            updateStatus(modeLabel + ': ' + frameIdx + '/' + totalFrames);
+            
+            // Try direct data update first (more reliable)
+            const frames = getPlotlyFrames();
+            if (frames && frames[frameIdx] && frames[frameIdx].data) {{
+                try {{
+                    // Build layout with fixed camera if in Watch mode
+                    let layout = div.layout;
+                    if (!isExploreMode) {{
+                        layout = Object.assign({{}}, div.layout, {{
+                            scene: Object.assign({{}}, div.layout.scene, {{
+                                camera: fixedCamera
+                            }})
+                        }});
+                    }}
+                    
+                    // Directly update the trace data from the frame
+                    Plotly.react(div, frames[frameIdx].data, layout);
+                }} catch(e) {{
+                    console.error('React error:', e);
+                    // Fallback to animate
+                    try {{
+                        Plotly.animate(div, [String(frameIdx)], {{
+                            mode: 'immediate',
+                            transition: {{ duration: 0 }},
+                            frame: {{ duration: 0, redraw: true }}
+                        }});
+                        // Lock camera after animate
+                        if (!isExploreMode) lockCamera(div);
+                    }} catch(e2) {{
+                        console.error('Animate fallback error:', e2);
+                    }}
+                }}
+            }} else {{
+                // Use animate as fallback
+                try {{
+                    Plotly.animate(div, [String(frameIdx)], {{
+                        mode: 'immediate',
+                        transition: {{ duration: 0 }},
+                        frame: {{ duration: 0, redraw: true }}
+                    }});
+                    // Lock camera after animate
+                    if (!isExploreMode) lockCamera(div);
+                }} catch(e) {{
+                    console.error('Animate error:', e);
+                }}
+            }}
+        }} else {{
+            // Even if frame didn't change, periodically lock camera in Watch mode
+            cameraLockCounter++;
+            if (!isExploreMode && cameraLockCounter % 10 === 0) {{
+                lockCamera(div);
+            }}
+        }}
+        
+        updateTimeDisplay();
+        animationFrame = requestAnimationFrame(syncLoop);
+    }}
+    
+    // Play/Pause toggle
+    function togglePlayback() {{
+        if (!isLoaded) {{
+            updateStatus('Still loading...');
+            return;
+        }}
+        
+        if (isPlaying) {{
+            // Pause
+            isPlaying = false;
+            audio.pause();
+            if (animationFrame) {{
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }}
+            playBtn.textContent = '▶';
+            updateStatus(isExploreMode ? 'Paused (Explore Mode)' : 'Paused (Watch Mode)');
+        }} else {{
+            // Play
+            isPlaying = true;
+            playBtn.textContent = '⏸';
+            cameraLockCounter = 0;
+            
+            // Reset camera to fixed position when starting in Watch mode
+            if (!isExploreMode) {{
+                const div = findPlotlyDiv();
+                if (div) {{
+                    lockCamera(div);
+                }}
+            }}
+            
+            updateStatus(isExploreMode ? 'Playing (Explore)' : 'Playing (Watch)');
+            
+            audio.play()
+                .then(() => {{
+                    console.log('▶️ Playback started');
+                    syncLoop();
+                }})
+                .catch(e => {{
+                    console.error('❌ Play failed:', e);
+                    isPlaying = false;
+                    playBtn.textContent = '▶';
+                    updateStatus('Error: ' + (e.message || 'Cannot play'));
+                }});
+        }}
+    }}
+    
+    // Reset to beginning
+    function resetPlayback() {{
         audio.currentTime = 0;
+        lastFrameIdx = -1;
+        updateTimeDisplay();
+        
+        // Show first frame
+        const div = findPlotlyDiv();
+        if (div) {{
+            try {{
+                Plotly.animate(div, ['0'], {{
+                    mode: 'immediate',
+                    transition: {{ duration: 0 }},
+                    frame: {{ duration: 0, redraw: false }}
+                }});
+            }} catch(e) {{}}
+        }}
+    }}
+    
+    // Audio events
+    audio.addEventListener('loadeddata', () => {{
+        isLoaded = true;
+        updateStatus('Ready - Click to play');
+        console.log('✅ Audio loaded');
     }});
     
-    // Hook into Plotly's Play/Pause buttons
-    setTimeout(() => {{
-        const updateMenus = document.querySelectorAll('[class*="updatemenu"]');
-        updateMenus.forEach(menu => {{
-            const buttons = menu.querySelectorAll('button');
-            buttons.forEach(btn => {{
-                if (btn.textContent.trim() === 'Play') {{
-                    btn.addEventListener('click', (e) => {{
-                        e.stopPropagation();
-                        e.preventDefault();
-                        startAudioPlayback();
-                        return false;
-                    }}, {{ capture: true }});
-                    btn.textContent = '▶ Play (Audio ON 🔊)';
-                }} else if (btn.textContent.trim() === 'Pause') {{
-                    btn.addEventListener('click', (e) => {{
-                        e.stopPropagation();
-                        e.preventDefault();
-                        stopAudioPlayback();
-                        return false;
-                    }}, {{ capture: true }});
-                }}
-            }});
-        }});
-    }}, 300);
+    audio.addEventListener('canplaythrough', () => {{
+        isLoaded = true;
+        updateStatus('Ready - Click to play');
+    }});
     
-    console.log('🔊 Audio enabled - Click Play to hear bird song');
+    audio.addEventListener('error', (e) => {{
+        console.error('❌ Audio error:', audio.error);
+        updateStatus('Audio error: ' + (audio.error?.message || 'Failed to load'));
+    }});
+    
+    audio.addEventListener('ended', () => {{
+        isPlaying = false;
+        playBtn.textContent = '▶';
+        updateStatus('Finished - Click to replay');
+        if (animationFrame) {{
+            cancelAnimationFrame(animationFrame);
+            animationFrame = null;
+        }}
+        resetPlayback();
+    }});
+    
+    // Click handlers
+    playBtn.addEventListener('click', togglePlayback);
+    
+    // Progress bar seek
+    progressContainer.addEventListener('click', (e) => {{
+        if (!isLoaded) return;
+        const rect = progressContainer.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        audio.currentTime = pct * duration;
+        lastFrameIdx = -1;
+        updateTimeDisplay();
+    }});
+    
+    // Volume control
+    volumeSlider.addEventListener('input', (e) => {{
+        audio.volume = e.target.value / 100;
+    }});
+    
+    // Mode toggle: Watch Mode (fixed camera) vs Explore Mode (free rotation)
+    function toggleMode() {{
+        isExploreMode = !isExploreMode;
+        
+        if (isExploreMode) {{
+            modeToggle.textContent = '🔄 Explore';
+            modeToggle.classList.add('explore-mode');
+            console.log('🔄 Switched to Explore Mode - rotate freely');
+        }} else {{
+            modeToggle.textContent = '🎬 Watch';
+            modeToggle.classList.remove('explore-mode');
+            console.log('🎬 Switched to Watch Mode - fixed camera');
+            
+            // Reset camera to fixed position
+            const div = findPlotlyDiv();
+            if (div) {{
+                lockCamera(div);
+            }}
+        }}
+        
+        // Update status if not playing
+        if (!isPlaying) {{
+            updateStatus(isExploreMode ? 'Explore Mode - Rotate freely' : 'Watch Mode - Fixed view');
+        }}
+    }}
+    
+    modeToggle.addEventListener('click', toggleMode);
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {{
+        if (e.code === 'Space' && e.target === document.body) {{
+            e.preventDefault();
+            togglePlayback();
+        }}
+        // 'M' key to toggle mode
+        if (e.code === 'KeyM' && e.target === document.body) {{
+            e.preventDefault();
+            toggleMode();
+        }}
+    }});
+    
+    // Load the audio - embed as base64 data URI
+    console.log('📀 Loading audio...');
+    try {{
+        audio.src = '{audio_data_uri}';
+    }} catch(e) {{
+        console.error('❌ Failed to set audio source:', e);
+        updateStatus('Failed to load audio');
+    }}
+    
+    // Initial time display
+    updateTimeDisplay();
+    
+    // Set initial camera to fixed position
+    setTimeout(() => {{
+        const div = findPlotlyDiv();
+        if (div) {{
+            lockCamera(div);
+        }}
+    }}, 500);
+    
+    console.log('🎵 Unified control ready');
+    console.log('💡 Tip: Press M to toggle between Watch/Explore modes');
 }})();
 </script>
 '''
