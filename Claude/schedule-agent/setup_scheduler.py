@@ -31,10 +31,19 @@ def _win_create(task_name: str, script: str, schedule_args: list[str]) -> None:
     log_path = project / "data" / script.replace(".py", ".log")
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # schtasks /tr is limited to 261 chars — write a .bat wrapper instead
+    bat_path = project / script.replace(".py", ".bat")
+    bat_path.write_text(
+        f"@echo off\r\n"
+        f'cd /d "{project}"\r\n'
+        f'"{python}" "{script_path}" >> "{log_path}" 2>&1\r\n',
+        encoding="utf-8",
+    )
+
     cmd = [
         "schtasks", "/create",
         "/tn", task_name,
-        "/tr", f'cmd /c "cd /d "{project}" && "{python}" "{script_path}" >> "{log_path}" 2>&1"',
+        "/tr", str(bat_path),
         "/f",
         "/ru", "INTERACTIVE",
     ] + schedule_args
