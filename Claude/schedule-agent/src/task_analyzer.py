@@ -105,11 +105,12 @@ def analyze_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     analyzed: list[dict] = json.loads(raw)
 
-    # Merge back any original fields not returned by Claude (e.g. notes, due)
+    # Merge back any original fields not returned by Claude (e.g. notes, due, list_name)
     original_by_id = {t["id"]: t for t in tasks}
     for item in analyzed:
         original = original_by_id.get(item["id"], {})
         item.setdefault("notes", original.get("notes", ""))
         item.setdefault("due", original.get("due"))
+        item.setdefault("list_name", original.get("list_name", ""))
 
     return analyzed

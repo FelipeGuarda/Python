@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template_string, request, redirect
 
 from .google_calendar import create_task_event
-from .gmail_sender import send_email, build_proposal_email
+from .gmail_sender import send_email
 
 load_dotenv()
 
