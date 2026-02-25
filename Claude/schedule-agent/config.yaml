@@ -1,0 +1,79 @@
+# ─── Timezone ────────────────────────────────────────────────────────────────
+# Find your timezone string at: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+timezone: "America/Santiago"
+
+# ─── Work Hours ──────────────────────────────────────────────────────────────
+work_hours:
+  start: "09:00"           # First slot of the day
+  end: "18:00"             # Last slot ends by this time (Mon–Thu)
+  friday_end: "14:00"      # Friday ends earlier
+  lunch_start: "13:00"
+  lunch_end: "14:00"
+
+# ─── Personal Hours ───────────────────────────────────────────────────────────
+# Tasks from personal_tasklists are scheduled here, NOT during work hours.
+personal_hours:
+  weekday_start: "18:00"   # Mon–Thu: after work
+  weekday_end: "21:00"
+  friday_start: "14:00"    # Fri: right after the early finish
+  friday_end: "21:00"
+
+# Task lists whose tasks are treated as personal (scheduled in personal hours only)
+personal_tasklists:
+  - "Personales"
+
+# Tasks with complexity >= this value are "heavy" and go to morning slots
+heavy_task_threshold: 3
+
+# Latest time a morning (heavy) task can start
+morning_cutoff: "13:00"
+
+# Earliest time an afternoon (light) task can start
+afternoon_start: "14:00"
+
+# Buffer in minutes between scheduled tasks
+buffer_minutes: 15
+
+# Maximum deep-work hours allowed per day before the agent starts pushing tasks to next day
+max_deep_work_hours_per_day: 5
+
+# ─── Google Tasks ─────────────────────────────────────────────────────────────
+google_tasks:
+  # "all" fetches from every task list automatically.
+  # Or set a specific list ID (run: python setup_auth.py --list-tasklists to find IDs).
+  tasklist_id: "all"
+  # Maximum tasks to consider per weekly run (prevents overwhelming proposals)
+  max_tasks: 15
+
+# ─── Google Calendar ──────────────────────────────────────────────────────────
+google_calendar:
+  # Calendar where task events will be CREATED (use "primary" for your personal calendar)
+  calendar_id: "primary"
+
+  # Calendars to check when finding FREE slots (i.e. what counts as "busy time").
+  # Add only the calendars that reflect your personal commitments.
+  # To find calendar IDs: python setup_auth.py --list-calendars
+  # Your personal calendar is usually just "primary".
+  # DO NOT include your org's shared/program calendars here — those all-day events
+  # would block your entire day.
+  busy_calendars:
+    - "fguarda@gmail.com"                                      # Personal
+    - "felipe.guarda@fundacionmaradentro.cl"                   # Work
+    - "n0o6tnolitpg8crruurhoh73no@group.calendar.google.com"   # Equipo FMA
+
+  # Skip all-day events when computing free slots.
+  skip_allday_events: true
+
+  # Google Calendar color ID for scheduled task events
+  # Colors: 1=Lavender, 2=Sage, 3=Grape, 4=Flamingo, 5=Banana,
+  #         6=Tangerine, 7=Peacock, 8=Blueberry, 9=Basil, 10=Tomato, 11=Graphite
+  event_color_id: "10"
+  # Event visibility: "private" = you see details, team sees only "Busy"
+  event_visibility: "private"
+
+# ─── Claude Model ─────────────────────────────────────────────────────────────
+claude:
+  # Model for quick task analysis (fast + cheap)
+  analysis_model: "claude-haiku-4-5"
+  # Model for building the weekly schedule (needs more reasoning)
+  scheduler_model: "claude-sonnet-4-5"
