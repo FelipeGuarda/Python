@@ -1,7 +1,8 @@
 """
 Local Flask approval server.
 Serves a web UI where the user can review the weekly proposal,
-optionally remove tasks, and click "Approve & Create Events".
+optionally remove tasks, drag them to different days, and click
+"Approve & Create Events".
 
 The server auto-shuts down after approval or after TIMEOUT_HOURS.
 """
@@ -28,6 +29,7 @@ load_dotenv()
 
 TIMEOUT_HOURS = 20  # Server shuts down automatically after this many hours
 PENDING_FILE = Path("data/pending_proposal.json")
+DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 app = Flask(__name__)
 _shutdown_event = threading.Event()
@@ -58,15 +60,34 @@ APPROVAL_HTML = """
   .header p { margin-top: 4px; opacity: 0.7; font-size: 14px; }
   .card { background: white; border: 1px solid #dee2e6;
           border-radius: 0 0 10px 10px; margin-bottom: 24px; overflow: hidden; }
+
+  /* Day sections */
+  .day-section { border-top: 2px solid #bdc3c7; transition: background 0.15s; }
+  .day-section:first-child { border-top: none; }
+  .day-section.drag-over { background: #eaf4fb; outline: 2px dashed #3498db; outline-offset: -2px; }
+  .day-section.drag-over .day-header { background: #d0e8f7; }
   .day-header { background: #ecf0f1; padding: 10px 20px;
                 font-weight: 700; font-size: 13px; color: #2c3e50;
-                border-top: 2px solid #bdc3c7; display: flex;
-                justify-content: space-between; align-items: center; }
+                display: flex; justify-content: space-between; align-items: center; }
   .day-hours { font-weight: 400; color: #7f8c8d; font-size: 12px; }
+  .tasks-container { min-height: 44px; }
+  .tasks-container.empty-hint { display: flex; align-items: center;
+                                  padding: 10px 20px; color: #bdc3c7;
+                                  font-size: 12px; font-style: italic; }
+
+  /* Task rows */
   .task-row { display: flex; align-items: center; padding: 12px 20px;
-              border-bottom: 1px solid #f0f2f5; gap: 12px; }
+              border-bottom: 1px solid #f0f2f5; gap: 12px;
+              cursor: grab; user-select: none; background: white;
+              transition: background 0.1s; }
   .task-row:last-child { border-bottom: none; }
-  .task-row.removed { opacity: 0.35; text-decoration: line-through; }
+  .task-row:hover { background: #f8f9fa; }
+  .task-row.removed { opacity: 0.35; text-decoration: line-through; cursor: grab; }
+  .task-row.dragging { opacity: 0.45; background: #eef; cursor: grabbing; }
+  .task-row.moved { border-left: 3px solid #3498db; }
+
+  .drag-handle { color: #bdc3c7; font-size: 15px; cursor: grab; flex-shrink: 0;
+                 line-height: 1; letter-spacing: -1px; }
   .task-time { color: #6c757d; font-size: 13px; white-space: nowrap; min-width: 110px; }
   .task-title { flex: 1; font-weight: 500; font-size: 14px; }
   .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px;
@@ -77,17 +98,21 @@ APPROVAL_HTML = """
   .task-hours { color: #95a5a6; font-size: 12px; white-space: nowrap; }
   .remove-btn { background: none; border: 1px solid #e74c3c; color: #e74c3c;
                 border-radius: 4px; padding: 3px 8px; cursor: pointer;
-                font-size: 11px; white-space: nowrap; }
+                font-size: 11px; white-space: nowrap; flex-shrink: 0; }
   .remove-btn:hover { background: #e74c3c; color: white; }
   .undo-btn { background: none; border: 1px solid #27ae60; color: #27ae60;
-              border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 11px; }
+              border-radius: 4px; padding: 3px 8px; cursor: pointer;
+              font-size: 11px; flex-shrink: 0; }
+  .moved-label { font-size: 10px; color: #3498db; white-space: nowrap;
+                 flex-shrink: 0; font-style: italic; }
+  .rationale { font-size: 11px; color: #adb5bd; font-style: italic; margin-top: 2px; }
+
   .unscheduled { background: #fff3cd; border: 1px solid #ffc107;
                  border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; }
   .unscheduled h3 { font-size: 14px; color: #856404; margin-bottom: 8px; }
   .unscheduled ul { padding-left: 18px; font-size: 13px; color: #6c757d; }
   .unscheduled li { margin-bottom: 4px; }
-  .rationale { font-size: 11px; color: #adb5bd; font-style: italic;
-               margin-top: 2px; }
+
   .actions { display: flex; gap: 12px; flex-wrap: wrap; }
   .btn-approve { background: #27ae60; color: white; border: none;
                  padding: 14px 36px; border-radius: 8px; font-size: 16px;
@@ -99,7 +124,10 @@ APPROVAL_HTML = """
                 font-weight: 600; cursor: pointer; }
   .success-msg { background: #d4edda; border: 1px solid #c3e6cb; color: #155724;
                  border-radius: 8px; padding: 16px 20px; text-align: center;
-                 font-weight: 600; font-size: 16px; display: none; }
+                 font-weight: 600; font-size: 16px; display: none;
+                 margin-bottom: 16px; }
+  .hint { font-size: 12px; color: #95a5a6; text-align: center;
+          margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -111,25 +139,43 @@ APPROVAL_HTML = """
 
   <div class="card">
     {% for day, tasks in by_day.items() %}
-    <div class="day-header">
-      <span>{{ day }}</span>
-      <span class="day-hours">{{ "%.1f"|format(tasks|sum(attribute='estimated_hours')) }}h scheduled</span>
-    </div>
-    {% for t in tasks %}
-    <div class="task-row" id="row-{{ loop.index0 }}-{{ day|replace(' ','_') }}">
-      <span class="task-time">{{ t.start_time }} – {{ t.end_time }}</span>
-      <div class="task-title">
-        {{ t.title }}
-        <div class="rationale">{{ t.rationale }}</div>
+    <div class="day-section"
+         data-day="{{ day }}"
+         data-date="{{ tasks[0].date }}"
+         ondragover="onDragOver(event)"
+         ondragenter="onDragEnter(event, this)"
+         ondragleave="onDragLeave(event, this)"
+         ondrop="onDrop(event, this)">
+      <div class="day-header">
+        <span>{{ day }}</span>
+        <span class="day-hours">{{ "%.1f"|format(tasks|sum(attribute='estimated_hours')) }}h scheduled</span>
       </div>
-      <span class="badge c{{ t.complexity }}">
-        {{ ['','Easy','Light','Medium','Heavy','Deep'][t.complexity] }}
-      </span>
-      <span class="task-hours">{{ t.estimated_hours }}h</span>
-      <button class="remove-btn"
-              onclick="toggleTask(this, '{{ t.task_id }}')">Remove</button>
+      <div class="tasks-container">
+        {% for t in tasks %}
+        <div class="task-row"
+             data-task-id="{{ t.task_id }}"
+             data-hours="{{ t.estimated_hours }}"
+             data-orig-day="{{ day }}"
+             draggable="true"
+             ondragstart="onDragStart(event, this)"
+             ondragend="onDragEnd(event, this)">
+          <span class="drag-handle">&#8942;&#8942;</span>
+          <span class="task-time">{{ t.start_time }} – {{ t.end_time }}</span>
+          <div class="task-title">
+            {{ t.title }}
+            <div class="rationale">{{ t.rationale }}</div>
+          </div>
+          <span class="badge c{{ t.complexity }}">
+            {{ ['','Easy','Light','Medium','Heavy','Deep'][t.complexity] }}
+          </span>
+          <span class="task-hours">{{ t.estimated_hours }}h</span>
+          <span class="moved-label" style="display:none">moved</span>
+          <button class="remove-btn"
+                  onclick="toggleTask(this, '{{ t.task_id }}')">Remove</button>
+        </div>
+        {% endfor %}
+      </div>
     </div>
-    {% endfor %}
     {% endfor %}
   </div>
 
@@ -143,6 +189,8 @@ APPROVAL_HTML = """
     </ul>
   </div>
   {% endif %}
+
+  <p class="hint">Drag tasks between days to reschedule &nbsp;·&nbsp; Click Remove to exclude a task</p>
 
   <div id="success-msg" class="success-msg">
     ✓ Schedule approved! Calendar events are being created...
@@ -160,33 +208,117 @@ APPROVAL_HTML = """
 
 <script>
   const removedIds = new Set();
+  // Map: task_id → { new_day_name, new_date }
+  const movedTasks = new Map();
 
+  let draggedRow = null;
+
+  // ── Hours counter ──────────────────────────────────────────────────────────
+  function updateDayHours(section) {
+    let total = 0;
+    section.querySelectorAll('.task-row:not(.removed)').forEach(row => {
+      total += parseFloat(row.dataset.hours || 0);
+    });
+    section.querySelector('.day-hours').textContent = total.toFixed(1) + 'h scheduled';
+  }
+
+  // ── Remove / Undo ──────────────────────────────────────────────────────────
   function toggleTask(btn, taskId) {
     const row = btn.closest('.task-row');
+    const section = row.closest('.day-section');
     if (removedIds.has(taskId)) {
       removedIds.delete(taskId);
       row.classList.remove('removed');
       btn.textContent = 'Remove';
       btn.className = 'remove-btn';
-      btn.onclick = () => toggleTask(btn, taskId);
     } else {
       removedIds.add(taskId);
       row.classList.add('removed');
       btn.textContent = 'Undo';
       btn.className = 'undo-btn';
-      btn.onclick = () => toggleTask(btn, taskId);
+    }
+    updateDayHours(section);
+  }
+
+  // ── Drag & Drop ────────────────────────────────────────────────────────────
+  function onDragStart(e, row) {
+    draggedRow = row;
+    e.dataTransfer.effectAllowed = 'move';
+    // Delay so the element isn't already faded when ghost image is captured
+    setTimeout(() => row.classList.add('dragging'), 0);
+  }
+
+  function onDragEnd(e, row) {
+    row.classList.remove('dragging');
+    draggedRow = null;
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  function onDragEnter(e, section) {
+    if (draggedRow && !section.contains(draggedRow)) {
+      section.classList.add('drag-over');
     }
   }
 
+  function onDragLeave(e, section) {
+    // Only remove class when truly leaving the section (not entering a child)
+    if (!section.contains(e.relatedTarget)) {
+      section.classList.remove('drag-over');
+    }
+  }
+
+  function onDrop(e, section) {
+    e.preventDefault();
+    section.classList.remove('drag-over');
+    if (!draggedRow) return;
+
+    const taskId = draggedRow.dataset.taskId;
+    const newDayName = section.dataset.day;
+    const newDate = section.dataset.date;
+    const origDay = draggedRow.dataset.origDay;
+
+    const oldSection = draggedRow.closest('.day-section');
+    if (oldSection === section) return; // dropped on same day
+
+    section.querySelector('.tasks-container').appendChild(draggedRow);
+
+    if (newDayName === origDay) {
+      movedTasks.delete(taskId);
+      draggedRow.classList.remove('moved');
+      draggedRow.querySelector('.moved-label').style.display = 'none';
+    } else {
+      movedTasks.set(taskId, { new_day_name: newDayName, new_date: newDate });
+      draggedRow.classList.add('moved');
+      draggedRow.querySelector('.moved-label').style.display = '';
+    }
+
+    updateDayHours(oldSection);
+    updateDayHours(section);
+  }
+
+  // ── Approve ────────────────────────────────────────────────────────────────
   function approve() {
     const btn = document.getElementById('approve-btn');
     btn.disabled = true;
     btn.textContent = 'Creating events…';
 
+    const movedArray = Array.from(movedTasks.entries()).map(([task_id, info]) => ({
+      task_id,
+      new_day_name: info.new_day_name,
+      new_date: info.new_date,
+    }));
+
     fetch('/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ removed_task_ids: Array.from(removedIds) })
+      body: JSON.stringify({
+        removed_task_ids: Array.from(removedIds),
+        moved_tasks: movedArray,
+      })
     })
     .then(r => r.json())
     .then(data => {
@@ -219,6 +351,11 @@ def index():
     for task in proposal["scheduled_tasks"]:
         by_day.setdefault(task["day_name"], []).append(task)
 
+    # Sort days in calendar order (Tue → Wed → Thu → Fri)
+    by_day = dict(
+        sorted(by_day.items(), key=lambda x: DAY_ORDER.index(x[0]) if x[0] in DAY_ORDER else 99)
+    )
+
     return render_template_string(
         APPROVAL_HTML,
         week_start=proposal["week_start"],
@@ -237,13 +374,24 @@ def approve():
     data = request.get_json(silent=True) or {}
     removed_ids: set[str] = set(data.get("removed_task_ids", []))
 
+    # Map: task_id → {new_day_name, new_date} for moved tasks
+    moved_tasks_map: dict[str, dict] = {
+        m["task_id"]: m for m in data.get("moved_tasks", [])
+    }
+
     config = _load_config()
     tz = pytz.timezone(config["timezone"])
 
-    tasks_to_create = [
-        t for t in proposal["scheduled_tasks"]
-        if t["task_id"] not in removed_ids
-    ]
+    tasks_to_create = []
+    for t in proposal["scheduled_tasks"]:
+        if t["task_id"] in removed_ids:
+            continue
+        t = dict(t)  # copy before mutating
+        if t["task_id"] in moved_tasks_map:
+            mv = moved_tasks_map[t["task_id"]]
+            t["day_name"] = mv["new_day_name"]
+            t["date"] = mv["new_date"]
+        tasks_to_create.append(t)
 
     created_count = 0
     for task in tasks_to_create:
@@ -272,8 +420,12 @@ def approve():
     history_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     history_file = history_dir / f"schedule_{timestamp}.json"
-    approved_proposal = {**proposal, "approved_at": datetime.now().isoformat(),
-                         "removed_task_ids": list(removed_ids)}
+    approved_proposal = {
+        **proposal,
+        "approved_at": datetime.now().isoformat(),
+        "removed_task_ids": list(removed_ids),
+        "moved_tasks": data.get("moved_tasks", []),
+    }
     history_file.write_text(json.dumps(approved_proposal, indent=2), encoding="utf-8")
 
     # Remove pending file
