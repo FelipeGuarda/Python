@@ -1,0 +1,15 @@
+name: bird_viz
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - scipy
+  - pandas
+  - pip
+  - pip:
+    - librosa>=0.10.0
+    - plotly>=5.18.0
+    - soundfile>=0.12.0
+    - kaleido>=0.2.1
