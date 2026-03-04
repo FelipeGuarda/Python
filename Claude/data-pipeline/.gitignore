@@ -1,0 +1,7 @@
+.env
+data/cr800_state.json
+data/gap_fill.log
+data/incoming/
+__pycache__/
+*.pyc
+*.pyo

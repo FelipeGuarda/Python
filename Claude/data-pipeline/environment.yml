@@ -16,7 +16,7 @@ dependencies:
     - pytz>=2024.1
     - pyyaml>=6.0.1
     - python-dotenv>=1.0.0
-    - paramiko>=3.4.0
+    - pycampbellcr1000
     - pandera>=0.18.0
     - openpyxl>=3.1.0
-    - schedule>=1.2.0
+    - apscheduler>=3.10.0

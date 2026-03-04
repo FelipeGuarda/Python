@@ -1,0 +1,20 @@
+database:
+  path: /home/fguarda/Dev/Python/fma_data.duckdb
+
+cr800:
+  host: 100.97.202.90
+  port: 2000
+  pakbus_address: 1
+  station_id: bosque_pehuen
+
+open_meteo:
+  latitude: -39.61
+  longitude: -71.71
+  fetch_interval_minutes: 60
+
+watcher:
+  incoming_dir: data/incoming
+
+schedules:
+  open_meteo_interval_minutes: 60
+  cr800_interval_minutes: 10080   # weekly (7 * 24 * 60)

@@ -1,1 +1,5 @@
 Estacion meteorologica/Guarda_dashboard_files_and_instructions.zip
+fma_data.duckdb
+fma_data.duckdb.wal
+Claude/data-pipeline/merged_timeline.csv
+Claude/data-pipeline/old animal data DB.csv
