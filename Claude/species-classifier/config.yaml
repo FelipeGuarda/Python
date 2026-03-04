@@ -1,0 +1,49 @@
+# ─── Paths ────────────────────────────────────────────────────────────────────
+campaign_dir: "C:/Users/USUARIO/SynologyDrive/2. Camaras trampa (SC)/SynologyDrive/DATOS_GRILLA CÁMARAS TRAMPA/2. CAMPAÑAS DE RECOLECCION DE IMAGENES/Primavera 2025"
+megadetector_json: "timelapse_recognition_file.json"
+database:         "CamtrapDB_Primavera2025.ddb"
+input_csv:        "new_labeled_data_CamptrapDP.csv"
+output_csv:       "new_labeled_data_classified.csv"
+
+# ─── Detection filtering ───────────────────────────────────────────────────────
+animal_confidence_threshold: 0.38
+animal_category: "1"          # category '1' = animal in timelapse_recognition_file.json
+
+# ─── CLIP model ───────────────────────────────────────────────────────────────
+clip_model: "openai/clip-vit-base-patch32"
+
+# ─── Output metadata ──────────────────────────────────────────────────────────
+classified_by:        "CLIP zero-shot"
+classification_method: "machine"
+
+# ─── Species list ─────────────────────────────────────────────────────────────
+# spanish  → written to observationComments
+# latin    → written to scientificName (CamtrapDP standard)
+# english  → used as CLIP text prompt (model is English-trained)
+species:
+  - {spanish: "Zorro culpeo",       latin: "Lycalopex culpaeus",          english: "culpeo fox"}
+  - {spanish: "Puma",               latin: "Puma concolor",               english: "puma mountain lion cougar"}
+  - {spanish: "Guiña",              latin: "Leopardus guigna",            english: "guiña kodkod small wild cat"}
+  - {spanish: "Jabali",             latin: "Sus scrofa",                  english: "wild boar"}
+  - {spanish: "Liebre",             latin: "Lepus europaeus",             english: "European hare"}
+  - {spanish: "Visón",              latin: "Neogale vison",               english: "American mink"}
+  - {spanish: "Perro",              latin: "Canis lupus familiaris",      english: "domestic dog"}
+  - {spanish: "Caballo",            latin: "Equus caballus",              english: "domestic horse"}
+  - {spanish: "Gato doméstico",      latin: "Felis catus",                 english: "domestic cat"}
+  - {spanish: "Monito del monte",   latin: "Dromiciops gliroides",        english: "monito del monte small marsupial"}
+  - {spanish: "Ratón cola larga",   latin: "Abrothrix longipilis",        english: "long-haired mouse small rodent"}
+  - {spanish: "Chucao",             latin: "Scelorchilus rubecula",       english: "chucao tapaculo small bird"}
+  - {spanish: "Hued hued",          latin: "Pteroptochos tectus",         english: "moustached turca ground bird"}
+  - {spanish: "Rayadito",           latin: "Aphrastura spinicauda",       english: "thorn-tailed rayadito small bird"}
+  - {spanish: "Concón",             latin: "Strix rufipes",               english: "rufous-legged owl"}
+  - {spanish: "Carpintero",         latin: "Campephilus magellanicus",    english: "Magellanic woodpecker"}
+  - {spanish: "Bandurria",          latin: "Theristicus melanopis",       english: "black-faced ibis"}
+  - {spanish: "Queltehue",          latin: "Vanellus chilensis",          english: "southern lapwing"}
+  - {spanish: "Tiuque",             latin: "Milvago chimango",            english: "chimango caracara"}
+  - {spanish: "Peuquito",           latin: "Accipiter chilensis",         english: "Chilean hawk"}
+  - {spanish: "Zorzal",             latin: "Turdus falcklandii",          english: "Austral thrush"}
+  - {spanish: "Cometocino",         latin: "Phrygilus gayi",              english: "grey-hooded sierra finch"}
+  - {spanish: "Picaflor",           latin: "Sephanoides sephaniodes",     english: "green-backed firecrown hummingbird"}
+  - {spanish: "Diucón",             latin: "Xolmis pyrope",               english: "fire-eyed diucon"}
+  - {spanish: "Traro",              latin: "Caracara plancus",            english: "southern caracara"}
+  - {spanish: "Ciervo rojo",        latin: "Cervus elaphus",              english: "red deer"}
