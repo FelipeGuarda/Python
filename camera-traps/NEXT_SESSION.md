@@ -1,8 +1,8 @@
-# Species-Classifier — Session Handoff
+# Camera Traps — Session Handoff
 > Updated 2026-03-05. Read this first in any new session.
 
 ## Project Location
-`C:\Users\USUARIO\Dev\Python\Claude\species-classifier`
+`C:\Users\USUARIO\Dev\Python\camera-traps`
 
 ## Status
 **Phase 1 is complete and working.**
@@ -19,7 +19,7 @@
 
 ```bash
 conda activate species-classifier
-cd C:\Users\USUARIO\Dev\Python\Claude\species-classifier
+cd C:\Users\USUARIO\Dev\Python\camera-traps
 
 # Step 1 — classify a new campaign
 python run_classification.py

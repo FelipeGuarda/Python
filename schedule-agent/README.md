@@ -1,7 +1,7 @@
 # Schedule Agent
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Source project:** `/home/fguarda/Dev/Python/Claude/schedule-agent/` (self-contained here)
+**Source project:** `/home/fguarda/Dev/Python/schedule-agent/` (self-contained here)
 **Status:** Feature-complete. Deployed on Linux via cron. Originally built for Windows Task Scheduler.
 
 ---
