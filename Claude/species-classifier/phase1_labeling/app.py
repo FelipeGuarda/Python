@@ -15,7 +15,7 @@ import csv
 import io
 import json
 import unicodedata
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,7 +28,8 @@ CONFIG_PATH   = Path(__file__).parent.parent / "config.yaml"
 COLS_PER_ROW    = 5      # thumbnails per row
 THUMB_SIZE      = 280    # max px for thumbnail (width or height)
 JPEG_QUALITY    = 75
-SPECIAL_OPTIONS = ["No es un animal", "Otro (especificar)"]
+SPECIAL_OPTIONS = ["No es un animal", "No reconocible", "Otro (especificar)"]
+RARE_GROUP      = "Otras especies"
 
 
 # ── Cached data loaders ───────────────────────────────────────────────────────
@@ -46,6 +47,18 @@ def load_classified_csv(path: str) -> tuple[list[str], list[dict]]:
         fieldnames = list(reader.fieldnames)
         rows = list(reader)
     return fieldnames, rows
+
+
+@st.cache_data
+def load_common_species(old_csv_path: str, min_count: int) -> set[str]:
+    """Return Spanish species names with count >= min_count in the historical CSV."""
+    with open(old_csv_path, encoding="utf-8-sig", newline="") as f:
+        rows = list(csv.DictReader(f))
+    counts = Counter(
+        r["Especie"].strip() for r in rows
+        if r.get("Animal", "").strip() == "Si" and r.get("Especie", "").strip()
+    )
+    return {sp for sp, n in counts.items() if n >= min_count}
 
 
 @st.cache_data
@@ -159,11 +172,12 @@ def confirm_all_proposed(rows: list[dict], proposed: str, n_groups: int) -> None
     _advance(n_groups)
 
 
-def confirm_with_edits(rows: list[dict], proposed: str, n_groups: int) -> None:
+def confirm_with_edits(rows: list[dict], per_image_proposed: dict, n_groups: int) -> None:
     """Save each image using its current per-image dropdown value."""
     for row in rows:
-        fp = row["filePath"]
-        chosen = st.session_state.get(f"sel_{fp}", proposed)
+        fp       = row["filePath"]
+        proposed = per_image_proposed[fp]
+        chosen   = st.session_state.get(f"sel_{fp}", proposed)
         if chosen == "Otro (especificar)":
             chosen = st.session_state.get(f"other_{fp}", "").strip() or proposed
         st.session_state.confirmed[fp] = chosen
@@ -190,6 +204,10 @@ def main() -> None:
     species_options  = sorted([s["spanish"] for s in species_list]) + SPECIAL_OPTIONS
     spanish_to_latin = {s["spanish"]: s["latin"] for s in species_list}
 
+    old_csv_path = str(CONFIG_PATH.parent / config.get("old_data_csv", "old animal data DB.csv"))
+    min_count    = int(config.get("min_historical_count", 31))
+    common_species = load_common_species(old_csv_path, min_count)
+
     # ── Load data ─────────────────────────────────────────────────────────────
     fieldnames, all_rows = load_classified_csv(input_csv_path)
     bboxes = load_bboxes(json_path, threshold)
@@ -199,12 +217,16 @@ def main() -> None:
         st.error("No classified animal rows found in the input CSV. Run run_classification.py first.")
         return
 
-    # Group by proposed Spanish species name, sorted by count descending.
-    # Normalize Unicode (NFC) so accented chars don't create duplicate keys.
+    # Group by proposed Spanish species name.
+    # Common species (>= min_historical_count in old data) get their own batch.
+    # Everything else goes into RARE_GROUP, shown last.
     groups: dict[str, list[dict]] = defaultdict(list)
     for row in animal_rows:
-        groups[nfc(row["observationComments"])].append(row)
-    sorted_species = sorted(groups, key=lambda s: -len(groups[s]))
+        sp = nfc(row["observationComments"])
+        groups[sp if sp in common_species else RARE_GROUP].append(row)
+
+    common_sorted  = sorted([sp for sp in groups if sp != RARE_GROUP], key=lambda s: -len(groups[s]))
+    sorted_species = common_sorted + ([RARE_GROUP] if RARE_GROUP in groups else [])
     n_groups = len(sorted_species)
 
     # ── Session state init ────────────────────────────────────────────────────
@@ -230,8 +252,13 @@ def main() -> None:
         for i, sp in enumerate(sorted_species):
             grp = groups[sp]
             n_done = sum(1 for r in grp if r["filePath"] in confirmed)
+            n_corr = sum(
+                1 for r in grp
+                if st.session_state.outcomes.get(r["filePath"]) == "corrected"
+            )
             done_mark = "✓" if n_done == len(grp) else ("◑" if n_done else "○")
-            label = f"{done_mark} {sp}  ({n_done}/{len(grp)})"
+            corr_tag = f", {n_corr} corr." if n_corr else ""
+            label = f"{done_mark} {sp}  ({n_done}/{len(grp)}{corr_tag})"
             if st.button(label, key=f"jump_{i}", use_container_width=True):
                 go_to(i)
                 st.rerun()
@@ -259,6 +286,15 @@ def main() -> None:
     current_species = sorted_species[idx]
     current_rows    = groups[current_species]
     n_done_this     = sum(1 for r in current_rows if r["filePath"] in confirmed)
+    is_rare_group   = current_species == RARE_GROUP
+
+    # per_image_proposed: the CLIP-assigned species for each image.
+    # For common-species batches every image shares the same proposed species.
+    # For the rare group each image has its own CLIP classification.
+    per_image_proposed = {
+        row["filePath"]: (nfc(row["observationComments"]) if is_rare_group else current_species)
+        for row in current_rows
+    }
 
     # ── Header row ────────────────────────────────────────────────────────────
     col_prev, col_title, col_skip = st.columns([1, 6, 1])
@@ -271,10 +307,12 @@ def main() -> None:
         )
     with col_title:
         st.subheader(
-            f"Species {idx + 1} / {n_groups}: **{current_species}** "
-            f"— {len(current_rows)} images  "
-            f"({n_done_this} confirmed)"
+            f"Grupo {idx + 1} / {n_groups}: **{current_species}** "
+            f"— {len(current_rows)} imágenes  "
+            f"({n_done_this} confirmadas)"
         )
+        if is_rare_group:
+            st.caption("Especies poco frecuentes agrupadas — cada imagen muestra su propia clasificación CLIP.")
     with col_skip:
         st.button(
             "Skip →",
@@ -284,28 +322,38 @@ def main() -> None:
         )
 
     # ── Confirm buttons ───────────────────────────────────────────────────────
-    btn_all, btn_edits, _ = st.columns([3, 3, 4])
-    with btn_all:
-        st.button(
-            f"✓ Confirmar todo como '{current_species}'",
-            type="primary",
-            use_container_width=True,
-            on_click=confirm_all_proposed,
-            args=(current_rows, current_species, n_groups),
-            help="Guarda todos los imágenes de este grupo como la especie sugerida, ignorando ediciones.",
-        )
-    with btn_edits:
+    if is_rare_group:
         st.button(
             "✓ Confirmar con ediciones individuales",
-            use_container_width=True,
+            type="primary",
             on_click=confirm_with_edits,
-            args=(current_rows, current_species, n_groups),
+            args=(current_rows, per_image_proposed, n_groups),
             help="Guarda cada imagen con la especie seleccionada en su menú desplegable.",
         )
-    st.caption(
-        "Si todas las imágenes son correctas usa el primer botón. "
-        "Si corregiste alguna con el menú desplegable, usa el segundo botón."
-    )
+        st.caption("Corrige los menús desplegables que no correspondan y luego confirma.")
+    else:
+        btn_all, btn_edits, _ = st.columns([3, 3, 4])
+        with btn_all:
+            st.button(
+                f"✓ Confirmar todo como '{current_species}'",
+                type="primary",
+                use_container_width=True,
+                on_click=confirm_all_proposed,
+                args=(current_rows, current_species, n_groups),
+                help="Guarda todos las imágenes de este grupo como la especie sugerida, ignorando ediciones.",
+            )
+        with btn_edits:
+            st.button(
+                "✓ Confirmar con ediciones individuales",
+                use_container_width=True,
+                on_click=confirm_with_edits,
+                args=(current_rows, per_image_proposed, n_groups),
+                help="Guarda cada imagen con la especie seleccionada en su menú desplegable.",
+            )
+        st.caption(
+            "Si todas las imágenes son correctas usa el primer botón. "
+            "Si corregiste alguna con el menú desplegable, usa el segundo botón."
+        )
     st.divider()
 
     # ── Image grid ────────────────────────────────────────────────────────────
@@ -314,10 +362,11 @@ def main() -> None:
         cols  = st.columns(COLS_PER_ROW)
 
         for col, row in zip(cols, chunk):
-            fp       = row["filePath"]
-            norm_fp  = fp.replace("\\", "/").lower()
-            bbox     = bboxes.get(norm_fp)
-            full_path = str(campaign_dir / fp.replace("\\", "/"))
+            fp            = row["filePath"]
+            norm_fp       = fp.replace("\\", "/").lower()
+            bbox          = bboxes.get(norm_fp)
+            full_path     = str(campaign_dir / fp.replace("\\", "/"))
+            clip_proposed = per_image_proposed[fp]
 
             with col:
                 thumb = load_thumbnail(full_path, bbox)
@@ -326,10 +375,14 @@ def main() -> None:
                 else:
                     st.warning("image not found")
 
-                # Per-image override dropdown (default = proposed species)
-                default_idx = find_default_idx(current_species, species_options)
-                # Show full relative path as caption
-                st.caption(fp.replace("\\", "/"))
+                # Caption: path, and CLIP suggestion when in rare group
+                if is_rare_group:
+                    st.caption(f"{fp.replace(chr(92), '/')}  ·  CLIP: *{clip_proposed}*")
+                else:
+                    st.caption(fp.replace("\\", "/"))
+
+                # Per-image override dropdown
+                default_idx = find_default_idx(clip_proposed, species_options)
                 st.selectbox(
                     "species",
                     species_options,
@@ -344,6 +397,11 @@ def main() -> None:
                         label_visibility="collapsed",
                         placeholder="Escribir nombre…",
                     )
+                    typed = st.session_state.get(f"other_{fp}", "").strip()
+                    if typed:
+                        st.caption(f":green[✓ Se guardará como: '{typed}']")
+                    else:
+                        st.caption(":orange[Escribe el nombre antes de confirmar]")
 
 
 if __name__ == "__main__":

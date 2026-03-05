@@ -1,173 +1,103 @@
-# Species-Classifier — Discoveries & Next Steps
-> Generated 2026-03-03. Use this file to resume work in a new YOLO-mode chat.
+# Species-Classifier — Session Handoff
+> Updated 2026-03-05. Read this first in any new session.
 
 ## Project Location
 `C:\Users\USUARIO\Dev\Python\Claude\species-classifier`
 
 ## Status
-**Nothing is built yet.** Only the plan (README.md), conda environment definition, and one labeled CSV exist.
-This is a greenfield project — start from scratch following the plan.
+**Phase 1 is complete and working.**
+- Zero-shot CLIP classification pipeline: `run_classification.py` ✓
+- Human review Streamlit UI: `phase1_labeling/app.py` ✓
+- First campaign classified and reviewed: Primavera 2025 ✓
+- Output: `new_labeled_data_reviewed.csv` in campaign_dir ✓
+
+**Phase 2 (custom EfficientNetV2) not started** — pending more reviewed data from future campaigns.
 
 ---
 
-## What Exists Right Now
+## How To Run
+
+```bash
+conda activate species-classifier
+cd C:\Users\USUARIO\Dev\Python\Claude\species-classifier
+
+# Step 1 — classify a new campaign
+python run_classification.py
+
+# Step 2 — human review
+streamlit run phase1_labeling/app.py
+# → http://localhost:8501
+```
+
+---
+
+## What Was Built This Session
+
+### Pipeline (`run_classification.py` + `classify_campaign/`)
+- Reads MegaDetector v5b JSON (`timelapse_recognition_file.json`) + Timelapse2 `.ddb`
+- Sources: MD detections ≥ 0.38 confidence + `DeleteFlag=true` images (MD misses)
+- Crops each image to MegaDetector bbox (5% padding)
+- CLIP zero-shot classification against 26 species (English prompts)
+- Confidence threshold: scores < 0.28 → `"No reconocible"` instead of forced guess
+- Output: CamtrapDP CSV with `observationType`, `scientificName`, `observationComments`, `classificationProbability`
+
+### Review UI (`phase1_labeling/app.py`)
+- Groups images by CLIP-proposed species
+- Common species (≥31 records in `old animal data DB.csv`) get dedicated batch pages
+- Rare species + low-confidence images → single "Otras especies" batch at the end
+- Two confirm buttons: bulk confirm (all as proposed) or confirm with individual edits
+- Tracks `reviewOutcome`: `"confirmed"` vs `"corrected"` per image
+- Special options: "No es un animal", "No reconocible", "Otro (especificar)" (free text)
+- Exports `new_labeled_data_reviewed.csv` — CamtrapDP format + `reviewOutcome` column
+
+### Key Decisions Made
+- **0.38 MegaDetector threshold**: 80% precision / 97% recall (user's research)
+- **0.28 CLIP threshold**: bottom ~12% of score distribution; based on empirical analysis of Primavera 2025 scores
+- **Guiña cutoff (31 records)**: species with fewer historical records don't get own batch page
+- **GPU**: RTX 5060 Ti is Blackwell (sm_120) — requires PyTorch 2.10+cu128, NOT cu124
+- **Wrong JSON warning**: `image_recognition_file.json` was from a tropical AddaxAI model — irrelevant, deleted
+
+---
+
+## Primavera 2025 Campaign — Current File State
+
+**Location:** `C:\Users\USUARIO\SynologyDrive\2. Camaras trampa (SC)\SynologyDrive\DATOS_GRILLA CÁMARAS TRAMPA\2. CAMPAÑAS DE RECOLECCION DE IMAGENES\Primavera 2025\`
 
 | File | What it is |
-|------|-----------|
-| `README.md` | Full design document — read it. Has data flow, UI mockup, file structure plan, design decisions |
-| `environment.yml` | Conda env `species-classifier` — **not yet created on this machine** |
-| `old animal data DB.csv` | 18,473 rows of labeled camera trap data (see below) |
+|---|---|
+| `CamtrapDB_Primavera2025.ddb` | Timelapse2 SQLite database (source of truth) |
+| `CamtrapDB_Primavera2025.tdb` | Timelapse2 template database |
+| `timelapse_recognition_file.json` | MegaDetector v5b output — USE THIS |
+| `new_labeled_data_CamptrapDP.csv` | Original 1,960-row CamtrapDP CSV (input) |
+| `new_labeled_data_classified.csv` | CLIP classification output (400 classified) |
+| `new_labeled_data_reviewed.csv` | Human-reviewed final output ← **main product** |
 
 ---
 
-## Existing Labeled Data — Key Facts
+## Known CLIP Limitations
 
-**File:** `old animal data DB.csv`
-**Rows:** 18,473 total
-**Columns:** `RootFolder, File, RelativePath, DateTime, Animal, Person, Especie, Counter0, Note0`
-
-**Species distribution** (only rows with `Especie` filled in — animal detections):
-
-| Count | Species | Notes |
-|-------|---------|-------|
-| 557 | Perro | Non-target — flag, don't misclassify |
-| 557 | Jabali | Invasive priority |
-| 538 | Caballo | Non-target |
-| 316 | Zorro culpeo | Native predator priority |
-| 169 | Liebre | Invasive |
-| 54 | Puma | Native predator priority — rare |
-| 51 | Chucao | Native bird |
-| 31 | Guiña | Native predator priority — rare |
-| 20 | Zorzal | |
-| 20 | Hued hued | |
-| 18 | Bandurria | |
-| 14 | Gato | |
-| 12 | Ratón cola larga | |
-| 11 | Queltehue | |
-| 7 | Visón | Invasive priority |
-| 6 | Monito del monte | |
-| 4 | Carpintero | |
-| 4 | Tiuque | |
-| 3 | Peuquito | |
-| 3 | Rayadito | |
-| 3 | Concón | |
-| 3 | Cometocino | |
-| 2 | Picaflor | |
-| 2 | Diucón | |
-| 1 | Traro | |
-
-**Critical notes:**
-- The CSV has **encoding issues** — some Spanish characters (ñ, ó, í) are corrupted when read with wrong encoding. Use `encoding='utf-8-sig', errors='replace'` or detect actual encoding first.
-- Rows where `Especie` is blank are non-animal triggers (person, empty frame) — filter them out.
-- `Animal=No` rows = no animal detected — also filter out.
-- **Extreme class imbalance**: top 3 classes (~550 each), Traro has 1. Must use class weights or oversampling.
-- Image paths in the CSV are relative to some root in `Camaras trampa/` — need to resolve actual image locations before building anything.
+- **Forced-choice problem**: CLIP always picks the best match from the species list — even for garbage images. The 0.28 threshold catches the worst ~12% but doesn't solve the problem fully.
+- **Diucón / generic bird issue**: Small dark birds in CLIP's embedding space attract ambiguous/dark images. A species-specific trained model (Phase 2) will fix this.
+- **Solution**: Phase 2 custom EfficientNetV2 model trained on reviewed data.
 
 ---
 
-## Actual Image Data Location
+## Next Steps
 
-The CSV has `RootFolder=Fotos` and paths like `2022\Araucarias\CT10_06_12_22`. Actual images are in a `Camaras trampa/` directory (separate project). Check:
-- `C:\Users\USUARIO\Dev\Python\Claude\camera-trap-analyzer\` — may have Megadetector bounding box JSONs
-- Search for the `Camaras trampa\` root folder on the filesystem
+### Short term — more campaigns
+1. Run `run_classification.py` + review UI for each new campaign
+2. Accumulate reviewed CSVs across campaigns → build training dataset for Phase 2
 
-**Before building anything:** verify you can resolve a full image path from a CSV row. Nothing works without images.
+### Medium term — Phase 2 classifier
+Create `phase2_classifier/` directory with:
+- `dataset.py` — PyTorch Dataset from reviewed CSV(s); crop + resize 224×224; augmentation for rare species
+- `train.py` — EfficientNetV2-S via `timm`; two-stage (freeze backbone then unfreeze); class weights for imbalance
+- `evaluate.py` — confusion matrix, per-species F1
+- `classify.py` — inference CLI replacing CLIP in `run_classification.py`
 
----
+Training data requirements: aim for ≥50 images per species before training. Currently have Primavera 2025 (400 images reviewed). Need more campaigns before Phase 2 is viable for rare species (Puma, Guiña, etc.).
 
-## Planned File Structure (from README — nothing created yet)
-
-```
-species-classifier/
-├── config.yaml                    <- create first
-├── phase1_labeling/
-│   ├── embed.py                   <- CLIP embedding of cropped chips
-│   ├── cluster.py                 <- UMAP + HDBSCAN clustering
-│   └── app.py                     <- Streamlit labeling UI
-├── phase2_classifier/
-│   ├── dataset.py                 <- PyTorch Dataset from labeled CSV
-│   ├── train.py                   <- EfficientNetV2 fine-tuning
-│   ├── evaluate.py                <- confusion matrix, per-species metrics
-│   └── classify.py                <- inference CLI
-├── data/
-│   ├── labeled_dataset.csv        <- output of Phase 1
-│   └── model/                     <- saved weights
-└── notebooks/
-    ├── explore_embeddings.ipynb
-    └── evaluate_model.ipynb
-```
-
----
-
-## Tech Stack
-
-| What | Tool |
-|------|------|
-| Embeddings (Phase 1) | CLIP `openai/clip-vit-base-patch32` via `transformers` or `clip` package |
-| Dimensionality reduction | UMAP (`umap-learn`) |
-| Clustering | HDBSCAN or K-means (`hdbscan`, `scikit-learn`) |
-| Labeling UI | Streamlit |
-| Classifier (Phase 2) | EfficientNetV2-S via `timm` |
-| Training framework | PyTorch |
-| Detection pre-step | Megadetector v6 (`wildlife_detector`) — already working in another project |
-| Environment | Conda (`species-classifier` env — not created yet) |
-
----
-
-## Key Design Decisions (don't deviate)
-
-1. **Always crop to Megadetector bounding box first** — never embed or train on the full image.
-2. **CLIP for Phase 1 only** — zero-shot clustering, no training data needed.
-3. **Class weights mandatory** — dataset is extremely imbalanced (Puma 54, Traro 1 vs Perro 557).
-4. **Two phases are independent** — Phase 1 generates `labeled_dataset.csv`, Phase 2 trains on it.
-5. **Species names are in Spanish** — keep them as-is in all CSVs and model outputs.
-
----
-
-## Execution Order for Next Session
-
-### Step 0 — Verify prerequisites (5 min)
-- [ ] Create the conda env: `conda env create -f environment.yml`
-- [ ] Find where the actual camera trap images live (resolve a path from `old animal data DB.csv`)
-- [ ] Check `camera-trap-analyzer/` for Megadetector bounding box JSONs for the same dataset
-
-### Step 1 — Fix the existing data CSV (15 min)
-- [ ] Write a script/notebook to audit `old animal data DB.csv`:
-  - Detect and fix encoding issues (Guiña, Ratón, Concón, etc.)
-  - Resolve full image paths
-  - Filter to rows with valid `Especie` and `Animal=Yes`
-  - Export clean `data/labeled_dataset_raw.csv`
-
-### Step 2 — Build `phase1_labeling/embed.py` (30 min)
-- [ ] Input: image directory + optional Megadetector bbox JSON
-- [ ] Crop each image to bbox (full image fallback if no bbox)
-- [ ] Run CLIP on each crop
-- [ ] Save embeddings to `data/embeddings.npz` (image paths as keys)
-
-### Step 3 — Build `phase1_labeling/cluster.py` (20 min)
-- [ ] Load `embeddings.npz`
-- [ ] UMAP to 2D
-- [ ] HDBSCAN clustering
-- [ ] Save cluster assignments to `data/clusters.csv`
-
-### Step 4 — Build `phase1_labeling/app.py` (45 min)
-- [ ] Streamlit: shows one cluster at a time as thumbnail grid
-- [ ] Species dropdown (from existing species list)
-- [ ] "Confirm all" -> writes labels to `data/labeled_dataset.csv`
-- [ ] Per-image override before confirming
-- [ ] Skip cluster option
-- [ ] Cluster N of M counter in header
-
-### Step 5 — Phase 2 (after enough labeled data)
-- `dataset.py` -> PyTorch Dataset, crop + resize 224x224, augmentation for rare species
-- `train.py` -> two-stage: freeze backbone + train head, then unfreeze all
-- `evaluate.py` -> confusion matrix, per-species F1
-- `classify.py` -> CLI: `python classify.py --input_dir /photos/ --output_csv results.csv`
-
----
-
-## Future Features (from README — implement later)
-- Active learning: use model confidence to prioritize hard cases
-- Integration with data-pipeline -> write labels to DuckDB
-- Confidence threshold UI in labeling app (skip high-confidence predictions)
-- Multi-species per frame (low priority, requires different output head)
+### Possible short-term CLIP improvements (optional)
+- **Better prompts**: more descriptive English text per species (e.g. size, colour, habitat context)
+- **Prompt ensembling**: average embeddings from 3–5 different prompt templates per species
+- Neither replaces Phase 2 but could improve intermediate results

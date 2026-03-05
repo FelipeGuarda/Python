@@ -5,12 +5,17 @@ database:         "CamtrapDB_Primavera2025.ddb"
 input_csv:        "new_labeled_data_CamptrapDP.csv"
 output_csv:       "new_labeled_data_classified.csv"
 
+# ─── Historical data (for review UI batch thresholding) ───────────────────────
+old_data_csv:           "old animal data DB.csv"   # relative to this config file
+min_historical_count:   31   # species with fewer records get no own batch page
+
 # ─── Detection filtering ───────────────────────────────────────────────────────
 animal_confidence_threshold: 0.38
 animal_category: "1"          # category '1' = animal in timelapse_recognition_file.json
 
 # ─── CLIP model ───────────────────────────────────────────────────────────────
 clip_model: "openai/clip-vit-base-patch32"
+clip_confidence_threshold: 0.28   # scores below this → "No reconocible"
 
 # ─── Output metadata ──────────────────────────────────────────────────────────
 classified_by:        "CLIP zero-shot"

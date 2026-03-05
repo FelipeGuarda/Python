@@ -89,8 +89,10 @@ def main(config_path: str) -> None:
 
     # ── Classify ──────────────────────────────────────────────────────────────
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    clip_threshold = float(config.get("clip_confidence_threshold", 0.0))
     id_to_result: dict[int, dict] = {}
     skipped = 0
+    low_conf = 0
 
     print("Classifying …")
     for img_info in tqdm(images, unit="img"):
@@ -100,13 +102,21 @@ def main(config_path: str) -> None:
             continue
 
         species, score = classifier.classify(crop)
-        id_to_result[img_info["id"]] = {
-            "latin":   species["latin"],
-            "spanish": species["spanish"],
-            "score":   score,
-        }
+        if score < clip_threshold:
+            low_conf += 1
+            id_to_result[img_info["id"]] = {
+                "latin":   "",
+                "spanish": "No reconocible",
+                "score":   score,
+            }
+        else:
+            id_to_result[img_info["id"]] = {
+                "latin":   species["latin"],
+                "spanish": species["spanish"],
+                "score":   score,
+            }
 
-    print(f"  Classified: {len(id_to_result)}  |  Skipped (unreadable): {skipped}")
+    print(f"  Classified: {len(id_to_result)}  |  Low confidence (<{clip_threshold}): {low_conf}  |  Skipped (unreadable): {skipped}")
 
     # ── Build filePath → result lookup ────────────────────────────────────────
     db_path = campaign_dir / config["database"]
