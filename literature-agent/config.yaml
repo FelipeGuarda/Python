@@ -1,0 +1,71 @@
+# ── Topics to search ──────────────────────────────────────────────
+topics:
+  - name: "Ecología del fuego"
+    keywords:
+      - "fire ecology Chile"
+      - "wildfire Araucanía"
+      - "fuel moisture southern Andes"
+      - "fire severity Patagonia"
+
+  - name: "Fauna nativa Chile"
+    keywords:
+      - "Leopardus guigna"
+      - "Puma concolor Chile"
+      - "Lycalopex culpeo"
+      - "Vultur gryphus"
+      - "biodiversity southern Chile"
+
+  - name: "Especies invasoras"
+    keywords:
+      - "Sus scrofa invasive Chile"
+      - "Neovison vison Patagonia"
+      - "Lepus europaeus Chile"
+      - "invasive mammals southern Andes"
+
+  - name: "Teledetección"
+    keywords:
+      - "NDVI Chile remote sensing"
+      - "burn severity Sentinel-2"
+      - "land cover change Araucanía"
+
+  - name: "Bioacústica"
+    keywords:
+      - "bird song passive acoustic monitoring"
+      - "soundscape ecology"
+      - "bioacoustics conservation"
+
+  - name: "Cambio climático Patagonia"
+    keywords:
+      - "climate change southern Andes"
+      - "drought Patagonia"
+      - "precipitation trends Chile"
+
+# ── Sources ───────────────────────────────────────────────────────
+sources:
+  arxiv:
+    enabled: true
+    max_results: 10
+  openalex:
+    enabled: true
+    max_results: 10
+    email: "felipe.guarda@fundacionmaradentro.cl"
+  pubmed:
+    enabled: true
+    max_results: 10
+  core:
+    enabled: true
+    max_results: 10
+  scielo:
+    enabled: true
+    max_results: 10
+
+# ── Email ─────────────────────────────────────────────────────────
+email:
+  recipients:
+    - "felipe.guarda@fundacionmaradentro.cl"
+  subject_prefix: "[FMA Literatura]"
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+
+# ── General ───────────────────────────────────────────────────────
+lookback_days: 7
