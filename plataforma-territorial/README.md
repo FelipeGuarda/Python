@@ -1,20 +1,64 @@
 # Plataforma Territorial FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Status:** Planned / Not yet built.
-**Deployment target:** Single Streamlit Cloud URL. One app, four pages.
+**Status:** React/Vite prototype working. Backend and real data not yet connected.
 
 ---
 
-## What This Project Does
+## Architecture Decision: React + FastAPI (not Streamlit)
 
-A unified web platform that brings together all of FMA's environmental monitoring data into one publicly accessible interface. It replaces the current fragmented setup (separate dashboard scripts, standalone notebooks) with a single, polished Streamlit multi-page application.
+The original design called for a Streamlit app. After building a working React/Vite prototype,
+the decision is to **keep React as the frontend and add a FastAPI backend** when real data is ready.
 
-All pages share the same data source: the `fma_data.duckdb` database maintained by the **data-pipeline** project.
+**Why React over Streamlit:**
+- The Observatorio map (the flagship page) needs full UI control — interactive layers, custom
+  popups, animated overlays. Streamlit's map components can't deliver this.
+- The Asistente chat needs streaming Claude responses and proper conversation UX. Streamlit's
+  `st.chat_message` re-runs the whole script on every message.
+- The prototype already exists, works, and looks right. Rebuilding in Streamlit would produce
+  a worse version of what already exists.
+
+**The trade-off:** React requires a backend API to reach Python/DuckDB. That backend is a
+small FastAPI app — roughly 6 endpoints — and lives at `plataforma-territorial/backend/`.
+
+**Full stack (when real data is connected):**
+```
+plataforma-demo/     ← React/Vite frontend (runs on port 5173)
+backend/             ← FastAPI backend (runs on port 8000)
+../data-pipeline/    ← writes fma_data.duckdb
+```
 
 ---
 
-## Architecture: Four Pages
+## How to Run
+
+### Demo (prototype with mock data) — works today
+
+```bash
+cd plataforma-territorial/plataforma-demo
+npm install          # first time only
+npm run dev          # opens at http://localhost:5173
+```
+
+### Real platform (when backend is ready) — same frontend command
+
+```bash
+# Terminal 1 — backend
+cd plataforma-territorial/backend
+pip install -r requirements.txt   # first time only
+uvicorn main:app --reload         # runs at http://localhost:8000
+
+# Terminal 2 — frontend (same as demo)
+cd plataforma-territorial/plataforma-demo
+npm run dev                       # opens at http://localhost:5173
+```
+
+The frontend automatically switches from mock data to real API calls when the backend is
+reachable. No other changes needed — same URL, same page.
+
+---
+
+## Four Pages
 
 ```
 Plataforma Territorial FMA
@@ -26,85 +70,119 @@ Plataforma Territorial FMA
 
 ---
 
-## Page 1 — Observatorio (FLAGSHIP)
+## GPS Coordinates and Map Stations
 
-**What it is:** An interactive map of Bosque Pehuén and the surrounding territory.
+### Known coordinates
 
-**Data layers (planned):**
-- Camera trap station locations + species richness per station
-- Fire risk zones (color-coded by current risk level)
-- Weather station location + current conditions
-- Historical fire perimeters (CONAF data)
-- Vegetation / land cover (from remote sensing)
-- Protected area boundary
+| Location | Lat | Lon | Source | Notes |
+|---|---|---|---|---|
+| Bosque Pehuén (general) | -39.61 | -71.71 | `data-pipeline/config.yaml` | UTM 19S: E=263221 N=5630634 |
+| Estación meteorológica CR800 | -39.61 | -71.71 | `Estacion meteorologica/config.py` | Same point — confirm exact position |
+| Araucanía region bounds | -40.0 / -38.0 | -73.0 / -71.0 | `Estacion meteorologica/config.py` | Used as map extent |
 
-**Key UX decisions:**
-- Map-first: the map is the primary interface, not a sidebar
-- Clicking a camera station opens a popup with recent species detections
-- Clicking the weather station shows current conditions and risk level
-- A time slider controls the temporal view (e.g., fire risk over the last 30 days)
+### Boundary and station coordinates — available, not yet added to repo
 
-**Likely tech:** `pydeck` or `folium` + `streamlit-folium` for the map; layers built from DuckDB queries.
+The following real field data exists and will be added to `data/` when available:
+- **Bosque Pehuén boundary polygon** — full perimeter points (replaces the SVG placeholder)
+- **Camera trap station coordinates** — all deployed stations with GPS positions
+- **Flora plot coordinates** — all vegetation monitoring plot positions
+- **Meteorological station** — exact CR800 position (currently approximated as -39.61, -71.71)
 
----
+**When adding coordinates, store them here:**
+- `plataforma-territorial/data/boundary.geojson` — reserve boundary polygon
+- `plataforma-territorial/data/stations.yaml` — all monitoring stations + flora plots
 
-## Page 2 — Dashboard
+**Suggested stations.yaml format:**
+```yaml
+stations:
+  - id: cam_01
+    name: Cámara Araucaria Norte
+    type: camera
+    lat: -39.xxx
+    lon: -71.xxx
+  - id: met_01
+    name: Estación Meteorológica CR800
+    type: weather
+    lat: -39.xxx
+    lon: -71.xxx
+  - id: flora_01
+    name: Parcela Flora 01
+    type: flora_plot
+    lat: -39.xxx
+    lon: -71.xxx
+```
 
-**What it is:** Tabbed data dashboard aggregating all monitoring streams.
-
-**Tabs:**
-| Tab | Content |
-|---|---|
-| Riesgo de Incendio | Current fire risk gauge (rule-based + ML), forecast, polar contribution plot |
-| Meteorología | Temperature, humidity, wind, precipitation time series from weather station |
-| Cámaras Trampa | Species activity charts, recent detections, station activity map |
-| Fauna & Especies | Species list, activity patterns, occupancy summaries |
-
-**Data flow:** All tabs query `fma_data.duckdb` tables (`weather_station`, `weather_forecast`, `fire_risk`, `camera_trap`).
-
-**Design principle:** Tabs are independent — each loads only its own data. No cross-tab state.
-
----
-
-## Page 3 — Asistente
-
-**What it is:** A conversational AI interface that answers questions about the platform's data and methodology.
-
-**Two modes:**
-1. **Data questions**: "¿Cuál es el riesgo de incendio hoy?" → queries DuckDB, formats answer
-2. **Methodology questions**: "¿Cómo se calcula el índice de riesgo?" → explains the rule-based index, scoring bins, ML model validation
-
-**Methodology transparency principle:** Every answer that involves a computed value must show its source — which formula, which data, which model produced the number. No black-box outputs.
-
-**Implementation:** Claude API (Sonnet) with tool use:
-- `query_fire_risk(date)` → returns current/historical risk values
-- `query_species(station, date_range)` → returns detection records
-- `query_weather(date_range)` → returns met data
-- `explain_methodology(topic)` → returns structured explanation from a methodology knowledge base
-
-**Language:** Spanish only. All prompts, system messages, and outputs in Spanish.
+This file becomes the authoritative source for all station positions —
+both the platform and the data pipeline should read from it.
 
 ---
 
-## Page 4 — Reportes
+## Backend API (to build — 6 endpoints cover everything)
 
-**What it is:** A report drafting assistant that generates a monthly newsletter section.
+```
+GET  /api/stations                  → station list with coordinates + current status
+GET  /api/weather/current           → latest readings from DuckDB (weather_station table)
+GET  /api/weather/forecast          → 7-day Open-Meteo data (weather_forecast table)
+GET  /api/fire-risk/current         → today's FRI rule-based + ML score (fire_risk table)
+GET  /api/detections/recent         → last N camera trap records (camera_trap table)
+POST /api/asistente/chat            → streams Claude API response with tool use
+```
 
-**Workflow:**
-1. User selects a date range (default: last calendar month)
-2. The app queries DuckDB for all monitoring data in that period
-3. Claude Sonnet drafts a 3–5 paragraph Spanish summary (fire risk highlights, notable wildlife detections, weather anomalies)
-4. User can edit the draft inline (Streamlit `st.text_area`)
-5. Download as formatted Word `.docx` or copy as plain text
+All endpoints read from `fma_data.duckdb`. The platform never writes to the database.
 
-**Output style:** Written for a general conservation audience — no jargon, emphasis on narrative over numbers.
+**Reference for fire risk endpoint:** `Estacion meteorologica/Fire risk dashboard/` —
+port `risk_calculator.py` and `fire_model.pkl` directly. Do not rewrite.
 
 ---
 
-## Current State
+## File Structure
 
-- **Not yet built.** The fire-risk dashboard (existing project at `Estacion meteorologica/Fire risk dashboard/`) implements roughly what Page 2's "Riesgo de Incendio" tab will become. That code will be refactored/ported into this platform.
-- DuckDB schema and data pipeline must be built first (see `data-pipeline/README.md`).
+```
+plataforma-territorial/
+│
+├── plataforma-demo/              ← React/Vite frontend (working prototype)
+│   ├── src/
+│   │   ├── App.jsx               ← single-file app (all pages + components)
+│   │   ├── main.jsx
+│   │   ├── index.css             ← minimal reset only
+│   │   └── App.css               ← #root sizing only
+│   ├── package.json
+│   └── vite.config.js
+│
+├── backend/                      ← FastAPI backend (to build)
+│   ├── main.py                   ← FastAPI entry point + route registration
+│   ├── db.py                     ← DuckDB connection + query helpers
+│   ├── routers/
+│   │   ├── weather.py
+│   │   ├── fire_risk.py
+│   │   ├── detections.py
+│   │   └── asistente.py          ← Claude tool-use orchestration
+│   ├── risk/                     ← ported from Estacion meteorologica/
+│   │   ├── calculator.py
+│   │   └── fire_model.pkl
+│   └── requirements.txt
+│
+└── data/
+    ├── stations.yaml             ← authoritative station coordinates (to create)
+    └── fma_data.duckdb           ← symlink to data-pipeline output
+```
+
+---
+
+## Data Dependencies
+
+The platform is **read-only** with respect to data. All writes come from `data-pipeline/`.
+
+| Data | Source project | DuckDB table |
+|---|---|---|
+| Weather station readings | data-pipeline (CR800 fetcher) | `weather_station` |
+| Weather forecast | data-pipeline (Open-Meteo fetcher) | `weather_forecast` |
+| Fire risk index | data-pipeline (computed daily) | `fire_risk` |
+| Camera trap records | data-pipeline (Timelapse2 CSV watcher) | `camera_trap` |
+| Acoustic detections | data-pipeline (audio analysis pipeline — not yet built) | `acoustic_detections` |
+| Literature summaries | literatura-agent | `literatura` |
+
+**Build order:** data-pipeline must be running before the backend has real data to serve.
 
 ---
 
@@ -112,90 +190,43 @@ Plataforma Territorial FMA
 
 | Layer | Tool |
 |---|---|
-| UI framework | Streamlit (multi-page app) |
-| Map | pydeck or streamlit-folium |
-| Charts | Plotly |
-| Database | DuckDB (read-only from the platform's side) |
-| AI (Asistente + Reportes) | Anthropic Claude API (Sonnet + tool use) |
-| Document export | `python-docx` |
-| Deployment | Streamlit Cloud |
-| Language | Python 3.11 |
-
----
-
-## File Structure (planned)
-
-```
-plataforma-territorial/
-├── .env                          ← ANTHROPIC_API_KEY, DB path
-├── config.yaml                   ← site coordinates, layer toggles, Claude model
-├── requirements.txt
-│
-├── app.py                        ← Streamlit entry point + page routing
-│
-├── pages/
-│   ├── 1_observatorio.py         ← interactive map page
-│   ├── 2_dashboard.py            ← tabbed dashboard
-│   ├── 3_asistente.py            ← AI chat page
-│   └── 4_reportes.py             ← report drafting page
-│
-├── src/
-│   ├── db.py                     ← DuckDB connection + query helpers
-│   ├── map_layers.py             ← pydeck layer builders
-│   ├── charts.py                 ← Plotly chart functions (shared across pages)
-│   ├── risk.py                   ← fire risk calculation (ported from existing dashboard)
-│   ├── assistant.py              ← Claude tool-use orchestration for Asistente
-│   ├── report_builder.py         ← Claude draft generation + docx export
-│   └── methodology.py            ← structured methodology knowledge base (for transparency)
-│
-└── data/
-    └── fma_data.duckdb           ← symlink or path to the data pipeline's DB file
-```
-
----
-
-## Data Dependencies
-
-This platform is **read-only** with respect to data. It depends on:
-
-| Data | Source | Table in DuckDB |
-|---|---|---|
-| Weather station readings | data-pipeline (CR800) | `weather_station` |
-| Weather forecast | data-pipeline (Open-Meteo) | `weather_forecast` |
-| Fire risk index | data-pipeline (computed) | `fire_risk` |
-| Camera trap records | data-pipeline (Timelapse2 CSV) | `camera_trap` |
-| Literature summaries | literatura-agent | `literatura` |
-
----
-
-## Ideas & Future Features
-
-- **Public/private mode**: A public URL showing aggregated/anonymized data; a private view with full detail for FMA staff
-- **Species alert**: Push notification (email or Slack) when a priority species (Puma, Guiña) is detected at a station
-- **Comparison view**: Compare this week's fire risk against same week last year
-- **Exportable map**: Download the current Observatorio view as a PNG or PDF for reports
+| Frontend | React 19 + Vite 7 |
+| Charts | Recharts |
+| Map (real) | Mapbox GL JS or Leaflet (to decide when building Observatorio) |
+| Backend | FastAPI + Uvicorn |
+| Database | DuckDB (read-only from backend) |
+| AI (Asistente + Reportes) | Anthropic Claude API — Sonnet + tool use |
+| Deployment | TBD (Vercel for frontend + Render/Railway for backend, or self-hosted) |
+| Language | JSX (frontend) + Python 3.11 (backend) |
 
 ---
 
 ## Key Design Decisions
 
-1. **Single URL, multi-page Streamlit**: One Streamlit Cloud deployment instead of multiple separate apps. Easier to share, easier to maintain.
-2. **DuckDB as the only data source**: All pages query the same DB — no page-level API calls. Data freshness is the pipeline's responsibility, not the platform's.
-3. **Methodology transparency in the Asistente**: Every computed answer must cite its formula. This is non-negotiable for conservation credibility — stakeholders need to understand how risk numbers are produced.
-4. **Spanish throughout**: Platform language is Spanish. All UI labels, AI outputs, and report drafts are in Spanish.
-5. **Page 1 (Observatorio) is the flagship**: It should load fast, look polished, and be the first thing anyone sees. The map communicates the territory before any numbers do.
-6. **Reportes as drafting aid, not automated publishing**: Claude drafts, human edits, human publishes. The AI is a writing accelerator, not a replacement.
+1. **React + FastAPI, not Streamlit** — see Architecture Decision section above.
+2. **DuckDB as the only data source** — all pages query the same DB via the backend. Data
+   freshness is the pipeline's responsibility, not the platform's.
+3. **Methodology transparency in Asistente** — every computed answer must cite its formula
+   and data source. Non-negotiable for conservation credibility.
+4. **Spanish throughout** — all UI labels, AI outputs, and report drafts in Spanish.
+5. **Observatorio is the flagship** — loads fast, map-first, polished. It's the first thing
+   anyone sees.
+6. **Reportes as drafting aid, not automated publishing** — Claude drafts, human edits,
+   human publishes.
+7. **Station coordinates in a flat file** — `data/stations.yaml` is the single source of
+   truth for all station positions. Both frontend and backend read from it (via the API).
+   Timelapse2 is the origin, but it shouldn't be the runtime dependency.
 
 ---
 
 ## Context for AI Sessions
 
-When starting a new Claude session on this project:
-
-1. This is a **Streamlit multi-page app** — entry point is `app.py`, each page is a file in `pages/`
-2. All data comes from `fma_data.duckdb` — the platform never writes to the database
-3. The Asistente page uses Claude with **tool use** — tools are thin wrappers around DuckDB queries
-4. The existing fire-risk dashboard code (`Estacion meteorologica/Fire risk dashboard/`) is the reference implementation for Page 2's fire risk tab — port it, don't rewrite from scratch
-5. Bosque Pehuén coordinates: lat -39.61°, lon -71.71° (UTM 19S: E=263221, N=5630634)
-6. Target audience for the platform: FMA staff + conservation partners + general public — language must be accessible
-7. The data-pipeline project must exist and be running before this platform has any real data to display
+1. Frontend is React 19 + Vite — entry point `plataforma-demo/src/App.jsx` (single file, all pages)
+2. All pages currently use mock data — replacing mock data = connecting to FastAPI endpoints above
+3. Backend doesn't exist yet — build it in `plataforma-territorial/backend/`
+4. Fire risk logic already exists — port from `Estacion meteorologica/Fire risk dashboard/`, don't rewrite
+5. Asistente uses Claude with **tool use** — tools are thin wrappers around DuckDB queries
+6. Bosque Pehuén coordinates: lat -39.61, lon -71.71
+7. Camera station coordinates are not yet in any config — must be exported from Timelapse2 first
+8. The data-pipeline project must be running before the backend has any real data to serve
+9. Target audience: FMA staff + conservation partners + general public — accessible Spanish language
