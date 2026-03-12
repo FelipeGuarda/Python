@@ -1,7 +1,7 @@
 # Agente de Literatura — FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Status:** Planned / Not yet built.
+**Status:** Built and operational.
 **Independence:** Completely standalone. No dependency on the Plataforma Territorial or the data pipeline.
 
 ---
@@ -23,8 +23,9 @@ This is the reading assistant — it surfaces relevant science without requiring
 
 ## Current State
 
-- **Not yet built.** Design and source list are defined.
-- Topics and keywords need to be configured based on FMA's actual research priorities.
+- **Fully built.** All fetchers, deduplication, summarization, email builder, and sender are implemented.
+- `config.yaml` is configured with FMA's topics, keywords, sources, and recipients.
+- Run manually with `python run.py`, or schedule via cron for weekly delivery.
 
 ---
 
@@ -40,7 +41,7 @@ This is the reading assistant — it surfaces relevant science without requiring
 
 ---
 
-## Planned Architecture
+## Architecture
 
 ```
 Weekly cron trigger (every Monday, before work hours)
@@ -96,7 +97,7 @@ Example topics for FMA — adjust in `config.yaml`:
 
 ---
 
-## File Structure (planned)
+## File Structure
 
 ```
 literatura-agent/
@@ -109,7 +110,7 @@ literatura-agent/
 │   │   ├── arxiv.py          ← arXiv API query
 │   │   ├── scielo.py         ← SciELO REST / OAI-PMH query
 │   │   ├── pubmed.py         ← NCBI E-utilities query
-│   │   ├── core.py           ← CORE API query
+│   │   ├── core_api.py       ← CORE API query
 │   │   └── openalex.py       ← OpenAlex API query
 │   ├── dedup.py              ← DOI-based deduplication + date filtering
 │   ├── summarizer.py         ← Claude Haiku: abstract → Spanish summary
@@ -121,7 +122,7 @@ literatura-agent/
 
 ---
 
-## Email Output Format (planned)
+## Email Output Format
 
 ```
 Subject: [FMA Literatura] Semana del 2 de marzo 2026
