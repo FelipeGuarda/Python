@@ -1,0 +1,6 @@
+windrose
+streamlit-folium
+metpy
+pandas
+plotly
+streamlit
