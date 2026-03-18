@@ -1,0 +1,480 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-01",
+        "tc": 1,
+        "grid_id": 67,
+        "sd_card": "M7",
+        "name": "Cámara Trampa 1",
+        "type": "camera_trap",
+        "altitude_m": 1263
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.72707,
+          -39.45183
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-02",
+        "tc": 2,
+        "grid_id": 57,
+        "sd_card": "M8",
+        "name": "Cámara Trampa 2",
+        "type": "camera_trap",
+        "altitude_m": 1223
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.73252,
+          -39.45163
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-03",
+        "tc": 3,
+        "grid_id": 34,
+        "sd_card": "M6",
+        "name": "Cámara Trampa 3",
+        "type": "camera_trap",
+        "altitude_m": 998
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.7422,
+          -39.43796
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-04",
+        "tc": 4,
+        "grid_id": 24,
+        "sd_card": "M5",
+        "name": "Cámara Trampa 4",
+        "type": "camera_trap",
+        "altitude_m": 1004
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.74829,
+          -39.43774
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-05",
+        "tc": 5,
+        "grid_id": 58,
+        "sd_card": "M9",
+        "name": "Cámara Trampa 5",
+        "type": "camera_trap",
+        "altitude_m": 1270
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.73253,
+          -39.45579
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-06",
+        "tc": 6,
+        "grid_id": 11,
+        "sd_card": "M1",
+        "name": "Cámara Trampa 6",
+        "type": "camera_trap",
+        "altitude_m": 861
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.75465,
+          -39.42418
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-07",
+        "tc": 7,
+        "grid_id": 56,
+        "sd_card": "M10",
+        "name": "Cámara Trampa 7",
+        "type": "camera_trap",
+        "altitude_m": 1232
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.73228,
+          -39.44718
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-08",
+        "tc": 8,
+        "grid_id": 35,
+        "sd_card": "M4",
+        "name": "Cámara Trampa 8",
+        "type": "camera_trap",
+        "altitude_m": 1048
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.74485,
+          -39.44286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-09",
+        "tc": 9,
+        "grid_id": 12,
+        "sd_card": "M2",
+        "name": "Cámara Trampa 9",
+        "type": "camera_trap",
+        "altitude_m": 886
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.75478,
+          -39.42885
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-10",
+        "tc": 10,
+        "grid_id": 36,
+        "sd_card": "M3",
+        "name": "Cámara Trampa 10",
+        "type": "camera_trap",
+        "altitude_m": 1135
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.7439,
+          -39.44675
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-11",
+        "tc": 11,
+        "grid_id": 27,
+        "sd_card": "M15",
+        "name": "Cámara Trampa 11",
+        "type": "camera_trap",
+        "altitude_m": 820
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.74873,
+          -39.4513
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-12",
+        "tc": 12,
+        "grid_id": 29,
+        "sd_card": "M17",
+        "name": "Cámara Trampa 12",
+        "type": "camera_trap",
+        "altitude_m": 819
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.75111,
+          -39.45905
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-13",
+        "tc": 13,
+        "grid_id": 28,
+        "sd_card": "M16",
+        "name": "Cámara Trampa 13",
+        "type": "camera_trap",
+        "altitude_m": 819
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.75083,
+          -39.45556
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-14",
+        "tc": 14,
+        "grid_id": 46,
+        "sd_card": "M11",
+        "name": "Cámara Trampa 14",
+        "type": "camera_trap",
+        "altitude_m": 1048
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.73836,
+          -39.44709
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-15",
+        "tc": 15,
+        "grid_id": 37,
+        "sd_card": "M12",
+        "name": "Cámara Trampa 15",
+        "type": "camera_trap",
+        "altitude_m": 1118
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.74398,
+          -39.45142
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-16",
+        "tc": 16,
+        "grid_id": 38,
+        "sd_card": "M13",
+        "name": "Cámara Trampa 16",
+        "type": "camera_trap",
+        "altitude_m": 1126
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.74502,
+          -39.45524
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-17",
+        "tc": 17,
+        "grid_id": 47,
+        "sd_card": "M14",
+        "name": "Cámara Trampa 17",
+        "type": "camera_trap",
+        "altitude_m": 1062
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.73987,
+          -39.4518
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-18",
+        "tc": 18,
+        "grid_id": 33,
+        "sd_card": "M15",
+        "name": "Cámara Trampa 18",
+        "type": "camera_trap",
+        "altitude_m": 978
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.74338,
+          -39.4332
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-19",
+        "tc": 19,
+        "grid_id": 13,
+        "sd_card": "M16",
+        "name": "Cámara Trampa 19",
+        "type": "camera_trap",
+        "altitude_m": 923
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.75497,
+          -39.43286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-20",
+        "tc": 20,
+        "grid_id": 4,
+        "sd_card": "M17",
+        "name": "Cámara Trampa 20",
+        "type": "camera_trap",
+        "altitude_m": 1231
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.76076,
+          -39.43752
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-21",
+        "tc": 21,
+        "grid_id": 45,
+        "sd_card": "M18",
+        "name": "Cámara Trampa 21",
+        "type": "camera_trap",
+        "altitude_m": 1037
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.73801,
+          -39.44299
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-22",
+        "tc": 22,
+        "grid_id": 23,
+        "sd_card": "M19",
+        "name": "Cámara Trampa 22",
+        "type": "camera_trap",
+        "altitude_m": 951
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.74903,
+          -39.43296
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-23",
+        "tc": 23,
+        "grid_id": 44,
+        "sd_card": "M20",
+        "name": "Cámara Trampa 23",
+        "type": "camera_trap",
+        "altitude_m": 974
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.739,
+          -39.43704
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-24",
+        "tc": 24,
+        "grid_id": 43,
+        "sd_card": "M21",
+        "name": "Cámara Trampa 24",
+        "type": "camera_trap",
+        "altitude_m": 957
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.73804,
+          -39.43359
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-25",
+        "tc": 25,
+        "grid_id": 32,
+        "sd_card": "M22",
+        "name": "Cámara Trampa 25",
+        "type": "camera_trap",
+        "altitude_m": 945
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.74325,
+          -39.42929
+        ]
+      }
+    }
+  ]
+}

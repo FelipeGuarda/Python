@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, Component } from "react";
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell } from "recharts";
+import { MapContainer, TileLayer, GeoJSON, CircleMarker, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
 
 // ── Color System (designer's green palette) ──
 const C = {
@@ -172,81 +174,131 @@ function RiskGauge({ value }) {
 }
 
 // ── PAGE: Observatorio ──
+// Helper: fit map to boundary when GeoJSON loads
+function FitBounds({ geojson }) {
+  const map = useMap();
+  useEffect(() => {
+    if (geojson) {
+      const layer = L.geoJSON(geojson);
+      map.fitBounds(layer.getBounds(), { padding: [30, 30] });
+    }
+  }, [geojson, map]);
+  return null;
+}
+
+// Custom weather station icon
+const weatherIcon = L.divIcon({
+  className: "",
+  html: `<div style="width:28px;height:28px;background:${C.amber};border:2px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3)">
+    <span style="color:white;font-weight:bold;font-size:13px">E</span>
+  </div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -16],
+});
+
 function Observatorio() {
-  const [selected, setSelected] = useState(null);
-  const [showRisk, setShowRisk] = useState(true);
+  const [boundary, setBoundary] = useState(null);
+  const [cameras, setCameras] = useState(null);
+  const [showBoundary, setShowBoundary] = useState(true);
   const [showCams, setShowCams] = useState(true);
+
+  useEffect(() => {
+    fetch("/data/boundary.geojson").then(r => r.json()).then(setBoundary);
+    fetch("/data/camera_trap_stations.geojson").then(r => r.json()).then(setCameras);
+  }, []);
+
+  const boundaryStyle = {
+    color: "#FFFFFF",
+    weight: 2.5,
+    opacity: 0.9,
+    fillOpacity: 0,
+    dashArray: "8 6",
+  };
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16, height: "calc(100vh - 56px)", padding: 16 }}>
       {/* Map Area */}
       <Card style={{ padding: 0, overflow: "hidden", position: "relative" }}>
-        <svg width="100%" height="100%" viewBox="0 0 100 80" preserveAspectRatio="xMidYMid slice"
-          style={{ background: `linear-gradient(135deg, ${C.paleMint} 0%, ${C.mint} 50%, #C5DEC8 100%)` }}>
-          {/* Terrain features */}
-          <ellipse cx="45" cy="42" rx="35" ry="28" fill="#B8D4B8" opacity="0.5" />
-          <ellipse cx="50" cy="38" rx="25" ry="20" fill="#A3C9A3" opacity="0.4" />
-          {/* River */}
-          <path d="M 15 20 Q 25 30 35 35 Q 45 40 55 50 Q 65 60 80 65" fill="none" stroke="#7BB5C4" strokeWidth="0.8" opacity="0.6" />
-          <path d="M 20 15 Q 30 25 38 32" fill="none" stroke="#7BB5C4" strokeWidth="0.5" opacity="0.4" />
+        <MapContainer
+          center={[-39.4417, -71.7420]}
+          zoom={14}
+          style={{ width: "100%", height: "100%", borderRadius: 8 }}
+          zoomControl={false}
+        >
+          <TileLayer
+            attribution='Imagery &copy; <a href="https://www.esri.com/">Esri</a>'
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          />
+
+          {boundary && <FitBounds geojson={boundary} />}
+
           {/* Reserve boundary */}
-          <path d="M 15 15 L 70 10 L 80 45 L 75 70 L 20 72 Z" fill="none" stroke={C.deepGreen} strokeWidth="0.4" strokeDasharray="2 1.5" opacity="0.5" />
-          <text x="72" y="8" fontSize="2.5" fill={C.muted} fontFamily="monospace">LIMITE BOSQUE PEHUEN</text>
+          {showBoundary && boundary && (
+            <GeoJSON data={boundary} style={boundaryStyle} />
+          )}
 
-          {/* Fire risk zones */}
-          {showRisk && fireZones.map((z, i) => (
-            <circle key={`fz-${i}`} cx={z.cx} cy={z.cy} r={z.r}
-              fill={z.risk === "alto" ? C.red : z.risk === "medio" ? C.amber : C.medGreen}
-              opacity="0.12" stroke={z.risk === "alto" ? C.red : z.risk === "medio" ? C.amber : C.medGreen}
-              strokeWidth="0.3" strokeDasharray="1 1" />
-          ))}
+          {/* Weather station */}
+          {showCams && (
+            <Marker position={[-39.4417, -71.7420]} icon={weatherIcon}>
+              <Popup>
+                <div style={{ fontFamily: "'Trebuchet MS', sans-serif", minWidth: 160 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 6 }}>Estación Meteorológica</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>Campbell Scientific CR800</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>-39.4417, -71.7420</div>
+                </div>
+              </Popup>
+            </Marker>
+          )}
 
-          {/* Stations */}
-          {showCams && stations.map(s => (
-            <g key={s.id} onClick={() => setSelected(s)} style={{ cursor: "pointer" }}>
-              <circle cx={s.x} cy={s.y} r={s.type === "weather" ? 2.5 : 1.8}
-                fill={s.type === "weather" ? C.amber : C.deepGreen} stroke={C.white} strokeWidth="0.5" />
-              {s.type === "weather" && <text x={s.x} y={s.y + 0.8} textAnchor="middle" fontSize="1.8" fill={C.white} fontWeight="bold">E</text>}
-              {s.type === "camera" && <circle cx={s.x} cy={s.y} r="0.6" fill={C.white} />}
-              <text x={s.x + 3} y={s.y + 0.5} fontSize="2" fill={C.deepGreen} fontFamily="sans-serif">{s.name.replace("Camara ", "").replace("Estacion ", "")}</text>
-            </g>
-          ))}
-        </svg>
+          {/* Camera trap stations */}
+          {showCams && cameras && cameras.features.map(f => {
+            const { id, tc, grid_id, altitude_m, sd_card } = f.properties;
+            const [lon, lat] = f.geometry.coordinates;
+            return (
+              <CircleMarker
+                key={id}
+                center={[lat, lon]}
+                radius={7}
+                pathOptions={{
+                  color: C.white,
+                  weight: 2,
+                  fillColor: C.deepGreen,
+                  fillOpacity: 0.9,
+                }}
+              >
+                <Popup>
+                  <div style={{ fontFamily: "'Trebuchet MS', sans-serif", minWidth: 160 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 6 }}>
+                      {id} <span style={{ fontWeight: 400, color: C.muted, fontSize: 11 }}>Grilla {grid_id}</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 11, color: C.muted }}>
+                      <div>Altitud: <b style={{ color: C.text }}>{altitude_m} m</b></div>
+                      <div>SD: <b style={{ color: C.text }}>{sd_card}</b></div>
+                      <div style={{ gridColumn: "1/-1" }}>{lat.toFixed(5)}, {lon.toFixed(5)}</div>
+                    </div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          })}
+        </MapContainer>
 
         {/* Legend overlay */}
-        <div style={{ position: "absolute", bottom: 12, left: 12, background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: "10px 14px", fontSize: 11 }}>
+        <div style={{ position: "absolute", bottom: 12, left: 12, zIndex: 1000, background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: "10px 14px", fontSize: 11 }}>
           <div style={{ fontWeight: 700, color: C.text, marginBottom: 6, fontSize: 10, letterSpacing: 1 }}>CAPAS</div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer", color: C.text }}>
-            <input type="checkbox" checked={showRisk} onChange={() => setShowRisk(!showRisk)} /> Zonas de riesgo
+            <input type="checkbox" checked={showBoundary} onChange={() => setShowBoundary(!showBoundary)} /> Límite reserva
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: C.text }}>
             <input type="checkbox" checked={showCams} onChange={() => setShowCams(!showCams)} /> Estaciones
           </label>
         </div>
 
-        {/* Station popup */}
-        {selected && (
-          <div style={{ position: "absolute", top: 12, right: 12, background: C.white, borderRadius: 8, padding: 16, width: 240,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.12)", borderLeft: `3px solid ${selected.type === "weather" ? C.amber : C.deepGreen}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-              <div style={{ fontWeight: 700, color: C.text, fontSize: 13 }}>{selected.name}</div>
-              <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 }}>x</button>
-            </div>
-            {selected.type === "weather" ? (
-              <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                <div><div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>{selected.temp}</div><div style={{ fontSize: 10, color: C.muted }}>Temperatura</div></div>
-                <div><div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>{selected.hum}</div><div style={{ fontSize: 10, color: C.muted }}>Humedad</div></div>
-                <div><div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>{selected.wind}</div><div style={{ fontSize: 10, color: C.muted }}>Viento</div></div>
-              </div>
-            ) : (
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 12, color: C.muted }}>Ultima deteccion</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginTop: 2 }}>{selected.lastDetection}</div>
-                <div style={{ fontSize: 11, color: C.lightMuted, marginTop: 2 }}>{selected.time}</div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Station count */}
+        <div style={{ position: "absolute", top: 12, right: 12, zIndex: 1000, background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: C.muted }}>
+          {cameras ? `${cameras.features.length} cámaras trampa` : "Cargando..."}
+        </div>
       </Card>
 
       {/* Right sidebar */}
@@ -254,10 +306,10 @@ function Observatorio() {
         <Card>
           <SectionLabel>Estado actual</SectionLabel>
           <div style={{ fontFamily: "'Georgia', serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 10 }}>
-            Bosque Pehuen
+            Bosque Pehuén
           </div>
           <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>
-            9 de marzo, 2026 — 15:42 CLT
+            {new Date().toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })}
           </div>
         </Card>
         <Card>
@@ -265,22 +317,20 @@ function Observatorio() {
           <RiskGauge value={67} />
         </Card>
         <Card>
-          <SectionLabel>Meteorologia</SectionLabel>
+          <SectionLabel>Meteorología</SectionLabel>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
             <StatBlock value="14.2" unit="°C" label="Temperatura" />
             <StatBlock value="62" unit="%" label="Humedad" />
             <StatBlock value="12" unit="km/h" label="Viento" />
-            <StatBlock value="12" unit="dias" label="Sin lluvia" color={C.amber} />
+            <StatBlock value="12" unit="días" label="Sin lluvia" color={C.amber} />
           </div>
         </Card>
         <Card>
-          <SectionLabel>Ultimas detecciones</SectionLabel>
-          {stations.filter(s => s.type === "camera").slice(0, 3).map(s => (
-            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.paleMint}`, fontSize: 12 }}>
-              <span style={{ color: C.text, fontWeight: 600 }}>{s.lastDetection}</span>
-              <span style={{ color: C.lightMuted }}>{s.time}</span>
-            </div>
-          ))}
+          <SectionLabel>Resumen estaciones</SectionLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+            <StatBlock value={cameras ? cameras.features.length : "..."} label="Cámaras trampa" />
+            <StatBlock value="1" label="Estación meteo" />
+          </div>
         </Card>
       </div>
     </div>
