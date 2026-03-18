@@ -5,18 +5,16 @@
 
 ---
 
-## Two-Machine Reality
+## Two-Machine Architecture
 
-Development happens across two machines. The plan accounts for this:
+| Machine | Role | OS | Connection |
+|---|---|---|---|
+| **Laptop** (PopOS Linux) | Code repos, DuckDB, React frontend, pipeline | Linux | Direct |
+| **Office desktop** (Windows) | Raw image analysis: MegaDetector, CLIP, image review | Windows | Tailscale VPN |
+| **Synology NAS** | Long-term image storage | — | Tailscale VPN |
+| **CR800 datalogger** (Bosque Pehuén) | Live weather sensor data | — | Tailscale at `100.97.202.90:2000` |
 
-| Machine | What's there | Connection |
-|---|---|---|
-| **Laptop** (current, Windows 11) | All code repos, DuckDB, React frontend | Direct |
-| **Office desktop** (Windows, future Linux) | Camera trap images (Synology sync), GPU for MegaDetector/CLIP | Tailscale VPN |
-| **Synology NAS** | Long-term image storage, authoritative copy | Tailscale VPN via NAS IP |
-| **CR800 datalogger** (Bosque Pehuén) | Live weather sensor data | Tailscale VPN at `100.97.202.90:2000` |
-
-**Rule of thumb:** Code and database work can happen anywhere. Anything involving camera trap images requires the office desktop or NAS connection.
+**Split:** Raw data analysis (GPU-dependent, Windows-only tools like AddaxAI) runs on the office desktop. Once a reviewed CSV/DuckDB output is produced, everything downstream (pipeline ingestion, platform, reports) is cross-platform and runs on the laptop.
 
 ---
 
@@ -32,19 +30,14 @@ The pipeline is built but `config.yaml` has a Linux DB path. Update for current 
 
 **Test:** Run `python run_fetch.py` and verify new weather data lands in DuckDB.
 
-### 1.2 Add boundary polygon and station coordinates
+### 1.2 Add boundary polygon and station coordinates — DONE
 
-**What's needed from Felipe:**
-- Bosque Pehuén boundary polygon → any format (KML, shapefile, coordinates). Will be converted to GeoJSON.
-- Camera trap station coordinates → plain table: `id, name, lat, lon`
-- Weather station exact coordinates → confirm or correct `-39.61, -71.71`
-- Flora plot coordinates (if available now)
-
-**Output files:**
-- `plataforma-territorial/data/boundary.geojson` — reserve boundary
-- `plataforma-territorial/data/stations.yaml` — all monitoring stations (cameras, weather, flora)
-
-Format already defined in `plataforma-territorial/README.md`.
+Completed 2026-03-18. KML files converted to GeoJSON, Excel field data parsed:
+- `data/boundary.geojson` — reserve polygon (86 vertices)
+- `data/camera_trap_stations.geojson` — 25 cameras with real field coordinates
+- `data/stations.yaml` — weather station (centroid) + 25 cameras
+- TC-26 excluded (erroneous coordinates in spreadsheet — TODO: get correct coords)
+- **NOTE:** BP boundary delimitation is under review — confirm which polygon to use
 
 ### 1.3 Build FastAPI backend skeleton
 
@@ -279,7 +272,7 @@ Phase 1 ──→ Phase 3 (camera integration needs backend + stations.yaml)
 
 Phase 3.1–3.5 require office desktop (images)
 Phase 2.1 ready — consulting firm's repo at `C:/Dev/Python/tres_hermanas_sitio/`
-Phase 1.2 requires coordinates from Felipe
+Phase 1.2 DONE — coordinates added from KML/Excel (2026-03-18)
 Phase 1.4 archive-on-ingest should be built alongside 1.1 (same fetcher files)
 
 Everything else can start immediately on the laptop.
@@ -290,9 +283,11 @@ Everything else can start immediately on the laptop.
 ## What to Provide (checklist for Felipe)
 
 - [x] Consulting firm's Streamlit repo → available at `C:/Dev/Python/tres_hermanas_sitio/`
-- [ ] Bosque Pehuén boundary polygon → any format, will convert to GeoJSON
-- [ ] Camera trap station coordinates → plain table: id, name, lat, lon
-- [ ] Exact CR800 weather station coordinates → confirm or update -39.61, -71.71
+- [x] Bosque Pehuén boundary polygon → converted from areaBP.kml to GeoJSON (2026-03-18)
+- [x] Camera trap station coordinates → parsed from Excel field data, 25 of 26 cameras (2026-03-18)
+- [x] CR800 weather station coordinates → using park centroid -39.4417, -71.7420 (2026-03-18)
+- [ ] TC-26 correct coordinates (grid 22, SD M23) → erroneous in spreadsheet
+- [ ] Confirm BP boundary delimitation (under review)
 - [ ] Flora plot coordinates (if available)
 - [ ] Confirm Tailscale VPN to CR800 (`100.97.202.90:2000`) is active
 

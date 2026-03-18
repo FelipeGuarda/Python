@@ -1,7 +1,8 @@
 # Data Pipeline — Build Context for AI Sessions
 
-This document contains everything a new AI session needs to build the FMA data pipeline
-from scratch. Read this fully before writing any code.
+This document was the original build specification used to construct the pipeline.
+All 5 phases are now complete. Kept as reference for understanding design decisions
+and data format details. See README.md for current status.
 
 ---
 
@@ -22,8 +23,8 @@ reads from that DuckDB file — nothing writes to it except this pipeline and th
 ## Environment
 
 - **Conda env:** `data-pipeline` (Python 3.11)
-- **OS:** Windows (current) → PopOS Linux (upcoming migration). Use cross-platform code only.
-- **Scheduler:** APScheduler (not cron — must work on Windows)
+- **OS:** PopOS Linux (development laptop). Windows desktop used for raw data analysis (GPU tasks).
+- **Scheduler:** APScheduler (cross-platform)
 - **Database file:** `/home/fguarda/Dev/Python/fma_data.duckdb`
   - This is the central file shared by all downstream projects
   - Downstream projects open it **read-only**
@@ -508,23 +509,20 @@ CR800_PAKBUS_ADDRESS=1
 
 ---
 
-## What Already Exists
+## What Exists (all built)
 
 | Item | Status |
 |---|---|
-| `data-pipeline/environment.yml` | Exists — needs 2 package changes |
-| `data-pipeline/README.md` | Exists — project overview |
-| `data-pipeline/old animal data DB.csv` | Exists — 18,473 rows, Phase 3 backfill input |
-| `fma_data.duckdb` | Does not exist yet — created in Phase 1 |
-| All Python source files | Do not exist yet — build in phase order |
+| `data-pipeline/environment.yml` | Complete |
+| `data-pipeline/README.md` | Updated |
+| `fma_data.duckdb` | Created and populated (42 MB) |
+| All Python source files | All 5 phases implemented and working |
+| Legacy camera trap CSV | Lives at `camera-traps/old animal data DB.csv` (canonical copy) |
 
 ---
 
-## Open Questions (resolve before or during Phase 4)
+## Open Questions (for first production run)
 
-1. **CR800 internal table names** — run `list_tables()` at first connection, confirm names
-   like `Met_15min`, `Met_Daily`. Schema columns finalized from actual TOA5 headers.
-2. **Historical `.dat` file locations** — ask the user for the path to the `.dat` files
-   before building `run_fetch.py --backfill`.
-3. **Camtrap DP folder structure** — confirm with user whether full packages are placed
-   as a folder in `data/incoming/` or as individual CSVs.
+1. **CR800 internal table names** — run `list_tables()` at first connection via Tailscale.
+2. **Historical `.dat` file locations** — locate the backfill files on the office desktop.
+3. **Camtrap DP test data** — test the parser with a real Camtrap DP package.
