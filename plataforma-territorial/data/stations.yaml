@@ -1,0 +1,266 @@
+# Estaciones de monitoreo — Bosque Pehuén
+# Fuente: CT ID and coordinates.xlsx (Revisión Otoño 2025)
+# Generado: 2026-03-18
+
+weather:
+  - id: WS-01
+    name: Estación Meteorológica CR800
+    lat: -39.4417
+    lon: -71.7420
+    type: weather_station
+    model: Campbell Scientific CR800
+    connection: tailscale://100.97.202.90:2000
+
+camera_traps:
+  - id: TC-01
+    tc: 1
+    grid_id: 67
+    sd_card: M7
+    name: Cámara Trampa 1
+    lat: -39.45183
+    lon: -71.72707
+    altitude_m: 1263
+    type: camera_trap
+
+  - id: TC-02
+    tc: 2
+    grid_id: 57
+    sd_card: M8
+    name: Cámara Trampa 2
+    lat: -39.45163
+    lon: -71.73252
+    altitude_m: 1223
+    type: camera_trap
+
+  - id: TC-03
+    tc: 3
+    grid_id: 34
+    sd_card: M6
+    name: Cámara Trampa 3
+    lat: -39.43796
+    lon: -71.74220
+    altitude_m: 998
+    type: camera_trap
+
+  - id: TC-04
+    tc: 4
+    grid_id: 24
+    sd_card: M5
+    name: Cámara Trampa 4
+    lat: -39.43774
+    lon: -71.74829
+    altitude_m: 1004
+    type: camera_trap
+
+  - id: TC-05
+    tc: 5
+    grid_id: 58
+    sd_card: M9
+    name: Cámara Trampa 5
+    lat: -39.45579
+    lon: -71.73253
+    altitude_m: 1270
+    type: camera_trap
+
+  - id: TC-06
+    tc: 6
+    grid_id: 11
+    sd_card: M1
+    name: Cámara Trampa 6
+    lat: -39.42418
+    lon: -71.75465
+    altitude_m: 861
+    type: camera_trap
+
+  - id: TC-07
+    tc: 7
+    grid_id: 56
+    sd_card: M10
+    name: Cámara Trampa 7
+    lat: -39.44718
+    lon: -71.73228
+    altitude_m: 1232
+    type: camera_trap
+
+  - id: TC-08
+    tc: 8
+    grid_id: 35
+    sd_card: M4
+    name: Cámara Trampa 8
+    lat: -39.44286
+    lon: -71.74485
+    altitude_m: 1048
+    type: camera_trap
+
+  - id: TC-09
+    tc: 9
+    grid_id: 12
+    sd_card: M2
+    name: Cámara Trampa 9
+    lat: -39.42885
+    lon: -71.75478
+    altitude_m: 886
+    type: camera_trap
+
+  - id: TC-10
+    tc: 10
+    grid_id: 36
+    sd_card: M3
+    name: Cámara Trampa 10
+    lat: -39.44675
+    lon: -71.74390
+    altitude_m: 1135
+    type: camera_trap
+
+  - id: TC-11
+    tc: 11
+    grid_id: 27
+    sd_card: M15
+    name: Cámara Trampa 11
+    lat: -39.45130
+    lon: -71.74873
+    altitude_m: 820
+    type: camera_trap
+
+  - id: TC-12
+    tc: 12
+    grid_id: 29
+    sd_card: M17
+    name: Cámara Trampa 12
+    lat: -39.45905
+    lon: -71.75111
+    altitude_m: 819
+    type: camera_trap
+
+  - id: TC-13
+    tc: 13
+    grid_id: 28
+    sd_card: M16
+    name: Cámara Trampa 13
+    lat: -39.45556
+    lon: -71.75083
+    altitude_m: 819
+    type: camera_trap
+
+  - id: TC-14
+    tc: 14
+    grid_id: 46
+    sd_card: M11
+    name: Cámara Trampa 14
+    lat: -39.44709
+    lon: -71.73836
+    altitude_m: 1048
+    type: camera_trap
+
+  - id: TC-15
+    tc: 15
+    grid_id: 37
+    sd_card: M12
+    name: Cámara Trampa 15
+    lat: -39.45142
+    lon: -71.74398
+    altitude_m: 1118
+    type: camera_trap
+
+  - id: TC-16
+    tc: 16
+    grid_id: 38
+    sd_card: M13
+    name: Cámara Trampa 16
+    lat: -39.45524
+    lon: -71.74502
+    altitude_m: 1126
+    type: camera_trap
+
+  - id: TC-17
+    tc: 17
+    grid_id: 47
+    sd_card: M14
+    name: Cámara Trampa 17
+    lat: -39.45180
+    lon: -71.73987
+    altitude_m: 1062
+    type: camera_trap
+
+  - id: TC-18
+    tc: 18
+    grid_id: 33
+    sd_card: M15
+    name: Cámara Trampa 18
+    lat: -39.43320
+    lon: -71.74338
+    altitude_m: 978
+    type: camera_trap
+
+  - id: TC-19
+    tc: 19
+    grid_id: 13
+    sd_card: M16
+    name: Cámara Trampa 19
+    lat: -39.43286
+    lon: -71.75497
+    altitude_m: 923
+    type: camera_trap
+
+  - id: TC-20
+    tc: 20
+    grid_id: 4
+    sd_card: M17
+    name: Cámara Trampa 20
+    lat: -39.43752
+    lon: -71.76076
+    altitude_m: 1231
+    type: camera_trap
+
+  - id: TC-21
+    tc: 21
+    grid_id: 45
+    sd_card: M18
+    name: Cámara Trampa 21
+    lat: -39.44299
+    lon: -71.73801
+    altitude_m: 1037
+    type: camera_trap
+
+  - id: TC-22
+    tc: 22
+    grid_id: 23
+    sd_card: M19
+    name: Cámara Trampa 22
+    lat: -39.43296
+    lon: -71.74903
+    altitude_m: 951
+    type: camera_trap
+
+  - id: TC-23
+    tc: 23
+    grid_id: 44
+    sd_card: M20
+    name: Cámara Trampa 23
+    lat: -39.43704
+    lon: -71.73900
+    altitude_m: 974
+    type: camera_trap
+
+  - id: TC-24
+    tc: 24
+    grid_id: 43
+    sd_card: M21
+    name: Cámara Trampa 24
+    lat: -39.43359
+    lon: -71.73804
+    altitude_m: 957
+    type: camera_trap
+
+  - id: TC-25
+    tc: 25
+    grid_id: 32
+    sd_card: M22
+    name: Cámara Trampa 25
+    lat: -39.42929
+    lon: -71.74325
+    altitude_m: 945
+    type: camera_trap
+
+  # TODO: TC-26 (grid 22, SD M23) omitida — coordenadas en planilla Excel son erróneas
+  # (39.25447 S, 71.44562 W, ~30 km fuera del parque). Confirmar coordenadas reales con equipo de terreno.
