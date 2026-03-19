@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-03-18
+**Last updated:** 2026-03-19
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.44°, -71.74°)
 
@@ -43,11 +43,11 @@ All 5 build phases complete. Code is production-ready.
 | Camera trap legacy parser | Done | Parses Timelapse2 CSV (18,473 rows) |
 | Camtrap DP parser | Done | Awaiting test data from real DP package |
 | TOA5 parser (CR800 backfill) | Done | For historical .dat files |
-| CR800 live fetcher | Done | **Needs first connection test via Tailscale** |
+| CR800 live fetcher | Done | **Working** — DuckDB has data through Mar 2026 |
 | File watcher daemon | Done | Monitors `data/incoming/` |
 | APScheduler daemon | Done | Open-Meteo hourly, CR800 weekly |
 
-**Next action:** Test CR800 connection (`100.97.202.90:2000`) via Tailscale, run `list_tables()` to discover table names.
+**Next action:** No immediate action needed. Pipeline is running and feeding the platform.
 
 ### 2. Plataforma Territorial (`plataforma-territorial/`)
 
@@ -56,16 +56,17 @@ React/Vite frontend with 4 pages. Observatorio page has a real Leaflet map with 
 | Component | Status | Notes |
 |---|---|---|
 | Observatorio (map) | Real data | Leaflet + Esri satellite + boundary.geojson + 25 cameras |
-| Dashboard (charts) | Mock data | Fire risk, meteo, cameras, fauna tabs |
+| Dashboard — Meteo tab | **Real data** | Variable selector, date range, resolution, wind rose, stats table |
+| Dashboard — other tabs | Mock data | Fire risk, cameras, fauna still mock |
 | Asistente (AI chat) | Mock data | Placeholder responses |
 | Reportes (newsletter) | Mock data | Draft generator with typing animation |
-| FastAPI backend | Not started | 6 endpoints planned (see README) |
+| FastAPI backend | **Started** | `/api/weather/current` + `/api/weather/history` built and working |
 | Station coordinates | Done | `data/stations.yaml` + GeoJSON files |
 | BP boundary polygon | Done | **Under review — confirm delimitation** |
 
-**Next action:** Build FastAPI backend skeleton (Phase 1.3 in NEXT_STEPS.md), then connect weather dashboard to real DuckDB data.
+**Next action:** Address user observations on the meteo tab, then port fire risk dashboard logic to FastAPI (Phase 2.3 in NEXT_STEPS.md).
 
-**Branch:** `feature/real-map` has the Leaflet map implementation (ahead of `main`).
+**Branch:** `feature/weather-dashboard` is the active branch (includes real map + meteo dashboard).
 
 ### 3. Camera Traps (`camera-traps/`)
 
@@ -126,10 +127,12 @@ visualizaciones-artisticas (reads DuckDB for art generation)
 
 - [ ] **TC-26 coordinates** — grid 22, SD M23. Spreadsheet has wrong coords (30 km off). Get correct GPS from field team.
 - [ ] **BP boundary delimitation** — polygon under review. Confirm which version to use.
-- [ ] **CR800 Tailscale test** — first live connection to `100.97.202.90:2000`.
+- [ ] **TC-26 coordinates** — grid 22, SD M23. Spreadsheet has wrong coords (30 km off). Get correct GPS from field team.
+- [ ] **BP boundary delimitation** — polygon under review. Confirm which version to use.
 - [ ] **Otoño 2025 camera trap processing** — images on desktop, needs full pipeline run.
 - [ ] **Flora plot coordinates** — not yet available.
-- [ ] **FastAPI backend** — next major development task for the platform.
+- [ ] **Meteo tab observations** — user has feedback from first run, to address next session.
+- [ ] **Comparison mode** — deferred from meteo tab v1 (two-period overlay). See NEXT_STEPS.md.
 - [ ] **Fire risk dashboard port** — logic lives at `Estacion meteorologica/Fire risk dashboard/`, needs porting to FastAPI.
 
 ---
@@ -161,6 +164,7 @@ visualizaciones-artisticas (reads DuckDB for art generation)
 │   ├── README.md                        ← project docs (updated)
 │   ├── NEXT_STEPS.md                    ← detailed phase plan
 │   ├── data/                            ← GeoJSON + stations.yaml
+│   ├── backend/                         ← FastAPI backend (weather endpoints live)
 │   └── plataforma-demo/                 ← React/Vite app
 │
 ├── literatura-agent/                    ← weekly paper summarizer (deployed)
