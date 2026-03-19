@@ -40,12 +40,6 @@ class ErrorBoundary extends Component {
 }
 
 // ── Mock Data ──
-const weatherData = Array.from({ length: 24 }, (_, i) => ({
-  hora: `${String(i).padStart(2, "0")}:00`,
-  temp: 8 + Math.sin(i / 24 * Math.PI * 2 - 1.5) * 7 + Math.random() * 2,
-  humedad: 65 + Math.cos(i / 24 * Math.PI * 2) * 20 + Math.random() * 5,
-  viento: 5 + Math.random() * 15,
-}));
 
 const weeklyRisk = [
   { dia: "Lun", riesgo: 32, temp: 18, humedad: 55 },
@@ -169,6 +163,343 @@ function RiskGauge({ value }) {
         <text x="90" y="92" textAnchor="middle" fontSize="10" fill={C.muted}>/100</text>
       </svg>
       <div style={{ fontSize: 13, fontWeight: 700, color, letterSpacing: 2, marginTop: 4 }}>{getLabel(value)}</div>
+    </div>
+  );
+}
+
+// ── WEATHER CONSTANTS ──
+const WEATHER_VARS = [
+  { id: "temperature_air",  label: "Temperatura del aire",   unit: "°C",    color: C.red },
+  { id: "relative_humidity",label: "Humedad relativa",       unit: "%",     color: C.medGreen },
+  { id: "precipitation",    label: "Precipitación",          unit: "mm",    color: C.deepGreen, type: "bar" },
+  { id: "solar_radiation",  label: "Radiación solar",        unit: "W/m²",  color: C.amber },
+  { id: "BP_mbar_Avg",      label: "Presión atmosférica",    unit: "hPa",   color: C.lightGreen },
+  { id: "PtoRocio_Avg",     label: "Punto de rocío",         unit: "°C",    color: C.lightMuted },
+  { id: "T107_10cm_Avg",    label: "Suelo a 10cm",           unit: "°C",    color: "#7BAE91" },
+  { id: "T107_50cm_Avg",    label: "Suelo a 50cm",           unit: "°C",    color: "#A8CFA8" },
+  { id: "albedo_Avg",       label: "Albedo",                 unit: "%",     color: C.warmSand },
+  { id: "DT_Avg",           label: "Profundidad de nieve",   unit: "cm",    color: "#7EC8E3" },
+];
+
+const WIND_SPEED_COLORS = ["#BDE8FF", "#5BC0EB", "#1A6B9A", "#2ECC71", "#E67E22", "#E74C3C"];
+const RESOLUTIONS = [
+  { id: "15min", label: "15 min" },
+  { id: "D",     label: "Diaria" },
+  { id: "ME",    label: "Mensual" },
+  { id: "Q",     label: "Estacional" },
+];
+const VAR_FRIENDLY = {
+  ...Object.fromEntries(WEATHER_VARS.map(v => [v.id, v.label])),
+  wind_speed: "Velocidad del viento",
+};
+
+// ── WIND ROSE SVG ──
+function WindRose({ data }) {
+  if (!data || data.length === 0) return null;
+  const cx = 115, cy = 115, maxR = 90;
+  const maxPct = Math.max(...data.map(d => d.total_pct), 0.1);
+
+  function arcPath(r1, r2, a1Deg, a2Deg) {
+    const toRad = d => (d * Math.PI) / 180;
+    const a1 = toRad(a1Deg), a2 = toRad(a2Deg);
+    const x2 = cx + r2 * Math.cos(a1), y2 = cy + r2 * Math.sin(a1);
+    const x3 = cx + r2 * Math.cos(a2), y3 = cy + r2 * Math.sin(a2);
+    const lg = (a2 - a1 > Math.PI) ? 1 : 0;
+    if (r1 < 1) {
+      return `M ${cx} ${cy} L ${x2.toFixed(1)} ${y2.toFixed(1)} A ${r2} ${r2} 0 ${lg} 1 ${x3.toFixed(1)} ${y3.toFixed(1)} Z`;
+    }
+    const x1 = cx + r1 * Math.cos(a1), y1 = cy + r1 * Math.sin(a1);
+    const x4 = cx + r1 * Math.cos(a2), y4 = cy + r1 * Math.sin(a2);
+    return `M ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x2.toFixed(1)} ${y2.toFixed(1)} A ${r2} ${r2} 0 ${lg} 1 ${x3.toFixed(1)} ${y3.toFixed(1)} L ${x4.toFixed(1)} ${y4.toFixed(1)} A ${r1} ${r1} 0 ${lg} 0 ${x1.toFixed(1)} ${y1.toFixed(1)} Z`;
+  }
+
+  const sectors = [];
+  data.forEach((d, i) => {
+    const mid = i * 22.5 - 90; // rotate so 0° = North = up
+    const a1 = mid - 11.25, a2 = mid + 11.25;
+    let r0 = 0;
+    d.bins.forEach((bin, j) => {
+      const r = (bin.pct / maxPct) * maxR;
+      if (r > 0.3) {
+        sectors.push(
+          <path key={`${i}-${j}`} d={arcPath(r0, r0 + r, a1, a2)}
+            fill={WIND_SPEED_COLORS[j]} stroke="white" strokeWidth={0.4} opacity={0.9} />
+        );
+      }
+      r0 += r;
+    });
+  });
+
+  const cardinal = [
+    { label: "N", dx: 0,        dy: -(maxR + 12) },
+    { label: "E", dx: maxR + 14, dy: 4 },
+    { label: "S", dx: 0,        dy: maxR + 16 },
+    { label: "O", dx: -(maxR + 14), dy: 4 },
+  ];
+
+  return (
+    <svg width={230} height={230} style={{ display: "block", margin: "0 auto" }}>
+      {[0.25, 0.5, 0.75, 1].map(f => (
+        <circle key={f} cx={cx} cy={cy} r={maxR * f} fill="none" stroke={C.paleMint} strokeWidth={0.8} strokeDasharray="3 3" />
+      ))}
+      <line x1={cx} y1={cy - maxR} x2={cx} y2={cy + maxR} stroke={C.paleMint} strokeWidth={0.5} />
+      <line x1={cx - maxR} y1={cy} x2={cx + maxR} y2={cy} stroke={C.paleMint} strokeWidth={0.5} />
+      {sectors}
+      {cardinal.map(c => (
+        <text key={c.label} x={cx + c.dx} y={cy + c.dy} textAnchor="middle" fontSize={10} fontWeight={700} fill={C.muted}>{c.label}</text>
+      ))}
+    </svg>
+  );
+}
+
+// ── METEO TAB ──
+function MeteoTab() {
+  const today = new Date().toISOString().split("T")[0];
+  const yearAgo = new Date(Date.now() - 365 * 86400e3).toISOString().split("T")[0];
+
+  const [current, setCurrent] = useState(null);
+  const [histData, setHistData] = useState([]);
+  const [windRose, setWindRose] = useState(null);
+  const [stats, setStats] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [selectedVars, setSelectedVars] = useState(["temperature_air", "relative_humidity", "precipitation"]);
+  const [showWind, setShowWind] = useState(false);
+  const [resolution, setResolution] = useState("D");
+  const [startDate, setStartDate] = useState(yearAgo);
+  const [endDate, setEndDate] = useState(today);
+  const [appliedDates, setAppliedDates] = useState({ start: yearAgo, end: today });
+
+  useEffect(() => {
+    fetch("/api/weather/current").then(r => r.json()).then(setCurrent).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!appliedDates.start || !appliedDates.end) return;
+    setLoading(true);
+    const varList = [
+      ...selectedVars,
+      ...(showWind ? ["wind_speed", "wind_direction"] : []),
+    ].join(",");
+    const p = new URLSearchParams({ start: appliedDates.start, end: appliedDates.end, resolution, variables: varList });
+    fetch(`/api/weather/history?${p}`)
+      .then(r => r.json())
+      .then(json => {
+        setHistData(json.data || []);
+        setWindRose(json.wind_rose || null);
+        setStats(json.stats || {});
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [selectedVars, showWind, resolution, appliedDates]);
+
+  const toggleVar = id =>
+    setSelectedVars(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
+
+  const tickFmt = ts => {
+    if (!ts) return "";
+    const [year, month, dayPart] = ts.split("-");
+    const day = parseInt(dayPart);
+    const MONTHS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    const m = parseInt(month) - 1;
+    if (resolution === "ME") return `${MONTHS[m]} ${year.slice(2)}`;
+    if (resolution === "Q") return `T${Math.ceil((m + 1) / 3)} ${year.slice(2)}`;
+    if (resolution === "15min") return `${ts.slice(5, 7)}/${ts.slice(8, 10)} ${ts.slice(11, 16)}`;
+    return `${day} ${MONTHS[m]}`;
+  };
+
+  const varConf = id => WEATHER_VARS.find(v => v.id === id) || { label: id, unit: "", color: C.deepGreen };
+
+  const commonChartProps = {
+    margin: { top: 4, right: 4, left: -10, bottom: 0 },
+  };
+  const commonXAxis = (
+    <XAxis dataKey="timestamp" tickFormatter={tickFmt}
+      tick={{ fontSize: 9, fill: C.muted }} interval="preserveStartEnd"
+      axisLine={{ stroke: C.mint }} tickLine={false} />
+  );
+  const commonTooltip = (label, unit) => (
+    <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11, border: `1px solid ${C.mint}` }}
+      labelFormatter={tickFmt}
+      formatter={v => [v != null ? v.toFixed(2) : "—", label]} />
+  );
+
+  return (
+    <div style={{ padding: 16, overflowY: "auto", height: "100%" }}>
+      {/* Current conditions */}
+      <Card style={{ marginBottom: 12 }}>
+        <SectionLabel>
+          Condiciones actuales
+          {current?.timestamp ? ` — ${new Date(current.timestamp).toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short" })}` : ""}
+        </SectionLabel>
+        {current ? (
+          <div style={{ display: "flex", gap: 28, flexWrap: "wrap", marginTop: 6 }}>
+            {[
+              { v: current.temperature_air,     decimals: 1, u: "°C",   l: "Temperatura" },
+              { v: current.relative_humidity,   decimals: 0, u: "%",    l: "Humedad" },
+              { v: current.wind_speed_kmh,      decimals: 1, u: "km/h", l: "Viento" },
+              { v: current.BP_mbar_Avg,         decimals: 0, u: " hPa", l: "Presión" },
+              { v: current.precipitation,       decimals: 1, u: " mm",  l: "Precip. 15min" },
+              { v: current.solar_radiation,     decimals: 0, u: " W/m²",l: "Radiación solar" },
+            ].map(item => item.v != null && (
+              <div key={item.l} style={{ textAlign: "center", minWidth: 64 }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: C.text, fontFamily: "'Georgia', serif", lineHeight: 1 }}>
+                  {Number(item.v).toFixed(item.decimals)}<span style={{ fontSize: 12, fontWeight: 400 }}>{item.u}</span>
+                </div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>{item.l}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>Conectando con la API...</div>
+        )}
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 270px", gap: 12 }}>
+        {/* Left: controls + charts */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Controls */}
+          <Card>
+            <SectionLabel>Variables</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 14px", marginTop: 6, marginBottom: 12 }}>
+              {WEATHER_VARS.map(v => (
+                <label key={v.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: C.text, cursor: "pointer" }}>
+                  <input type="checkbox" checked={selectedVars.includes(v.id)} onChange={() => toggleVar(v.id)} />
+                  {v.label}
+                </label>
+              ))}
+              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: C.text, cursor: "pointer" }}>
+                <input type="checkbox" checked={showWind} onChange={() => setShowWind(v => !v)} />
+                Viento (rosa)
+              </label>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: C.muted }}>Desde:</span>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                  style={{ border: `1px solid ${C.mint}`, borderRadius: 4, padding: "4px 8px", fontSize: 12, color: C.text }} />
+                <span style={{ fontSize: 11, color: C.muted }}>Hasta:</span>
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                  style={{ border: `1px solid ${C.mint}`, borderRadius: 4, padding: "4px 8px", fontSize: 12, color: C.text }} />
+                <button onClick={() => setAppliedDates({ start: startDate, end: endDate })}
+                  style={{ padding: "5px 14px", background: C.deepGreen, color: C.white, border: "none", borderRadius: 4, fontSize: 12, cursor: "pointer" }}>
+                  Aplicar
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: 12 }}>
+                {RESOLUTIONS.map(r => (
+                  <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: C.text, cursor: "pointer" }}>
+                    <input type="radio" name="resolution" value={r.id} checked={resolution === r.id} onChange={() => setResolution(r.id)} />
+                    {r.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          {loading && (
+            <div style={{ textAlign: "center", padding: 24, color: C.muted, fontSize: 13 }}>Cargando datos...</div>
+          )}
+
+          {/* Per-variable charts */}
+          {!loading && selectedVars.map(varId => {
+            const conf = varConf(varId);
+            const chartData = histData.filter(d => d[varId] != null);
+            if (chartData.length === 0) return null;
+            return (
+              <Card key={varId}>
+                <SectionLabel>{conf.label} ({conf.unit})</SectionLabel>
+                <ResponsiveContainer width="100%" height={150}>
+                  {conf.type === "bar" ? (
+                    <BarChart data={chartData} {...commonChartProps}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+                      {commonXAxis}
+                      <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit={` ${conf.unit}`} width={52} />
+                      {commonTooltip(conf.label, conf.unit)}
+                      <Bar dataKey={varId} fill={conf.color} radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={chartData} {...commonChartProps}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+                      {commonXAxis}
+                      <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit={` ${conf.unit}`} width={52} />
+                      {commonTooltip(conf.label, conf.unit)}
+                      <Line type="monotone" dataKey={varId} stroke={conf.color} strokeWidth={1.5} dot={false} connectNulls={false} />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              </Card>
+            );
+          })}
+
+          {/* Wind speed chart (separate from variable selector) */}
+          {!loading && showWind && histData.some(d => d.wind_speed != null) && (
+            <Card>
+              <SectionLabel>Velocidad del viento (km/h)</SectionLabel>
+              <ResponsiveContainer width="100%" height={150}>
+                <BarChart data={histData.filter(d => d.wind_speed != null)} {...commonChartProps}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+                  {commonXAxis}
+                  <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit=" km/h" width={52} />
+                  <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11, border: `1px solid ${C.mint}` }}
+                    labelFormatter={tickFmt} formatter={v => [v != null ? v.toFixed(1) : "—", "Viento"]} />
+                  <Bar dataKey="wind_speed" fill={C.lightGreen} radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+        </div>
+
+        {/* Right: wind rose + stats */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {showWind && windRose && (
+            <Card>
+              <SectionLabel>Rosa de vientos</SectionLabel>
+              <WindRose data={windRose} />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 8px", marginTop: 8 }}>
+                {["0–3","3–6","6–9","9–12","12–15","≥15"].map((r, i) => (
+                  <div key={r} style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: C.muted }}>
+                    <div style={{ width: 9, height: 9, borderRadius: 2, background: WIND_SPEED_COLORS[i], flexShrink: 0 }} />
+                    {r} km/h
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {!loading && Object.keys(stats).length > 0 && (
+            <Card>
+              <SectionLabel>Estadísticas del período</SectionLabel>
+              <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", marginTop: 8 }}>
+                <thead>
+                  <tr>
+                    {["Variable", "Media", "Mín", "Máx"].map(h => (
+                      <th key={h} style={{ textAlign: h === "Variable" ? "left" : "right", color: C.muted, fontWeight: 600, paddingBottom: 4, fontSize: 10 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(stats).map(([key, s]) => (
+                    <tr key={key} style={{ borderTop: `1px solid ${C.paleMint}` }}>
+                      <td style={{ color: C.text, padding: "4px 0" }}>{VAR_FRIENDLY[key] || key}</td>
+                      <td style={{ textAlign: "right", fontFamily: "monospace", color: C.text }}>{s.mean?.toFixed(1)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s.min?.toFixed(1)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s.max?.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+
+          {!showWind && !loading && Object.keys(stats).length === 0 && (
+            <Card>
+              <div style={{ color: C.lightMuted, fontSize: 12, textAlign: "center", padding: "24px 0", lineHeight: 1.6 }}>
+                Selecciona variables,<br />define el período<br />y haz clic en Aplicar.
+              </div>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -419,52 +750,7 @@ function Dashboard() {
         </div>
       )}
 
-      {tab === "meteo" && mounted && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <Card>
-            <SectionLabel>Temperatura 24h</SectionLabel>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={weatherData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                <XAxis dataKey="hora" tick={{ fontSize: 9, fill: C.muted }} interval={3} axisLine={{ stroke: C.mint }} />
-                <YAxis tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} unit="°" />
-                <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }} />
-                <Line type="monotone" dataKey="temp" stroke={C.red} strokeWidth={2} dot={false} name="Temp °C" />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
-          <Card>
-            <SectionLabel>Humedad relativa 24h</SectionLabel>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={weatherData}>
-                <defs>
-                  <linearGradient id="humGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={C.medGreen} stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={C.medGreen} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                <XAxis dataKey="hora" tick={{ fontSize: 9, fill: C.muted }} interval={3} axisLine={{ stroke: C.mint }} />
-                <YAxis tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} unit="%" />
-                <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }} />
-                <Area type="monotone" dataKey="humedad" stroke={C.medGreen} fill="url(#humGrad)" strokeWidth={2} dot={false} name="Humedad %" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </Card>
-          <Card style={{ gridColumn: "1 / -1" }}>
-            <SectionLabel>Velocidad del viento 24h</SectionLabel>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={weatherData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                <XAxis dataKey="hora" tick={{ fontSize: 9, fill: C.muted }} interval={3} axisLine={{ stroke: C.mint }} />
-                <YAxis tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} unit=" km/h" />
-                <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }} />
-                <Bar dataKey="viento" fill={C.lightGreen} radius={[2, 2, 0, 0]} name="Viento km/h" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </div>
-      )}
+      {tab === "meteo" && mounted && <MeteoTab />}
 
       {tab === "camaras" && mounted && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>

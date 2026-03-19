@@ -127,16 +127,23 @@ Already configured in `config.yaml` as `cr800_interval_minutes: 10080` (weekly).
 
 **Migration target:** React Dashboard tab in `plataforma-demo/src/App.jsx`, using Recharts.
 
-### 2.2 Build weather dashboard tab in React
+### 2.2 Build weather dashboard tab in React — DONE (2026-03-19)
 
-Port the consulting firm's visualizations to React. The data comes from the FastAPI `/api/weather/history` endpoint, which reads the `weather_station` table (already populated with the full CR800 timeline).
+Implemented in `feature/weather-dashboard` branch.
 
-**Features to recreate:**
-- Variable selector (checkboxes or dropdown: temperature, humidity, wind, precipitation, solar radiation)
-- Full-timeline chart (Recharts `LineChart` with `Brush` component for zoom)
-- Custom date range picker
-- Date comparison overlay
-- Current conditions summary card (latest readings)
+**Delivered:**
+- Variable selector (10 variables + wind toggle)
+- Date range picker with Apply button (prevents excessive fetching)
+- Resolution selector (15min, daily, monthly, seasonal)
+- Per-variable line/bar charts (Recharts)
+- Wind rose SVG (custom, 16 directions × 6 speed bins)
+- Current conditions strip (latest reading from CR800)
+- Stats table (mean, min, max per variable)
+
+**Pending — Comparison mode** (intentionally deferred):
+- Two-period overlay: select Period 1 and Period 2, show side-by-side charts
+- Reason deferred: significant UI complexity, lower priority for v1
+- When to tackle: after basic dashboard is validated with real users
 
 ### 2.3 Port fire risk dashboard to the platform
 
