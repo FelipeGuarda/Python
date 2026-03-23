@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-03-19
+**Last updated:** 2026-03-23
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.44°, -71.74°)
 
@@ -46,8 +46,9 @@ All 5 build phases complete. Code is production-ready.
 | CR800 live fetcher | Done | **Working** — DuckDB has data through Mar 2026 |
 | File watcher daemon | Done | Monitors `data/incoming/` |
 | APScheduler daemon | Done | Open-Meteo hourly, CR800 weekly |
+| systemd user service | **Done** | `~/.config/systemd/user/fma-pipeline.service` — enabled, starts on boot |
 
-**Next action:** No immediate action needed. Pipeline is running and feeding the platform.
+**Next action:** No action needed. Pipeline runs as a background service; restarts on failure and on boot.
 
 ### 2. Plataforma Territorial (`plataforma-territorial/`)
 
@@ -56,7 +57,7 @@ React/Vite frontend with 4 pages. Observatorio page has a real Leaflet map with 
 | Component | Status | Notes |
 |---|---|---|
 | Observatorio (map) | Real data | Leaflet + Esri satellite + boundary.geojson + 25 cameras |
-| Dashboard — Meteo tab | **Real data** | Variable selector, date range, resolution, wind rose, stats table |
+| Dashboard — Meteo tab | **Real data** | Variable selector, date range, resolution, wind rose, stats table, **comparison mode** |
 | Dashboard — other tabs | Mock data | Fire risk, cameras, fauna still mock |
 | Asistente (AI chat) | Mock data | Placeholder responses |
 | Reportes (newsletter) | Mock data | Draft generator with typing animation |
@@ -64,7 +65,7 @@ React/Vite frontend with 4 pages. Observatorio page has a real Leaflet map with 
 | Station coordinates | Done | `data/stations.yaml` + GeoJSON files |
 | BP boundary polygon | Done | **Under review — confirm delimitation** |
 
-**Next action:** Address user observations on the meteo tab, then port fire risk dashboard logic to FastAPI (Phase 2.3 in NEXT_STEPS.md).
+**Next action:** Port fire risk dashboard to FastAPI (Phase 2.3 in NEXT_STEPS.md).
 
 **Branch:** `feature/weather-dashboard` is the active branch (includes real map + meteo dashboard).
 
@@ -131,8 +132,8 @@ visualizaciones-artisticas (reads DuckDB for art generation)
 - [ ] **BP boundary delimitation** — polygon under review. Confirm which version to use.
 - [ ] **Otoño 2025 camera trap processing** — images on desktop, needs full pipeline run.
 - [ ] **Flora plot coordinates** — not yet available.
-- [ ] **Meteo tab observations** — user has feedback from first run, to address next session.
-- [ ] **Comparison mode** — deferred from meteo tab v1 (two-period overlay). See NEXT_STEPS.md.
+- [x] **Meteo tab observations** — label fixed to "Última medición", wind rose moved below charts (larger).
+- [x] **Comparison mode** — implemented. Two-period comparison with stacked charts, side-by-side wind roses, dual stats table. Frontend-only, no backend changes.
 - [ ] **Fire risk dashboard port** — logic lives at `Estacion meteorologica/Fire risk dashboard/`, needs porting to FastAPI.
 
 ---

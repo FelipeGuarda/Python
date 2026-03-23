@@ -194,9 +194,10 @@ const VAR_FRIENDLY = {
 };
 
 // ── WIND ROSE SVG ──
-function WindRose({ data }) {
+function WindRose({ data, size = 230 }) {
   if (!data || data.length === 0) return null;
-  const cx = 115, cy = 115, maxR = 90;
+  const s = size / 230;
+  const cx = 115 * s, cy = 115 * s, maxR = 90 * s;
   const maxPct = Math.max(...data.map(d => d.total_pct), 0.1);
 
   function arcPath(r1, r2, a1Deg, a2Deg) {
@@ -231,14 +232,14 @@ function WindRose({ data }) {
   });
 
   const cardinal = [
-    { label: "N", dx: 0,        dy: -(maxR + 12) },
-    { label: "E", dx: maxR + 14, dy: 4 },
-    { label: "S", dx: 0,        dy: maxR + 16 },
-    { label: "O", dx: -(maxR + 14), dy: 4 },
+    { label: "N", dx: 0,              dy: -(maxR + 12 * s) },
+    { label: "E", dx: maxR + 14 * s,  dy: 4 * s },
+    { label: "S", dx: 0,              dy: maxR + 16 * s },
+    { label: "O", dx: -(maxR + 14 * s), dy: 4 * s },
   ];
 
   return (
-    <svg width={230} height={230} style={{ display: "block", margin: "0 auto" }}>
+    <svg width={size} height={size} style={{ display: "block", margin: "0 auto" }}>
       {[0.25, 0.5, 0.75, 1].map(f => (
         <circle key={f} cx={cx} cy={cy} r={maxR * f} fill="none" stroke={C.paleMint} strokeWidth={0.8} strokeDasharray="3 3" />
       ))}
@@ -246,7 +247,7 @@ function WindRose({ data }) {
       <line x1={cx - maxR} y1={cy} x2={cx + maxR} y2={cy} stroke={C.paleMint} strokeWidth={0.5} />
       {sectors}
       {cardinal.map(c => (
-        <text key={c.label} x={cx + c.dx} y={cy + c.dy} textAnchor="middle" fontSize={10} fontWeight={700} fill={C.muted}>{c.label}</text>
+        <text key={c.label} x={cx + c.dx} y={cy + c.dy} textAnchor="middle" fontSize={Math.round(10 * s)} fontWeight={700} fill={C.muted}>{c.label}</text>
       ))}
     </svg>
   );
@@ -268,6 +269,16 @@ function MeteoTab() {
   const [startDate, setStartDate] = useState(yearAgo);
   const [endDate, setEndDate] = useState(today);
   const [appliedDates, setAppliedDates] = useState({ start: yearAgo, end: today });
+
+  // Comparison mode
+  const [compareMode, setCompareMode] = useState(false);
+  const [startDate2, setStartDate2] = useState(yearAgo);
+  const [endDate2, setEndDate2] = useState(today);
+  const [appliedDates2, setAppliedDates2] = useState({ start: yearAgo, end: today });
+  const [histData2, setHistData2] = useState([]);
+  const [windRose2, setWindRose2] = useState(null);
+  const [stats2, setStats2] = useState({});
+  const [loading2, setLoading2] = useState(false);
 
   useEffect(() => {
     fetch("/api/weather/current").then(r => r.json()).then(setCurrent).catch(() => {});
@@ -291,6 +302,26 @@ function MeteoTab() {
       })
       .catch(() => setLoading(false));
   }, [selectedVars, showWind, resolution, appliedDates]);
+
+  // Period 2 fetch (comparison mode)
+  useEffect(() => {
+    if (!compareMode || !appliedDates2.start || !appliedDates2.end) return;
+    setLoading2(true);
+    const varList = [
+      ...selectedVars,
+      ...(showWind ? ["wind_speed", "wind_direction"] : []),
+    ].join(",");
+    const p = new URLSearchParams({ start: appliedDates2.start, end: appliedDates2.end, resolution, variables: varList });
+    fetch(`/api/weather/history?${p}`)
+      .then(r => r.json())
+      .then(json => {
+        setHistData2(json.data || []);
+        setWindRose2(json.wind_rose || null);
+        setStats2(json.stats || {});
+        setLoading2(false);
+      })
+      .catch(() => setLoading2(false));
+  }, [compareMode, selectedVars, showWind, resolution, appliedDates2]);
 
   const toggleVar = id =>
     setSelectedVars(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
@@ -323,13 +354,35 @@ function MeteoTab() {
       formatter={v => [v != null ? v.toFixed(2) : "—", label]} />
   );
 
+  const renderVarChart = (varId, data, colorOverride) => {
+    const conf = varConf(varId);
+    const color = colorOverride || conf.color;
+    return conf.type === "bar" ? (
+      <BarChart data={data} {...commonChartProps}>
+        <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+        {commonXAxis}
+        <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit={` ${conf.unit}`} width={52} />
+        {commonTooltip(conf.label, conf.unit)}
+        <Bar dataKey={varId} fill={color} radius={[2, 2, 0, 0]} />
+      </BarChart>
+    ) : (
+      <LineChart data={data} {...commonChartProps}>
+        <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+        {commonXAxis}
+        <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit={` ${conf.unit}`} width={52} />
+        {commonTooltip(conf.label, conf.unit)}
+        <Line type="monotone" dataKey={varId} stroke={color} strokeWidth={1.5} dot={false} connectNulls={false} />
+      </LineChart>
+    );
+  };
+
   return (
     <div style={{ padding: 16, overflowY: "auto", height: "100%" }}>
       {/* Current conditions */}
       <Card style={{ marginBottom: 12 }}>
         <SectionLabel>
-          Condiciones actuales
-          {current?.timestamp ? ` — ${new Date(current.timestamp).toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short" })}` : ""}
+          Última medición
+          {current?.timestamp ? ` — ${new Date(current.timestamp).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })}` : ""}
         </SectionLabel>
         {current ? (
           <div style={{ display: "flex", gap: 28, flexWrap: "wrap", marginTop: 6 }}>
@@ -354,9 +407,7 @@ function MeteoTab() {
         )}
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 270px", gap: 12 }}>
-        {/* Left: controls + charts */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {/* Controls */}
           <Card>
             <SectionLabel>Variables</SectionLabel>
@@ -394,9 +445,32 @@ function MeteoTab() {
                 ))}
               </div>
             </div>
+
+            {/* Comparison mode toggle + Period 2 date range */}
+            <div style={{ marginTop: 10, borderTop: `1px solid ${C.paleMint}`, paddingTop: 10, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: C.text, cursor: "pointer", fontWeight: 600 }}>
+                <input type="checkbox" checked={compareMode} onChange={() => setCompareMode(v => !v)} />
+                Comparar períodos
+              </label>
+              {compareMode && (
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: C.amber, fontWeight: 600 }}>Período 2:</span>
+                  <span style={{ fontSize: 11, color: C.muted }}>Desde:</span>
+                  <input type="date" value={startDate2} onChange={e => setStartDate2(e.target.value)}
+                    style={{ border: `1px solid ${C.amber}`, borderRadius: 4, padding: "4px 8px", fontSize: 12, color: C.text }} />
+                  <span style={{ fontSize: 11, color: C.muted }}>Hasta:</span>
+                  <input type="date" value={endDate2} onChange={e => setEndDate2(e.target.value)}
+                    style={{ border: `1px solid ${C.amber}`, borderRadius: 4, padding: "4px 8px", fontSize: 12, color: C.text }} />
+                  <button onClick={() => setAppliedDates2({ start: startDate2, end: endDate2 })}
+                    style={{ padding: "5px 14px", background: C.amber, color: C.white, border: "none", borderRadius: 4, fontSize: 12, cursor: "pointer" }}>
+                    Aplicar
+                  </button>
+                </div>
+              )}
+            </div>
           </Card>
 
-          {loading && (
+          {(loading || (compareMode && loading2)) && (
             <div style={{ textAlign: "center", padding: 24, color: C.muted, fontSize: 13 }}>Cargando datos...</div>
           )}
 
@@ -404,58 +478,90 @@ function MeteoTab() {
           {!loading && selectedVars.map(varId => {
             const conf = varConf(varId);
             const chartData = histData.filter(d => d[varId] != null);
-            if (chartData.length === 0) return null;
+            const chartData2 = compareMode ? histData2.filter(d => d[varId] != null) : [];
+            if (chartData.length === 0 && chartData2.length === 0) return null;
             return (
               <Card key={varId}>
+                {compareMode && <div style={{ fontSize: 10, color: C.deepGreen, fontWeight: 600, marginBottom: 2 }}>Período 1</div>}
                 <SectionLabel>{conf.label} ({conf.unit})</SectionLabel>
-                <ResponsiveContainer width="100%" height={150}>
-                  {conf.type === "bar" ? (
-                    <BarChart data={chartData} {...commonChartProps}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                      {commonXAxis}
-                      <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit={` ${conf.unit}`} width={52} />
-                      {commonTooltip(conf.label, conf.unit)}
-                      <Bar dataKey={varId} fill={conf.color} radius={[2, 2, 0, 0]} />
-                    </BarChart>
-                  ) : (
-                    <LineChart data={chartData} {...commonChartProps}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                      {commonXAxis}
-                      <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit={` ${conf.unit}`} width={52} />
-                      {commonTooltip(conf.label, conf.unit)}
-                      <Line type="monotone" dataKey={varId} stroke={conf.color} strokeWidth={1.5} dot={false} connectNulls={false} />
-                    </LineChart>
-                  )}
-                </ResponsiveContainer>
+                {chartData.length > 0 && (
+                  <ResponsiveContainer width="100%" height={150}>
+                    {renderVarChart(varId, chartData)}
+                  </ResponsiveContainer>
+                )}
+                {compareMode && (
+                  <>
+                    <div style={{ fontSize: 10, color: C.amber, fontWeight: 600, marginTop: 12, marginBottom: 2 }}>Período 2</div>
+                    {chartData2.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={150}>
+                        {renderVarChart(varId, chartData2, C.amber)}
+                      </ResponsiveContainer>
+                    ) : !loading2 && (
+                      <div style={{ fontSize: 11, color: C.muted, padding: 8 }}>Sin datos para este período</div>
+                    )}
+                  </>
+                )}
               </Card>
             );
           })}
 
           {/* Wind speed chart (separate from variable selector) */}
-          {!loading && showWind && histData.some(d => d.wind_speed != null) && (
+          {!loading && showWind && (histData.some(d => d.wind_speed != null) || (compareMode && histData2.some(d => d.wind_speed != null))) && (
             <Card>
+              {compareMode && <div style={{ fontSize: 10, color: C.deepGreen, fontWeight: 600, marginBottom: 2 }}>Período 1</div>}
               <SectionLabel>Velocidad del viento (km/h)</SectionLabel>
-              <ResponsiveContainer width="100%" height={150}>
-                <BarChart data={histData.filter(d => d.wind_speed != null)} {...commonChartProps}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                  {commonXAxis}
-                  <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit=" km/h" width={52} />
-                  <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11, border: `1px solid ${C.mint}` }}
-                    labelFormatter={tickFmt} formatter={v => [v != null ? v.toFixed(1) : "—", "Viento"]} />
-                  <Bar dataKey="wind_speed" fill={C.lightGreen} radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {histData.some(d => d.wind_speed != null) && (
+                <ResponsiveContainer width="100%" height={150}>
+                  <BarChart data={histData.filter(d => d.wind_speed != null)} {...commonChartProps}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+                    {commonXAxis}
+                    <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit=" km/h" width={52} />
+                    <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11, border: `1px solid ${C.mint}` }}
+                      labelFormatter={tickFmt} formatter={v => [v != null ? v.toFixed(1) : "—", "Viento"]} />
+                    <Bar dataKey="wind_speed" fill={C.lightGreen} radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+              {compareMode && (
+                <>
+                  <div style={{ fontSize: 10, color: C.amber, fontWeight: 600, marginTop: 12, marginBottom: 2 }}>Período 2</div>
+                  {histData2.some(d => d.wind_speed != null) ? (
+                    <ResponsiveContainer width="100%" height={150}>
+                      <BarChart data={histData2.filter(d => d.wind_speed != null)} {...commonChartProps}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+                        {commonXAxis}
+                        <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit=" km/h" width={52} />
+                        <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11, border: `1px solid ${C.mint}` }}
+                          labelFormatter={tickFmt} formatter={v => [v != null ? v.toFixed(1) : "—", "Viento"]} />
+                        <Bar dataKey="wind_speed" fill={C.amber} radius={[2, 2, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : !loading2 && (
+                    <div style={{ fontSize: 11, color: C.muted, padding: 8 }}>Sin datos de viento para este período</div>
+                  )}
+                </>
+              )}
             </Card>
           )}
-        </div>
 
-        {/* Right: wind rose + stats */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {showWind && windRose && (
+          {showWind && (windRose || (compareMode && windRose2)) && (
             <Card>
               <SectionLabel>Rosa de vientos</SectionLabel>
-              <WindRose data={windRose} />
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 8px", marginTop: 8 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 24, justifyContent: "center", marginTop: 8 }}>
+                {windRose && (
+                  <div style={{ textAlign: "center" }}>
+                    {compareMode && <div style={{ fontSize: 10, color: C.deepGreen, fontWeight: 600, marginBottom: 4 }}>Período 1</div>}
+                    <WindRose data={windRose} size={compareMode ? 280 : 350} />
+                  </div>
+                )}
+                {compareMode && windRose2 && (
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: C.amber, fontWeight: 600, marginBottom: 4 }}>Período 2</div>
+                    <WindRose data={windRose2} size={280} />
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 8px", marginTop: 8, justifyContent: "center" }}>
                 {["0–3","3–6","6–9","9–12","12–15","≥15"].map((r, i) => (
                   <div key={r} style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: C.muted }}>
                     <div style={{ width: 9, height: 9, borderRadius: 2, background: WIND_SPEED_COLORS[i], flexShrink: 0 }} />
@@ -466,26 +572,52 @@ function MeteoTab() {
             </Card>
           )}
 
-          {!loading && Object.keys(stats).length > 0 && (
+          {!loading && (Object.keys(stats).length > 0 || (compareMode && !loading2 && Object.keys(stats2).length > 0)) && (
             <Card>
               <SectionLabel>Estadísticas del período</SectionLabel>
               <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", marginTop: 8 }}>
                 <thead>
-                  <tr>
-                    {["Variable", "Media", "Mín", "Máx"].map(h => (
-                      <th key={h} style={{ textAlign: h === "Variable" ? "left" : "right", color: C.muted, fontWeight: 600, paddingBottom: 4, fontSize: 10 }}>{h}</th>
-                    ))}
-                  </tr>
+                  {compareMode ? (
+                    <>
+                      <tr>
+                        <th style={{ textAlign: "left", color: C.muted, fontWeight: 600, paddingBottom: 2, fontSize: 10 }} rowSpan={2}>Variable</th>
+                        <th style={{ textAlign: "center", color: C.deepGreen, fontWeight: 600, paddingBottom: 2, fontSize: 10, borderBottom: `1px solid ${C.paleMint}` }} colSpan={3}>Período 1</th>
+                        <th style={{ textAlign: "center", color: C.amber, fontWeight: 600, paddingBottom: 2, fontSize: 10, borderBottom: `1px solid ${C.paleMint}` }} colSpan={3}>Período 2</th>
+                      </tr>
+                      <tr>
+                        {["Media", "Mín", "Máx", "Media", "Mín", "Máx"].map((h, i) => (
+                          <th key={`${h}-${i}`} style={{ textAlign: "right", color: C.muted, fontWeight: 600, paddingBottom: 4, fontSize: 10 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </>
+                  ) : (
+                    <tr>
+                      {["Variable", "Media", "Mín", "Máx"].map(h => (
+                        <th key={h} style={{ textAlign: h === "Variable" ? "left" : "right", color: C.muted, fontWeight: 600, paddingBottom: 4, fontSize: 10 }}>{h}</th>
+                      ))}
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
-                  {Object.entries(stats).map(([key, s]) => (
-                    <tr key={key} style={{ borderTop: `1px solid ${C.paleMint}` }}>
-                      <td style={{ color: C.text, padding: "4px 0" }}>{VAR_FRIENDLY[key] || key}</td>
-                      <td style={{ textAlign: "right", fontFamily: "monospace", color: C.text }}>{s.mean?.toFixed(1)}</td>
-                      <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s.min?.toFixed(1)}</td>
-                      <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s.max?.toFixed(1)}</td>
-                    </tr>
-                  ))}
+                  {[...new Set([...Object.keys(stats), ...(compareMode ? Object.keys(stats2) : [])])].map(key => {
+                    const s1 = stats[key];
+                    const s2 = compareMode ? stats2[key] : null;
+                    return (
+                      <tr key={key} style={{ borderTop: `1px solid ${C.paleMint}` }}>
+                        <td style={{ color: C.text, padding: "4px 0" }}>{VAR_FRIENDLY[key] || key}</td>
+                        <td style={{ textAlign: "right", fontFamily: "monospace", color: C.text }}>{s1?.mean?.toFixed(1) ?? "—"}</td>
+                        <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s1?.min?.toFixed(1) ?? "—"}</td>
+                        <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s1?.max?.toFixed(1) ?? "—"}</td>
+                        {compareMode && (
+                          <>
+                            <td style={{ textAlign: "right", fontFamily: "monospace", color: C.text }}>{s2?.mean?.toFixed(1) ?? "—"}</td>
+                            <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s2?.min?.toFixed(1) ?? "—"}</td>
+                            <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s2?.max?.toFixed(1) ?? "—"}</td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </Card>
@@ -498,7 +630,6 @@ function MeteoTab() {
               </div>
             </Card>
           )}
-        </div>
       </div>
     </div>
   );

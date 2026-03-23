@@ -140,10 +140,13 @@ Implemented in `feature/weather-dashboard` branch.
 - Current conditions strip (latest reading from CR800)
 - Stats table (mean, min, max per variable)
 
-**Pending — Comparison mode** (intentionally deferred):
-- Two-period overlay: select Period 1 and Period 2, show side-by-side charts
-- Reason deferred: significant UI complexity, lower priority for v1
-- When to tackle: after basic dashboard is validated with real users
+**Comparison mode — DONE (2026-03-23):**
+- "Comparar períodos" checkbox in controls card
+- Period 2 date range picker (amber-accented UI)
+- Stacked charts per variable (Period 1 + Period 2, with color-coded labels)
+- Side-by-side wind roses (Period 1 vs Period 2)
+- Dual stats table (Period 1 / Period 2 columns)
+- No backend changes — frontend calls `/api/weather/history` twice
 
 ### 2.3 Port fire risk dashboard to the platform
 
