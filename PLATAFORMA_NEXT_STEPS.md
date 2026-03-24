@@ -1,6 +1,21 @@
 # Plataforma Territorial FMA — Estado y Próximos Pasos
 
-Last updated: 2026-03-10
+Last updated: 2026-03-24
+
+---
+
+## Two-Machine Split (project-level ownership)
+
+| Machine | Projects | Rationale |
+|---|---|---|
+| **Home (Linux)** | `data-pipeline/` (weather), `plataforma-territorial/` frontend + backend (weather, fire risk, Asistente), `literatura-agent/`, `visualizaciones-artisticas/` | CR800 systemd service runs here; all platform frontend lives on one machine |
+| **Office (Windows)** | `camera-traps/`, `species-classifier/`, `plataforma-territorial/` **Phase 3 only** (camera trap ingestion, thumbnail pipeline, camera Dashboard tab) | Images and GPU are here; test camera integration against real data |
+
+**Rule:** Platform repo is shared, but Phase 3 tasks = office, everything else = home. Always commit before switching machines.
+
+**Handoff protocol:**
+- Office → Home: commit reviewed CSV → pull at home → run ingestor
+- Home → Office: commit platform code → pull before starting Phase 3 work
 
 ---
 
