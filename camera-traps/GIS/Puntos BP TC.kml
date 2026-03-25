@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Schema name="cortado" id="cortado">
+	<SimpleField name="id" type="float"></SimpleField>
+	<SimpleField name="left" type="float"></SimpleField>
+	<SimpleField name="top" type="float"></SimpleField>
+	<SimpleField name="right" type="float"></SimpleField>
+	<SimpleField name="bottom" type="float"></SimpleField>
+</Schema>
+<Folder><name>cortado</name>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">4</SimpleData>
+		<SimpleData name="left">262134.065289754478727</SimpleData>
+		<SimpleData name="top">5631294.317807448096573</SimpleData>
+		<SimpleData name="right">262634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7609667570206,-39.437401594154</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">11</SimpleData>
+		<SimpleData name="left">262634.065289754478727</SimpleData>
+		<SimpleData name="top">5632794.317807448096573</SimpleData>
+		<SimpleData name="right">263134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5632294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7546312760773,-39.4240389327916</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">12</SimpleData>
+		<SimpleData name="left">262634.065289754478727</SimpleData>
+		<SimpleData name="top">5632294.317807448096573</SimpleData>
+		<SimpleData name="right">263134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5631794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7548085888295,-39.4285390620386</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">13</SimpleData>
+		<SimpleData name="left">262634.065289754478727</SimpleData>
+		<SimpleData name="top">5631794.317807448096573</SimpleData>
+		<SimpleData name="right">263134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5631294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7549859413336,-39.4330391871254</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">14</SimpleData>
+		<SimpleData name="left">262634.065289754478727</SimpleData>
+		<SimpleData name="top">5631294.317807448096573</SimpleData>
+		<SimpleData name="right">263134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7551633335995,-39.4375393080516</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">16</SimpleData>
+		<SimpleData name="left">262634.065289754478727</SimpleData>
+		<SimpleData name="top">5630294.317807448096573</SimpleData>
+		<SimpleData name="right">263134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7555182374556,-39.4465395374211</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">17</SimpleData>
+		<SimpleData name="left">262634.065289754478727</SimpleData>
+		<SimpleData name="top">5629794.317807448096573</SimpleData>
+		<SimpleData name="right">263134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629294.317807447165251</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7556957490656,-39.4510396458639</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">18</SimpleData>
+		<SimpleData name="left">262634.065289754478727</SimpleData>
+		<SimpleData name="top">5629294.317807447165251</SimpleData>
+		<SimpleData name="right">263134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5628794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7558733004767,-39.4555397501448</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">19</SimpleData>
+		<SimpleData name="left">262634.065289754478727</SimpleData>
+		<SimpleData name="top">5628794.317807448096573</SimpleData>
+		<SimpleData name="right">263134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5628294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7560508916987,-39.4600398502638</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">22</SimpleData>
+		<SimpleData name="left">263134.065289754478727</SimpleData>
+		<SimpleData name="top">5632294.317807448096573</SimpleData>
+		<SimpleData name="right">263634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5631794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.749005870572,-39.4286764430705</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">23</SimpleData>
+		<SimpleData name="left">263134.065289754478727</SimpleData>
+		<SimpleData name="top">5631794.317807448096573</SimpleData>
+		<SimpleData name="right">263634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5631294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7491828506502,-39.4331765900116</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">24</SimpleData>
+		<SimpleData name="left">263134.065289754478727</SimpleData>
+		<SimpleData name="top">5631294.317807448096573</SimpleData>
+		<SimpleData name="right">263634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7493598704067,-39.4376767327949</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">25</SimpleData>
+		<SimpleData name="left">263134.065289754478727</SimpleData>
+		<SimpleData name="top">5630794.317807448096573</SimpleData>
+		<SimpleData name="right">263634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7495369298516,-39.4421768714201</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">26</SimpleData>
+		<SimpleData name="left">263134.065289754478727</SimpleData>
+		<SimpleData name="top">5630294.317807448096573</SimpleData>
+		<SimpleData name="right">263634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7497140289945,-39.4466770058869</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">27</SimpleData>
+		<SimpleData name="left">263134.065289754478727</SimpleData>
+		<SimpleData name="top">5629794.317807448096573</SimpleData>
+		<SimpleData name="right">263634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629294.317807447165251</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7498911678453,-39.4511771361951</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">28</SimpleData>
+		<SimpleData name="left">263134.065289754478727</SimpleData>
+		<SimpleData name="top">5629294.317807447165251</SimpleData>
+		<SimpleData name="right">263634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5628794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7500683464138,-39.4556772623442</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">29</SimpleData>
+		<SimpleData name="left">263134.065289754478727</SimpleData>
+		<SimpleData name="top">5628794.317807448096573</SimpleData>
+		<SimpleData name="right">263634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5628294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7502455647099,-39.4601773843341</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">32</SimpleData>
+		<SimpleData name="left">263634.065289754478727</SimpleData>
+		<SimpleData name="top">5632294.317807448096573</SimpleData>
+		<SimpleData name="right">264134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5631794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7432031126459,-39.428813535034</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">33</SimpleData>
+		<SimpleData name="left">263634.065289754478727</SimpleData>
+		<SimpleData name="top">5631794.317807448096573</SimpleData>
+		<SimpleData name="right">264134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5631294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7433797202882,-39.4333137037835</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">34</SimpleData>
+		<SimpleData name="left">263634.065289754478727</SimpleData>
+		<SimpleData name="top">5631294.317807448096573</SimpleData>
+		<SimpleData name="right">264134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7435563675258,-39.437813868378</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">35</SimpleData>
+		<SimpleData name="left">263634.065289754478727</SimpleData>
+		<SimpleData name="top">5630794.317807448096573</SimpleData>
+		<SimpleData name="right">264134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7437330543682,-39.4423140288172</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">36</SimpleData>
+		<SimpleData name="left">263634.065289754478727</SimpleData>
+		<SimpleData name="top">5630294.317807448096573</SimpleData>
+		<SimpleData name="right">264134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7439097808254,-39.4468141851007</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">37</SimpleData>
+		<SimpleData name="left">263634.065289754478727</SimpleData>
+		<SimpleData name="top">5629794.317807448096573</SimpleData>
+		<SimpleData name="right">264134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629294.317807447165251</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7440865469072,-39.4513143372283</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">38</SimpleData>
+		<SimpleData name="left">263634.065289754478727</SimpleData>
+		<SimpleData name="top">5629294.317807447165251</SimpleData>
+		<SimpleData name="right">264134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5628794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7442633526233,-39.4558144851998</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">43</SimpleData>
+		<SimpleData name="left">264134.065289754478727</SimpleData>
+		<SimpleData name="top">5631794.317807448096573</SimpleData>
+		<SimpleData name="right">264634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5631294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7375765503312,-39.4334505284353</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">44</SimpleData>
+		<SimpleData name="left">264134.065289754478727</SimpleData>
+		<SimpleData name="top">5631294.317807448096573</SimpleData>
+		<SimpleData name="right">264634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7377528250398,-39.437950714795</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">45</SimpleData>
+		<SimpleData name="left">264134.065289754478727</SimpleData>
+		<SimpleData name="top">5630794.317807448096573</SimpleData>
+		<SimpleData name="right">264634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7379291392701,-39.4424508970022</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">46</SimpleData>
+		<SimpleData name="left">264134.065289754478727</SimpleData>
+		<SimpleData name="top">5630294.317807448096573</SimpleData>
+		<SimpleData name="right">264634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7381054930318,-39.4469510750566</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">47</SimpleData>
+		<SimpleData name="left">264134.065289754478727</SimpleData>
+		<SimpleData name="top">5629794.317807448096573</SimpleData>
+		<SimpleData name="right">264634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629294.317807447165251</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7382818863348,-39.4514512489578</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">48</SimpleData>
+		<SimpleData name="left">264134.065289754478727</SimpleData>
+		<SimpleData name="top">5629294.317807447165251</SimpleData>
+		<SimpleData name="right">264634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5628794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7384583191887,-39.4559514187055</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">54</SimpleData>
+		<SimpleData name="left">264634.065289754478727</SimpleData>
+		<SimpleData name="top">5631294.317807448096573</SimpleData>
+		<SimpleData name="right">265134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7319492430322,-39.4380872720401</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">55</SimpleData>
+		<SimpleData name="left">264634.065289754478727</SimpleData>
+		<SimpleData name="top">5630794.317807448096573</SimpleData>
+		<SimpleData name="right">265134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5630294.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7321251846406,-39.4425874759695</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">56</SimpleData>
+		<SimpleData name="left">264634.065289754478727</SimpleData>
+		<SimpleData name="top">5630294.317807448096573</SimpleData>
+		<SimpleData name="right">265134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.732301165697,-39.4470876757487</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">57</SimpleData>
+		<SimpleData name="left">264634.065289754478727</SimpleData>
+		<SimpleData name="top">5629794.317807448096573</SimpleData>
+		<SimpleData name="right">265134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629294.317807447165251</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7324771862114,-39.4515878713775</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">58</SimpleData>
+		<SimpleData name="left">264634.065289754478727</SimpleData>
+		<SimpleData name="top">5629294.317807447165251</SimpleData>
+		<SimpleData name="right">265134.065289754478727</SimpleData>
+		<SimpleData name="bottom">5628794.317807448096573</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7326532461933,-39.4560880628556</coordinates></Point>
+  </Placemark>
+  <Placemark>
+	<ExtendedData><SchemaData schemaUrl="#cortado">
+		<SimpleData name="id">67</SimpleData>
+		<SimpleData name="left">265134.065289754478727</SimpleData>
+		<SimpleData name="top">5629794.317807448096573</SimpleData>
+		<SimpleData name="right">265634.065289754478727</SimpleData>
+		<SimpleData name="bottom">5629294.317807447165251</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-71.7266724466203,-39.4517242044817</coordinates></Point>
+  </Placemark>
+</Folder>
+</Document></kml>
