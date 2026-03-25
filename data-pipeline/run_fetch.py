@@ -20,9 +20,45 @@ from src.ingest import (
 )
 
 
-def run_once(con):
-    ingest_weather_forecast(con)
-    ingest_cr800_live(con)
+def run_once():
+    """Connect, fetch, disconnect — so the DB lock is released between cycles."""
+    con = connect()
+    init_schema(con)
+    try:
+        ingest_weather_forecast(con)
+        ingest_cr800_live(con)
+    finally:
+        con.close()
+
+
+def run_backfill(path: Path):
+    con = connect()
+    init_schema(con)
+    try:
+        if path.suffix.lower() == ".dat":
+            ingest_cr800_backfill(con, path)
+        elif path.suffix.lower() == ".csv":
+            ingest_met_csv(con, path)
+        else:
+            print(f"Unknown backfill file type: {path.suffix}. Expected .dat or .csv")
+    finally:
+        con.close()
+
+
+def scheduled_open_meteo():
+    con = connect()
+    try:
+        ingest_weather_forecast(con)
+    finally:
+        con.close()
+
+
+def scheduled_cr800():
+    con = connect()
+    try:
+        ingest_cr800_live(con)
+    finally:
+        con.close()
 
 
 def main():
@@ -31,25 +67,18 @@ def main():
     parser.add_argument("--backfill", metavar="DAT_FILE", help="Backfill weather_station from a TOA5 .dat file")
     args = parser.parse_args()
 
-    con = connect()
-    init_schema(con)
-
     if args.backfill:
-        p = Path(args.backfill)
-        if p.suffix.lower() == ".dat":
-            ingest_cr800_backfill(con, p)
-        elif p.suffix.lower() == ".csv":
-            ingest_met_csv(con, p)
-        else:
-            print(f"Unknown backfill file type: {p.suffix}. Expected .dat or .csv")
+        run_backfill(Path(args.backfill))
         return
 
     if args.once:
-        run_once(con)
+        run_once()
         print("Done.")
         return
 
-    # APScheduler daemon
+    # APScheduler daemon — each job opens/closes its own connection
+    # so the DB is unlocked between fetch cycles and other processes
+    # (e.g. the FastAPI backend) can read from it.
     from apscheduler.schedulers.blocking import BlockingScheduler
 
     with open("config.yaml") as f:
@@ -57,13 +86,13 @@ def main():
 
     scheduler = BlockingScheduler()
     scheduler.add_job(
-        lambda: ingest_weather_forecast(con),
+        scheduled_open_meteo,
         "interval",
         minutes=cfg["open_meteo_interval_minutes"],
         id="open_meteo",
     )
     scheduler.add_job(
-        lambda: ingest_cr800_live(con),
+        scheduled_cr800,
         "interval",
         minutes=cfg["cr800_interval_minutes"],
         id="cr800",
@@ -75,7 +104,7 @@ def main():
     print("  Press Ctrl+C to stop.")
 
     # Run immediately on start
-    run_once(con)
+    run_once()
 
     try:
         scheduler.start()

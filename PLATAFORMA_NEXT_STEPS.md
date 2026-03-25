@@ -34,33 +34,52 @@ Implicaciones:
 
 ## Prioridad 1 — Data Pipeline (`data-pipeline/`)
 
-**Estado: No construido. Bloquea todo lo demás.**
+**Estado: OPERATIVO. Corriendo como systemd service (`fma-pipeline.service`).**
 
-Sin este pipeline, la plataforma siempre mostrará datos mock. Es la primera cosa que hay que construir.
+Pipeline completo con datos reales fluyendo:
+- `weather_station`: 261,302 rows (CR800 cada 15 min, fetch semanal via Tailscale)
+- `weather_forecast`: 552 rows (Open-Meteo cada 60 min, 7 días de pronóstico horario)
+- `ct_observations`: 6,030 rows (2,428 animales, 25 especies)
+- `ct_media`: 18,473 rows, `ct_deployments`: 65 estaciones
 
-### Versión mínima (desbloquea la plataforma)
-- [ ] Crear esquema DuckDB (`fma_data.duckdb`) con tablas: `weather_station`, `weather_forecast`, `camera_trap`, `fire_risk`
-- [ ] Ingestor de CSV de Timelapse2 (exportaciones manuales de cámara trampa)
-- [ ] Fetch de Open-Meteo API → tabla `weather_forecast`
-- [ ] Script de cálculo de índice FRI → tabla `fire_risk` (reutilizar lógica de `Estacion meteorologica/`)
+### Completado
+- [x] Esquema DuckDB con 6 tablas (weather_station, weather_forecast, ct_deployments, ct_media, ct_observations, literature)
+- [x] Ingestor de CSV Timelapse2 (camera_trap_legacy parser)
+- [x] Fetch de Open-Meteo API → weather_forecast
+- [x] Fetch remoto del CR800 vía Tailscale VPN → weather_station
+- [x] APScheduler daemon con systemd service
+- [x] Deduplicación (INSERT OR REPLACE) y dynamic column addition
+- [x] Fix: conexiones short-lived para permitir acceso concurrente del backend
 
-### Versión completa (después de lo mínimo)
-- [ ] Fetch remoto del datalogger CR800 vía Tailscale VPN → tabla `weather_station`
-- [ ] Deduplicación y validación de esquema en ingestión
-- [ ] Scheduling con cron o APScheduler
-- [ ] Tabla `literatura` para recibir papers del literature-agent
+### Pendiente
+- [ ] Tabla `literatura` pendiente de poblar (literatura-agent no construido)
+- [ ] Ingestor de Camtrap DP (parser existe, no testeado con datos reales)
+- [ ] Watcher de carpeta incoming (código existe, no activado)
 
 ---
 
 ## Prioridad 2 — Portar el Fire Risk Dashboard a la plataforma
 
-**Estado: Dashboard standalone completo en `Estacion meteorologica/Fire risk dashboard/`**
+**Estado: BACKEND COMPLETO. Frontend pendiente de conectar.**
 
-El código ya existe y funciona. Solo hay que integrarlo.
+FastAPI backend operativo en `plataforma-territorial/backend/` con endpoints:
+- `GET /api/fire-risk/current` — riesgo actual (rule-based FRI con datos CR800 en vivo)
+- `GET /api/fire-risk/forecast` — pronóstico de riesgo 7 días (Open-Meteo)
+- `GET /api/weather/current`, `/history`, `/forecast` — datos meteorológicos
+- `GET /api/detections/recent`, `/species-summary`, `/stations` — cámaras trampa
+- `GET /api/health` — health check
 
-- [ ] Portar `risk_calculator.py` y `fire_model.pkl` como módulo compartido
-- [ ] Conectar el tab "Riesgo de Incendio" del Dashboard a datos reales de DuckDB (en lugar de mock)
-- [ ] Incluir el índice ML (Random Forest) además del índice de reglas en la vista
+### Completado
+- [x] Portar `risk_calculator.py` como módulo en backend (`fire_risk.py`)
+- [x] Endpoints de riesgo actual y pronóstico con datos reales de DuckDB
+- [x] Endpoints de clima (actual, historial, pronóstico)
+- [x] Endpoints de cámaras trampa (detecciones, resumen de especies, estaciones)
+- [x] CORS configurado para dev (localhost:5173)
+
+### Pendiente
+- [ ] Conectar frontend React a los endpoints reales (reemplazar mock data)
+- [ ] Reentrenar `fire_model.pkl` con scikit-learn actual (pickle incompatible)
+- [ ] Incluir el índice ML además del índice de reglas en la vista
 
 ---
 
