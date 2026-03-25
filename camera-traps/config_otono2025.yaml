@@ -1,7 +1,7 @@
 # ─── Paths ────────────────────────────────────────────────────────────────────
 campaign_dir: "C:/Users/USUARIO/SynologyDrive/2. Camaras trampa (SC)/SynologyDrive/DATOS_GRILLA CÁMARAS TRAMPA/2. CAMPAÑAS DE RECOLECCION DE IMAGENES/Otoño 2025/Fotos"
 megadetector_json: "timelapse_recognition_file.json"
-database:         "CamtrapDB_Otono_2025.ddb"
+database:         "TimelapseData.ddb"
 input_csv:        "ImageData_animals.csv"
 output_csv:       "ImageData_animals_classified.csv"
 
