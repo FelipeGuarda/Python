@@ -2,6 +2,10 @@ import { useState, useEffect, useRef, Component } from "react";
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell } from "recharts";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
+import {
+  getFireRiskCurrent, getFireRiskForecast, getSpeciesSummary,
+  transformRiskForecast, transformSpeciesSummary,
+} from "./api.js";
 
 // ── Color System (designer's green palette) ──
 const C = {
@@ -39,7 +43,24 @@ class ErrorBoundary extends Component {
   }
 }
 
-// ── Mock Data ──
+// ── Shared data-fetching hook ──
+function useAPI(fetchFn, transformFn, deps = []) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchFn()
+      .then(raw => { if (!cancelled) setData(transformFn ? transformFn(raw) : raw); })
+      .catch(err => { if (!cancelled) setError(err.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, deps);
+  return { data, loading, error };
+}
+
+// ── Mock Data (partially replaced by API) ──
 
 const weeklyRisk = [
   { dia: "Lun", riesgo: 32, temp: 18, humedad: 55 },
@@ -664,6 +685,10 @@ function Observatorio() {
   const [cameras, setCameras] = useState(null);
   const [showBoundary, setShowBoundary] = useState(true);
   const [showCams, setShowCams] = useState(true);
+  const { data: riskData } = useAPI(getFireRiskCurrent, null, []);
+
+  const riskTotal = riskData?.rule_based?.total ? Math.round(riskData.rule_based.total) : null;
+  const wx = riskData?.weather || {};
 
   useEffect(() => {
     fetch("/data/boundary.geojson").then(r => r.json()).then(setBoundary);
@@ -776,15 +801,20 @@ function Observatorio() {
         </Card>
         <Card>
           <SectionLabel>Riesgo de incendio</SectionLabel>
-          <RiskGauge value={67} />
+          <RiskGauge value={riskTotal ?? 0} />
+          {riskData?.rule_based?.label && (
+            <div style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: 4 }}>
+              {riskData.rule_based.label}
+            </div>
+          )}
         </Card>
         <Card>
           <SectionLabel>Meteorología</SectionLabel>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
-            <StatBlock value="14.2" unit="°C" label="Temperatura" />
-            <StatBlock value="62" unit="%" label="Humedad" />
-            <StatBlock value="12" unit="km/h" label="Viento" />
-            <StatBlock value="12" unit="días" label="Sin lluvia" color={C.amber} />
+            <StatBlock value={wx.temperature_c != null ? wx.temperature_c.toFixed(1) : "—"} unit="°C" label="Temperatura" />
+            <StatBlock value={wx.relative_humidity_pct != null ? Math.round(wx.relative_humidity_pct) : "—"} unit="%" label="Humedad" />
+            <StatBlock value={wx.wind_speed_kmh != null ? wx.wind_speed_kmh.toFixed(0) : "—"} unit="km/h" label="Viento" />
+            <StatBlock value={wx.days_without_rain ?? "—"} unit="días" label="Sin lluvia" color={C.amber} />
           </div>
         </Card>
         <Card>
@@ -804,6 +834,15 @@ function Dashboard() {
   const [tab, setTab] = useState("riesgo");
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  const { data: riskCurrent } = useAPI(getFireRiskCurrent, null, []);
+  const { data: riskForecast } = useAPI(getFireRiskForecast, transformRiskForecast, []);
+  const { data: speciesApiData } = useAPI(getSpeciesSummary, transformSpeciesSummary, []);
+
+  const riskTotal = riskCurrent?.rule_based?.total ? Math.round(riskCurrent.rule_based.total) : 0;
+  const wx = riskCurrent?.weather || {};
+  const speciesChartData = speciesApiData || speciesData;
+
   const tabs = [
     { id: "riesgo", label: "Riesgo de Incendio" },
     { id: "meteo", label: "Meteorologia" },
@@ -834,18 +873,18 @@ function Dashboard() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <Card>
               <SectionLabel>Indice actual</SectionLabel>
-              <RiskGauge value={67} />
+              <RiskGauge value={riskTotal} />
               <div style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
-                Formula: FRI = 0.35*T + 0.25*(100-H) + 0.20*V + 0.20*D
+                FRI: temp (0-25) + humedad inv (0-25) + viento (0-15) + días sin lluvia (0-35)
               </div>
             </Card>
             <Card>
               <SectionLabel>Factores contributivos</SectionLabel>
               <div style={{ marginTop: 8 }}>
-                {[{ label: "Temperatura", value: 26, max: 40, color: C.red },
-                  { label: "Humedad (inv)", value: 72, max: 100, color: C.amber },
-                  { label: "Viento", value: 18, max: 50, color: C.medGreen },
-                  { label: "Dias sin lluvia", value: 12, max: 30, color: C.amber }].map(f => (
+                {[{ label: "Temperatura", value: wx.temperature_c ?? 0, max: 40, color: C.red },
+                  { label: "Humedad (inv)", value: 100 - (wx.relative_humidity_pct ?? 50), max: 100, color: C.amber },
+                  { label: "Viento", value: wx.wind_speed_kmh ?? 0, max: 50, color: C.medGreen },
+                  { label: "Días sin lluvia", value: wx.days_without_rain ?? 0, max: 30, color: C.amber }].map(f => (
                   <div key={f.label} style={{ marginBottom: 10 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
                       <span style={{ color: C.text }}>{f.label}</span>
@@ -863,7 +902,7 @@ function Dashboard() {
             <SectionLabel>Riesgo ultimos 7 dias</SectionLabel>
             <div style={{ fontFamily: "'Georgia', serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>Tendencia semanal</div>
             <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={weeklyRisk}>
+              <AreaChart data={riskForecast || weeklyRisk}>
                 <defs>
                   <linearGradient id="riskGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={C.red} stopOpacity={0.2} />
@@ -925,15 +964,17 @@ function Dashboard() {
           <Card>
             <SectionLabel>Detecciones por especie (ultimo mes)</SectionLabel>
             <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={speciesData} layout="vertical" margin={{ left: 100 }}>
+              <BarChart data={speciesChartData} layout="vertical" margin={{ left: 100 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
                 <YAxis type="category" dataKey="nombre" tick={{ fontSize: 11, fill: C.text }} axisLine={{ stroke: C.mint }} width={100} />
                 <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }} />
                 <Bar dataKey="detecciones" radius={[0, 4, 4, 0]} name="Detecciones">
-                  {speciesData.map((entry, i) => (
-                    <Cell key={i} fill={["Puma", "Guina"].includes(entry.nombre) ? C.amber : ["Jabali", "Liebre europea"].includes(entry.nombre) ? C.red : C.deepGreen} />
-                  ))}
+                  {speciesChartData.map((entry, i) => {
+                    const invasive = /sus scrofa|lepus|jabali|liebre/i.test(entry.nombre);
+                    const priority = /puma|leopardus|guiña|guina/i.test(entry.nombre);
+                    return <Cell key={i} fill={priority ? C.amber : invasive ? C.red : C.deepGreen} />;
+                  })}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -953,10 +994,10 @@ function Dashboard() {
             <Card>
               <SectionLabel>Resumen del mes</SectionLabel>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
-                <StatBlock value="978" label="Total detecciones" />
-                <StatBlock value="8" label="Especies" />
-                <StatBlock value="5" label="Camaras activas" />
-                <StatBlock value="31" label="Dias muestreados" />
+                <StatBlock value={speciesApiData ? speciesApiData.reduce((s, d) => s + d.detecciones, 0) : "—"} label="Total detecciones" />
+                <StatBlock value={speciesApiData ? speciesApiData.length : "—"} label="Especies" />
+                <StatBlock value={speciesApiData ? "—" : "—"} label="Cámaras activas" />
+                <StatBlock value="—" label="Días muestreados" />
               </div>
             </Card>
             <Card>
