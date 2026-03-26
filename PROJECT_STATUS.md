@@ -1,108 +1,34 @@
 # FMA Project Status
 
-**Last updated:** 2026-03-23
+**Last updated:** 2026-03-25
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Field site:** Bosque Pehuén, La Araucanía, Chile (-39.44°, -71.74°)
+**Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
 ---
 
 ## Two-Machine Architecture
 
-| Machine | Role | OS |
+| Machine | Role | Projects |
 |---|---|---|
-| **Laptop** (PopOS Linux) | Code, DuckDB, React frontend, data pipeline, platform | Linux |
-| **Office desktop** (Windows) | Raw image analysis: MegaDetector, CLIP, Timelapse2 review | Windows |
+| **Laptop** (PopOS Linux) | Code, DuckDB, data pipeline, React frontend + FastAPI backend | `data-pipeline/`, `plataforma-territorial/`, `literatura-agent/`, `visualizaciones-artisticas/` |
+| **Office desktop** (Windows) | GPU-dependent raw analysis: MegaDetector, CLIP, Timelapse2 review | `camera-traps/`, `plataforma-territorial/` Phase 3 only (camera tab) |
 
-**The split:** GPU-dependent raw analysis (image classification, object detection) runs on the Windows desktop. Once a reviewed CSV or DuckDB file is produced, everything downstream is cross-platform and runs on the laptop. Camera-traps code has intentional Windows paths for this reason.
+**Rule:** Platform repo is shared, but Phase 3 camera tasks = office, everything else = home. Always commit before switching machines.
+
+**Handoff protocol:**
+- Office → Home: commit reviewed CSV → pull at home → run ingestor
+- Home → Office: commit platform code → pull before starting Phase 3 work
 
 ---
 
-## Project Overview
+## Pending Decision: React vs Streamlit
 
-| Project | Directory | Stage | What it does |
-|---|---|---|---|
-| Data Pipeline | `data-pipeline/` | Built, needs first production run | DuckDB ingestion: CR800 weather, Open-Meteo, camera trap CSVs |
-| Plataforma Territorial | `plataforma-territorial/` | Frontend working, backend not started | React app: map, dashboard, AI chat, reports |
-| Camera Traps | `camera-traps/` | Working pipeline, Otoño 2025 pending | CLIP classification + Streamlit review UI |
-| Literatura Agent | `literatura-agent/` | Complete and deployed | Weekly paper fetch + Claude summary → email |
-| Schedule Agent | `schedule-agent/` | Complete and deployed | Monday scheduling: Google Tasks → Claude → Calendar |
-| Visualizaciones | `visualizaciones-artisticas/` | Volumetric bird songs done, others planned | Generative art from field data |
+The README for `plataforma-territorial/` describes a Streamlit app. What exists and works today is a React/Vite prototype (`plataforma-demo/`).
 
----
+**Before building real modules, decide:** does the React prototype become the definitive version, or do we build the Streamlit version from the README?
 
-## Detailed Status by Project
-
-### 1. Data Pipeline (`data-pipeline/`)
-
-All 5 build phases complete. Code is production-ready.
-
-| Component | Status | Notes |
-|---|---|---|
-| DuckDB schema (6 tables) | Done | `fma_data.duckdb` exists at 42 MB |
-| Open-Meteo fetcher | Done | Working, schedulable every 60 min |
-| Camera trap legacy parser | Done | Parses Timelapse2 CSV (18,473 rows) |
-| Camtrap DP parser | Done | Awaiting test data from real DP package |
-| TOA5 parser (CR800 backfill) | Done | For historical .dat files |
-| CR800 live fetcher | Done | **Working** — DuckDB has data through Mar 2026 |
-| File watcher daemon | Done | Monitors `data/incoming/` |
-| APScheduler daemon | Done | Open-Meteo hourly, CR800 weekly |
-| systemd user service | **Done** | `~/.config/systemd/user/fma-pipeline.service` — enabled, starts on boot |
-
-**Next action:** No action needed. Pipeline runs as a background service; restarts on failure and on boot.
-
-### 2. Plataforma Territorial (`plataforma-territorial/`)
-
-React/Vite frontend with 4 pages. Observatorio page has a real Leaflet map with satellite imagery, boundary polygon, and 25 camera trap markers. Other 3 pages use mock data.
-
-| Component | Status | Notes |
-|---|---|---|
-| Observatorio (map) | Real data | Leaflet + Esri satellite + boundary.geojson + 25 cameras |
-| Dashboard — Meteo tab | **Real data** | Variable selector, date range, resolution, wind rose, stats table, **comparison mode** |
-| Dashboard — other tabs | Mock data | Fire risk, cameras, fauna still mock |
-| Asistente (AI chat) | Mock data | Placeholder responses |
-| Reportes (newsletter) | Mock data | Draft generator with typing animation |
-| FastAPI backend | **Started** | `/api/weather/current` + `/api/weather/history` built and working |
-| Station coordinates | Done | `data/stations.yaml` + GeoJSON files |
-| BP boundary polygon | Done | **Under review — confirm delimitation** |
-
-**Next action:** Port fire risk dashboard to FastAPI (Phase 2.3 in NEXT_STEPS.md).
-
-**Branch:** `feature/weather-dashboard` is the active branch (includes real map + meteo dashboard).
-
-### 3. Camera Traps (`camera-traps/`)
-
-CLIP classification pipeline and Streamlit review UI are production-quality. Primavera 2025 data has been processed. Otoño 2025 images retrieved but not yet classified.
-
-| Component | Status | Notes |
-|---|---|---|
-| MegaDetector integration | Done | Via AddaxAI on Windows desktop |
-| CLIP classification | Done | `run_classification.py` |
-| Streamlit review UI | Done | `phase1_labeling/app.py` |
-| GIS data (KML → GeoJSON) | Done | Boundary + 25 station coordinates extracted |
-| Otoño 2025 classification | Pending | Images on desktop, needs MegaDetector → CLIP → review |
-| EfficientNetV2 fine-tuning | Planned | Needs enough reviewed data (≥50 images/species) |
-
-**Next action:** Process Otoño 2025 through the pipeline on the office desktop.
-
-**Note:** `config.yaml` and `NEXT_SESSION.md` have Windows paths — this is intentional (raw analysis runs on Windows desktop).
-
-### 4. Literatura Agent (`literatura-agent/`)
-
-Complete and running on weekly cron. Fetches papers from arXiv, SciELO, PMC, CORE, OpenAlex. Summarizes in Spanish via Claude Haiku. Sends HTML email.
-
-**Status:** Deployed, no action needed. Has its own improvement roadmap (relevance scoring, feedback loop).
-
-### 5. Schedule Agent (`schedule-agent/`)
-
-Complete and deployed. Monday scheduling: reads Google Tasks → Claude generates weekly plan → creates Google Calendar events → Flask approval UI.
-
-**Status:** Deployed, no action needed.
-
-### 6. Visualizaciones Artísticas (`visualizaciones-artisticas/`)
-
-Generative art from field data. Volumetric bird songs visualization is complete. Other pieces (Retrato Diario, Constelación de Especies) are planned but awaiting real DuckDB data.
-
-**Status:** Waiting on data pipeline + platform to provide real data.
+- **React:** more visual control, better for the Observatorio (interactive map, animations), requires maintaining frontend + backend separately.
+- **Streamlit:** faster to connect to Python/DuckDB, less friction for data modules, but visual limitations in the Observatorio.
 
 ---
 
@@ -124,48 +50,180 @@ visualizaciones-artisticas (reads DuckDB for art generation)
 
 ---
 
-## Open Items / Reminders
+## Project Status
 
-- [ ] **TC-26 coordinates** — grid 22, SD M23. Spreadsheet has wrong coords (30 km off). Get correct GPS from field team.
-- [ ] **BP boundary delimitation** — polygon under review. Confirm which version to use.
+### 1. Data Pipeline (`data-pipeline/`) — OPERATIVO
+
+Running as systemd service (`fma-pipeline.service`). Full pipeline with real data flowing.
+
+**Live data:** 261,302 rows weather_station · 552 rows weather_forecast · 6,030 rows ct_observations (2,428 animals, 25 species) · 18,473 rows ct_media · 65 ct_deployments
+
+| Component | Status | Notes |
+|---|---|---|
+| DuckDB schema (6 tables) | Done | `fma_data.duckdb` ~42 MB |
+| Open-Meteo fetcher | Done | Hourly, 7-day forecast |
+| Camera trap legacy parser | Done | Parses Timelapse2 CSV |
+| Camtrap DP parser | Done | Awaiting test with real DP package |
+| TOA5 parser (CR800 backfill) | Done | For historical .dat files |
+| CR800 live fetcher | Done | Working via Tailscale VPN |
+| File watcher daemon | Done | Monitors `data/incoming/` (not activated) |
+| APScheduler daemon | Done | Open-Meteo hourly, CR800 weekly |
+| systemd user service | **Done** | Enabled, starts on boot |
+
+**Pending:**
+- [ ] Tabla `literatura` pendiente de poblar (literatura-agent integration)
+- [ ] Camtrap DP parser: test with real data
+- [ ] Watcher de carpeta incoming: activate
+
+---
+
+### 2. Plataforma Territorial (`plataforma-territorial/`) — EN PROGRESO
+
+React/Vite frontend with 4 pages. FastAPI backend operational with real endpoints.
+
+| Component | Status | Notes |
+|---|---|---|
+| Observatorio (map) | Real data | Leaflet + Esri satellite + boundary.geojson + 25 cameras |
+| Dashboard — Meteo tab | **Real data** | Variable selector, date range, wind rose, comparison mode |
+| Dashboard — Fire risk tab | Mock data | Backend ready, frontend not connected |
+| Dashboard — Cameras/Fauna tabs | Mock data | Pending |
+| Asistente (AI chat) | Mock data | Placeholder responses |
+| Reportes (newsletter) | Mock data | Draft generator with typing animation |
+| FastAPI backend | **Working** | Weather, fire risk, detections, species endpoints live |
+| Station coordinates | Done | `data/stations.yaml` + GeoJSON files |
+| BP boundary polygon | Done | **Under review — confirm delimitation** |
+
+**FastAPI endpoints live:**
+- `GET /api/weather/current`, `/history`, `/forecast`
+- `GET /api/fire-risk/current`, `/forecast`
+- `GET /api/detections/recent`, `/species-summary`, `/stations`
+- `GET /api/health`
+
+**Priority 1 — Connect frontend to real endpoints:**
+- [ ] Replace mock data in fire risk, cameras, fauna tabs with real API calls
+- [ ] Retrain `fire_model.pkl` with current scikit-learn (pickle incompatible)
+- [ ] Include ML index alongside rule-based index in fire risk view
+
+**Priority 2 — Asistente with real Claude API:**
+- [ ] Connect Asistente tab to Claude API (Sonnet + tool use)
+- [ ] Implement DuckDB query tools: current risk, recent detections, trends
+- [ ] Each response with calculated values must cite its formula and input data (methodological transparency)
+
+**Priority 3 — Observatorio: real map layers:**
+- [ ] Verify real coordinates for all camera stations and weather station
+- [ ] Add optional layers: fire risk zones, historical fire perimeters
+
+---
+
+### 3. Camera Traps (`camera-traps/`) — FASE 1 OPERATIVA
+
+CLIP classification pipeline and Streamlit review UI are production-quality. Primavera 2025 data processed. Otoño 2025 images retrieved but not classified.
+
+| Component | Status | Notes |
+|---|---|---|
+| MegaDetector integration | Done | Via AddaxAI on Windows desktop |
+| CLIP classification | Done | `run_classification.py` |
+| Streamlit review UI | Done | `phase1_labeling/app.py` |
+| GIS data (KML → GeoJSON) | Done | Boundary + 25 station coordinates |
+| Otoño 2025 classification | **Pending** | Images on desktop, needs MegaDetector → CLIP → review |
+| EfficientNetV2 fine-tuning | Planned | Needs ≥50 reviewed images/species |
+
+**Next action (office desktop):** Process Otoño 2025 through the full pipeline.
+
+Note: `config.yaml` and `NEXT_SESSION.md` have Windows paths — intentional (raw analysis runs on Windows desktop).
+
+---
+
+### 4. Literatura Agent (`literatura-agent/`) — DEPLOYED
+
+Complete and running on weekly cron. Fetches papers from arXiv, SciELO, PMC, CORE, OpenAlex. Summarizes in Spanish via Claude Haiku. Sends HTML email.
+
+**Status:** No action needed. Has its own improvement roadmap (relevance scoring, feedback loop).
+
+---
+
+### 5. Schedule Agent (`schedule-agent/`) — DEPLOYED
+
+Monday scheduling: reads Google Tasks → Claude generates weekly plan → creates Google Calendar events → Flask approval UI.
+
+**Status:** No action needed.
+
+---
+
+### 6. Visualizaciones Artísticas (`visualizaciones-artisticas/`) — EN ESPERA
+
+Generative art from field data. Requires real DuckDB data. Volumetric bird songs visualization is complete.
+
+- [ ] **Retrato Diario:** generative daily portrait of territory (risk + weather + detected species)
+- [ ] **Constelación de Especies:** circular star map by activity time, distance by rarity
+- [ ] **Río de Sonidos:** bird song visualization (requires audio files — see Acoustic Devices below)
+- [ ] **Año Térmico:** circular calendar of annual temperature and risk
+
+---
+
+### 7. Dispositivos Acústicos — SIN CÓDIGO (datos aún no recuperados)
+
+FMA has acoustic monitoring devices deployed in the field. Audio files not yet downloaded.
+
+**Fase 1 — Recuperación e ingesta:**
+- [ ] Download recordings from physical devices
+- [ ] Define folder structure and naming convention (device, date, time)
+- [ ] Add audio ingestor to data-pipeline: folder watcher → `acoustic` table in DuckDB (metadata only: device, timestamp, duration, file path)
+
+**Fase 2 — Análisis de audio:**
+- [ ] Species identification by vocalization — primary option: **BirdNET** (Cornell Lab, open source)
+- [ ] Output: acoustic detections with species, confidence, timestamp → `acoustic_detections` table
+- [ ] Integrate acoustic detections into pipeline alongside camera trap detections
+
+**Fase 3 — Platform integration:**
+- [ ] New "Acústica" tab in Dashboard or expand Fauna tab
+- [ ] Acoustic device markers on Observatorio map
+- [ ] Camera trap vs acoustic comparison for same species
+
+Note: `visualizaciones-artisticas/` has the "Río de Sonidos" concept already designed, plus a reference project in `Volumetric bird songs/`. Audio files from this project feed those visualizations directly.
+
+---
+
+## Open Items
+
 - [ ] **TC-26 coordinates** — grid 22, SD M23. Spreadsheet has wrong coords (30 km off). Get correct GPS from field team.
 - [ ] **BP boundary delimitation** — polygon under review. Confirm which version to use.
 - [ ] **Otoño 2025 camera trap processing** — images on desktop, needs full pipeline run.
 - [ ] **Flora plot coordinates** — not yet available.
-- [x] **Meteo tab observations** — label fixed to "Última medición", wind rose moved below charts (larger).
-- [x] **Comparison mode** — implemented. Two-period comparison with stacked charts, side-by-side wind roses, dual stats table. Frontend-only, no backend changes.
-- [ ] **Fire risk dashboard port** — logic lives at `Estacion meteorologica/Fire risk dashboard/`, needs porting to FastAPI.
+- [ ] **Aves en BP/** — contains bird list comparison notebooks and Excel files. No README. Appears to be taxonomic reference data for camera trap species list. Document before using in platform.
+- [x] **Meteo tab** — label fixed to "Última medición", wind rose moved below charts (larger).
+- [x] **Comparison mode** — implemented. Two-period comparison with stacked charts, side-by-side wind roses, dual stats table.
+- [x] **Fire risk backend** — `fire_risk.py` ported to FastAPI with real DuckDB data.
 
 ---
 
-## File Map (what lives where)
+## File Map
 
 ```
 /home/fguarda/Dev/Python/                ← git repo root
-├── PROJECT_STATUS.md                    ← THIS FILE — consolidated status
+├── PROJECT_STATUS.md                    ← THIS FILE
 ├── GIT_WORKFLOW_GUIDE.md                ← git workflow reference
-├── fma_data.duckdb                      ← central database (42 MB)
+├── fma_data.duckdb                      ← central database (~42 MB)
 │
 ├── camera-traps/                        ← image analysis pipeline (Windows + Linux)
-│   ├── README.md                        ← project docs
+│   ├── README.md
 │   ├── NEXT_SESSION.md                  ← Windows desktop session notes
 │   ├── GIS/                             ← source KML/Excel files
-│   └── old animal data DB.csv           ← legacy Timelapse2 export (18,473 rows)
+│   └── old animal data DB.csv           ← legacy Timelapse2 export
 │
 ├── data-pipeline/                       ← DuckDB ingestion service
-│   ├── README.md                        ← project docs (updated)
+│   ├── README.md
 │   ├── BUILD_CONTEXT.md                 ← original build spec (reference)
-│   ├── config.yaml                      ← runtime config
-│   ├── schema.sql                       ← table definitions
+│   ├── config.yaml
+│   ├── schema.sql
 │   ├── run_fetch.py                     ← scheduler/CLI entry point
 │   ├── run_watcher.py                   ← file watcher entry point
-│   └── src/                             ← all pipeline code
+│   └── src/
 │
-├── plataforma-territorial/              ← React platform
-│   ├── README.md                        ← project docs (updated)
-│   ├── NEXT_STEPS.md                    ← detailed phase plan
+├── plataforma-territorial/              ← React platform + FastAPI backend
+│   ├── README.md
 │   ├── data/                            ← GeoJSON + stations.yaml
-│   ├── backend/                         ← FastAPI backend (weather endpoints live)
+│   ├── backend/                         ← FastAPI (weather, fire risk, detections)
 │   └── plataforma-demo/                 ← React/Vite app
 │
 ├── literatura-agent/                    ← weekly paper summarizer (deployed)
