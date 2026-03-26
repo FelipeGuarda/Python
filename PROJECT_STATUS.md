@@ -125,10 +125,14 @@ CLIP classification pipeline and Streamlit review UI are production-quality. Pri
 | CLIP classification | Done | `run_classification.py` |
 | Streamlit review UI | Done | `phase1_labeling/app.py` |
 | GIS data (KML → GeoJSON) | Done | Boundary + 25 station coordinates |
-| Otoño 2025 classification | **Pending** | Images on desktop, needs MegaDetector → CLIP → review |
-| EfficientNetV2 fine-tuning | Planned | Needs ≥50 reviewed images/species |
+| Otoño 2025 classification | **Done** | 694 animal obs reviewed, CSV backed up in git |
+| Species image export | **Done** | Top 5/species/campaign via `export_best_images.py`; 131 images in `exports/` (gitignored) |
+| EfficientNetV2 fine-tuning | Planned | Needs ≥50 reviewed images/species — now viable for common species |
+| Otoño 2025 videos | Deferred | 2,593 videos, MegaDetector not run — process post-migration on Linux |
 
-**Next action (office desktop):** Process Otoño 2025 through the full pipeline.
+**Pre-migration GPU work: COMPLETE.** Both campaigns reviewed. Ready for OS migration.
+
+**Post-migration next steps (Linux):** Run `export_best_images.py` after NAS re-download, then write DuckDB parser for reviewed CSVs.
 
 Note: `config.yaml` and `NEXT_SESSION.md` have Windows paths — intentional (raw analysis runs on Windows desktop).
 
@@ -188,7 +192,7 @@ Note: `visualizaciones-artisticas/` has the "Río de Sonidos" concept already de
 
 - [ ] **TC-26 coordinates** — grid 22, SD M23. Spreadsheet has wrong coords (30 km off). Get correct GPS from field team.
 - [ ] **BP boundary delimitation** — polygon under review. Confirm which version to use.
-- [ ] **Otoño 2025 camera trap processing** — images on desktop, needs full pipeline run.
+- [x] **Otoño 2025 camera trap processing** — done. Both campaigns reviewed, backed up, species images exported.
 - [ ] **Flora plot coordinates** — not yet available.
 - [ ] **Aves en BP/** — contains bird list comparison notebooks and Excel files. No README. Appears to be taxonomic reference data for camera trap species list. Document before using in platform.
 - [x] **Meteo tab** — label fixed to "Última medición", wind rose moved below charts (larger).
