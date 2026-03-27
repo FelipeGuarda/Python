@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-03-25
+**Last updated:** 2026-03-27
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -80,16 +80,18 @@ Running as systemd service (`fma-pipeline.service`). Full pipeline with real dat
 ### 2. Plataforma Territorial (`plataforma-territorial/`) — EN PROGRESO
 
 React/Vite frontend with 4 pages. FastAPI backend operational with real endpoints.
+**Access:** `plataforma` alias → `http://localhost:8000` (single process, no Vite dev server needed).
 
 | Component | Status | Notes |
 |---|---|---|
 | Observatorio (map) | Real data | Leaflet + Esri satellite + boundary.geojson + 25 cameras |
-| Dashboard — Meteo tab | **Real data** | Variable selector, date range, wind rose, comparison mode |
+| Dashboard — Meteo tab | **Real data** | Year of history, variable selector, wind rose, comparison mode |
 | Dashboard — Fire risk tab | Mock data | Backend ready, frontend not connected |
 | Dashboard — Cameras/Fauna tabs | Mock data | Pending |
 | Asistente (AI chat) | Mock data | Placeholder responses |
 | Reportes (newsletter) | Mock data | Draft generator with typing animation |
-| FastAPI backend | **Working** | Weather, fire risk, detections, species endpoints live |
+| FastAPI backend | **Working** | Serves API + built frontend from single port 8000 |
+| Deployment | **Done** | `fma-platform` systemd service + `plataforma`/`plataforma-stop` aliases |
 | Station coordinates | Done | `data/stations.yaml` + GeoJSON files |
 | BP boundary polygon | Done | **Under review — confirm delimitation** |
 

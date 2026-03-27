@@ -5,14 +5,25 @@ Serves weather, fire risk, and camera trap data from fma_data.duckdb.
 The data-pipeline systemd service writes to the DB on a schedule;
 this backend reads from it.
 
-Run:
-    uvicorn backend.main:app --reload --port 8000
+Normal use (single process, serves UI + API):
+    uvicorn backend.main:app --port 8000
+    → open http://localhost:8000
+
+Frontend development (hot reload):
+    uvicorn backend.main:app --port 8000   (terminal 1)
+    cd plataforma-demo && npm run dev      (terminal 2)
+    → open http://localhost:5173
 """
+
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .routers import weather, fire_risk_router, detections
+
+DIST_DIR = Path(__file__).resolve().parent.parent / "plataforma-demo" / "dist"
 
 app = FastAPI(
     title="FMA Plataforma Territorial API",
@@ -48,3 +59,9 @@ def health():
         return {"status": "ok", "weather_station_rows": count}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+
+# Serve the built React app — must be mounted AFTER all API routes.
+# Run `cd plataforma-demo && npm run build` to update after frontend changes.
+if DIST_DIR.exists():
+    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")
