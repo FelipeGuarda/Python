@@ -34,9 +34,9 @@ The pipeline is built but `config.yaml` has a Linux DB path. Update for current 
 
 Completed 2026-03-18. KML files converted to GeoJSON, Excel field data parsed:
 - `data/boundary.geojson` — reserve polygon (86 vertices)
-- `data/camera_trap_stations.geojson` — 25 cameras with real field coordinates
-- `data/stations.yaml` — weather station (centroid) + 25 cameras
-- TC-26 excluded (erroneous coordinates in spreadsheet — TODO: get correct coords)
+- `data/camera_trap_stations.geojson` — 26 cameras with real field coordinates
+- `data/stations.yaml` — weather station (centroid) + 26 cameras
+- TC-26 coordinates corrected (2026-03-30): Excel had DMS format (39.25447 → 39°25'44.7"S), not decimal degrees — fixed to [-71.74894, -39.42908]
 - **NOTE:** BP boundary delimitation is under review — confirm which polygon to use
 
 ### 1.3 Build FastAPI backend skeleton
@@ -294,9 +294,8 @@ Everything else can start immediately on the laptop.
 
 - [x] Consulting firm's Streamlit repo → available at `C:/Dev/Python/tres_hermanas_sitio/`
 - [x] Bosque Pehuén boundary polygon → converted from areaBP.kml to GeoJSON (2026-03-18)
-- [x] Camera trap station coordinates → parsed from Excel field data, 25 of 26 cameras (2026-03-18)
+- [x] Camera trap station coordinates → all 26 cameras added (TC-26 fixed 2026-03-30)
 - [x] CR800 weather station coordinates → using park centroid -39.4417, -71.7420 (2026-03-18)
-- [ ] TC-26 correct coordinates (grid 22, SD M23) → erroneous in spreadsheet
 - [ ] Confirm BP boundary delimitation (under review)
 - [ ] Flora plot coordinates (if available)
 - [ ] Confirm Tailscale VPN to CR800 (`100.97.202.90:2000`) is active

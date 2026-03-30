@@ -475,6 +475,25 @@
           -39.42929
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-26",
+        "tc": 26,
+        "grid_id": 22,
+        "sd_card": "M23",
+        "name": "Cámara Trampa 26",
+        "type": "camera_trap",
+        "altitude_m": 920
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.74894,
+          -39.42908
+        ]
+      }
     }
   ]
 }

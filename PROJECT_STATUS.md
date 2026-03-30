@@ -126,7 +126,7 @@ CLIP classification pipeline and Streamlit review UI are production-quality. Pri
 | MegaDetector integration | Done | Via AddaxAI on Windows desktop |
 | CLIP classification | Done | `run_classification.py` |
 | Streamlit review UI | Done | `phase1_labeling/app.py` |
-| GIS data (KML → GeoJSON) | Done | Boundary + 25 station coordinates |
+| GIS data (KML → GeoJSON) | Done | Boundary + 26 station coordinates (TC-26 fixed 2026-03-30) |
 | Otoño 2025 classification | **Done** | 694 animal obs reviewed, CSV backed up in git |
 | Species image export | **Done** | Top 5/species/campaign via `export_best_images.py`; 131 images in `exports/` (gitignored) |
 | EfficientNetV2 fine-tuning | Planned | Needs ≥50 reviewed images/species — now viable for common species |

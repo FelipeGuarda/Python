@@ -262,5 +262,14 @@ camera_traps:
     altitude_m: 945
     type: camera_trap
 
-  # TODO: TC-26 (grid 22, SD M23) omitida — coordenadas en planilla Excel son erróneas
-  # (39.25447 S, 71.44562 W, ~30 km fuera del parque). Confirmar coordenadas reales con equipo de terreno.
+  - id: TC-26
+    tc: 26
+    grid_id: 22
+    sd_card: M23
+    name: Cámara Trampa 26
+    lat: -39.42908
+    lon: -71.74894
+    altitude_m: 920
+    type: camera_trap
+    # Nota: planilla Excel tenía coordenadas en formato DDMMSS.x (39.25447 → 39°25'44.7"S),
+    # no decimal. Corregido manualmente. GPS terreno: 39°25'44.7"S 71°44'56.2"W.
