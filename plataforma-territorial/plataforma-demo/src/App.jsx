@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, Component } from "react";
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell } from "recharts";
+import { useState, useEffect, useRef, useMemo, Component } from "react";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell } from "recharts";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import {
-  getFireRiskCurrent, getFireRiskForecast, getSpeciesSummary,
+  getWeatherCurrent,
+  getFireRiskCurrent, getFireRiskForecast, getFireRiskHistory, getSpeciesSummary,
   transformRiskForecast, transformSpeciesSummary,
 } from "./api.js";
 
@@ -169,21 +170,116 @@ function StatBlock({ value, label, unit = "", color = C.text }) {
   );
 }
 
-function RiskGauge({ value }) {
-  const getColor = (v) => v >= 60 ? C.red : v >= 40 ? C.amber : C.medGreen;
-  const getLabel = (v) => v >= 60 ? "ALTO" : v >= 40 ? "MODERADO" : "BAJO";
-  const color = getColor(value);
+function RiskGauge({ value, color: colorProp = null, compact = false }) {
+  const getColor = (v) =>
+    v >= 90 ? "#b71c1c" : v >= 80 ? "#e53935" : v >= 60 ? "#fb8c00" :
+    v >= 40 ? "#fbc02d" : v >= 20 ? "#c0ca33" : "#2e7d32";
+  const getLabel = (v) =>
+    v >= 90 ? "EXTREMO" : v >= 80 ? "MUY ALTO" : v >= 60 ? "ALTO" :
+    v >= 40 ? "MODERADO" : v >= 20 ? "MOD-BAJO" : "BAJO";
+  const color = colorProp || getColor(value);
   const angle = (value / 100) * 180;
+  const w = compact ? 120 : 180;
+  const h = compact ? 67 : 100;
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 0" }}>
-      <svg width="180" height="100" viewBox="0 0 180 100">
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: compact ? "6px 0" : "10px 0" }}>
+      <svg width={w} height={h} viewBox="0 0 180 100">
         <path d="M 10 90 A 80 80 0 0 1 170 90" fill="none" stroke={C.paleMint} strokeWidth="12" strokeLinecap="round" />
         <path d="M 10 90 A 80 80 0 0 1 170 90" fill="none" stroke={color} strokeWidth="12" strokeLinecap="round"
           strokeDasharray={`${angle / 180 * 251.3} 251.3`} />
-        <text x="90" y="75" textAnchor="middle" fontSize="28" fontWeight="700" fontFamily="Georgia" fill={color}>{value}</text>
+        <text x="90" y="75" textAnchor="middle" fontSize={compact ? "24" : "28"} fontWeight="700" fontFamily="Georgia" fill={color}>{value}</text>
         <text x="90" y="92" textAnchor="middle" fontSize="10" fill={C.muted}>/100</text>
       </svg>
-      <div style={{ fontSize: 13, fontWeight: 700, color, letterSpacing: 2, marginTop: 4 }}>{getLabel(value)}</div>
+      <div style={{ fontSize: compact ? 10 : 13, fontWeight: 700, color, letterSpacing: 2, marginTop: 4 }}>{getLabel(value)}</div>
+    </div>
+  );
+}
+
+// ── POLAR CONTRIBUTION CHART ──
+function PolarContrib({ components, size = 180 }) {
+  const axes = [
+    { key: "temp_score", label: "Temp", max: 25, angle: -90 },
+    { key: "wind_score", label: "Viento", max: 15, angle: 0 },
+    { key: "days_score", label: "Días s/lluvia", max: 35, angle: 90 },
+    { key: "rh_score", label: "Humedad", max: 25, angle: 180 },
+  ];
+  const cx = 90, cy = 90, maxR = 58;
+  const toRad = d => d * Math.PI / 180;
+  const pts = axes.map(a => {
+    const val = components?.[a.key] ?? 0;
+    const r = Math.min(val / a.max, 1) * maxR;
+    return [cx + r * Math.cos(toRad(a.angle)), cy + r * Math.sin(toRad(a.angle))];
+  });
+  return (
+    <svg width={size} height={size} viewBox="0 0 180 180" overflow="visible">
+      {[0.25, 0.5, 0.75, 1].map(l => (
+        <circle key={l} cx={cx} cy={cy} r={maxR * l} fill="none" stroke={C.paleMint} strokeWidth="1" />
+      ))}
+      {axes.map(a => {
+        const rad = toRad(a.angle);
+        return <line key={a.key} x1={cx} y1={cy} x2={cx + maxR * Math.cos(rad)} y2={cy + maxR * Math.sin(rad)} stroke={C.mint} strokeWidth="1" />;
+      })}
+      <polygon points={pts.map(p => p.join(",")).join(" ")} fill={`${C.amber}35`} stroke={C.amber} strokeWidth="2" strokeLinejoin="round" />
+      {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={3} fill={C.amber} />)}
+      {axes.map(a => {
+        const rad = toRad(a.angle);
+        const lx = cx + (maxR + 20) * Math.cos(rad);
+        const ly = cy + (maxR + 20) * Math.sin(rad);
+        const val = (components?.[a.key] ?? 0).toFixed(1);
+        return (
+          <g key={a.key}>
+            <text x={lx} y={ly - 5} textAnchor="middle" fontSize="9" fontWeight="700" fill={C.text}>{a.label}</text>
+            <text x={lx} y={ly + 6} textAnchor="middle" fontSize="8" fill={C.muted}>{val}/{a.max}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ── WIND COMPASS ──
+function WindCompass({ direction, speed }) {
+  const cx = 55, cy = 55, r = 44;
+  const toRad = d => (d - 90) * Math.PI / 180;
+  const dirs = ["N", "E", "S", "O"];
+  const dirAngles = [0, 90, 180, 270];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <svg width="110" height="110" viewBox="0 0 110 110">
+        <defs>
+          <marker id="windArrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
+            <path d="M 0 0 L 5 2.5 L 0 5 Z" fill={C.deepGreen} />
+          </marker>
+        </defs>
+        <circle cx={cx} cy={cy} r={r} fill={C.paleMint} stroke={C.mint} strokeWidth="1.5" />
+        {Array.from({ length: 16 }, (_, i) => {
+          const rad = toRad(i * 22.5);
+          const rInner = i % 4 === 0 ? r - 9 : r - 5;
+          return <line key={i} x1={cx + r * Math.cos(rad)} y1={cy + r * Math.sin(rad)}
+            x2={cx + rInner * Math.cos(rad)} y2={cy + rInner * Math.sin(rad)}
+            stroke={C.lightMuted} strokeWidth={i % 4 === 0 ? 1.5 : 1} />;
+        })}
+        {dirs.map((label, i) => {
+          const rad = toRad(dirAngles[i]);
+          const dist = r - 16;
+          return <text key={label} x={cx + dist * Math.cos(rad)} y={cy + dist * Math.sin(rad)}
+            textAnchor="middle" dominantBaseline="middle" fontSize="9"
+            fontWeight={label === "N" ? "700" : "400"} fill={label === "N" ? C.red : C.text}>{label}</text>;
+        })}
+        {direction != null && (() => {
+          const rad = toRad(direction);
+          return <line x1={cx - 16 * Math.cos(rad)} y1={cy - 16 * Math.sin(rad)}
+            x2={cx + 28 * Math.cos(rad)} y2={cy + 28 * Math.sin(rad)}
+            stroke={C.deepGreen} strokeWidth="2.5" strokeLinecap="round" markerEnd="url(#windArrow)" />;
+        })()}
+        <circle cx={cx} cy={cy} r={3} fill={C.deepGreen} />
+      </svg>
+      <div style={{ fontSize: 12, color: C.text, fontWeight: 600, marginTop: 2 }}>
+        {speed != null ? `${Number(speed).toFixed(1)} km/h` : "—"}
+      </div>
+      {direction != null && (
+        <div style={{ fontSize: 10, color: C.muted }}>{direction}°</div>
+      )}
     </div>
   );
 }
@@ -837,11 +933,61 @@ function Dashboard() {
 
   const { data: riskCurrent } = useAPI(getFireRiskCurrent, null, []);
   const { data: riskForecast } = useAPI(getFireRiskForecast, transformRiskForecast, []);
+  const { data: riskHistory } = useAPI(getFireRiskHistory, transformRiskForecast, []);
   const { data: speciesApiData } = useAPI(getSpeciesSummary, transformSpeciesSummary, []);
+  const { data: weatherCurrent } = useAPI(getWeatherCurrent, null, []);
 
   const riskTotal = riskCurrent?.rule_based?.total ? Math.round(riskCurrent.rule_based.total) : 0;
+  const mlVal = riskCurrent?.ml_probability != null ? Math.round(riskCurrent.ml_probability * 100) : null;
   const wx = riskCurrent?.weather || {};
   const speciesChartData = speciesApiData || speciesData;
+
+  // ── Bar chart: fixed Mon–Sun weeks, combined history + forecast ──
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = prev+current+next week
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
+
+  // Returns the ISO date of the Monday of the week containing dateStr
+  function getMondayOf(dateStr) {
+    const d = new Date(dateStr + "T12:00:00");
+    const day = d.getDay(); // 0=Sun
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    return d.toISOString().split("T")[0];
+  }
+
+  const allRiskData = useMemo(() => {
+    const hist = riskHistory || [];
+    const fore = riskForecast || [];
+    // Merge: forecast takes precedence on same date (today may be in both)
+    const map = new Map();
+    hist.forEach(d => map.set(d.date, d));
+    fore.forEach(d => map.set(d.date, d));
+    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [riskHistory, riskForecast]);
+
+  // Build exactly 21 slots (Mon×3 weeks), filled from allRiskData where available
+  const DAY_NAMES = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
+  const windowData = useMemo(() => {
+    const windowStart = new Date(getMondayOf(todayStr) + "T12:00:00");
+    windowStart.setDate(windowStart.getDate() + (weekOffset - 1) * 7);
+    const lookup = new Map(allRiskData.map(d => [d.date, d]));
+    return Array.from({ length: 21 }, (_, i) => {
+      const d = new Date(windowStart);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split("T")[0];
+      const found = lookup.get(dateStr);
+      const dayNum = d.getDate();
+      const dayName = DAY_NAMES[d.getDay()];
+      return found
+        ? { ...found, diaLabel: `${dayName} ${dayNum}` }
+        : { date: dateStr, riesgo: null, color: null, isHistorical: null, diaLabel: `${dayName} ${dayNum}` };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRiskData, weekOffset, todayStr]);
+
+  const todayDiaLabel = useMemo(() => {
+    const d = new Date(todayStr + "T12:00:00");
+    return `${DAY_NAMES[d.getDay()]} ${d.getDate()}`;
+  }, [todayStr]);
 
   const tabs = [
     { id: "riesgo", label: "Riesgo de Incendio" },
@@ -869,53 +1015,138 @@ function Dashboard() {
       {/* Tab content */}
       <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
       {tab === "riesgo" && mounted && (
-        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Card>
-              <SectionLabel>Indice actual</SectionLabel>
-              <RiskGauge value={riskTotal} />
-              <div style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
-                FRI: temp (0-25) + humedad inv (0-25) + viento (0-15) + días sin lluvia (0-35)
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Top row: polar plot (main) | gauge + compass (right) */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 16, alignItems: "stretch" }}>
+            {/* Polar contribution — principal visualization */}
+            <Card style={{ display: "flex", flexDirection: "column" }}>
+              <SectionLabel>Contribución por factor al riesgo</SectionLabel>
+              <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: "16px 0" }}>
+                <PolarContrib components={riskCurrent?.rule_based} size={430} />
               </div>
             </Card>
-            <Card>
-              <SectionLabel>Factores contributivos</SectionLabel>
-              <div style={{ marginTop: 8 }}>
-                {[{ label: "Temperatura", value: wx.temperature_c ?? 0, max: 40, color: C.red },
-                  { label: "Humedad (inv)", value: 100 - (wx.relative_humidity_pct ?? 50), max: 100, color: C.amber },
-                  { label: "Viento", value: wx.wind_speed_kmh ?? 0, max: 50, color: C.medGreen },
-                  { label: "Días sin lluvia", value: wx.days_without_rain ?? 0, max: 30, color: C.amber }].map(f => (
-                  <div key={f.label} style={{ marginBottom: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-                      <span style={{ color: C.text }}>{f.label}</span>
-                      <span style={{ color: C.muted, fontFamily: "monospace" }}>{f.value}</span>
+
+            {/* Right column: gauge (top) + compass (bottom), same total height */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <Card>
+                <SectionLabel>Índice de riesgo actual</SectionLabel>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>Reglas (FRI)</div>
+                  <RiskGauge value={riskTotal} color={riskCurrent?.rule_based?.color} />
+                  {mlVal != null && (
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                      ML: <span style={{ fontWeight: 700, color: C.text }}>{mlVal}%</span>
                     </div>
-                    <div style={{ height: 6, background: C.paleMint, borderRadius: 3 }}>
-                      <div style={{ height: 6, background: f.color, borderRadius: 3, width: `${(f.value / f.max) * 100}%`, transition: "width 0.5s" }} />
-                    </div>
+                  )}
+                  {mlVal != null && (() => {
+                    const diff = Math.abs(riskTotal - mlVal);
+                    const agree = diff < 20;
+                    return (
+                      <div style={{ marginTop: 8, padding: "4px 8px", borderRadius: 6, width: "100%",
+                        background: agree ? `${C.medGreen}18` : `${C.amber}20`,
+                        borderLeft: `3px solid ${agree ? C.medGreen : C.amber}`, fontSize: 10 }}>
+                        <span style={{ fontWeight: 700, color: agree ? C.medGreen : C.amber }}>
+                          {agree ? "Métodos alineados" : "Discrepancia"}
+                        </span>
+                        <span style={{ color: C.muted, marginLeft: 6 }}>Δ {diff} pts</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </Card>
+              <Card style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                <SectionLabel>Dirección del viento</SectionLabel>
+                <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: "8px 0" }}>
+                  <WindCompass
+                    direction={weatherCurrent?.wind_direction}
+                    speed={wx.wind_speed_kmh}
+                  />
+                </div>
+              </Card>
+            </div>
+          </div>
+
+          {/* Bottom row: history + forecast bar chart — full width */}
+          <Card>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div>
+                <SectionLabel>Índice FRI — historial y pronóstico</SectionLabel>
+                <div style={{ fontFamily: "'Georgia', serif", fontSize: 14, fontWeight: 700, color: C.text }}>
+                  {windowData[0]?.date} → {windowData[20]?.date}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setWeekOffset(o => o - 1)}
+                  style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.mint}`,
+                    background: C.paleMint, color: C.text, cursor: "pointer", fontSize: 11 }}>
+                  ← Sem ant
+                </button>
+                <button onClick={() => setWeekOffset(0)}
+                  style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.mint}`,
+                    background: weekOffset === 0 ? C.mint : C.paleMint, color: C.text,
+                    cursor: "pointer", fontSize: 11, fontWeight: weekOffset === 0 ? 700 : 400 }}>
+                  Hoy
+                </button>
+                <button onClick={() => setWeekOffset(o => o + 1)}
+                  style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.mint}`,
+                    background: C.paleMint, color: C.text, cursor: "pointer", fontSize: 11 }}>
+                  Sem sig →
+                </button>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={windowData} margin={{ top: 16, right: 12, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} vertical={false} />
+                <XAxis dataKey="diaLabel" tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} interval={0} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 6, border: `1px solid ${C.mint}`, fontSize: 11 }}
+                  formatter={(v, name) => [v ?? "—", "FRI"]}
+                  labelFormatter={(label, payload) => {
+                    const d = payload?.[0]?.payload;
+                    const suffix = d?.label ? ` — ${d.label}` : "";
+                    const hist = d?.isHistorical ? " (hist.)" : d?.isHistorical === false ? " (pron.)" : "";
+                    return `${label}${suffix}${hist}`;
+                  }}
+                />
+                <ReferenceLine
+                  x={todayDiaLabel}
+                  stroke={C.red}
+                  strokeDasharray="4 3"
+                  strokeWidth={1.5}
+                  label={{ value: "hoy", position: "top", fontSize: 9, fill: C.red, fontWeight: 700 }}
+                />
+                <Bar dataKey="riesgo" radius={[3, 3, 0, 0]} name="riesgo" maxBarSize={36}>
+                  {windowData.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={entry.color || (entry.riesgo != null ? C.medGreen : "transparent")}
+                      fillOpacity={entry.isHistorical ? 0.55 : entry.isHistorical === false ? 0.9 : 0}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
+                {[
+                  { label: "Bajo", color: "#2e7d32" },
+                  { label: "Mod-Bajo", color: "#c0ca33" },
+                  { label: "Moderado", color: "#fbc02d" },
+                  { label: "Alto", color: "#fb8c00" },
+                  { label: "Muy Alto", color: "#e53935" },
+                  { label: "Extremo", color: "#b71c1c" },
+                ].map(l => (
+                  <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.muted }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: l.color }} />
+                    {l.label}
                   </div>
                 ))}
               </div>
-            </Card>
-          </div>
-          <Card>
-            <SectionLabel>Riesgo ultimos 7 dias</SectionLabel>
-            <div style={{ fontFamily: "'Georgia', serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>Tendencia semanal</div>
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={riskForecast || weeklyRisk}>
-                <defs>
-                  <linearGradient id="riskGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={C.red} stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={C.red} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                <XAxis dataKey="dia" tick={{ fontSize: 11, fill: C.muted }} axisLine={{ stroke: C.mint }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: C.muted }} axisLine={{ stroke: C.mint }} />
-                <Tooltip contentStyle={{ borderRadius: 6, border: `1px solid ${C.mint}`, fontSize: 12 }} />
-                <Area type="monotone" dataKey="riesgo" stroke={C.red} fill="url(#riskGrad)" strokeWidth={2} dot={{ r: 4, fill: C.red }} />
-              </AreaChart>
-            </ResponsiveContainer>
+              <div style={{ fontSize: 10, color: C.lightMuted }}>
+                Barras semitransparentes = datos históricos · Sólidas = pronóstico
+              </div>
+            </div>
           </Card>
         </div>
       )}

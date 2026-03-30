@@ -35,6 +35,10 @@ export async function getFireRiskForecast() {
   return fetchJSON("/fire-risk/forecast");
 }
 
+export async function getFireRiskHistory(days = 30) {
+  return fetchJSON(`/fire-risk/history?days=${days}`);
+}
+
 // ── Detections ──
 
 export async function getRecentDetections(limit = 20) {
@@ -71,12 +75,19 @@ export function transformWeatherHistory(rows) {
 export function transformRiskForecast(rows) {
   const dayNames = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
   return rows.map((r) => {
-    const d = new Date(r.date);
+    // Append midday time to avoid UTC-midnight being interpreted as previous day in Chile (UTC-3/-4)
+    const d = new Date(r.date + "T12:00:00");
+    const riesgo = Math.round(r.rule_based?.total || 0);
     return {
       dia: dayNames[d.getDay()],
-      riesgo: Math.round(r.rule_based?.total || 0),
+      date: r.date,
+      riesgo,
+      color: r.rule_based?.color || "#2e7d32",
+      label: r.rule_based?.label || "",
+      mlProb: r.ml_probability != null ? Math.round(r.ml_probability * 100) : null,
       temp: r.weather?.temperature_c != null ? Math.round(r.weather.temperature_c) : null,
       humedad: r.weather?.relative_humidity_pct != null ? Math.round(r.weather.relative_humidity_pct) : null,
+      isHistorical: r.is_historical || false,
     };
   });
 }

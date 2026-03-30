@@ -1,6 +1,8 @@
 """Fire risk API endpoints — rule-based FRI + ML model."""
 
-from fastapi import APIRouter
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Query
 
 from ..db import get_connection
 from ..fire_risk import risk_components, ml_fire_probability
@@ -116,5 +118,58 @@ def fire_risk_forecast():
             "rule_based": components,
             "ml_probability": ml_prob,
         })
+
+    return result
+
+
+@router.get("/history")
+def fire_risk_history(days: int = Query(default=30, le=60)):
+    """Historical fire risk for the past N days computed from weather station data.
+
+    Uses afternoon peak hours (14–16 local time) to mirror the forecast methodology.
+    Runs days_without_rain forward from 60 days earlier to give an accurate count.
+    """
+    with get_connection() as con:
+        lookback = days + 60
+        rows = con.execute(f"""
+            SELECT
+                CAST(timezone('America/Santiago', timestamp) AS DATE) as day,
+                AVG(temperature_air)       as avg_temp,
+                AVG(relative_humidity)     as avg_rh,
+                AVG(wind_speed * 3.6)      as avg_wind_kmh,
+                SUM(precipitation)         as total_precip
+            FROM weather_station
+            WHERE timestamp >= NOW() - INTERVAL '{lookback} days'
+              AND EXTRACT(HOUR FROM timezone('America/Santiago', timestamp)) BETWEEN 14 AND 16
+            GROUP BY CAST(timezone('America/Santiago', timestamp) AS DATE)
+            ORDER BY day ASC
+        """).fetchall()
+
+    cutoff_date = (datetime.utcnow() - timedelta(days=days)).date()
+    running_dnr = 0
+    result = []
+
+    for day, temp, rh, wind_kmh, precip in rows:
+        if precip is not None and precip > 2.0:
+            running_dnr = 0
+        else:
+            running_dnr += 1
+
+        if day >= cutoff_date:
+            components = risk_components(temp or 0, rh or 0, wind_kmh or 0, running_dnr)
+            result.append({
+                "date": str(day),
+                "weather": {
+                    "temperature_c": round(temp, 1) if temp else None,
+                    "relative_humidity_pct": round(rh, 1) if rh else None,
+                    "wind_speed_kmh": round(wind_kmh, 1) if wind_kmh else None,
+                    "days_without_rain": running_dnr,
+                },
+                "rule_based": components,
+                "ml_probability": ml_fire_probability(
+                    temp or 0, rh or 0, wind_kmh or 0, running_dnr
+                ),
+                "is_historical": True,
+            })
 
     return result

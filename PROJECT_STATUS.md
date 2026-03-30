@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-03-27
+**Last updated:** 2026-03-30
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -86,7 +86,7 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 |---|---|---|
 | Observatorio (map) | Real data | Leaflet + Esri satellite + boundary.geojson + 25 cameras |
 | Dashboard — Meteo tab | **Real data** | Year of history, variable selector, wind rose, comparison mode |
-| Dashboard — Fire risk tab | Mock data | Backend ready, frontend not connected |
+| Dashboard — Fire risk tab | **Real data** | Polar chart, FRI gauge, wind compass, 3-week bar chart with history+forecast+navigation |
 | Dashboard — Cameras/Fauna tabs | Mock data | Pending |
 | Asistente (AI chat) | Mock data | Placeholder responses |
 | Reportes (newsletter) | Mock data | Draft generator with typing animation |
@@ -97,14 +97,15 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 **FastAPI endpoints live:**
 - `GET /api/weather/current`, `/history`, `/forecast`
-- `GET /api/fire-risk/current`, `/forecast`
+- `GET /api/fire-risk/current`, `/forecast`, `/history?days=`
 - `GET /api/detections/recent`, `/species-summary`, `/stations`
 - `GET /api/health`
 
 **Priority 1 — Connect frontend to real endpoints:**
-- [ ] Replace mock data in fire risk, cameras, fauna tabs with real API calls
+- [x] Replace mock data in fire risk tab with real API calls ← done 2026-03-30
+- [ ] Replace mock data in cameras, fauna tabs with real API calls
 - [ ] Retrain `fire_model.pkl` with current scikit-learn (pickle incompatible)
-- [ ] Include ML index alongside rule-based index in fire risk view
+- [ ] Investigate forecast showing only ~4 days (pipeline may need to fetch more data)
 
 **Priority 2 — Asistente with real Claude API:**
 - [ ] Connect Asistente tab to Claude API (Sonnet + tool use)
@@ -200,6 +201,7 @@ Note: `visualizaciones-artisticas/` has the "Río de Sonidos" concept already de
 - [x] **Meteo tab** — label fixed to "Última medición", wind rose moved below charts (larger).
 - [x] **Comparison mode** — implemented. Two-period comparison with stacked charts, side-by-side wind roses, dual stats table.
 - [x] **Fire risk backend** — `fire_risk.py` ported to FastAPI with real DuckDB data.
+- [x] **Fire risk frontend** — tab connected to real API; polar plot, gauge, compass, 3-week bar chart with today indicator.
 
 ---
 

@@ -1,9 +1,9 @@
 # Plataforma Territorial FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Last Updated:** 2026-03-27
-**What Changed:** FastAPI now serves the built frontend directly; systemd service + shell aliases for on-demand startup.
-**Integration Status:** Ready (platform) | Pending [fire risk ML retrain, cameras/fauna tabs]
+**Last Updated:** 2026-03-30
+**What Changed:** Fire risk tab connected to real backend data; new `/api/fire-risk/history` endpoint; redesigned layout with polar plot, gauge, wind compass, and 3-week bar chart with navigation.
+**Integration Status:** Ready (platform) | Pending [cameras/fauna tabs, fire risk ML retrain]
 
 ---
 
@@ -54,7 +54,7 @@ npm run dev         # opens at http://localhost:5173
 |---|---|---|
 | Observatorio | Real data | Leaflet + Esri satellite, BP boundary polygon, 25 camera markers |
 | Dashboard — Meteo | **Real data** | Year of weather history, variable selector, wind rose, comparison mode |
-| Dashboard — Fire risk | Mock data | Backend ready, frontend not connected |
+| Dashboard — Fire risk | **Real data** | Polar contribution chart, FRI gauge, wind compass, 3-week bar chart with history+forecast |
 | Dashboard — Cameras/Fauna | Mock data | Pending |
 | Asistente | Mock data | AI chat placeholder |
 | Reportes | Mock data | Newsletter draft generator |
@@ -103,6 +103,7 @@ GET  /api/weather/history?start=&end=&resolution=&variables=
 GET  /api/weather/forecast
 GET  /api/fire-risk/current
 GET  /api/fire-risk/forecast
+GET  /api/fire-risk/history?days=
 GET  /api/detections/recent
 GET  /api/detections/species-summary
 GET  /api/detections/stations
