@@ -8,7 +8,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# dist is committed so the built frontend syncs between machines via git pull
+# Run `npm run build` before committing frontend changes
 dist-ssr
 *.local
 

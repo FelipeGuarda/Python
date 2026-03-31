@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-03-27
+**Last updated:** 2026-03-31
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -80,18 +80,23 @@ Running as systemd service (`fma-pipeline.service`). Full pipeline with real dat
 ### 2. Plataforma Territorial (`plataforma-territorial/`) — EN PROGRESO
 
 React/Vite frontend with 4 pages. FastAPI backend operational with real endpoints.
-**Access:** `plataforma` alias → `http://localhost:8000` (single process, no Vite dev server needed).
+**Access Linux:** `plataforma` alias → `http://localhost:8000` (systemd service).
+**Access Windows:** `conda run -n plataforma-territorial uvicorn backend.main:app --port 8000`
+
+**Two-machine data note:** DuckDB lives on Linux (written by data-pipeline service). On Windows, run `python bootstrap_windows_db.py` from `plataforma-territorial/` to seed a local DB with Open-Meteo data (90-day archive + 7-day forecast). Enough for Meteo and Riesgo tabs. No Tailscale needed.
+
+**dist/ sync fix (2026-03-31):** Removed `dist` from `.gitignore`. Built frontend is now committed to git. Both machines get the same compiled UI via `git pull` — no per-machine rebuild needed.
 
 | Component | Status | Notes |
 |---|---|---|
 | Observatorio (map) | Real data | Leaflet + Esri satellite + boundary.geojson + 25 cameras |
-| Dashboard — Meteo tab | **Real data** | Year of history, variable selector, wind rose, comparison mode |
-| Dashboard — Fire risk tab | Mock data | Backend ready, frontend not connected |
+| Dashboard — Meteo tab | **Real data** | 90-day history, variable selector, wind rose, comparison mode |
+| Dashboard — Fire risk tab | **Real data** | Rule-based FRI from real weather; forecast from Open-Meteo |
 | Dashboard — Cameras/Fauna tabs | Mock data | Pending |
 | Asistente (AI chat) | Mock data | Placeholder responses |
 | Reportes (newsletter) | Mock data | Draft generator with typing animation |
 | FastAPI backend | **Working** | Serves API + built frontend from single port 8000 |
-| Deployment | **Done** | `fma-platform` systemd service + `plataforma`/`plataforma-stop` aliases |
+| Deployment | **Done** | Linux: `fma-platform` systemd + `plataforma`/`plataforma-stop` aliases |
 | Station coordinates | Done | `data/stations.yaml` + GeoJSON files |
 | BP boundary polygon | Done | **Under review — confirm delimitation** |
 
@@ -101,10 +106,10 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 - `GET /api/detections/recent`, `/species-summary`, `/stations`
 - `GET /api/health`
 
-**Priority 1 — Connect frontend to real endpoints:**
-- [ ] Replace mock data in fire risk, cameras, fauna tabs with real API calls
-- [ ] Retrain `fire_model.pkl` with current scikit-learn (pickle incompatible)
+**Priority 1 — Remaining:**
+- [ ] Retrain `fire_model.pkl` with current scikit-learn (pickle incompatible → ml_probability returns null)
 - [ ] Include ML index alongside rule-based index in fire risk view
+- [ ] Replace mock data in cameras, fauna tabs with real API calls
 
 **Priority 2 — Asistente with real Claude API:**
 - [ ] Connect Asistente tab to Claude API (Sonnet + tool use)
