@@ -77,7 +77,7 @@ Logs: `journalctl --user -u fma-platform -f`
 - `data/boundary.geojson` — Bosque Pehuén reserve boundary (86 vertices)
 - `data/camera_trap_stations.geojson` — 25 cameras with real coordinates
 - `data/stations.yaml` — single source of truth for all monitoring stations
-- TC-26 excluded (erroneous coordinates in source spreadsheet)
+- TC-26 excluded (erroneous coordinates in source spreadsheet). THIS WAS DONE, double check if this appears after pushing.
 - **NOTE:** BP boundary delimitation under review — confirm which polygon to use
 
 ---
