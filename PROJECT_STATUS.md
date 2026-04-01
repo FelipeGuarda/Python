@@ -10,14 +10,29 @@
 
 | Machine | Role | Projects |
 |---|---|---|
-| **Laptop** (PopOS Linux) | Code, DuckDB, data pipeline, React frontend + FastAPI backend | `data-pipeline/`, `plataforma-territorial/`, `literatura-agent/`, `visualizaciones-artisticas/` |
-| **Office desktop** (Windows) | GPU-dependent raw analysis: MegaDetector, CLIP, Timelapse2 review | `camera-traps/`, `plataforma-territorial/` Phase 3 only (camera tab) |
+| **Personal laptop** (PopOS Linux) | Code, DuckDB, data pipeline, React frontend + FastAPI backend | `data-pipeline/`, `plataforma-territorial/`, `literatura-agent/`, `visualizaciones-artisticas/` |
+| **Office desktop** (Windows → future Linux) | GPU-dependent raw analysis: MegaDetector, CLIP, Timelapse2 review | `camera-traps/`, `plataforma-territorial/` Phase 3 only (camera tab) |
 
 **Rule:** Platform repo is shared, but Phase 3 camera tasks = office, everything else = home. Always commit before switching machines.
 
 **Handoff protocol:**
 - Office → Home: commit reviewed CSV → pull at home → run ingestor
 - Home → Office: commit platform code → pull before starting Phase 3 work
+
+### ⚠️ Pending: Migration to Linux at office
+
+The personal laptop (Linux) will NOT be left on permanently — it's a personal machine. This means:
+- **DuckDB (`fma_data.duckdb`), data-pipeline service, and plataforma backend must migrate to the office machine once it switches to Linux.**
+- Until then, the platform can only be used from the laptop itself or when it's manually on and the service running.
+- `bootstrap_windows_db.py` is a temporary workaround for Windows office — it will not be needed post-migration.
+
+**Migration checklist (when office switches to Linux):**
+- [ ] Copy `fma_data.duckdb` to office Linux machine
+- [ ] Set up conda environment (`data-pipeline`, `plataforma-territorial`)
+- [ ] Enable `fma-pipeline.service` and `fma-platform.service` as systemd user services
+- [ ] Update Tailscale or local network access so CR800 fetcher still reaches the weather station
+- [ ] Update `literatura-agent` cron to run on office machine
+- [ ] Verify `schedule-agent` still works (Google API credentials)
 
 ---
 
