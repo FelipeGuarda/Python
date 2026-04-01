@@ -286,16 +286,17 @@ function WindCompass({ direction, speed }) {
 
 // ── WEATHER CONSTANTS ──
 const WEATHER_VARS = [
-  { id: "temperature_air",  label: "Temperatura del aire",   unit: "°C",    color: C.red },
+  { id: "albedo_Avg",       label: "Albedo",                 unit: "%",     color: C.warmSand },
   { id: "relative_humidity",label: "Humedad relativa",       unit: "%",     color: C.medGreen },
   { id: "precipitation",    label: "Precipitación",          unit: "mm",    color: C.deepGreen, type: "bar" },
-  { id: "solar_radiation",  label: "Radiación solar",        unit: "W/m²",  color: C.amber },
   { id: "BP_mbar_Avg",      label: "Presión atmosférica",    unit: "hPa",   color: C.lightGreen },
+  { id: "DT_Avg",           label: "Profundidad de nieve",   unit: "cm",    color: "#7EC8E3" },
   { id: "PtoRocio_Avg",     label: "Punto de rocío",         unit: "°C",    color: C.lightMuted },
+  { id: "solar_radiation",  label: "Radiación solar",        unit: "W/m²",  color: C.amber },
   { id: "T107_10cm_Avg",    label: "Suelo a 10cm",           unit: "°C",    color: "#7BAE91" },
   { id: "T107_50cm_Avg",    label: "Suelo a 50cm",           unit: "°C",    color: "#A8CFA8" },
-  { id: "albedo_Avg",       label: "Albedo",                 unit: "%",     color: C.warmSand },
-  { id: "DT_Avg",           label: "Profundidad de nieve",   unit: "cm",    color: "#7EC8E3" },
+  { id: "temperature_air",  label: "Temperatura del aire",   unit: "°C",    color: C.red },
+  { id: "wind_speed",       label: "Velocidad del viento",   unit: "km/h",  color: "#5BC0EB" },
 ];
 
 const WIND_SPEED_COLORS = ["#BDE8FF", "#5BC0EB", "#1A6B9A", "#2ECC71", "#E67E22", "#E74C3C"];
@@ -404,10 +405,10 @@ function MeteoTab() {
   useEffect(() => {
     if (!appliedDates.start || !appliedDates.end) return;
     setLoading(true);
-    const varList = [
-      ...selectedVars,
-      ...(showWind ? ["wind_speed", "wind_direction"] : []),
-    ].join(",");
+    const windExtras = showWind
+      ? ["wind_speed", "wind_direction"].filter(v => !selectedVars.includes(v))
+      : [];
+    const varList = [...selectedVars, ...windExtras].join(",");
     const p = new URLSearchParams({ start: appliedDates.start, end: appliedDates.end, resolution, variables: varList });
     fetch(`/api/weather/history?${p}`)
       .then(r => r.json())
@@ -424,10 +425,10 @@ function MeteoTab() {
   useEffect(() => {
     if (!compareMode || !appliedDates2.start || !appliedDates2.end) return;
     setLoading2(true);
-    const varList = [
-      ...selectedVars,
-      ...(showWind ? ["wind_speed", "wind_direction"] : []),
-    ].join(",");
+    const windExtras = showWind
+      ? ["wind_speed", "wind_direction"].filter(v => !selectedVars.includes(v))
+      : [];
+    const varList = [...selectedVars, ...windExtras].join(",");
     const p = new URLSearchParams({ start: appliedDates2.start, end: appliedDates2.end, resolution, variables: varList });
     fetch(`/api/weather/history?${p}`)
       .then(r => r.json())
@@ -488,7 +489,7 @@ function MeteoTab() {
         {commonXAxis}
         <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit={` ${conf.unit}`} width={52} />
         {commonTooltip(conf.label, conf.unit)}
-        <Line type="monotone" dataKey={varId} stroke={color} strokeWidth={1.5} dot={false} connectNulls={false} />
+        <Line type="linear" dataKey={varId} stroke={color} strokeWidth={1.5} dot={false} connectNulls={false} />
       </LineChart>
     );
   };
@@ -537,7 +538,7 @@ function MeteoTab() {
               ))}
               <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: C.text, cursor: "pointer" }}>
                 <input type="checkbox" checked={showWind} onChange={() => setShowWind(v => !v)} />
-                Viento (rosa)
+                Rosa de vientos
               </label>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -621,45 +622,6 @@ function MeteoTab() {
               </Card>
             );
           })}
-
-          {/* Wind speed chart (separate from variable selector) */}
-          {!loading && showWind && (histData.some(d => d.wind_speed != null) || (compareMode && histData2.some(d => d.wind_speed != null))) && (
-            <Card>
-              {compareMode && <div style={{ fontSize: 10, color: C.deepGreen, fontWeight: 600, marginBottom: 2 }}>Período 1</div>}
-              <SectionLabel>Velocidad del viento (km/h)</SectionLabel>
-              {histData.some(d => d.wind_speed != null) && (
-                <ResponsiveContainer width="100%" height={150}>
-                  <BarChart data={histData.filter(d => d.wind_speed != null)} {...commonChartProps}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                    {commonXAxis}
-                    <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit=" km/h" width={52} />
-                    <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11, border: `1px solid ${C.mint}` }}
-                      labelFormatter={tickFmt} formatter={v => [v != null ? v.toFixed(1) : "—", "Viento"]} />
-                    <Bar dataKey="wind_speed" fill={C.lightGreen} radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-              {compareMode && (
-                <>
-                  <div style={{ fontSize: 10, color: C.amber, fontWeight: 600, marginTop: 12, marginBottom: 2 }}>Período 2</div>
-                  {histData2.some(d => d.wind_speed != null) ? (
-                    <ResponsiveContainer width="100%" height={150}>
-                      <BarChart data={histData2.filter(d => d.wind_speed != null)} {...commonChartProps}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                        {commonXAxis}
-                        <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit=" km/h" width={52} />
-                        <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11, border: `1px solid ${C.mint}` }}
-                          labelFormatter={tickFmt} formatter={v => [v != null ? v.toFixed(1) : "—", "Viento"]} />
-                        <Bar dataKey="wind_speed" fill={C.amber} radius={[2, 2, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : !loading2 && (
-                    <div style={{ fontSize: 11, color: C.muted, padding: 8 }}>Sin datos de viento para este período</div>
-                  )}
-                </>
-              )}
-            </Card>
-          )}
 
           {showWind && (windRose || (compareMode && windRose2)) && (
             <Card>
