@@ -78,6 +78,17 @@ def ingest_cr800_backfill(con: duckdb.DuckDBPyConnection, dat_file_path: Path) -
     print(f"  Upserted {n} rows into weather_station from backfill.")
 
 
+def export_weather_station(con: duckdb.DuckDBPyConnection) -> None:
+    import yaml
+    from src.exporters.csv_export import export_weather_station as _export
+    cfg_path = Path(__file__).parent.parent / "config.yaml"
+    with open(cfg_path) as f:
+        cfg = yaml.safe_load(f)["exports"]
+    output_dir = Path(__file__).parent.parent / cfg["output_dir"]
+    print("→ Exporting weather_station to CSV...")
+    _export(con, output_dir)
+
+
 def ingest_met_csv(con: duckdb.DuckDBPyConnection, csv_path: Path) -> None:
     from src.parsers.met_csv import parse
     import yaml

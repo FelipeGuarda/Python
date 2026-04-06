@@ -17,6 +17,7 @@ from src.ingest import (
     ingest_cr800_live,
     ingest_cr800_backfill,
     ingest_met_csv,
+    export_weather_station,
 )
 
 
@@ -45,6 +46,27 @@ def run_backfill(path: Path):
         con.close()
 
 
+def run_export():
+    con = connect()
+    try:
+        export_weather_station(con)
+    finally:
+        con.close()
+
+
+def run_health(verbose: bool = False):
+    import yaml
+    from src.exporters.csv_export import health_check
+    with open("config.yaml") as f:
+        cfg = yaml.safe_load(f)["exports"]
+    output_dir = Path(cfg["output_dir"])
+    con = connect()
+    try:
+        health_check(con, output_dir, verbose=verbose)
+    finally:
+        con.close()
+
+
 def scheduled_open_meteo():
     con = connect()
     try:
@@ -61,14 +83,33 @@ def scheduled_cr800():
         con.close()
 
 
+def scheduled_export():
+    con = connect()
+    try:
+        export_weather_station(con)
+    finally:
+        con.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description="FMA data pipeline fetch runner")
     parser.add_argument("--once", action="store_true", help="Run once and exit (no scheduler)")
-    parser.add_argument("--backfill", metavar="DAT_FILE", help="Backfill weather_station from a TOA5 .dat file")
+    parser.add_argument("--backfill", metavar="FILE", help="Backfill weather_station from a TOA5 .dat or met .csv file")
+    parser.add_argument("--export", action="store_true", help="Export weather_station to CSV and exit")
+    parser.add_argument("--health", action="store_true", help="Print health report and exit")
+    parser.add_argument("--verbose", action="store_true", help="Show gap details with --health")
     args = parser.parse_args()
 
     if args.backfill:
         run_backfill(Path(args.backfill))
+        return
+
+    if args.export:
+        run_export()
+        return
+
+    if args.health:
+        run_health(verbose=args.verbose)
         return
 
     if args.once:
@@ -97,13 +138,23 @@ def main():
         minutes=cfg["cr800_interval_minutes"],
         id="cr800",
     )
+    # Monthly full snapshot: 1st of each month at 02:00 UTC
+    scheduler.add_job(
+        scheduled_export,
+        "cron",
+        day=1,
+        hour=2,
+        minute=0,
+        id="csv_export",
+    )
 
     print("→ Scheduler started. Open-Meteo every "
           f"{cfg['open_meteo_interval_minutes']} min, "
-          f"CR800 every {cfg['cr800_interval_minutes']} min.")
+          f"CR800 every {cfg['cr800_interval_minutes']} min, "
+          "CSV export on the 1st of each month.")
     print("  Press Ctrl+C to stop.")
 
-    # Run immediately on start
+    # Run fetch immediately on start; export only on schedule
     run_once()
 
     try:

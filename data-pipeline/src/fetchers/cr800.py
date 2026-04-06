@@ -50,11 +50,18 @@ def _process_raw(data: list, station_id: str) -> pd.DataFrame:
     df.columns = [_decode_name(c) for c in df.columns]
 
     ts_col = "Datetime" if "Datetime" in df.columns else df.columns[0]
-    df["timestamp"] = (
-        pd.to_datetime(df[ts_col], errors="coerce")
-        .dt.tz_localize("America/Santiago", ambiguous="NaT", nonexistent="shift_forward")
-        .dt.tz_convert("UTC")
-    )
+    naive_ts = pd.to_datetime(df[ts_col], errors="coerce")
+    try:
+        dti = pd.DatetimeIndex(naive_ts).tz_localize(
+            "America/Santiago", ambiguous="infer", nonexistent="shift_forward"
+        )
+    except Exception:
+        # Fallback: if infer fails (e.g. chunk lacks context around DST boundary),
+        # treat ambiguous timestamps as standard time (UTC-4) rather than dropping them.
+        dti = pd.DatetimeIndex(naive_ts).tz_localize(
+            "America/Santiago", ambiguous=False, nonexistent="shift_forward"
+        )
+    df["timestamp"] = pd.Series(dti, index=df.index).dt.tz_convert("UTC")
     df["station_id"] = station_id
 
     rename_map = {

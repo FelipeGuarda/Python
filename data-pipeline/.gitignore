@@ -2,6 +2,7 @@
 data/cr800_state.json
 data/gap_fill.log
 data/incoming/
+data/exports/
 __pycache__/
 *.pyc
 *.pyo
