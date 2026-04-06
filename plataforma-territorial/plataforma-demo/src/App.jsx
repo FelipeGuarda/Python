@@ -731,7 +731,7 @@ function FitBounds({ geojson }) {
 const weatherIcon = L.divIcon({
   className: "",
   html: `<div style="width:28px;height:28px;background:${C.amber};border:2px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3)">
-    <span style="color:white;font-weight:bold;font-size:13px">E</span>
+    <span style="color:white;font-weight:bold;font-size:11px">EM</span>
   </div>`,
   iconSize: [28, 28],
   iconAnchor: [14, 14],
@@ -785,12 +785,12 @@ function Observatorio() {
 
           {/* Weather station */}
           {showCams && (
-            <Marker position={[-39.4417, -71.7420]} icon={weatherIcon}>
+            <Marker position={[-39.453642, -71.733092]} icon={weatherIcon}>
               <Popup>
                 <div style={{ fontFamily: "'Trebuchet MS', sans-serif", minWidth: 160 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 6 }}>Estación Meteorológica</div>
                   <div style={{ fontSize: 11, color: C.muted }}>Campbell Scientific CR800</div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>-39.4417, -71.7420</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>-39.453642, -71.733092</div>
                 </div>
               </Popup>
             </Marker>
