@@ -119,9 +119,33 @@ Raw data analysis (MegaDetector, CLIP classification, image review) runs on the 
 
 ---
 
+## Status
+
+**Last Updated:** 2026-04-06
+**What Changed:** Added CSV export + health check tooling; fixed CR800 DST gap bug; recovered March 2026 data gap
+**Integration Status:** Ready
+**Blockers/Notes:** `--backfill-range` CLI flag pending (manual state rollback required for future gap recovery)
+
+---
+
+## CLI Reference
+
+```bash
+python run_fetch.py --once          # fetch once and exit
+python run_fetch.py --export        # export weather_station to CSV now
+python run_fetch.py --health        # health report (last fetch, row count, gaps)
+python run_fetch.py --health --verbose  # health report with gap details
+python run_fetch.py --backfill FILE # backfill from .dat or met .csv
+python run_fetch.py                 # start scheduler daemon
+```
+
+---
+
 ## Pending / Known Issues
 
-- CR800 live fetching needs first connection test (Tailscale to `100.97.202.90:2000`)
+- `--backfill-range START END` CLI flag not yet built (needed for future targeted gap recovery)
+- CR800 fetch fails silently on connection error with no alerting when zero rows returned
 - `pycampbellcr1000` has no version pin in environment.yml
 - Uses `print()` for logging — should migrate to `logging` module for production
 - `pandera` and `openpyxl` are in environment.yml but never used (can be removed)
+- Annual ~60 min DST gap each April is a CR800 hardware behavior (logs ambiguous hour once, in standard time); not fixable in software
