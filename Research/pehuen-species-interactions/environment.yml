@@ -1,0 +1,22 @@
+name: pehuen-analysis
+# All packages installed from conda-forge for full reproducibility.
+# camtrapR, overlap, and activity are also on conda-forge.
+# If any package fails to resolve, see setup_packages.R for CRAN fallback.
+channels:
+  - conda-forge
+dependencies:
+  - r-base>=4.4
+  - r-ggplot2
+  - r-dplyr
+  - r-tidyr
+  - r-stringr
+  - r-lubridate
+  - r-readr
+  - r-here
+  - r-patchwork
+  - r-sf          # spatial features and GeoJSON reading
+  - r-camtrapr    # camera trap analysis functions
+  - r-overlap     # kernel density overlap coefficients (Dhat4)
+  - r-activity    # alternative activity pattern estimation
+  - r-circular    # circular statistics (required by camtrapR)
+  - r-scales      # axis formatting in ggplot2

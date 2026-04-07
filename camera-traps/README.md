@@ -231,5 +231,5 @@ This is already done in the working environment. Only redo if rebuilding the con
 
 | Campaign | Status | Reviewed CSV |
 |---|---|---|
-| Primavera 2025 | Complete | `new_labeled_data_reviewed.csv` in campaign folder |
-| Otoño 2025 | MegaDetector pending | Junction: `C:\ADDAX\Otono_2025` |
+| Primavera 2025 | Complete | `data/campaigns/primavera_2025/new_labeled_data_reviewed.csv` |
+| Otoño 2025 | Complete (694 obs) | `<Synology>/Otoño 2025/Fotos/new_labeled_data_reviewed.csv` |
