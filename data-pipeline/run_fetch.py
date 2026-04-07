@@ -16,6 +16,7 @@ from src.ingest import (
     ingest_weather_forecast,
     ingest_cr800_live,
     ingest_cr800_backfill,
+    ingest_cr800_range,
     ingest_met_csv,
     export_weather_station,
 )
@@ -42,6 +43,15 @@ def run_backfill(path: Path):
             ingest_met_csv(con, path)
         else:
             print(f"Unknown backfill file type: {path.suffix}. Expected .dat or .csv")
+    finally:
+        con.close()
+
+
+def run_fetch_range(start: str, end: str):
+    con = connect()
+    init_schema(con)
+    try:
+        ingest_cr800_range(con, start, end)
     finally:
         con.close()
 
@@ -95,6 +105,9 @@ def main():
     parser = argparse.ArgumentParser(description="FMA data pipeline fetch runner")
     parser.add_argument("--once", action="store_true", help="Run once and exit (no scheduler)")
     parser.add_argument("--backfill", metavar="FILE", help="Backfill weather_station from a TOA5 .dat or met .csv file")
+    parser.add_argument("--fetch-range", nargs=2, metavar=("START", "END"),
+                        help="Fetch a specific date range from the CR800 without touching state. "
+                             "Dates: YYYY-MM-DD or YYYY-MM-DDTHH:MM. Example: --fetch-range 2026-03-04 2026-03-19")
     parser.add_argument("--export", action="store_true", help="Export weather_station to CSV and exit")
     parser.add_argument("--health", action="store_true", help="Print health report and exit")
     parser.add_argument("--verbose", action="store_true", help="Show gap details with --health")
@@ -102,6 +115,10 @@ def main():
 
     if args.backfill:
         run_backfill(Path(args.backfill))
+        return
+
+    if args.fetch_range:
+        run_fetch_range(args.fetch_range[0], args.fetch_range[1])
         return
 
     if args.export:

@@ -46,21 +46,26 @@ def parse(dat_path: Path, station_id: str = "bosque_pehuen") -> pd.DataFrame:
 
     # Parse TIMESTAMP (Campbell format: "YYYY-MM-DD HH:MM:SS") as America/Santiago → UTC
     santiago = pytz.timezone("America/Santiago")
-    df["TIMESTAMP"] = (
-        pd.to_datetime(df["TIMESTAMP"], errors="coerce")
-        .dt.tz_localize(santiago, ambiguous="infer", nonexistent="shift_forward")
-        .dt.tz_convert("UTC")
-    )
+    naive_ts = pd.to_datetime(df["TIMESTAMP"], errors="coerce")
+    try:
+        localized = pd.DatetimeIndex(naive_ts).tz_localize(
+            santiago, ambiguous="infer", nonexistent="shift_forward"
+        )
+    except Exception:
+        localized = pd.DatetimeIndex(naive_ts).tz_localize(
+            santiago, ambiguous=False, nonexistent="shift_forward"
+        )
+    df["TIMESTAMP"] = pd.Series(localized, index=df.index).dt.tz_convert("UTC")
 
     # Map known columns to weather_station schema
     rename_map = {
         "TIMESTAMP": "timestamp",
         "AirTC_Avg": "temperature_air",
-        "RH": "relative_humidity",
+        "RH_Avg": "relative_humidity",
         "WS_ms_Avg": "wind_speed",
-        "WindDir": "wind_direction",
+        "WindDir_Avg": "wind_direction",
         "Rain_mm_Tot": "precipitation",
-        "SlrW_Avg": "solar_radiation",
+        "incomingSW_Avg": "solar_radiation",
         "BattV_Min": "battery_voltage",
     }
 

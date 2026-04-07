@@ -65,6 +65,32 @@ def ingest_cr800_live(con: duckdb.DuckDBPyConnection) -> None:
         print(f"  Warning: CR800 unavailable ({e}). Skipping.")
 
 
+def ingest_cr800_range(con: duckdb.DuckDBPyConnection, start: str, end: str) -> None:
+    import yaml, os
+    from dotenv import load_dotenv
+    load_dotenv()
+    cfg_path = Path(__file__).parent.parent / "config.yaml"
+    with open(cfg_path) as f:
+        cfg = yaml.safe_load(f)["cr800"]
+
+    host = os.getenv("CR800_HOST") or cfg["host"]
+    port = int(os.getenv("CR800_PORT") or cfg["port"])
+    addr = int(os.getenv("CR800_PAKBUS_ADDRESS") or cfg["pakbus_address"])
+    station_id = cfg["station_id"]
+
+    print(f"→ Connecting to CR800 at {host}:{port} for range {start} → {end}...")
+    from src.fetchers.cr800 import connect as cr800_connect, fetch_range
+    logger = cr800_connect(host, port, addr)
+    total = 0
+    first_chunk = True
+    for df in fetch_range(logger, station_id, start, end):
+        if first_chunk:
+            ensure_columns(con, "weather_station", df)
+            first_chunk = False
+        total += upsert_df(con, "weather_station", df)
+    print(f"  Upserted {total} rows into weather_station from range fetch.")
+
+
 def ingest_cr800_backfill(con: duckdb.DuckDBPyConnection, dat_file_path: Path) -> None:
     from src.parsers.toa5 import parse
     import yaml

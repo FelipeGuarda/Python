@@ -138,3 +138,48 @@ def fetch_since(logger, station_id: str, table_name: str = None):
 
     if total_rows:
         print(f"  Total fetched: {total_rows} rows.")
+
+
+def fetch_range(logger, station_id: str, start: str, end: str, table_name: str = "Table1"):
+    """
+    Fetch records between two dates (inclusive) without reading or updating state.
+
+    start/end: ISO date strings, e.g. "2026-03-04" or "2026-03-04T14:00".
+    Yields one DataFrame per 24-hour chunk. Safe to run alongside the normal
+    scheduler — state is never touched.
+    """
+    from datetime import timedelta
+    import pytz
+
+    santiago = pytz.timezone("America/Santiago")
+
+    def _parse(s):
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = santiago.localize(dt)
+        return dt.astimezone(santiago).replace(tzinfo=None)
+
+    chunk_start = _parse(start)
+    range_end = _parse(end)
+    # Include the full end day if only a date was given
+    if "T" not in end and ":" not in end:
+        range_end = range_end.replace(hour=23, minute=59, second=59)
+
+    chunk_size = timedelta(hours=24)
+    total_rows = 0
+
+    while chunk_start <= range_end:
+        chunk_end = min(chunk_start + chunk_size, range_end)
+        print(f"  Range chunk {chunk_start.strftime('%Y-%m-%d %H:%M')} → "
+              f"{chunk_end.strftime('%Y-%m-%d %H:%M')} (Santiago)...")
+
+        data = logger.get_data(table_name, chunk_start, chunk_end)
+        if data:
+            df = _process_raw(data, station_id)
+            if not df.empty:
+                total_rows += len(df)
+                yield df
+
+        chunk_start = chunk_end + timedelta(seconds=1)
+
+    print(f"  Range fetch total: {total_rows} rows.")
