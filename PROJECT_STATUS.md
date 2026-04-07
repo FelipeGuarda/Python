@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-03-31
+**Last updated:** 2026-04-07
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -79,13 +79,14 @@ Running as systemd service (`fma-pipeline.service`). Full pipeline with real dat
 | Open-Meteo fetcher | Done | Hourly, 7-day forecast |
 | Camera trap legacy parser | Done | Parses Timelapse2 CSV |
 | Camtrap DP parser | Done | Awaiting test with real DP package |
-| TOA5 parser (CR800 backfill) | Done | For historical .dat files |
+| TOA5 parser (CR800 backfill) | Done | Column names fixed 2026-04-07 (RH_Avg, WindDir_Avg, incomingSW_Avg) |
 | CR800 live fetcher | Done | Working via Tailscale VPN |
 | File watcher daemon | Done | Monitors `data/incoming/` (not activated) |
 | APScheduler daemon | Done | Open-Meteo hourly, CR800 weekly |
 | systemd user service | **Done** | Enabled, starts on boot |
 
 **Pending:**
+- [ ] **⚠️ Run `--backfill CR800_Table1.dat` on Linux to close March 4–19 gap** (dat file downloaded 2026-04-07, transfer and run pending)
 - [ ] Tabla `literatura` pendiente de poblar (literatura-agent integration)
 - [ ] Camtrap DP parser: test with real data
 - [ ] Watcher de carpeta incoming: activate
