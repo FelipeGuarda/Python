@@ -276,11 +276,61 @@ message(sprintf(
 print(table(records_all$species_label, records_all$campaign))
 
 
-# ── 10. Save outputs ──────────────────────────────────────────────────────────
+# ── 10. Save core outputs ─────────────────────────────────────────────────────
 
 saveRDS(records_all,  here("data", "records_all.rds"))
 saveRDS(stations_sf,  here("data", "stations_sf.rds"))
 saveRDS(st_read(PATH_BOUNDARY, quiet = TRUE), here("data", "boundary_sf.rds"))
 
 message("\nSaved: data/records_all.rds, data/stations_sf.rds, data/boundary_sf.rds")
+
+
+# ── 11. Build camtrapR-compatible tables ──────────────────────────────────────
+# camtrapR functions (activityDensity, activityOverlap, detectionMaps) require
+# data in a specific format.  We build these tables here so downstream scripts
+# can use camtrapR directly without reformatting.
+#
+# RECORD TABLE — one row per detection event.
+#   Required columns:
+#     Station          — station ID; must match CTtable$Station
+#     Species          — species label (human-readable, used in figure legends)
+#     DateTimeOriginal — POSIXct timestamp
+#     Date             — calendar date
+#     Time             — time as character "HH:MM:SS"
+#   We also carry Campaign as an optional grouping column.
+#
+# CAMERA TRAP TABLE (CTtable) — one row per station.
+#   Required columns:
+#     Station   — station ID (must match record_table$Station)
+#     Longitude — decimal degrees, WGS-84
+#     Latitude  — decimal degrees, WGS-84
+
+record_table <- records_all %>%
+  transmute(
+    Station          = station_id,
+    Species          = species_label,
+    DateTimeOriginal = datetime,
+    Date             = date,
+    Time             = format(datetime, "%H:%M:%S"),
+    Campaign         = campaign
+  )
+
+# Extract WGS-84 coordinates from the sf geometry column.
+# st_coordinates() returns a matrix with columns X (longitude) and Y (latitude).
+coords <- st_coordinates(stations_sf)
+
+stations_ct <- stations_sf %>%
+  st_drop_geometry() %>%
+  rename(Station = id) %>%
+  mutate(
+    Longitude = coords[, "X"],
+    Latitude  = coords[, "Y"]
+  ) %>%
+  select(Station, Longitude, Latitude, altitude_m)
+
+saveRDS(record_table, here("data", "record_table.rds"))
+saveRDS(stations_ct,  here("data", "stations_ct.rds"))
+
+message("Saved: data/record_table.rds  (camtrapR format)")
+message("Saved: data/stations_ct.rds   (camtrapR CTtable format)")
 message("Run 02_detection_summary.R next.")

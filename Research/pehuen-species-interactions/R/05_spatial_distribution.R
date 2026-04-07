@@ -1,17 +1,26 @@
 # 05_spatial_distribution.R
 # ─────────────────────────────────────────────────────────────────────────────
 # PURPOSE
-#   Map the spatial distribution of detections for each focal species across
-#   the camera-trap grid.  Bubble size = total detections at each station.
+#   Map the spatial distribution of detections across the camera-trap grid.
 #
-#   Two outputs:
-#     Fig A — One map per species (faceted), both campaigns combined
-#     Fig B — Side-by-side campaign comparison for native carnivores
+#   Two complementary approaches:
+#     A) Presence/absence maps via camtrapR::detectionMaps() — one map per
+#        species showing which stations detected it, plus a species richness
+#        map.  Saved to figures/detection_maps/.
+#
+#     B) Detection-count bubble maps via sf + ggplot2 — camtrapR's
+#        detectionMaps() shows presence/absence but cannot scale bubble size
+#        by detection count.  For that we use ggplot2 directly.
+#        Fig B1 — all six species, both campaigns combined (faceted)
+#        Fig B2 — native carnivores, split by campaign (grid: campaign × species)
 #
 # INPUT   data/records_all.rds   (produced by 01_load_data.R)
-#         data/stations_sf.rds
-#         data/boundary_sf.rds
-# OUTPUT  figures/05_spatial_all_species.png
+#         data/record_table.rds  (camtrapR format)
+#         data/stations_sf.rds   (sf spatial dataframe)
+#         data/stations_ct.rds   (camtrapR CTtable format)
+#         data/boundary_sf.rds   (reserve boundary polygon)
+# OUTPUT  figures/detection_maps/  (camtrapR presence/absence maps)
+#         figures/05_spatial_all_species.png
 #         figures/05_spatial_native_by_campaign.png
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -21,18 +30,21 @@
 library(here)
 library(dplyr)
 library(ggplot2)
-library(patchwork)
 library(sf)
+library(camtrapR)   # detectionMaps() for presence/absence maps
 
 here::i_am("R/05_spatial_distribution.R")
 dir.create(here("figures"), showWarnings = FALSE)
+dir.create(here("figures", "detection_maps"), showWarnings = FALSE)
 
 
 # ── 1. Load data ─────────────────────────────────────────────────────────────
 
-records     <- readRDS(here("data", "records_all.rds"))
-stations_sf <- readRDS(here("data", "stations_sf.rds"))
-boundary_sf <- readRDS(here("data", "boundary_sf.rds"))
+records      <- readRDS(here("data", "records_all.rds"))
+record_table <- readRDS(here("data", "record_table.rds"))
+stations_sf  <- readRDS(here("data", "stations_sf.rds"))
+stations_ct  <- readRDS(here("data", "stations_ct.rds"))
+boundary_sf  <- readRDS(here("data", "boundary_sf.rds"))
 
 SPECIES_ORDER <- c("Puma", "Guina", "Zorro culpeo", "Jabali", "Liebre", "Perro")
 NATIVE_LABELS <- c("Puma", "Guina", "Zorro culpeo")
@@ -47,35 +59,73 @@ SPECIES_COLORS <- c(
 )
 
 
-# ── 2. Aggregate detections per (station × species) ──────────────────────────
-# Join record counts to the spatial station layer.
-# Stations with zero detections of a given species are filled with 0 so that
-# all cameras appear on every species map (not just the ones where it was seen).
+# ── 2. Presence / absence maps — camtrapR::detectionMaps() ───────────────────
+# detectionMaps() creates one map per species showing which camera stations
+# detected it (filled symbol) vs. did not detect it (open symbol).  It also
+# produces a species richness map (total number of species detected per station).
+#
+# Key arguments:
+#   CTtable           — camera trap station table with Station, Longitude, Latitude
+#   recordTable       — camtrapR-format record table
+#   Xcol / Ycol       — column names for longitude and latitude in CTtable
+#   stationCol        — column name for station ID (must match in both tables)
+#   speciesCol        — column name for species (must match in both tables)
+#   writePNG = TRUE   — save PNGs to disk
+#   plotR    = FALSE  — do not open interactive graphics windows
+#   plotDirectory     — destination folder for PNGs
+#   richnessPlot      — also produce a species richness map (TRUE by default)
 
-# Step 2a: count detections per station per species
+message("Generating presence/absence detection maps (camtrapR)...")
+
+detectionMaps(
+  CTtable      = stations_ct,
+  recordTable  = record_table,
+  Xcol         = "Longitude",
+  Ycol         = "Latitude",
+  stationCol   = "Station",
+  speciesCol   = "Species",
+  writePNG     = TRUE,
+  plotR        = FALSE,
+  plotDirectory = here("figures", "detection_maps"),
+  richnessPlot = TRUE
+)
+
+message("Saved presence/absence maps to figures/detection_maps/")
+
+
+# ── 3. Aggregate detections per (station × species) for bubble maps ───────────
+# For the count-based bubble maps we need the full station × species grid,
+# including zeros (stations where a species was not detected).
+# We build this in three steps:
+#   (a) Count detections per station per species from the records.
+#   (b) Create the full grid of all (station × species) combinations.
+#   (c) Left-join counts into the grid; missing combinations get n_detections = 0.
+#   (d) Attach sf geometry by joining on station_id → GeoJSON id.
+
+# (a) Raw counts
 det_by_station <- records %>%
   count(station_id, species_label, name = "n_detections")
 
-# Step 2b: create the full grid of (station × species) combinations
+# (b) Full grid
 all_combinations <- expand.grid(
   station_id    = unique(stations_sf$id),
   species_label = SPECIES_ORDER,
   stringsAsFactors = FALSE
 )
 
-# Step 2c: left-join counts into the full grid so every station appears
+# (c) Join counts; zero-fill missing combinations
 det_full <- all_combinations %>%
   left_join(det_by_station, by = c("station_id", "species_label")) %>%
   mutate(n_detections = replace(n_detections, is.na(n_detections), 0))
 
-# Step 2d: attach geometry by joining on station_id → GeoJSON `id`
+# (d) Attach geometry
 det_sf <- stations_sf %>%
   rename(station_id = id) %>%
   right_join(det_full, by = "station_id") %>%
   mutate(species_label = factor(species_label, levels = SPECIES_ORDER))
 
 
-# ── 3. Shared map theme ───────────────────────────────────────────────────────
+# ── 4. Shared map theme ───────────────────────────────────────────────────────
 
 map_theme <- theme_void(base_size = 12) +
   theme(
@@ -87,18 +137,20 @@ map_theme <- theme_void(base_size = 12) +
   )
 
 
-# ── 4. Figure A — all six species, both campaigns combined ───────────────────
-# One facet per species.  Bubble size proportional to total detections.
-# Stations with zero detections are shown as tiny grey dots.
+# ── 5. Figure B1 — all six species, both campaigns combined ──────────────────
+# One facet per species.  Bubble size is proportional to total detections.
+# All camera stations appear on every facet so the grid is always visible.
 
 fig_all <- ggplot() +
   # Reserve boundary as background polygon
-  geom_sf(data = boundary_sf, fill = "#f0f4e8", colour = "grey60", linewidth = 0.5) +
-  # All camera stations as a faint reference grid
-  geom_sf(data = stations_sf, colour = "grey70", size = 0.8, shape = 4) +
-  # Detection bubbles (size = n_detections; 0 shown as a tiny point)
+  geom_sf(data = boundary_sf,
+          fill = "#f0f4e8", colour = "grey60", linewidth = 0.5) +
+  # All camera stations as a faint reference grid (X marks)
+  geom_sf(data = stations_sf,
+          colour = "grey70", size = 0.8, shape = 4) +
+  # Bubbles only where n_detections > 0
   geom_sf(
-    data = filter(det_sf, n_detections > 0),
+    data  = filter(det_sf, n_detections > 0),
     aes(size = n_detections, colour = species_label),
     alpha = 0.8
   ) +
@@ -107,7 +159,7 @@ fig_all <- ggplot() +
   facet_wrap(~species_label, ncol = 3) +
   labs(
     title    = "Spatial distribution of detections — focal species",
-    subtitle = "Both campaigns combined. X marks = all camera stations."
+    subtitle = "Both campaigns combined.  X marks = all camera stations."
   ) +
   map_theme
 
@@ -116,15 +168,16 @@ ggsave(here("figures", "05_spatial_all_species.png"),
 message("Saved figures/05_spatial_all_species.png")
 
 
-# ── 5. Figure B — native carnivores, split by campaign ───────────────────────
-# Allows visual comparison of whether spatial patterns shift between seasons.
+# ── 6. Figure B2 — native carnivores split by campaign ───────────────────────
+# Allows visual comparison of whether spatial detection patterns shift between
+# Otoño 2025 and Primavera 2025.
 
 # Aggregate per station × species × campaign
 det_by_campaign <- records %>%
   filter(species_label %in% NATIVE_LABELS) %>%
   count(station_id, species_label, campaign, name = "n_detections")
 
-# Full grid for native species × campaign combinations
+# Full grid for native species × both campaigns
 native_combinations <- expand.grid(
   station_id    = unique(stations_sf$id),
   species_label = NATIVE_LABELS,
@@ -143,12 +196,14 @@ det_native_sf <- native_combinations %>%
   st_as_sf() %>%
   mutate(
     species_label = factor(species_label, levels = NATIVE_LABELS),
-    campaign_lbl  = ifelse(campaign == "Otono_2025", "Otoño 2025", "Primavera 2025")
+    campaign_lbl  = ifelse(campaign == "Otono_2025", "Oto\u00f1o 2025", "Primavera 2025")
   )
 
 fig_native <- ggplot() +
-  geom_sf(data = boundary_sf, fill = "#f0f4e8", colour = "grey60", linewidth = 0.5) +
-  geom_sf(data = stations_sf, colour = "grey70", size = 0.8, shape = 4) +
+  geom_sf(data = boundary_sf,
+          fill = "#f0f4e8", colour = "grey60", linewidth = 0.5) +
+  geom_sf(data = stations_sf,
+          colour = "grey70", size = 0.8, shape = 4) +
   geom_sf(
     data    = filter(det_native_sf, n_detections > 0),
     aes(size = n_detections, colour = species_label),
@@ -159,7 +214,7 @@ fig_native <- ggplot() +
   facet_grid(campaign_lbl ~ species_label) +
   labs(
     title    = "Spatial distribution — native carnivores by campaign",
-    subtitle = "Bubble size = total detections. X marks = all camera stations."
+    subtitle = "Bubble size = total detections.  X marks = all camera stations."
   ) +
   map_theme
 

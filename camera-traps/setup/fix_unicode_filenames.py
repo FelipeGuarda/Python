@@ -16,7 +16,7 @@ import os
 import sys
 import unicodedata
 
-ROOT_DIR = r'C:/Users/USUARIO/SynologyDrive/2. Camaras trampa (SC)/SynologyDrive/DATOS_GRILLA CÁMARAS TRAMPA/2. CAMPAÑAS DE RECOLECCION DE IMAGENES/Primavera 2025'
+ROOT_DIR = r'C:\Users\USUARIO\SynologyDrive\2. Camaras trampa (SC)\SynologyDrive'
 
 DRY_RUN = '--apply' not in sys.argv
 
