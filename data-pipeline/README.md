@@ -121,10 +121,10 @@ Raw data analysis (MegaDetector, CLIP classification, image review) runs on the 
 
 ## Status
 
-**Last Updated:** 2026-04-06
-**What Changed:** Added CSV export + health check tooling; fixed CR800 DST gap bug; recovered March 2026 data gap
+**Last Updated:** 2026-04-07
+**What Changed:** Fixed toa5.py column names (RH_Avg, WindDir_Avg, incomingSW_Avg); added `--fetch-range START END` for state-safe gap recovery from logger
 **Integration Status:** Ready
-**Blockers/Notes:** `--backfill-range` CLI flag pending (manual state rollback required for future gap recovery)
+**Blockers/Notes:** March 4–19 gap not yet recovered in DuckDB — pending `--backfill CR800_Table1.dat` run on Linux (see session log 2026-04-07)
 
 ---
 
@@ -135,15 +135,15 @@ python run_fetch.py --once          # fetch once and exit
 python run_fetch.py --export        # export weather_station to CSV now
 python run_fetch.py --health        # health report (last fetch, row count, gaps)
 python run_fetch.py --health --verbose  # health report with gap details
-python run_fetch.py --backfill FILE # backfill from .dat or met .csv
-python run_fetch.py                 # start scheduler daemon
+python run_fetch.py --backfill FILE            # backfill from .dat or met .csv
+python run_fetch.py --fetch-range START END   # fetch explicit date range from CR800 (no state change)
+python run_fetch.py                           # start scheduler daemon
 ```
 
 ---
 
 ## Pending / Known Issues
 
-- `--backfill-range START END` CLI flag not yet built (needed for future targeted gap recovery)
 - CR800 fetch fails silently on connection error with no alerting when zero rows returned
 - `pycampbellcr1000` has no version pin in environment.yml
 - Uses `print()` for logging — should migrate to `logging` module for production
