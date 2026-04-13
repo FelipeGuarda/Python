@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-04-07
+**Last updated:** 2026-04-13
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -71,7 +71,7 @@ visualizaciones-artisticas (reads DuckDB for art generation)
 
 Running as systemd service (`fma-pipeline.service`). Full pipeline with real data flowing.
 
-**Live data:** 261,302 rows weather_station · 552 rows weather_forecast · 6,030 rows ct_observations (2,428 animals, 25 species) · 18,473 rows ct_media · 65 ct_deployments
+**Live data:** 264,944 rows weather_station · 168 rows weather_forecast · 6,030 rows ct_observations (2,428 animals, 25 species) · 18,473 rows ct_media · 65 ct_deployments
 
 | Component | Status | Notes |
 |---|---|---|
@@ -86,7 +86,6 @@ Running as systemd service (`fma-pipeline.service`). Full pipeline with real dat
 | systemd user service | **Done** | Enabled, starts on boot |
 
 **Pending:**
-- [ ] **⚠️ Run `--backfill CR800_Table1.dat` on Linux to close March 4–19 gap** (dat file downloaded 2026-04-07, transfer and run pending)
 - [ ] Tabla `literatura` pendiente de poblar (literatura-agent integration)
 - [ ] Camtrap DP parser: test with real data
 - [ ] Watcher de carpeta incoming: activate
@@ -215,7 +214,7 @@ Note: `visualizaciones-artisticas/` has the "Río de Sonidos" concept already de
 
 ## Open Items
 
-- [ ] **TC-26 coordinates** — grid 22, SD M23. Spreadsheet has wrong coords (30 km off). Get correct GPS from field team.
+- [x] **TC-26 coordinates** — grid 22, SD M23. Spreadsheet has wrong coords (30 km off). Get correct GPS from field team.
 - [ ] **BP boundary delimitation** — polygon under review. Confirm which version to use.
 - [x] **Otoño 2025 camera trap processing** — done. Both campaigns reviewed, backed up, species images exported.
 - [ ] **Flora plot coordinates** — not yet available.

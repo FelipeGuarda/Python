@@ -121,10 +121,10 @@ Raw data analysis (MegaDetector, CLIP classification, image review) runs on the 
 
 ## Status
 
-**Last Updated:** 2026-04-07
-**What Changed:** Fixed toa5.py column names (RH_Avg, WindDir_Avg, incomingSW_Avg); added `--fetch-range START END` for state-safe gap recovery from logger
+**Last Updated:** 2026-04-13
+**What Changed:** March 4–19 gap confirmed recovered via `--backfill CR800_Table1.dat`; 1,536 rows present, all columns non-null
 **Integration Status:** Ready
-**Blockers/Notes:** March 4–19 gap not yet recovered in DuckDB — pending `--backfill CR800_Table1.dat` run on Linux (see session log 2026-04-07)
+**Blockers/Notes:** None. Annual ~60 min DST gaps in April are CR800 hardware behavior, not fixable in software.
 
 ---
 
