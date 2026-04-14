@@ -117,7 +117,7 @@ def export_reviewed_csv(
         fieldnames = fieldnames + ["reviewOutcome"]
 
     for row in all_rows:
-        fp = row.get("filePath", "")
+        fp = row_fp(row)
         if fp in confirmed:
             spanish = confirmed[fp]
             row["observationComments"]     = spanish
@@ -139,6 +139,20 @@ def export_reviewed_csv(
 def nfc(s: str) -> str:
     """Normalize Unicode to NFC and strip whitespace."""
     return unicodedata.normalize("NFC", s.strip())
+
+
+def row_fp(row: dict) -> str:
+    """Return the relative file path for a CSV row.
+
+    Prefers the filePath column; falls back to RelativePath + File when
+    filePath is empty (as in campaigns where Timelapse2 didn't populate it).
+    """
+    fp = row.get("filePath", "").strip()
+    if not fp:
+        rel   = row.get("RelativePath", "").strip()
+        fname = row.get("File", "").strip()
+        fp = rel + "/" + fname if rel and fname else ""
+    return fp
 
 
 def find_default_idx(species: str, options: list[str]) -> int:
@@ -166,7 +180,7 @@ def _advance(n_groups: int) -> None:
 def confirm_all_proposed(rows: list[dict], proposed: str, n_groups: int) -> None:
     """Set every image in this group to the proposed species, ignoring dropdowns."""
     for row in rows:
-        fp = row["filePath"]
+        fp = row_fp(row)
         st.session_state.confirmed[fp] = proposed
         st.session_state.outcomes[fp]  = "confirmed"
     _advance(n_groups)
@@ -175,7 +189,7 @@ def confirm_all_proposed(rows: list[dict], proposed: str, n_groups: int) -> None
 def confirm_with_edits(rows: list[dict], per_image_proposed: dict, n_groups: int) -> None:
     """Save each image using its current per-image dropdown value."""
     for row in rows:
-        fp       = row["filePath"]
+        fp       = row_fp(row)
         proposed = per_image_proposed[fp]
         chosen   = st.session_state.get(f"sel_{fp}", proposed)
         if chosen == "Otro (especificar)":
@@ -251,10 +265,10 @@ def main() -> None:
         st.caption("Jump to species:")
         for i, sp in enumerate(sorted_species):
             grp = groups[sp]
-            n_done = sum(1 for r in grp if r["filePath"] in confirmed)
+            n_done = sum(1 for r in grp if row_fp(r) in confirmed)
             n_corr = sum(
                 1 for r in grp
-                if st.session_state.outcomes.get(r["filePath"]) == "corrected"
+                if st.session_state.outcomes.get(row_fp(r)) == "corrected"
             )
             done_mark = "✓" if n_done == len(grp) else ("◑" if n_done else "○")
             corr_tag = f", {n_corr} corr." if n_corr else ""
@@ -285,14 +299,14 @@ def main() -> None:
 
     current_species = sorted_species[idx]
     current_rows    = groups[current_species]
-    n_done_this     = sum(1 for r in current_rows if r["filePath"] in confirmed)
+    n_done_this     = sum(1 for r in current_rows if row_fp(r) in confirmed)
     is_rare_group   = current_species == RARE_GROUP
 
     # per_image_proposed: the CLIP-assigned species for each image.
     # For common-species batches every image shares the same proposed species.
     # For the rare group each image has its own CLIP classification.
     per_image_proposed = {
-        row["filePath"]: (nfc(row["observationComments"]) if is_rare_group else current_species)
+        row_fp(row): (nfc(row["observationComments"]) if is_rare_group else current_species)
         for row in current_rows
     }
 
@@ -362,7 +376,7 @@ def main() -> None:
         cols  = st.columns(COLS_PER_ROW)
 
         for col, row in zip(cols, chunk):
-            fp            = row["filePath"]
+            fp            = row_fp(row)
             norm_fp       = fp.replace("\\", "/").lower()
             bbox          = bboxes.get(norm_fp)
             full_path     = str(campaign_dir / fp.replace("\\", "/"))
