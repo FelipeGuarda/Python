@@ -1,25 +1,30 @@
 """
 Entry point for zero-shot CLIP species classification of a camera-trap campaign.
 
-Usage (from the species-classifier/ directory):
+Usage (from the camera-traps/ directory):
     conda activate species-classifier
     python run_classification.py [--config config.yaml]
 
+Input:
+    <campaign_dir>/ImageData_animals.csv
+        — Timelapse2 CamtrapDP export filtered to observationType=animal
+    <campaign_dir>/timelapse_recognition_file.json
+        — MegaDetector output (provides bounding boxes)
+
 Output:
-    <campaign_dir>/new_labeled_data_classified.csv
-        — same format as new_labeled_data_CamptrapDP.csv but with classified rows:
-          · scientificName       ← Latin binomial
-          · observationComments  ← Spanish common name
-          · observationType      ← 'animal'
-          · classificationMethod ← 'machine'
-          · classifiedBy         ← 'CLIP zero-shot'
+    <campaign_dir>/ImageData_animals_classified.csv
+        — same rows as the input CSV but with classified animals filled in:
+          · scientificName            ← Latin binomial
+          · observationComments       ← Spanish common name
+          · observationType           ← 'animal' (already set, confirmed)
+          · classificationMethod      ← 'machine'
+          · classifiedBy              ← 'CLIP zero-shot'
           · classificationProbability ← cosine similarity score
           · classificationTimestamp   ← ISO timestamp
 """
 
 import argparse
 import csv
-import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,8 +35,6 @@ from classify_campaign.clip_classifier import CLIPZeroShotClassifier
 from classify_campaign.crop_utils import load_and_crop
 from classify_campaign.data_loader import load_animal_images
 
-
-# ── CSV helpers ───────────────────────────────────────────────────────────────
 
 def read_csv(path: Path) -> tuple[list[str], list[dict]]:
     with open(path, encoding="utf-8-sig", newline="") as f:
@@ -48,18 +51,15 @@ def write_csv(path: Path, fieldnames: list[str], rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
-# ── DB helper: Id → filePath lookup ──────────────────────────────────────────
+def row_file_path(row: dict) -> str:
+    """Return the normalised relative file path for a CSV row."""
+    fp = row.get("filePath", "").strip()
+    if not fp:
+        rel   = row.get("RelativePath", "").strip()
+        fname = row.get("File", "").strip()
+        fp = rel + "/" + fname if rel and fname else ""
+    return fp.replace("\\", "/").lower()
 
-def build_id_to_filepath(db_path: Path) -> dict[int, str]:
-    con = sqlite3.connect(str(db_path))
-    cur = con.cursor()
-    cur.execute("SELECT Id, filePath FROM DataTable")
-    mapping = {row_id: fp for row_id, fp in cur.fetchall()}
-    con.close()
-    return mapping
-
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main(config_path: str) -> None:
     with open(config_path, encoding="utf-8") as f:
@@ -69,15 +69,15 @@ def main(config_path: str) -> None:
 
     # ── Load image list ───────────────────────────────────────────────────────
     print("Loading data sources …")
-    images = load_animal_images(config)
-    n_md  = sum(1 for i in images if i["source"] == "megadetector")
-    n_del = sum(1 for i in images if i["source"] == "delete_flag")
+    images   = load_animal_images(config)
+    n_md     = sum(1 for i in images if i["source"] == "megadetector")
+    n_csv    = sum(1 for i in images if i["source"] == "csv_only")
     print(f"  {len(images)} images to classify  "
           f"({n_md} MD detections >={config['animal_confidence_threshold']}, "
-          f"{n_del} DeleteFlag misses)")
+          f"{n_csv} CSV-only / no MD bbox)")
 
     if not images:
-        print("Nothing to classify. Check the JSON path and threshold in config.yaml.")
+        print("Nothing to classify. Check input_csv path and megadetector_json in config.yaml.")
         return
 
     # ── Load CLIP ─────────────────────────────────────────────────────────────
@@ -88,10 +88,11 @@ def main(config_path: str) -> None:
     )
 
     # ── Classify ──────────────────────────────────────────────────────────────
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    timestamp      = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
     clip_threshold = float(config.get("clip_confidence_threshold", 0.0))
-    id_to_result: dict[int, dict] = {}
-    skipped = 0
+    # key: normalised relative path  →  classification result
+    fp_to_result: dict[str, dict] = {}
+    skipped  = 0
     low_conf = 0
 
     print("Classifying …")
@@ -101,31 +102,18 @@ def main(config_path: str) -> None:
             skipped += 1
             continue
 
+        norm_key = img_info["file_path"].replace("\\", "/").lower()
         species, score = classifier.classify(crop)
+
         if score < clip_threshold:
             low_conf += 1
-            id_to_result[img_info["id"]] = {
-                "latin":   "",
-                "spanish": "No reconocible",
-                "score":   score,
-            }
+            fp_to_result[norm_key] = {"latin": "", "spanish": "No reconocible", "score": score}
         else:
-            id_to_result[img_info["id"]] = {
-                "latin":   species["latin"],
-                "spanish": species["spanish"],
-                "score":   score,
-            }
+            fp_to_result[norm_key] = {"latin": species["latin"], "spanish": species["spanish"], "score": score}
 
-    print(f"  Classified: {len(id_to_result)}  |  Low confidence (<{clip_threshold}): {low_conf}  |  Skipped (unreadable): {skipped}")
-
-    # ── Build filePath → result lookup ────────────────────────────────────────
-    db_path = campaign_dir / config["database"]
-    id_to_fp = build_id_to_filepath(db_path)
-    fp_to_result = {
-        id_to_fp[row_id]: result
-        for row_id, result in id_to_result.items()
-        if row_id in id_to_fp
-    }
+    print(f"  Classified: {len(fp_to_result)}  |  "
+          f"Low confidence (<{clip_threshold}): {low_conf}  |  "
+          f"Skipped (unreadable): {skipped}")
 
     # ── Update CSV ────────────────────────────────────────────────────────────
     input_csv  = campaign_dir / config["input_csv"]
@@ -136,16 +124,16 @@ def main(config_path: str) -> None:
     updated = 0
 
     for row in rows:
-        fp = row.get("filePath", "")
-        if fp not in fp_to_result:
+        key = row_file_path(row)
+        if key not in fp_to_result:
             continue
-        result = fp_to_result[fp]
-        row["observationType"]          = "animal"
-        row["scientificName"]           = result["latin"]
-        row["observationComments"]      = result["spanish"]
-        row["classificationMethod"]     = config["classification_method"]
-        row["classifiedBy"]             = config["classified_by"]
-        row["classificationTimestamp"]  = timestamp
+        result = fp_to_result[key]
+        row["observationType"]           = "animal"
+        row["scientificName"]            = result["latin"]
+        row["observationComments"]       = result["spanish"]
+        row["classificationMethod"]      = config["classification_method"]
+        row["classifiedBy"]              = config["classified_by"]
+        row["classificationTimestamp"]   = timestamp
         row["classificationProbability"] = str(result["score"])
         updated += 1
 

@@ -18,7 +18,7 @@ camera-traps/
 ├── classify_campaign/           ← CLIP classification package
 │   ├── clip_classifier.py       ← zero-shot CLIP classifier (cosine similarity)
 │   ├── crop_utils.py            ← MegaDetector bbox crop + resize
-│   └── data_loader.py           ← loads animals from MD JSON + Timelapse2 .ddb
+│   └── data_loader.py           ← loads animals from ImageData_animals.csv + MD JSON
 │
 ├── phase1_labeling/             ← human review Streamlit app
 │   └── app.py                   ← review UI (batch by species, export reviewed CSV)
@@ -94,7 +94,19 @@ python setup/megadetector_campaigns.py \
   --output_json "C:\path\to\Fotos\timelapse_recognition_file.json"
 ```
 
-### Step 2 — CLIP zero-shot classification
+### Step 2 — Export animal image list from Timelapse2
+
+Before running CLIP classification, export the animal observations from Timelapse2:
+
+1. Open the campaign's Timelapse2 project (`.tdb` template + image folder)
+2. In Timelapse2, filter to `observationType = animal`
+3. **File → Export data as CSV** → save as `ImageData_animals.csv` in the campaign folder
+
+This CSV is the input to the classifier. It should contain one row per animal image with at minimum `RelativePath`, `File`, `observationType`, and `fileMediatype` columns (standard Timelapse2 CamtrapDP export).
+
+> **Note:** The `filePath` column may be empty depending on how the Timelapse2 project was set up — the pipeline handles both cases automatically using `RelativePath + File` as a fallback.
+
+### Step 3 — CLIP zero-shot classification
 
 Edit `config.yaml` to point at the new campaign (see [Configuration](#configuration)), then:
 
@@ -107,14 +119,15 @@ python run_classification.py
 ```
 
 **What it does:**
-- Reads MegaDetector detections ≥ `animal_confidence_threshold` (0.38) from `timelapse_recognition_file.json`
-- Also reads `DeleteFlag=true` images from the Timelapse2 `.ddb` (catches animals MegaDetector missed)
+- Reads `ImageData_animals.csv` — the pre-filtered list of animal images from Timelapse2 review
+- For each image, looks up its bounding box in `timelapse_recognition_file.json` (MegaDetector output)
+- Images not found in the JSON (confirmed by reviewer but missed by MegaDetector) are classified on the full frame
 - Crops each image to the MegaDetector bounding box (5% padding)
 - Classifies with CLIP (`openai/clip-vit-base-patch32`) against the 26-species English prompts
 - Scores < `clip_confidence_threshold` (0.28) → marked `"No reconocible"` instead of a forced guess
-- Writes `new_labeled_data_classified.csv` to the campaign folder
+- Writes `ImageData_animals_classified.csv` to the campaign folder
 
-### Step 3 — Human review (Streamlit)
+### Step 4 — Human review (Streamlit)
 
 ```bash
 streamlit run phase1_labeling/app.py
@@ -130,7 +143,7 @@ The UI:
   - *Confirmar con cambios* — apply any per-image dropdown edits before confirming
 - Exports `new_labeled_data_reviewed.csv` — CamtrapDP format + `reviewOutcome` column (`"confirmed"` / `"corrected"`)
 
-### Step 4 — Export best images
+### Step 5 — Export best images
 
 After review, export the top-N highest-confidence images per species per campaign for sharing / platform display:
 
@@ -155,11 +168,10 @@ python export_best_images.py
 
 ```yaml
 # ── Paths ────────────────────────────────────────────────────────────────────
-campaign_dir:     "C:/path/to/Season YYYY"   # ← update for each campaign
+campaign_dir:      "C:/path/to/Season YYYY"   # ← update for each campaign
 megadetector_json: "timelapse_recognition_file.json"
-database:          "CamtrapDB_<season>.ddb"
-input_csv:         "new_labeled_data_CamptrapDP.csv"
-output_csv:        "new_labeled_data_classified.csv"
+input_csv:         "ImageData_animals.csv"     # Timelapse2 export filtered to observationType=animal
+output_csv:        "ImageData_animals_classified.csv"
 
 # ── Historical data ───────────────────────────────────────────────────────────
 old_data_csv:           "old animal data DB.csv"   # relative to config file
@@ -178,7 +190,7 @@ classified_by:         "CLIP zero-shot"
 classification_method: "machine"
 ```
 
-Only `campaign_dir`, `database`, `input_csv`, and `output_csv` change between campaigns.
+Only `campaign_dir`, `input_csv`, and `output_csv` change between campaigns.
 
 ---
 
