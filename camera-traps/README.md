@@ -145,7 +145,7 @@ The UI:
 
 ### Step 5 — Export best images
 
-After review, export the top-N highest-confidence images per species per campaign for sharing / platform display:
+After review, export the best images per species and per station for sharing / platform display:
 
 ```bash
 conda activate species-classifier
@@ -155,12 +155,15 @@ python export_best_images.py
 ```
 
 **What it does:**
-- Reads `new_labeled_data_reviewed.csv` and the MegaDetector JSON for each campaign
-- Selects the top 5 images per species ranked by MegaDetector detection confidence (clearest shots)
-- Copies to `exports/species_images/{common_name}_{latin_name}/{campaign_name}/best_01.jpg …`
-- Species not in the known 26-species map get a `_UNKNOWN_` prefix so they are easy to spot and exclude before sharing
+- Auto-discovers all campaigns under the Synology base path that have both `new_labeled_data_reviewed.csv` and `timelapse_recognition_file.json` (handles both root and `Fotos/` layouts)
+- Resolves species for rows reviewed via "Otro (especificar)" using a case-insensitive Spanish name lookup
+- Produces two outputs per campaign:
+  - `exports/<campaign>/species/<common_latin>/` — top 5 images per species globally, ranked by MegaDetector confidence (for sharing / reports)
+  - `exports/<campaign>/stations/<station>/` — top 3 images per station (any species, ranked by confidence) — ready for platform map popups
+- Filenames: `{station}_{original_filename}.jpg` — fully traceable back to the source image
+- Species not in the known map get a `_UNKNOWN_` prefix so they are easy to spot
 
-> Edit `CAMPAIGNS` and `TOP_N` at the top of `export_best_images.py` to add new campaigns or change the number of exported images.
+> Edit `TOP_N_SPECIES` and `TOP_N_STATION` at the top of `export_best_images.py` to change image counts. New campaigns are picked up automatically — no config needed.
 
 ---
 
@@ -217,7 +220,7 @@ This is already done in the working environment. Only redo if rebuilding the con
 
 ## Species List
 
-26 species configured in `config.yaml`. Each entry has a Spanish name (written to `observationComments`), Latin binomial (`scientificName`), and English CLIP prompt.
+27 species configured in `config.yaml`. Each entry has a Spanish name (written to `observationComments`), Latin binomial (`scientificName`), and English CLIP prompt.
 
 | Spanish | Latin | Notes |
 |---|---|---|
@@ -247,6 +250,7 @@ This is already done in the working environment. Only redo if rebuilding the con
 | Diucón | *Xolmis pyrope* | |
 | Traro | *Caracara plancus* | |
 | Ciervo rojo | *Cervus elaphus* | Invasive |
+| Pudú | *Pudu puda* | |
 
 ---
 
