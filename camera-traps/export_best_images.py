@@ -1,9 +1,16 @@
 """
-Export top-N best images per species per campaign for the platform.
+Export top-N best images per species and per station for all campaigns.
 
-Selects images by MegaDetector confidence (highest conf = clearest animal shot).
-Copies to:
-    exports/species_images/{latin_name_slug}/{campaign_name}/best_01.jpg …
+Auto-discovers campaigns: any subfolder of CAMPAIGNS_BASE that contains
+new_labeled_data_reviewed.csv (either directly or in a Fotos/ subfolder).
+
+Output structure:
+    exports/
+      <campaign_name>/
+        species/<common_latin_slug>/   ← top N globally per species
+        stations/<station_name>/       ← top M per station (any species, for map popups)
+
+Filenames: {station}_{original_filename}.jpg  (fully traceable to source)
 
 Usage:
     conda activate species-classifier
@@ -19,35 +26,20 @@ from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-TOP_N = 5
-SKIP_SPECIES = {"", "No reconocible"}
-
-SYNOLOGY_BASE = (
+CAMPAIGNS_BASE = Path(
     r"C:\Users\USUARIO\SynologyDrive\2. Camaras trampa (SC)"
     r"\SynologyDrive\DATOS_GRILLA CÁMARAS TRAMPA"
     r"\2. CAMPAÑAS DE RECOLECCION DE IMAGENES"
 )
 
-CAMPAIGNS = [
-    {
-        "name": "primavera_2025",
-        "campaign_dir": SYNOLOGY_BASE + r"\Primavera 2025",
-        "reviewed_csv": "new_labeled_data_reviewed.csv",
-        "md_json":      "timelapse_recognition_file.json",
-    },
-    {
-        "name": "otono_2025",
-        "campaign_dir": SYNOLOGY_BASE + r"\Otoño 2025\Fotos",
-        "reviewed_csv": "new_labeled_data_reviewed.csv",
-        "md_json":      "timelapse_recognition_file.json",
-    },
-]
-
-EXPORT_DIR = Path(__file__).parent / "exports" / "species_images"
+EXPORT_DIR    = Path(__file__).parent / "exports"
+TOP_N_SPECIES = 5   # best images per species (global, for sharing / reports)
+TOP_N_STATION = 3   # best images per station (any species, for map popups)
+SKIP_SPECIES  = {"", "No reconocible", "No es un animal"}
 
 # Spanish common names keyed by scientific name.
 # Used to build directory names: {common_slug}_{latin_slug}
-# If a species is not found here, directory is prefixed with _UNKNOWN_ as a flag.
+# Unknown species get a _UNKNOWN_ prefix so they are easy to spot.
 SPECIES_COMMON_NAMES: dict[str, str] = {
     "Lycalopex culpaeus":       "Zorro culpeo",
     "Puma concolor":            "Puma",
@@ -86,7 +78,6 @@ def slugify(name: str) -> str:
 
 
 def species_dir_name(scientific_name: str) -> str:
-    """Return '{common_slug}_{latin_slug}', or '_UNKNOWN_{latin_slug}' if unmapped."""
     common = SPECIES_COMMON_NAMES.get(scientific_name)
     latin_slug = slugify(scientific_name)
     if common is None:
@@ -94,8 +85,29 @@ def species_dir_name(scientific_name: str) -> str:
     return f"{slugify(common)}_{latin_slug}"
 
 
+def row_fp(row: dict) -> str:
+    """Return the relative file path (forward slashes). Handles empty filePath."""
+    fp = row.get("filePath", "").strip()
+    if not fp:
+        rel   = row.get("RelativePath", "").strip()
+        fname = row.get("File", "").strip()
+        fp = rel + "/" + fname if rel and fname else ""
+    return fp.replace("\\", "/")
+
+
+def output_filename(row: dict) -> str:
+    """Build a traceable output filename: {station}_{original_file} (lowercase ext)."""
+    station  = row.get("RelativePath", "").strip().replace("\\", "/")
+    fname    = row.get("File", "").strip()
+    stem     = Path(fname).stem
+    suffix   = Path(fname).suffix.lower() or ".jpg"
+    # slugify the station part so dots/spaces don't cause filesystem issues
+    station_slug = re.sub(r"[^a-zA-Z0-9_\-]", "_", station)
+    return f"{station_slug}_{stem}{suffix}"
+
+
 def load_md_confidence(md_json_path: Path) -> dict[str, float]:
-    """Return {normalised_file_path → best animal (cat=1) confidence}."""
+    """Return {normalised_relative_path → best animal (cat=1) confidence}."""
     with open(md_json_path, encoding="utf-8") as f:
         data = json.load(f)
     best: dict[str, float] = {}
@@ -109,37 +121,52 @@ def load_md_confidence(md_json_path: Path) -> dict[str, float]:
     return best
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+def find_campaigns() -> list[dict]:
+    """
+    Walk CAMPAIGNS_BASE and return one entry per campaign that has a
+    reviewed CSV and a MegaDetector JSON.
 
-def export_campaign(campaign: dict) -> int:
-    campaign_dir = Path(campaign["campaign_dir"])
-    name         = campaign["name"]
+    Checks two locations per season folder:
+      1. <season>/new_labeled_data_reviewed.csv          (Primavera layout)
+      2. <season>/Fotos/new_labeled_data_reviewed.csv    (Otoño layout)
+    """
+    campaigns = []
+    for season_dir in sorted(CAMPAIGNS_BASE.iterdir()):
+        if not season_dir.is_dir():
+            continue
+        for candidate in [season_dir, season_dir / "Fotos"]:
+            csv_path = candidate / "new_labeled_data_reviewed.csv"
+            json_path = candidate / "timelapse_recognition_file.json"
+            if csv_path.exists() and json_path.exists():
+                campaigns.append({
+                    "label":        season_dir.name,   # e.g. "Otoño 2025"
+                    "campaign_dir": candidate,
+                    "reviewed_csv": csv_path,
+                    "md_json":      json_path,
+                })
+                break   # don't double-count a season
+    return campaigns
 
-    reviewed_csv = campaign_dir / campaign["reviewed_csv"]
-    md_json      = campaign_dir / campaign["md_json"]
+
+# ── Per-campaign export ───────────────────────────────────────────────────────
+
+def export_campaign(campaign: dict) -> tuple[int, int]:
+    """Export species/ and stations/ outputs. Returns (species_images, station_images)."""
+    label        = campaign["label"]
+    campaign_dir = campaign["campaign_dir"]
 
     print(f"\n{'-'*60}")
-    print(f"Campaign : {name}")
+    print(f"Campaign : {label}")
     print(f"Dir      : {campaign_dir}")
 
-    if not reviewed_csv.exists():
-        print(f"  ERROR: reviewed CSV not found: {reviewed_csv}")
-        return 0
-    if not md_json.exists():
-        print(f"  ERROR: MD JSON not found: {md_json}")
-        return 0
-
-    # Load MD confidence scores
-    print("  Loading MegaDetector confidence scores …")
-    md_conf = load_md_confidence(md_json)
+    # ── Load data ─────────────────────────────────────────────────────────────
+    md_conf = load_md_confidence(campaign["md_json"])
     print(f"  {len(md_conf)} images with animal detections in MD JSON")
 
-    # Load reviewed CSV
-    with open(reviewed_csv, encoding="utf-8-sig", newline="") as f:
+    with open(campaign["reviewed_csv"], encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
     print(f"  {len(rows)} total rows in reviewed CSV")
 
-    # Filter: confirmed animal observations with a real species
     animal_rows = [
         r for r in rows
         if r.get("observationType", "").strip() == "animal"
@@ -147,56 +174,98 @@ def export_campaign(campaign: dict) -> int:
     ]
     print(f"  {len(animal_rows)} animal rows with valid species")
 
-    # Attach MD confidence
+    # Attach MD confidence and source path
     for r in animal_rows:
-        fp_key = r.get("filePath", "").replace("\\", "/").lower()
+        fp_key    = row_fp(r).lower()
         r["_md_conf"] = md_conf.get(fp_key, 0.0)
+        r["_src"]     = campaign_dir / row_fp(r)
 
     no_md = sum(1 for r in animal_rows if r["_md_conf"] == 0.0)
     if no_md:
         print(f"  Note: {no_md} rows had no MD detection entry (will sort last)")
 
-    # Group by species → sort by MD conf desc → take top N
+    campaign_export = EXPORT_DIR / label
+    species_total   = _export_species(animal_rows, campaign_export / "species")
+    station_total   = _export_stations(animal_rows, campaign_export / "stations")
+    return species_total, station_total
+
+
+def _copy(src: Path, dst_dir: Path, filename: str) -> bool:
+    """Copy src to dst_dir/filename. Returns True on success."""
+    if not src.exists():
+        print(f"    MISSING: {src.name}")
+        return False
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(str(src), str(dst_dir / filename))
+    return True
+
+
+def _export_species(animal_rows: list[dict], out_base: Path) -> int:
+    """Top N images per species globally, sorted by MD confidence desc."""
     by_species: dict[str, list] = defaultdict(list)
     for r in animal_rows:
         by_species[r["scientificName"].strip()].append(r)
 
-    total_copied = 0
+    total = 0
     for species in sorted(by_species):
-        species_rows = sorted(by_species[species], key=lambda r: r["_md_conf"], reverse=True)
-        top = species_rows[:TOP_N]
+        top = sorted(by_species[species], key=lambda r: r["_md_conf"], reverse=True)[:TOP_N_SPECIES]
+        out_dir = out_base / species_dir_name(species)
+        copied = sum(
+            1 for r in top
+            if _copy(r["_src"], out_dir, output_filename(r))
+        )
+        total += copied
+        print(f"  [species] {species:<40} {copied}/{len(top)}  "
+              f"(best conf: {top[0]['_md_conf']:.3f})")
+    return total
 
-        out_dir = EXPORT_DIR / species_dir_name(species) / name
-        out_dir.mkdir(parents=True, exist_ok=True)
 
-        copied = 0
-        for i, r in enumerate(top, 1):
-            rel = r.get("filePath", "").replace("\\", "/")
-            src = campaign_dir / rel
-            suffix = Path(rel).suffix.lower() or ".jpg"
-            dst = out_dir / f"best_{i:02d}{suffix}"
+def _export_stations(animal_rows: list[dict], out_base: Path) -> int:
+    """Top M images per station (any species), sorted by MD confidence desc."""
+    by_station: dict[str, list] = defaultdict(list)
+    for r in animal_rows:
+        station = r.get("RelativePath", "").strip().replace("\\", "/")
+        if station:
+            by_station[station].append(r)
 
-            if not src.exists():
-                print(f"    MISSING: {src.name}")
-                continue
+    total = 0
+    for station in sorted(by_station):
+        top = sorted(by_station[station], key=lambda r: r["_md_conf"], reverse=True)[:TOP_N_STATION]
+        station_slug = re.sub(r"[^a-zA-Z0-9_\-]", "_", station)
+        out_dir = out_base / station_slug
+        copied = sum(
+            1 for r in top
+            if _copy(r["_src"], out_dir, output_filename(r))
+        )
+        total += copied
+        print(f"  [station] {station:<25} {copied}/{len(top)}  "
+              f"(best conf: {top[0]['_md_conf']:.3f})")
+    return total
 
-            shutil.copy2(str(src), str(dst))
-            copied += 1
 
-        total_copied += copied
-        print(f"  {species:<40} {copied}/{len(top)} images  (top MD conf: {top[0]['_md_conf']:.3f})")
-
-    return total_copied
-
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
+    campaigns = find_campaigns()
+    if not campaigns:
+        print(f"No campaigns found in {CAMPAIGNS_BASE}")
+        print("Each campaign folder must contain new_labeled_data_reviewed.csv "
+              "and timelapse_recognition_file.json (at root or in Fotos/).")
+        return
+
+    print(f"Found {len(campaigns)} campaign(s): {[c['label'] for c in campaigns]}")
     print(f"Export dir: {EXPORT_DIR}")
-    grand_total = 0
-    for campaign in CAMPAIGNS:
-        grand_total += export_campaign(campaign)
+
+    grand_species = grand_stations = 0
+    for campaign in campaigns:
+        s, st = export_campaign(campaign)
+        grand_species  += s
+        grand_stations += st
+
     print(f"\n{'='*60}")
-    print(f"Total images exported: {grand_total}")
-    print(f"Export dir : {EXPORT_DIR}")
+    print(f"Species images exported : {grand_species}")
+    print(f"Station images exported : {grand_stations}")
+    print(f"Export dir              : {EXPORT_DIR}")
 
 
 if __name__ == "__main__":
