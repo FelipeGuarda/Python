@@ -45,11 +45,53 @@ CAMPAIGNS = [
 
 EXPORT_DIR = Path(__file__).parent / "exports" / "species_images"
 
+# Spanish common names keyed by scientific name.
+# Used to build directory names: {common_slug}_{latin_slug}
+# If a species is not found here, directory is prefixed with _UNKNOWN_ as a flag.
+SPECIES_COMMON_NAMES: dict[str, str] = {
+    "Lycalopex culpaeus":       "Zorro culpeo",
+    "Puma concolor":            "Puma",
+    "Leopardus guigna":         "Guina",
+    "Sus scrofa":               "Jabali",
+    "Lepus europaeus":          "Liebre",
+    "Neogale vison":            "Vison",
+    "Canis lupus familiaris":   "Perro",
+    "Equus caballus":           "Caballo",
+    "Felis catus":              "Gato domestico",
+    "Dromiciops gliroides":     "Monito del monte",
+    "Abrothrix longipilis":     "Raton cola larga",
+    "Scelorchilus rubecula":    "Chucao",
+    "Pteroptochos tectus":      "Hued hued",
+    "Aphrastura spinicauda":    "Rayadito",
+    "Strix rufipes":            "Concon",
+    "Campephilus magellanicus": "Carpintero",
+    "Theristicus melanopis":    "Bandurria",
+    "Vanellus chilensis":       "Queltehue",
+    "Milvago chimango":         "Tiuque",
+    "Accipiter chilensis":      "Peuquito",
+    "Turdus falcklandii":       "Zorzal",
+    "Phrygilus gayi":           "Cometocino",
+    "Sephanoides sephaniodes":  "Picaflor",
+    "Xolmis pyrope":            "Diucon",
+    "Caracara plancus":         "Traro",
+    "Cervus elaphus":           "Ciervo rojo",
+    "Pudu puda":                "Pudu",
+}
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def slugify(name: str) -> str:
     return re.sub(r"[^a-zA-Z0-9]+", "_", name).strip("_")
+
+
+def species_dir_name(scientific_name: str) -> str:
+    """Return '{common_slug}_{latin_slug}', or '_UNKNOWN_{latin_slug}' if unmapped."""
+    common = SPECIES_COMMON_NAMES.get(scientific_name)
+    latin_slug = slugify(scientific_name)
+    if common is None:
+        return f"_UNKNOWN_{latin_slug}"
+    return f"{slugify(common)}_{latin_slug}"
 
 
 def load_md_confidence(md_json_path: Path) -> dict[str, float]:
@@ -124,7 +166,7 @@ def export_campaign(campaign: dict) -> int:
         species_rows = sorted(by_species[species], key=lambda r: r["_md_conf"], reverse=True)
         top = species_rows[:TOP_N]
 
-        out_dir = EXPORT_DIR / slugify(species) / name
+        out_dir = EXPORT_DIR / species_dir_name(species) / name
         out_dir.mkdir(parents=True, exist_ok=True)
 
         copied = 0

@@ -114,7 +114,7 @@ python run_classification.py
 - Scores < `clip_confidence_threshold` (0.28) → marked `"No reconocible"` instead of a forced guess
 - Writes `new_labeled_data_classified.csv` to the campaign folder
 
-### Step 3 — Human review
+### Step 3 — Human review (Streamlit)
 
 ```bash
 streamlit run phase1_labeling/app.py
@@ -129,6 +129,25 @@ The UI:
   - *Confirmar todo como X* — bulk confirm all images as the proposed species
   - *Confirmar con cambios* — apply any per-image dropdown edits before confirming
 - Exports `new_labeled_data_reviewed.csv` — CamtrapDP format + `reviewOutcome` column (`"confirmed"` / `"corrected"`)
+
+### Step 4 — Export best images
+
+After review, export the top-N highest-confidence images per species per campaign for sharing / platform display:
+
+```bash
+conda activate species-classifier
+cd C:\Users\USUARIO\Dev\Python\camera-traps
+
+python export_best_images.py
+```
+
+**What it does:**
+- Reads `new_labeled_data_reviewed.csv` and the MegaDetector JSON for each campaign
+- Selects the top 5 images per species ranked by MegaDetector detection confidence (clearest shots)
+- Copies to `exports/species_images/{common_name}_{latin_name}/{campaign_name}/best_01.jpg …`
+- Species not in the known 26-species map get a `_UNKNOWN_` prefix so they are easy to spot and exclude before sharing
+
+> Edit `CAMPAIGNS` and `TOP_N` at the top of `export_best_images.py` to add new campaigns or change the number of exported images.
 
 ---
 
@@ -231,5 +250,5 @@ This is already done in the working environment. Only redo if rebuilding the con
 
 | Campaign | Status | Reviewed CSV |
 |---|---|---|
-| Primavera 2025 | Complete | `data/campaigns/primavera_2025/new_labeled_data_reviewed.csv` |
+| Primavera 2025 | In progress — analysing new directories | `data/campaigns/primavera_2025/new_labeled_data_reviewed.csv` |
 | Otoño 2025 | Complete (694 obs) | `<Synology>/Otoño 2025/Fotos/new_labeled_data_reviewed.csv` |
