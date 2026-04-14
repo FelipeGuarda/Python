@@ -70,6 +70,13 @@ SPECIES_COMMON_NAMES: dict[str, str] = {
     "Pudu puda":                "Pudu",
 }
 
+# Reverse lookup: lowercase Spanish common name → scientific name.
+# Used to recover scientificName for rows reviewed via "Otro (especificar)"
+# where the app couldn't fill in a latin name at review time.
+SPANISH_TO_LATIN: dict[str, str] = {
+    v.lower(): k for k, v in SPECIES_COMMON_NAMES.items()
+}
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -167,12 +174,26 @@ def export_campaign(campaign: dict) -> tuple[int, int]:
         rows = list(csv.DictReader(f))
     print(f"  {len(rows)} total rows in reviewed CSV")
 
-    animal_rows = [
-        r for r in rows
-        if r.get("observationType", "").strip() == "animal"
-        and r.get("scientificName", "").strip() not in SKIP_SPECIES
-    ]
-    print(f"  {len(animal_rows)} animal rows with valid species")
+    # Rows written via "Otro (especificar)" have observationComments set but
+    # scientificName left empty (no latin name was available at review time).
+    # Try to resolve those via a case-insensitive Spanish name lookup.
+    resolved = 0
+    animal_rows = []
+    for r in rows:
+        if r.get("observationType", "").strip() != "animal":
+            continue
+        sci = r.get("scientificName", "").strip()
+        if sci in SKIP_SPECIES:
+            comment = r.get("observationComments", "").strip().lower()
+            sci = SPANISH_TO_LATIN.get(comment, "")
+            if sci:
+                r["scientificName"] = sci
+                resolved += 1
+        if sci and sci not in SKIP_SPECIES:
+            animal_rows.append(r)
+
+    print(f"  {len(animal_rows)} animal rows with valid species"
+          + (f"  ({resolved} resolved from comments)" if resolved else ""))
 
     # Attach MD confidence and source path
     for r in animal_rows:
