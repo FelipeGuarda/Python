@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-04-13
+**Last updated:** 2026-04-14
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -141,22 +141,23 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 ### 3. Camera Traps (`camera-traps/`) — FASE 1 OPERATIVA
 
-CLIP classification pipeline and Streamlit review UI are production-quality. Primavera 2025 data processed. Otoño 2025 images retrieved but not classified.
+CLIP classification pipeline and Streamlit review UI are production-quality. Both campaigns (Otoño 2025 + Primavera-verano 2025-2026) classified and reviewed. 27 species (Pudú added 2026-04-14).
 
 | Component | Status | Notes |
 |---|---|---|
 | MegaDetector integration | Done | Via AddaxAI on Windows desktop |
-| CLIP classification | Done | `run_classification.py` |
-| Streamlit review UI | Done | `phase1_labeling/app.py` |
+| CLIP classification | Done | `run_classification.py` — CSV-only workflow, no DB dependency |
+| Streamlit review UI | Done | `phase1_labeling/app.py` — handles empty filePath column |
 | GIS data (KML → GeoJSON) | Done | Boundary + 26 station coordinates (TC-26 fixed 2026-03-30) |
-| Otoño 2025 classification | **Done** | 694 animal obs reviewed, CSV backed up in git |
-| Species image export | **Done** | Top 5/species/campaign via `export_best_images.py`; 131 images in `exports/` (gitignored) |
+| Otoño 2025 classification | Done | 697 animal obs reviewed |
+| Primavera-verano 2025-2026 | **Done** | 500 animal obs reviewed |
+| Species image export | **Done** | `export_best_images.py`: auto-discovers campaigns; 155 species images + 103 station images in `exports/` (gitignored); filenames traceable to source |
 | EfficientNetV2 fine-tuning | Planned | Needs ≥50 reviewed images/species — now viable for common species |
 | Otoño 2025 videos | Deferred | 2,593 videos, MegaDetector not run — process post-migration on Linux |
 
-**Pre-migration GPU work: COMPLETE.** Both campaigns reviewed. Ready for OS migration.
+**Pre-migration GPU work: COMPLETE.** Both campaigns reviewed and exported. Ready for OS migration.
 
-**Post-migration next steps (Linux):** Run `export_best_images.py` after NAS re-download, then write DuckDB parser for reviewed CSVs.
+**Post-migration next steps (Linux):** Ingest reviewed CSVs into DuckDB (Phase 3.1 in plataforma-territorial); station thumbnails in `exports/*/stations/` are ready for `plataforma-territorial/data/thumbnails/`.
 
 Note: `config.yaml` and `NEXT_SESSION.md` have Windows paths — intentional (raw analysis runs on Windows desktop).
 
