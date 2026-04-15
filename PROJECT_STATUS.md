@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-04-14
+**Last updated:** 2026-04-15
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -71,7 +71,7 @@ visualizaciones-artisticas (reads DuckDB for art generation)
 
 Running as systemd service (`fma-pipeline.service`). Full pipeline with real data flowing.
 
-**Live data:** 264,944 rows weather_station · 168 rows weather_forecast · 6,030 rows ct_observations (2,428 animals, 25 species) · 18,473 rows ct_media · 65 ct_deployments
+**Live data:** 264,944 rows weather_station · 168 rows weather_forecast · 7,652 rows ct_observations · 20,095 ct_media · 106 ct_deployments (Otoño 2025 + Primavera-verano 2025-2026 ingested 2026-04-15)
 
 | Component | Status | Notes |
 |---|---|---|
@@ -104,10 +104,11 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 | Component | Status | Notes |
 |---|---|---|
-| Observatorio (map) | Real data | Leaflet + Esri satellite + boundary.geojson + 25 cameras |
+| Observatorio (map) | **Real data** | 23 canonical stations from DuckDB, species counts + thumbnails in popups |
 | Dashboard — Meteo tab | **Real data** | Year of history, variable selector, wind rose, comparison mode |
 | Dashboard — Fire risk tab | **Real data** | Polar chart, FRI gauge, wind compass, 3-week bar chart with history+forecast+navigation |
-| Dashboard — Cameras/Fauna tabs | Mock data | Pending |
+| Dashboard — Cameras tab | Mock data | Pending — Phase 3.4 |
+| Dashboard — Fauna tab | Partial | Species bar chart is real; "estado de cámaras" and alerts are mock |
 | Asistente (AI chat) | Mock data | Placeholder responses |
 | Reportes (newsletter) | Mock data | Draft generator with typing animation |
 | FastAPI backend | **Working** | Serves API + built frontend from single port 8000 |
@@ -118,12 +119,16 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 **FastAPI endpoints live:**
 - `GET /api/weather/current`, `/history`, `/forecast`
 - `GET /api/fire-risk/current`, `/forecast`, `/history?days=`
-- `GET /api/detections/recent`, `/species-summary`, `/stations`
+- `GET /api/detections/recent`, `/species-summary`, `/stations`, `/station-summary`, `/station-images/{id}`
+- `GET /ct-images/<campaign>/stations/<id>/<file>` (static mount)
 - `GET /api/health`
 
 **Priority 1 — Connect frontend to real endpoints:**
 - [x] Replace mock data in fire risk tab with real API calls ← done 2026-03-30
-- [ ] Replace mock data in cameras, fauna tabs with real API calls
+- [x] Observatorio map stations from real DuckDB data ← done 2026-04-15
+- [ ] Resize thumbnails on Windows (Pillow in export_best_images.py), then increase popup image size
+- [ ] Cámaras trampa dashboard tab (Phase 3.4) — diel activity, species freq, heatmap, gallery
+- [ ] Fauna tab: replace mock "estado de cámaras" + alerts with real data
 - [ ] Retrain `fire_model.pkl` with current scikit-learn (pickle incompatible → ml_probability returns null)
 - [ ] Include ML index alongside rule-based index in fire risk view
 - [ ] Investigate forecast showing only ~4 days (pipeline may need to fetch more data)

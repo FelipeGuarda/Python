@@ -53,6 +53,10 @@ export async function getCameraStations() {
   return fetchJSON("/detections/stations");
 }
 
+export async function getStationSummary() {
+  return fetchJSON("/detections/station-summary");
+}
+
 // ── Health ──
 
 export async function getHealth() {

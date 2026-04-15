@@ -1,6 +1,7 @@
 """Camera trap detection endpoints."""
 
 import os
+from collections import defaultdict
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
@@ -119,3 +120,84 @@ def station_images(station_id: str):
             results.append({"campaign": campaign_dir.name, "url": url})
 
     return {"station": station_id, "images": results}
+
+
+@router.get("/station-summary")
+def station_summary():
+    """
+    Canonical stations grouped by physical location (lat/lon), with species breakdown
+    and image URLs for both campaigns. Used by the Observatorio map popups.
+    """
+    with get_connection() as con:
+        rows = con.execute("""
+            SELECT
+                d.latitude, d.longitude,
+                d.locationName,
+                o.scientificName,
+                COUNT(*) as obs_count
+            FROM ct_deployments d
+            JOIN ct_observations o ON o.deploymentID = d.deploymentID
+            WHERE d.campaign IS NOT NULL
+              AND o.observationType = 'animal'
+              AND o.scientificName IS NOT NULL
+              AND d.latitude IS NOT NULL
+            GROUP BY d.latitude, d.longitude, d.locationName, o.scientificName
+            ORDER BY d.latitude, d.longitude, obs_count DESC
+        """).fetchall()
+
+    # Group by rounded (lat, lon) to merge same physical station across campaigns
+    grouped: dict = {}
+    for lat, lon, loc_name, species, count in rows:
+        key = (round(lat, 4), round(lon, 4))
+        if key not in grouped:
+            grouped[key] = {
+                "lat": lat,
+                "lon": lon,
+                "location_names": [],
+                "species": defaultdict(int),
+            }
+        s = grouped[key]
+        if loc_name not in s["location_names"]:
+            s["location_names"].append(loc_name)
+        s["species"][species] += count
+
+    result = []
+    for s in grouped.values():
+        # Collect up to 3 images across campaigns/location names
+        images = []
+        for loc_name in s["location_names"]:
+            export_id = loc_name.replace(".", "_")
+            if _CT_EXPORTS_DIR.exists():
+                for campaign_dir in sorted(_CT_EXPORTS_DIR.iterdir()):
+                    if not campaign_dir.is_dir():
+                        continue
+                    station_dir = campaign_dir / "stations" / export_id
+                    if not station_dir.is_dir():
+                        continue
+                    for img in sorted(station_dir.glob("*.jpg"))[:2]:
+                        images.append({
+                            "campaign": campaign_dir.name,
+                            "url": f"/ct-images/{campaign_dir.name}/stations/{export_id}/{img.name}",
+                        })
+                    if len(images) >= 3:
+                        break
+            if len(images) >= 3:
+                break
+
+        species_list = sorted(s["species"].items(), key=lambda x: -x[1])
+        canonical = next(
+            (n for n in s["location_names"] if n.startswith("CT")),
+            s["location_names"][0],
+        )
+
+        result.append({
+            "canonical_name": canonical,
+            "latitude": s["lat"],
+            "longitude": s["lon"],
+            "total_observations": sum(s["species"].values()),
+            "species": [{"name": k, "count": v} for k, v in species_list[:8]],
+            "images": images[:3],
+        })
+
+    result.sort(key=lambda x: x["canonical_name"])
+    return result

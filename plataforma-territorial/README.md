@@ -1,9 +1,9 @@
 # Plataforma Territorial FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Last Updated:** 2026-03-30
-**What Changed:** Fire risk tab connected to real backend data; new `/api/fire-risk/history` endpoint; redesigned layout with polar plot, gauge, wind compass, and 3-week bar chart with navigation.
-**Integration Status:** Ready (platform) | Pending [cameras/fauna tabs, fire risk ML retrain]
+**Last Updated:** 2026-04-15
+**What Changed:** Observatorio map now shows real camera trap stations from DuckDB — species counts and thumbnails in popups. Both campaigns (Otoño 2025 + Primavera-verano 2025-2026) ingested. New `/api/detections/station-summary` endpoint. TC26 coordinates fixed.
+**Integration Status:** Ready (platform + Observatorio map) | Pending [thumbnail resize on Windows, cámaras trampa dashboard tab, fauna tab real data]
 
 ---
 

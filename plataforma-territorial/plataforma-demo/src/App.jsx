@@ -5,6 +5,7 @@ import L from "leaflet";
 import {
   getWeatherCurrent,
   getFireRiskCurrent, getFireRiskForecast, getFireRiskHistory, getSpeciesSummary,
+  getStationSummary,
   transformRiskForecast, transformSpeciesSummary,
 } from "./api.js";
 
@@ -740,17 +741,16 @@ const weatherIcon = L.divIcon({
 
 function Observatorio() {
   const [boundary, setBoundary] = useState(null);
-  const [cameras, setCameras] = useState(null);
   const [showBoundary, setShowBoundary] = useState(true);
   const [showCams, setShowCams] = useState(true);
   const { data: riskData } = useAPI(getFireRiskCurrent, null, []);
+  const { data: stations } = useAPI(getStationSummary, null, []);
 
   const riskTotal = riskData?.rule_based?.total ? Math.round(riskData.rule_based.total) : null;
   const wx = riskData?.weather || {};
 
   useEffect(() => {
     fetch("/data/boundary.geojson").then(r => r.json()).then(setBoundary);
-    fetch("/data/camera_trap_stations.geojson").then(r => r.json()).then(setCameras);
   }, []);
 
   const boundaryStyle = {
@@ -797,36 +797,54 @@ function Observatorio() {
           )}
 
           {/* Camera trap stations */}
-          {showCams && cameras && cameras.features.map(f => {
-            const { id, tc, grid_id, altitude_m, sd_card } = f.properties;
-            const [lon, lat] = f.geometry.coordinates;
-            return (
-              <CircleMarker
-                key={id}
-                center={[lat, lon]}
-                radius={7}
-                pathOptions={{
-                  color: C.white,
-                  weight: 2,
-                  fillColor: C.deepGreen,
-                  fillOpacity: 0.9,
-                }}
-              >
-                <Popup>
-                  <div style={{ fontFamily: "'Trebuchet MS', sans-serif", minWidth: 160 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 6 }}>
-                      {id} <span style={{ fontWeight: 400, color: C.muted, fontSize: 11 }}>Grilla {grid_id}</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 11, color: C.muted }}>
-                      <div>Altitud: <b style={{ color: C.text }}>{altitude_m} m</b></div>
-                      <div>SD: <b style={{ color: C.text }}>{sd_card}</b></div>
-                      <div style={{ gridColumn: "1/-1" }}>{lat.toFixed(5)}, {lon.toFixed(5)}</div>
-                    </div>
+          {showCams && stations && stations.map(st => (
+            <CircleMarker
+              key={st.canonical_name}
+              center={[st.latitude, st.longitude]}
+              radius={7}
+              pathOptions={{
+                color: C.white,
+                weight: 2,
+                fillColor: C.deepGreen,
+                fillOpacity: 0.9,
+              }}
+            >
+              <Popup maxWidth={360}>
+                <div style={{ fontFamily: "'Trebuchet MS', sans-serif", minWidth: 316 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 6 }}>
+                    {st.canonical_name}
+                    <span style={{ fontWeight: 400, color: C.muted, fontSize: 10, marginLeft: 6 }}>
+                      {st.total_observations} detecciones
+                    </span>
                   </div>
-                </Popup>
-              </CircleMarker>
-            );
-          })}
+                  {/* Species list */}
+                  {st.species.length > 0 && (
+                    <div style={{ marginBottom: 8 }}>
+                      {st.species.slice(0, 5).map(sp => (
+                        <div key={sp.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted, padding: "2px 0", borderBottom: `1px solid ${C.paleMint}` }}>
+                          <span style={{ color: C.text }}>{sp.name}</span>
+                          <span style={{ fontWeight: 600 }}>{sp.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Thumbnail images */}
+                  {st.images.length > 0 && (
+                    <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                      {st.images.map((img, i) => (
+                        <img
+                          key={i}
+                          src={img.url}
+                          alt={img.campaign}
+                          style={{ width: 100, height: 75, objectFit: "cover", borderRadius: 4, border: `1px solid ${C.mint}`, flexShrink: 0 }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))}
         </MapContainer>
 
         {/* Legend overlay */}
@@ -842,7 +860,7 @@ function Observatorio() {
 
         {/* Station count */}
         <div style={{ position: "absolute", top: 12, right: 12, zIndex: 1000, background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: C.muted }}>
-          {cameras ? `${cameras.features.length} cámaras trampa` : "Cargando..."}
+          {stations ? `${stations.length} estaciones` : "Cargando..."}
         </div>
       </Card>
 
@@ -878,7 +896,7 @@ function Observatorio() {
         <Card>
           <SectionLabel>Resumen estaciones</SectionLabel>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-            <StatBlock value={cameras ? cameras.features.length : "..."} label="Cámaras trampa" />
+            <StatBlock value={stations ? stations.length : "..."} label="Cámaras trampa" />
             <StatBlock value="1" label="Estación meteo" />
           </div>
         </Card>
