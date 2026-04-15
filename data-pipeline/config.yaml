@@ -21,3 +21,12 @@ schedules:
 
 exports:
   output_dir: data/exports   # CSV snapshots for off-site redundancy
+
+camera_traps:
+  # Paths relative to data-pipeline repo root.
+  # Run: python run_fetch.py --ct
+  campaigns:
+    - csv: ../camera-traps/data/campaigns/otono_2025/new_labeled_data_reviewed.csv
+      name: "Otoño 2025"
+    - csv: ../camera-traps/data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv
+      name: "Primavera-verano 2025-2026"

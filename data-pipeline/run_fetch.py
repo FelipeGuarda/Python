@@ -19,6 +19,7 @@ from src.ingest import (
     ingest_cr800_range,
     ingest_met_csv,
     export_weather_station,
+    ingest_all_ct_campaigns,
 )
 
 
@@ -52,6 +53,16 @@ def run_fetch_range(start: str, end: str):
     init_schema(con)
     try:
         ingest_cr800_range(con, start, end)
+    finally:
+        con.close()
+
+
+def run_ingest_ct():
+    """Ingest all configured camera trap campaigns into DuckDB."""
+    con = connect()
+    init_schema(con)
+    try:
+        ingest_all_ct_campaigns(con)
     finally:
         con.close()
 
@@ -111,7 +122,13 @@ def main():
     parser.add_argument("--export", action="store_true", help="Export weather_station to CSV and exit")
     parser.add_argument("--health", action="store_true", help="Print health report and exit")
     parser.add_argument("--verbose", action="store_true", help="Show gap details with --health")
+    parser.add_argument("--ct", action="store_true",
+                        help="Ingest camera trap campaigns from config.yaml camera_traps.campaigns")
     args = parser.parse_args()
+
+    if args.ct:
+        run_ingest_ct()
+        return
 
     if args.backfill:
         run_backfill(Path(args.backfill))

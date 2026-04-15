@@ -1,10 +1,19 @@
 """Camera trap detection endpoints."""
 
-from fastapi import APIRouter, Query
+import os
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException, Query
 
 from ..db import get_connection
 
 router = APIRouter(prefix="/api/detections", tags=["detections"])
+
+# Station image exports live in the camera-traps repo (gitignored, large files).
+# Default: sibling repo layout on Linux — /home/fguarda/Dev/Python/camera-traps/exports
+# Override with CT_EXPORTS_DIR env var if the path differs.
+_DEFAULT_EXPORTS = Path(__file__).resolve().parents[3] / "camera-traps" / "exports"
+_CT_EXPORTS_DIR = Path(os.getenv("CT_EXPORTS_DIR", str(_DEFAULT_EXPORTS)))
 
 
 @router.get("/recent")
@@ -79,3 +88,34 @@ def camera_stations():
         "start", "end", "animal_count",
     ]
     return [dict(zip(cols, r)) for r in rows]
+
+
+@router.get("/station-images/{station_id}")
+def station_images(station_id: str):
+    """
+    Return image filenames exported for a given station across all campaigns.
+
+    Images live in: <CT_EXPORTS_DIR>/<campaign>/stations/<station_id>/
+    They are served as static files mounted at /ct-images/ in main.py.
+
+    Response: { "station": str, "images": [{ "campaign": str, "url": str }] }
+    """
+    if not _CT_EXPORTS_DIR.exists():
+        raise HTTPException(
+            status_code=503,
+            detail=f"Camera trap exports directory not found: {_CT_EXPORTS_DIR}",
+        )
+
+    results = []
+    for campaign_dir in sorted(_CT_EXPORTS_DIR.iterdir()):
+        if not campaign_dir.is_dir():
+            continue
+        station_dir = campaign_dir / "stations" / station_id
+        if not station_dir.is_dir():
+            continue
+        for img in sorted(station_dir.glob("*.jpg")):
+            # URL path mirrors the static mount: /ct-images/<campaign>/stations/<station>/<file>
+            url = f"/ct-images/{campaign_dir.name}/stations/{station_id}/{img.name}"
+            results.append({"campaign": campaign_dir.name, "url": url})
+
+    return {"station": station_id, "images": results}

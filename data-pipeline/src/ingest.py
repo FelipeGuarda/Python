@@ -33,6 +33,49 @@ def ingest_camtrap_dp(con: duckdb.DuckDBPyConnection, folder_path: Path) -> None
     print(f"  Camtrap DP: {nd} deployments, {nm} media, {no} observations upserted.")
 
 
+def ingest_timelapse_reviewed(
+    con: duckdb.DuckDBPyConnection,
+    csv_path: Path,
+    campaign_name: str,
+) -> None:
+    """Ingest a new_labeled_data_reviewed.csv from a CLIP+human-review campaign."""
+    from src.parsers.timelapse_reviewed import parse
+    dep_df, med_df, obs_df = parse(csv_path, campaign_name)
+    # Add columns not in the base schema (campaign, observationComments, reviewOutcome)
+    ensure_columns(con, "ct_deployments", dep_df)
+    ensure_columns(con, "ct_observations", obs_df)
+    nd = upsert_df(con, "ct_deployments", dep_df)
+    nm = upsert_df(con, "ct_media", med_df)
+    no = upsert_df(con, "ct_observations", obs_df)
+    print(f"  {campaign_name}: {nd} deployments, {nm} media, {no} observations upserted.")
+
+
+def ingest_all_ct_campaigns(con: duckdb.DuckDBPyConnection) -> None:
+    """
+    Ingest all camera trap campaigns configured in config.yaml under
+    camera_traps.campaigns. Each entry needs csv (path) and name (campaign name).
+    Paths are resolved relative to the data-pipeline repo root.
+    """
+    import yaml
+    cfg_path = Path(__file__).parent.parent / "config.yaml"
+    with open(cfg_path, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+
+    campaigns = cfg.get("camera_traps", {}).get("campaigns", [])
+    if not campaigns:
+        print("  No camera_traps.campaigns entries in config.yaml — nothing to ingest.")
+        return
+
+    repo_root = Path(__file__).parent.parent
+    for entry in campaigns:
+        csv_path = (repo_root / entry["csv"]).resolve()
+        campaign_name = entry["name"]
+        if not csv_path.exists():
+            print(f"  WARNING: {csv_path} not found — skipping {campaign_name!r}")
+            continue
+        ingest_timelapse_reviewed(con, csv_path, campaign_name)
+
+
 def ingest_cr800_live(con: duckdb.DuckDBPyConnection) -> None:
     import yaml, os
     from dotenv import load_dotenv

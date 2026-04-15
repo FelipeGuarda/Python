@@ -15,6 +15,7 @@ Frontend development (hot reload):
     → open http://localhost:5173
 """
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -24,6 +25,11 @@ from fastapi.staticfiles import StaticFiles
 from .routers import weather, fire_risk_router, detections
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "plataforma-demo" / "dist"
+
+# Camera trap image exports — served at /ct-images/<campaign>/stations/<station>/<file>
+# Same default path logic as detections.py; override with CT_EXPORTS_DIR env var.
+_DEFAULT_CT_EXPORTS = Path(__file__).resolve().parents[2] / "camera-traps" / "exports"
+CT_EXPORTS_DIR = Path(os.getenv("CT_EXPORTS_DIR", str(_DEFAULT_CT_EXPORTS)))
 
 app = FastAPI(
     title="FMA Plataforma Territorial API",
@@ -60,6 +66,11 @@ def health():
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 
+
+# Serve camera trap station images — must come before the catch-all React mount.
+# Images are large files (gitignored); they live in the camera-traps repo on the host.
+if CT_EXPORTS_DIR.exists():
+    app.mount("/ct-images", StaticFiles(directory=CT_EXPORTS_DIR), name="ct-images")
 
 # Serve the built React app — must be mounted AFTER all API routes.
 # Run `cd plataforma-demo && npm run build` to update after frontend changes.
