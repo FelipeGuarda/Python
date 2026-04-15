@@ -78,11 +78,16 @@ def _parse_timestamp(dt_str: str) -> pd.Timestamp:
     """Parse Timelapse2 DateTime string to UTC. Returns NaT on failure."""
     try:
         ts = pd.Timestamp(dt_str.strip())
-        return ts.tz_localize(
-            "America/Santiago",
-            ambiguous="infer",
-            nonexistent="shift_forward",
-        ).tz_convert("UTC")
+        # tz_localize on a scalar: ambiguous must be bool, not "infer"
+        # Try non-fold (DST) first; fall back to fold if the time is ambiguous.
+        try:
+            return ts.tz_localize(
+                "America/Santiago", ambiguous=False, nonexistent="shift_forward"
+            ).tz_convert("UTC")
+        except Exception:
+            return ts.tz_localize(
+                "America/Santiago", ambiguous=True, nonexistent="shift_forward"
+            ).tz_convert("UTC")
     except Exception:
         return pd.NaT
 
@@ -100,7 +105,7 @@ def parse(csv_path: Path, campaign_name: str):
     """
     campaign_slug = _slugify(campaign_name)
     csv_path = Path(csv_path)
-    print(f"→ Parsing timelapse reviewed CSV: {csv_path}")
+    print(f"Parsing timelapse reviewed CSV: {csv_path}")
 
     with open(csv_path, encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
@@ -197,5 +202,5 @@ def parse(csv_path: Path, campaign_name: str):
     med_df = pd.DataFrame(med_records)
     obs_df = pd.DataFrame(obs_records)
 
-    print(f"  → {len(dep_df)} deployments · {len(med_df)} media · {len(obs_df)} observations")
+    print(f"  {len(dep_df)} deployments, {len(med_df)} media, {len(obs_df)} observations")
     return dep_df, med_df, obs_df
