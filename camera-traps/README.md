@@ -266,5 +266,5 @@ This is already done in the working environment. Only redo if rebuilding the con
 
 | Campaign | Status | Reviewed CSV |
 |---|---|---|
-| Primavera 2025 | In progress — analysing new directories | `data/campaigns/primavera_2025/new_labeled_data_reviewed.csv` |
+| Primavera 2025 | Complete | `data/campaigns/primavera_2025/new_labeled_data_reviewed.csv` |
 | Otoño 2025 | Complete (694 obs) | `<Synology>/Otoño 2025/Fotos/new_labeled_data_reviewed.csv` |

@@ -3,7 +3,7 @@
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Last Updated:** 2026-04-15
 **What Changed:** Observatorio map now shows real camera trap stations from DuckDB — species counts and thumbnails in popups. Both campaigns (Otoño 2025 + Primavera-verano 2025-2026) ingested. New `/api/detections/station-summary` endpoint. TC26 coordinates fixed.
-**Integration Status:** Ready (platform + Observatorio map) | Pending [thumbnail resize on Windows, cámaras trampa dashboard tab, fauna tab real data]
+**Integration Status:** Ready [(platform + Observatorio map), thumbnail resize on DuckD] | Pending [cámaras trampa dashboard tab, fauna tab real data]
 
 ---
 
