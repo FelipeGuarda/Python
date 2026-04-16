@@ -122,9 +122,9 @@ Raw data analysis (MegaDetector, CLIP classification, image review) runs on the 
 ## Status
 
 **Last Updated:** 2026-04-16
-**What Changed:** Both camera trap campaigns wiped and re-ingested from current CSVs (`pv_2025_2026/` is the updated source). Legacy NULL-campaign data (65 deployments / 6030 obs / 18473 media from `old animal data DB.csv`) erased per FG decision — no coordinates and superseded by reviewed campaigns. DB now: Otoño 2025 (20/830/830) + PV 2025-2026 (21/792/792).
+**What Changed:** `timelapse_reviewed` parser now honors human review: demotes `observationType='animal'` → `'blank'` when `observationComments` says "No es un animal" / "error de imagen" / "no aparece imagen" (284 records fixed), and resolves `scientificName` from Spanish names via a new `SPANISH_TO_LATIN` dict (18 previously-NULL rows now named: 6 Pudu, 4 Chingue, 3 Cachaña, 2 Rayadito, 2 Fío-fío, 1 Libélula). Both campaigns re-ingested. Legacy NULL-campaign data erased.
 **Integration Status:** Ready
-**Blockers/Notes:** Re-ingest pattern for an updated campaign source: DELETE rows for the campaign first, then `python run_fetch.py --ct`, otherwise upsert leaves orphan obs/media (PKs from CSV change between exports). Backup `fma_data.duckdb.bak-2026-04-16` retained until next pipeline cycle then can be deleted.
+**Blockers/Notes:** Reviewed CSV is observation-centric — Timelapse2 only exports rows with animal images, so zero-animal stations are absent from ct_deployments. Platform map handles this with a TC-coords ground-truth list in the backend. Long-term: add a per-campaign deployment manifest (which TCs were deployed + start/end dates) so DB reflects actual deployments. Re-ingest pattern: DELETE rows for the campaign first, then `python run_fetch.py --ct`, otherwise upsert leaves orphan obs/media.
 
 ---
 

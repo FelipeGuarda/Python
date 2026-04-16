@@ -806,8 +806,8 @@ function Observatorio() {
               pathOptions={{
                 color: C.white,
                 weight: 2,
-                fillColor: C.deepGreen,
-                fillOpacity: 0.9,
+                fillColor: st.total_observations > 0 ? C.deepGreen : C.muted,
+                fillOpacity: st.total_observations > 0 ? 0.9 : 0.55,
               }}
             >
               <Popup maxWidth={360}>
@@ -818,6 +818,12 @@ function Observatorio() {
                       {st.total_observations} detecciones
                     </span>
                   </div>
+                  {/* Empty-state message: no identified animal detections */}
+                  {st.species.length === 0 && (
+                    <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic", padding: "4px 0" }}>
+                      Sin detecciones identificadas
+                    </div>
+                  )}
                   {/* Species list */}
                   {st.species.length > 0 && (
                     <div style={{ marginBottom: 8 }}>

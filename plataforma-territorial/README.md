@@ -2,8 +2,8 @@
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Last Updated:** 2026-04-16
-**What Changed:** Observatorio thumbnails working end-to-end after fixing on-disk export layout — `camera-traps/exports/exports/` collapsed to `camera-traps/exports/` to match `backend/main.py` static mount. PV 2025-2026 DB refreshed from updated CSV (pehuen R session regenerated it via `SPECIES_FILTER=NULL`). Legacy NULL-campaign data dropped from DB.
-**Integration Status:** Ready [Observatorio map + thumbnail lightbox (clickable, 1000px)] | Pending [cámaras trampa dashboard tab, fauna tab real data]
+**What Changed:** Observatorio map now shows all 26 TC locations (was 23) — `/api/detections/station-summary` rewritten to be TC-centric with an inlined `_TC_COORDS` dict as ground truth, left-joining DB data. Stations without identified species render as muted grey markers with "Sin detecciones identificadas" in the popup (CT17, TC22, TC23). Species counts now include newly-resolved Pudu / Chingue / Cachaña / Rayadito / Fío-fío / Libélula. Non-animal false positives (284 "No es un animal" etc.) no longer inflate detection totals.
+**Integration Status:** Ready [Observatorio map shows all 26 TCs + thumbnail lightbox] | Pending [cámaras trampa dashboard tab, fauna tab real data, proper deployment manifest (replaces hardcoded TC_COORDS)]
 
 ---
 

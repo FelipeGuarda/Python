@@ -74,6 +74,64 @@ def _slugify(s: str) -> str:
     return re.sub(r"[^a-zA-Z0-9]+", "_", str(s)).strip("_").lower()
 
 
+# Spanish common name → scientific name. Canonical copy lives in
+# camera-traps/export_best_images.py (SPECIES_COMMON_NAMES); keep in sync.
+# Used when reviewer typed a Spanish name in observationComments via
+# "Otro (especificar)" but scientificName was never filled.
+SPANISH_TO_LATIN: dict[str, str] = {
+    "puma":         "Puma concolor",
+    "guiña":        "Leopardus guigna",
+    "zorro culpeo": "Lycalopex culpaeus",
+    "zorro":        "Lycalopex culpaeus",
+    "perro":        "Canis lupus familiaris",
+    "jabali":       "Sus scrofa",
+    "jabalí":       "Sus scrofa",
+    "liebre":       "Lepus europaeus",
+    "caballo":      "Equus caballus",
+    "gato doméstico": "Felis catus",
+    "gato domestico": "Felis catus",
+    "hued hued":    "Pteroptochos tectus",
+    "chucao":       "Scelorchilus rubecula",
+    "concón":       "Strix rufipes",
+    "concon":       "Strix rufipes",
+    "carpintero":   "Campephilus magellanicus",
+    "bandurria":    "Theristicus melanopis",
+    "queltehue":    "Vanellus chilensis",
+    "tiuque":       "Milvago chimango",
+    "peuquito":     "Accipiter chilensis",
+    "zorzal":       "Turdus falcklandii",
+    "cometocino":   "Phrygilus gayi",
+    "picaflor":     "Sephanoides sephaniodes",
+    "diucón":       "Xolmis pyrope",
+    "diucon":       "Xolmis pyrope",
+    "traro":        "Caracara plancus",
+    "ciervo rojo":  "Cervus elaphus",
+    "pudu":         "Pudu puda",
+    "pudú":         "Pudu puda",
+    # Additions 2026-04-16 (FG review): species that appeared in
+    # observationComments as "Otro (especificar)" without a latin name saved.
+    "chingue":      "Conepatus chinga",
+    "cachaña":      "Enicognathus ferrugineus",
+    "cachana":      "Enicognathus ferrugineus",
+    "fio fio":      "Elaenia albiceps",
+    "fío-fío":      "Elaenia albiceps",
+    "fío fío":      "Elaenia albiceps",
+    "rayadito":     "Aphrastura spinicauda",
+    "libélula":     "Odonata",
+    "libelula":     "Odonata",
+}
+
+# observationComments values (lowercased) that override the automated
+# observationType='animal' — the reviewer explicitly said the image is not
+# an animal. Demoted to 'blank' so counts reflect the human review.
+NON_ANIMAL_COMMENTS: set[str] = {
+    "no es un animal",
+    "error de imagen",
+    "no aparece imagen",
+    "no aparece imagewn",  # typo in reviewer data
+}
+
+
 def _parse_timestamp(dt_str: str) -> pd.Timestamp:
     """Parse Timelapse2 DateTime string to UTC. Returns NaT on failure."""
     try:
@@ -182,6 +240,16 @@ def parse(csv_path: Path, campaign_name: str):
             count_str = row.get("count", "").strip()
             count = int(count_str) if count_str else 1
 
+            obs_type = row.get("observationType", "").strip() or None
+            sci_name = row.get("scientificName", "").strip() or None
+            comment  = row.get("observationComments", "").strip() or None
+            comment_lc = comment.lower() if comment else ""
+
+            if obs_type == "animal" and comment_lc in NON_ANIMAL_COMMENTS:
+                obs_type = "blank"
+            elif obs_type == "animal" and not sci_name and comment_lc:
+                sci_name = SPANISH_TO_LATIN.get(comment_lc) or sci_name
+
             obs_records.append({
                 "observationID":             obs_id,
                 "deploymentID":              deployment_id,
@@ -189,12 +257,12 @@ def parse(csv_path: Path, campaign_name: str):
                 "eventID":                   row.get("eventID", "").strip() or None,
                 "eventStart":                ts,
                 "eventEnd":                  pd.NaT,
-                "observationType":           row.get("observationType", "").strip() or None,
-                "scientificName":            row.get("scientificName", "").strip() or None,
+                "observationType":           obs_type,
+                "scientificName":            sci_name,
                 "count":                     count,
                 "classificationMethod":      row.get("classificationMethod", "").strip() or None,
                 "classificationProbability": prob,
-                "observationComments":       row.get("observationComments", "").strip() or None,
+                "observationComments":       comment,
                 "reviewOutcome":             row.get("reviewOutcome", "").strip() or None,
                 "source":                    "timelapse_reviewed",
             })
