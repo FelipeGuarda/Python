@@ -123,7 +123,7 @@ activity_density <- function(records_df, species_lbl) {
 
   # (b) Fit von Mises kernel density at 512 points spanning the full circle.
   #     bw = 1.5 is the default bandwidth (in radians) used in the reference paper.
-  fit <- densityFit(times, xgrid = seq(0, 2 * pi, length.out = 512), bw = 1.5)
+  fit <- densityFit(times, grid = seq(0, 2 * pi, length.out = 512), bw = 1.5)
 
   # (c) Convert radians back to hours for the x-axis.
   data.frame(

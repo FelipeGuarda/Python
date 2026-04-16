@@ -141,19 +141,19 @@ message("Saved per-pair overlap plots to figures/overlap_pairs/")
 # ── 4. Bootstrap CI for each pair — overlap package ──────────────────────────
 # camtrapR's activityOverlap() does not compute confidence intervals.
 # We compute them here using the bootstrap procedure from the overlap package:
-#   (a) bootEst() resamples each species' time vector 1000 times with
-#       replacement and computes Dhat4 on each resample pair.
-#   (b) bootCI() derives the 0.025 and 0.975 quantiles as the 95% CI.
+#   (a) Fit kernel densities for each species using densityFit() + getBandWidth().
+#   (b) overlapEst() gives the Dhat4 point estimate from the fitted densities.
+#   (c) bootstrap() resamples 1000 times and bootCI() gives 95% CI.
 #
-# The Dhat4 point estimates here should match the camtrapR values above
-# (they use the same estimator).  Any tiny numerical difference is due to
-# floating-point precision; both are correct.
+# overlap >= 0.3.9 changed the API: overlapEst/bootstrap now take density
+# vectors (from densityFit) rather than raw time-in-radians vectors.
 #
 # We flag pairs where either sample is < 75 records: for small samples, Dhat1
 # is the more conservative estimator (Ridout & Linkie 2009), but we report
 # Dhat4 to stay consistent with the reference paper.
 
 N_BOOT <- 1000
+N_GRID <- 512   # grid resolution for density fitting
 
 overlap_results <- lapply(PAIRS, function(pair) {
   sp1 <- pair[1]
@@ -166,11 +166,16 @@ overlap_results <- lapply(PAIRS, function(pair) {
 
   if (n1 == 0 || n2 == 0) return(NULL)
 
-  # (a) Point estimate
-  dhat4 <- overlapEst(t1, t2, type = "Dhat4")
+  # (a) Fit kernel densities
+  grid <- seq(0, 2 * pi, length.out = N_GRID)
+  f1 <- densityFit(t1, grid = grid, bw = getBandWidth(t1))
+  f2 <- densityFit(t2, grid = grid, bw = getBandWidth(t2))
 
-  # (b) Bootstrap CI
-  boot <- bootEst(t1, t2, nb = N_BOOT, type = "Dhat4")
+  # (b) Point estimate (from density vectors)
+  dhat4 <- overlapEst(f1, f2, type = "Dhat4")
+
+  # (c) Bootstrap CI
+  boot <- bootstrap(f1, f2, nb = N_BOOT, type = "Dhat4")
   ci   <- bootCI(dhat4, boot, conf = 0.95)
 
   data.frame(

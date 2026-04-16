@@ -3,21 +3,26 @@
 # PURPOSE
 #   Read the reviewed observation CSVs from both camera-trap campaigns,
 #   standardize station identifiers, join with GPS coordinates from the GeoJSON,
-#   filter to the focal species, and save clean R data objects for all
+#   optionally filter to a species subset, and save clean R data objects for all
 #   downstream analysis scripts.
 #
 # INPUT FILES
-#   - Otoño 2025 reviewed CSV   (on Synology drive — update PATH_OTONO below)
-#   - Primavera 2025 reviewed CSV
+#   - Otoño 2025 reviewed CSV            (Synology drive — update PATH_OTONO)
+#   - Primavera-verano 2025-2026 CSV     (camera-traps repo — update PATH_PV)
 #   - camera_trap_stations.geojson
 #
 # OUTPUT FILES  (written to data/ inside the project)
-#   - records_all.rds      all focal-species records, both campaigns combined
+#   - records_all.rds      records for the active SPECIES_FILTER, both campaigns
 #   - stations_sf.rds      spatial dataframe with camera locations
+#
+# SPECIES FILTER
+#   Set SPECIES_FILTER to a character vector of Latin names to restrict the
+#   output to those species (e.g. for the pehuen research analysis).
+#   Set to NULL to retain ALL identified species (for plataforma / full dataset).
 #
 # HOW TO RE-RUN FOR A NEW CAMPAIGN
 #   1. Add the new CSV path in the "Paths" section below.
-#   2. Add a new read + standardise block (copy the Otoño or Primavera block).
+#   2. Add a new read + standardise block (copy the Otoño or PV block).
 #   3. Add the new dataframe to the bind_rows() call at the bottom.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -40,7 +45,7 @@ here::i_am("R/01_load_data.R")
 
 PATH_OTONO <- "C:/Users/USUARIO/SynologyDrive/2. Camaras trampa (SC)/SynologyDrive/DATOS_GRILLA CÁMARAS TRAMPA/2. CAMPAÑAS DE RECOLECCION DE IMAGENES/Otoño 2025/Fotos/new_labeled_data_reviewed.csv"
 
-PATH_PRIMAVERA <- "C:/Users/USUARIO/Dev/Python/camera-traps/data/campaigns/primavera_2025/new_labeled_data_reviewed.csv"
+PATH_PV <- "C:/Users/USUARIO/Dev/Python/camera-traps/data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv"
 
 PATH_GEOJSON <- "C:/Users/USUARIO/Dev/Python/plataforma-territorial/data/camera_trap_stations.geojson"
 
@@ -50,10 +55,13 @@ PATH_BOUNDARY <- "C:/Users/USUARIO/Dev/Python/plataforma-territorial/data/bounda
 dir.create(here("data"), showWarnings = FALSE)
 
 
-# ── 2. Focal species ──────────────────────────────────────────────────────────
-# These are the six species the analysis focuses on.
-# Keys are the Latin names as stored in the `scientificName` CSV column.
-# Values are human-readable labels used in all figures.
+# ── 2. Species configuration ──────────────────────────────────────────────────
+# FOCAL_SPECIES maps Latin names (as in scientificName column) to figure labels.
+# NATIVE_SPECIES / INVASIVE_SPECIES drive colour coding in all figures.
+#
+# SPECIES_FILTER controls what ends up in records_all.rds:
+#   - Set to names(FOCAL_SPECIES) for the pehuen research analysis (focal 6).
+#   - Set to NULL to retain ALL identified species (plataforma / full dataset).
 
 FOCAL_SPECIES <- c(
   "Puma concolor"          = "Puma",
@@ -66,6 +74,9 @@ FOCAL_SPECIES <- c(
 
 NATIVE_SPECIES    <- c("Puma concolor", "Leopardus guigna", "Lycalopex culpaeus")
 INVASIVE_SPECIES  <- c("Sus scrofa", "Lepus europaeus", "Canis lupus familiaris")
+
+# ── CHANGE THIS to NULL to keep all identified species ────────────────────────
+SPECIES_FILTER <- names(FOCAL_SPECIES)
 
 
 # ── 3. Load and parse the station coordinates (GeoJSON) ───────────────────────
@@ -94,7 +105,10 @@ message(sprintf("Loaded %d camera stations from GeoJSON.", nrow(stations_sf)))
 
 read_campaign_csv <- function(path, campaign_label) {
 
-  raw <- read_csv(path, show_col_types = FALSE)
+  # Force datetime-like columns to character so we control parsing below.
+  raw <- read_csv(path, show_col_types = FALSE,
+                  col_types = cols(timestamp = col_character(),
+                                   DateTime  = col_character()))
 
   clean <- raw %>%
     # (a) Keep only rows where a real animal species was identified.
@@ -106,11 +120,19 @@ read_campaign_csv <- function(path, campaign_label) {
       scientificName != "",
       scientificName != "No reconocible"
     ) %>%
-    # (b) Parse the timestamp column.
-    #     The field contains strings like " 2025-01-29 18:48:38" (note possible
-    #     leading whitespace from the Timelapse2 export).
+    # (b) Parse the datetime.
+    #     Older campaigns populate `timestamp`; newer campaigns (pv_2025_2026)
+    #     leave it empty and put the value in `DateTime` instead.
+    #     We coalesce the two, falling back to DateTime when timestamp is blank.
+    #     We do NOT specify tz here: camera clocks are set to Chile local time,
+    #     so the numeric hour values are already correct for activity analysis
+    #     on any platform without timezone database lookups.
     mutate(
-      datetime = ymd_hms(str_trim(timestamp), tz = "America/Santiago")
+      datetime_str = coalesce(
+        na_if(str_trim(as.character(timestamp)), ""),
+        na_if(str_trim(as.character(DateTime)),  "")
+      ),
+      datetime = ymd_hms(datetime_str, quiet = TRUE)
     ) %>%
     # (c) Add a campaign tag for grouping in multi-season analyses.
     mutate(campaign = campaign_label) %>%
@@ -149,46 +171,41 @@ otono_raw <- otono_raw %>%
   )
 
 
-# ── 6. Read Primavera 2025 ────────────────────────────────────────────────────
+# ── 6. Read Primavera-verano 2025-2026 ───────────────────────────────────────
 
-message("Reading Primavera 2025...")
-primavera_raw <- read_campaign_csv(PATH_PRIMAVERA, campaign_label = "Primavera_2025")
+message("Reading Primavera-verano 2025-2026...")
+pv_raw <- read_campaign_csv(PATH_PV, campaign_label = "PrimaveraVerano_2025_2026")
 
-# STATION ID PARSING — Primavera
+# STATION ID PARSING — Primavera-verano 2025-2026
 # Format: "TC{n}_{sd_card}.2"  e.g. "TC1_M7.2", "TC10_M3.2"
-# There is also one anomalous entry "100EK113" with no matching station.
+# (Same format as the previous Primavera 2025 campaign; no anomalous entries.)
 #
-# Step 1: Drop the anomalous entry that cannot be matched.
-# Step 2: Extract the station integer — the digits between "TC" and "_".
+# Step 1: Extract the station integer — the digits between "TC" and "_".
 #         Regex: ^TC(\d+)_  captures the number after TC up to the underscore.
-# Step 3: Extract the SD card code — the text between "_" and ".2".
+# Step 2: Extract the SD card code — the text between "_" and ".2".
 #         This will be used in Step 7 to validate the join.
 
-primavera_raw <- primavera_raw %>%
-  # Step 1: Drop anomalous entry (no matching camera in GeoJSON).
-  filter(station_raw != "100EK113") %>%
+pv_raw <- pv_raw %>%
   mutate(
-    # Step 2: Parse tc_num from the station label.
+    # Step 1: Parse tc_num from the station label.
     tc_num    = as.integer(str_match(station_raw, "^TC(\\d+)_")[, 2]),
-    # Step 3: Parse the SD card code embedded in the label (e.g. "M7" from "TC1_M7.2").
+    # Step 2: Parse the SD card code embedded in the label (e.g. "M3" from "TC10_M3.2").
     sd_parsed = str_match(station_raw, "_(M[^.]+)\\.")[, 2]
   )
 
 
-# ── 7. Validate Primavera station IDs against the GeoJSON ─────────────────────
-# For each unique Primavera station, check that:
+# ── 7. Validate Primavera-verano station IDs against the GeoJSON ──────────────
+# For each unique station, check that:
 #   (a) tc_num parsed from the label matches a real station in the GeoJSON, AND
 #   (b) the SD card code embedded in the label matches the GeoJSON `sd_card` field.
 #
 # This is a double-check: the tc_num alone is the join key, but the SD card gives
 # us independent confirmation that the mapping is correct.
-# A mismatch here would mean the station label encodes a tc_num that points to
-# the wrong physical camera.
 
 stations_lookup <- st_drop_geometry(stations_sf) %>%
   select(tc_num, id, sd_card)
 
-validation <- primavera_raw %>%
+validation <- pv_raw %>%
   distinct(station_raw, tc_num, sd_parsed) %>%
   left_join(stations_lookup, by = "tc_num") %>%
   mutate(sd_match = (sd_parsed == sd_card))
@@ -197,14 +214,14 @@ mismatches <- filter(validation, !sd_match | is.na(sd_match))
 
 if (nrow(mismatches) > 0) {
   stop(
-    "Station ID validation FAILED for Primavera. The following stations have ",
+    "Station ID validation FAILED for Primavera-verano. The following stations have ",
     "an SD card code in their label that does not match the GeoJSON:\n",
     paste(capture.output(print(mismatches)), collapse = "\n"),
     "\nDo not proceed until this is resolved."
   )
 } else {
   message(sprintf(
-    "  Primavera validation passed: all %d station IDs confirmed by both tc_num and sd_card.",
+    "  PV validation passed: all %d station IDs confirmed by both tc_num and sd_card.",
     nrow(validation)
   ))
 }
@@ -227,11 +244,11 @@ join_to_stations <- function(df, stations_lookup) {
 stations_lookup_full <- st_drop_geometry(stations_sf) %>%
   select(tc_num, id, altitude_m)
 
-otono     <- join_to_stations(otono_raw,     stations_lookup_full)
-primavera <- join_to_stations(primavera_raw, stations_lookup_full)
+otono <- join_to_stations(otono_raw, stations_lookup_full)
+pv    <- join_to_stations(pv_raw,   stations_lookup_full)
 
 # Verify: no unmatched tc_nums (would produce NA station_id)
-for (df_name in c("otono", "primavera")) {
+for (df_name in c("otono", "pv")) {
   df <- get(df_name)
   unmatched <- filter(df, is.na(station_id))
   if (nrow(unmatched) > 0) {
@@ -244,17 +261,24 @@ for (df_name in c("otono", "primavera")) {
 }
 
 
-# ── 9. Combine campaigns and filter to focal species ─────────────────────────
+# ── 9. Combine campaigns and filter to target species ────────────────────────
+# When SPECIES_FILTER is a character vector, only those Latin names are kept.
+# When SPECIES_FILTER is NULL, all identified species are retained.
 
-records_all <- bind_rows(otono, primavera) %>%
-  # Keep only the six focal species
-  filter(species_latin %in% names(FOCAL_SPECIES)) %>%
-  # Add the human-readable species label
+records_all <- bind_rows(otono, pv) %>%
+  # Apply species filter (or keep all if NULL)
+  { if (!is.null(SPECIES_FILTER)) filter(., species_latin %in% SPECIES_FILTER) else . } %>%
+  # Add human-readable species label (NA for species outside FOCAL_SPECIES)
   mutate(
-    species_label = FOCAL_SPECIES[species_latin],
+    species_label = ifelse(
+      species_latin %in% names(FOCAL_SPECIES),
+      FOCAL_SPECIES[species_latin],
+      species_latin
+    ),
     guild = case_when(
       species_latin %in% NATIVE_SPECIES   ~ "Native",
-      species_latin %in% INVASIVE_SPECIES ~ "Invasive"
+      species_latin %in% INVASIVE_SPECIES ~ "Invasive",
+      TRUE                                ~ "Other"
     ),
     # Derive date and time-of-day fields used in activity analyses
     date      = as.Date(datetime),
@@ -268,10 +292,11 @@ records_all <- bind_rows(otono, primavera) %>%
   filter(!is.na(datetime))
 
 message(sprintf(
-  "\nFinal dataset: %d focal-species records across %d stations and %d campaigns.",
+  "\nFinal dataset: %d records across %d stations and %d campaigns. (SPECIES_FILTER: %s)",
   nrow(records_all),
   n_distinct(records_all$station_id),
-  n_distinct(records_all$campaign)
+  n_distinct(records_all$campaign),
+  if (is.null(SPECIES_FILTER)) "ALL" else paste(SPECIES_FILTER, collapse = ", ")
 ))
 print(table(records_all$species_label, records_all$campaign))
 
