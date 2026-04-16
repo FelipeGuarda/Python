@@ -121,10 +121,10 @@ Raw data analysis (MegaDetector, CLIP classification, image review) runs on the 
 
 ## Status
 
-**Last Updated:** 2026-04-13
-**What Changed:** March 4–19 gap confirmed recovered via `--backfill CR800_Table1.dat`; 1,536 rows present, all columns non-null
+**Last Updated:** 2026-04-16
+**What Changed:** Both camera trap campaigns wiped and re-ingested from current CSVs (`pv_2025_2026/` is the updated source). Legacy NULL-campaign data (65 deployments / 6030 obs / 18473 media from `old animal data DB.csv`) erased per FG decision — no coordinates and superseded by reviewed campaigns. DB now: Otoño 2025 (20/830/830) + PV 2025-2026 (21/792/792).
 **Integration Status:** Ready
-**Blockers/Notes:** None. Annual ~60 min DST gaps in April are CR800 hardware behavior, not fixable in software.
+**Blockers/Notes:** Re-ingest pattern for an updated campaign source: DELETE rows for the campaign first, then `python run_fetch.py --ct`, otherwise upsert leaves orphan obs/media (PKs from CSV change between exports). Backup `fma_data.duckdb.bak-2026-04-16` retained until next pipeline cycle then can be deleted.
 
 ---
 

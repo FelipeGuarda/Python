@@ -34,7 +34,7 @@ CAMPAIGNS_BASE = Path(
     r"\2. CAMPAÑAS DE RECOLECCION DE IMAGENES"
 )
 
-EXPORT_DIR    = Path(__file__).parent / "exports"
+EXPORT_DIR    = Path(__file__).resolve().parent / "exports"
 TOP_N_SPECIES = 5   # best images per species (global, for sharing / reports)
 TOP_N_STATION = 3   # best images per station (any species, for map popups)
 SKIP_SPECIES  = {"", "No reconocible", "No es un animal"}

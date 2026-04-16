@@ -1,9 +1,9 @@
 # Plataforma Territorial FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Last Updated:** 2026-04-15
-**What Changed:** Observatorio map now shows real camera trap stations from DuckDB — species counts and thumbnails in popups. Both campaigns (Otoño 2025 + Primavera-verano 2025-2026) ingested. New `/api/detections/station-summary` endpoint. TC26 coordinates fixed.
-**Integration Status:** Ready [(platform + Observatorio map), thumbnail resize on DuckD] | Pending [cámaras trampa dashboard tab, fauna tab real data]
+**Last Updated:** 2026-04-16
+**What Changed:** Observatorio thumbnails working end-to-end after fixing on-disk export layout — `camera-traps/exports/exports/` collapsed to `camera-traps/exports/` to match `backend/main.py` static mount. PV 2025-2026 DB refreshed from updated CSV (pehuen R session regenerated it via `SPECIES_FILTER=NULL`). Legacy NULL-campaign data dropped from DB.
+**Integration Status:** Ready [Observatorio map + thumbnail lightbox (clickable, 1000px)] | Pending [cámaras trampa dashboard tab, fauna tab real data]
 
 ---
 
