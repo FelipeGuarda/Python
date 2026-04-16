@@ -52,7 +52,7 @@ npm run dev         # opens at http://localhost:5173
 
 | Page | Status | Description |
 |---|---|---|
-| Observatorio | Real data | Leaflet + Esri satellite, BP boundary polygon, 25 camera markers |
+| Observatorio | Real data | Leaflet + Esri satellite, BP boundary polygon, 26 camera markers |
 | Dashboard — Meteo | **Real data** | Year of weather history, variable selector, wind rose, comparison mode |
 | Dashboard — Fire risk | **Real data** | Polar contribution chart, FRI gauge, wind compass, 3-week bar chart with history+forecast |
 | Dashboard — Cameras/Fauna | Mock data | Pending |

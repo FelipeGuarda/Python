@@ -24,6 +24,8 @@ import shutil
 from collections import defaultdict
 from pathlib import Path
 
+from PIL import Image
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
 CAMPAIGNS_BASE = Path(
@@ -211,13 +213,18 @@ def export_campaign(campaign: dict) -> tuple[int, int]:
     return species_total, station_total
 
 
+MAX_PX = 1000  # longest side in pixels for exported images
+
+
 def _copy(src: Path, dst_dir: Path, filename: str) -> bool:
-    """Copy src to dst_dir/filename. Returns True on success."""
+    """Resize src to MAX_PX (longest side) and save to dst_dir/filename. Returns True on success."""
     if not src.exists():
         print(f"    MISSING: {src.name}")
         return False
     dst_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(str(src), str(dst_dir / filename))
+    with Image.open(src) as img:
+        img.thumbnail((MAX_PX, MAX_PX), Image.LANCZOS)
+        img.save(dst_dir / filename, "JPEG", quality=85)
     return True
 
 

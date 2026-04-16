@@ -743,6 +743,7 @@ function Observatorio() {
   const [boundary, setBoundary] = useState(null);
   const [showBoundary, setShowBoundary] = useState(true);
   const [showCams, setShowCams] = useState(true);
+  const [lightboxImg, setLightboxImg] = useState(null);
   const { data: riskData } = useAPI(getFireRiskCurrent, null, []);
   const { data: stations } = useAPI(getStationSummary, null, []);
 
@@ -830,13 +831,14 @@ function Observatorio() {
                   )}
                   {/* Thumbnail images */}
                   {st.images.length > 0 && (
-                    <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
                       {st.images.map((img, i) => (
                         <img
                           key={i}
                           src={img.url}
                           alt={img.campaign}
-                          style={{ width: 100, height: 75, objectFit: "cover", borderRadius: 4, border: `1px solid ${C.mint}`, flexShrink: 0 }}
+                          onClick={() => setLightboxImg(img.url)}
+                          style={{ width: 250, height: 188, objectFit: "cover", borderRadius: 4, border: `1px solid ${C.mint}`, flexShrink: 0, cursor: "pointer" }}
                         />
                       ))}
                     </div>
@@ -846,6 +848,20 @@ function Observatorio() {
             </CircleMarker>
           ))}
         </MapContainer>
+
+        {/* Lightbox */}
+        {lightboxImg && (
+          <div
+            onClick={() => setLightboxImg(null)}
+            style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out" }}
+          >
+            <img
+              src={lightboxImg}
+              alt="Ampliado"
+              style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 6, boxShadow: "0 8px 40px rgba(0,0,0,0.6)" }}
+            />
+          </div>
+        )}
 
         {/* Legend overlay */}
         <div style={{ position: "absolute", bottom: 12, left: 12, zIndex: 1000, background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: "10px 14px", fontSize: 11 }}>
