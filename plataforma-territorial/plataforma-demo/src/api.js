@@ -57,6 +57,14 @@ export async function getStationSummary() {
   return fetchJSON("/detections/station-summary");
 }
 
+export async function getDielActivity() {
+  return fetchJSON("/detections/diel-activity");
+}
+
+export async function getCampaignStats() {
+  return fetchJSON("/detections/summary-stats");
+}
+
 // ── Health ──
 
 export async function getHealth() {
@@ -94,6 +102,14 @@ export function transformRiskForecast(rows) {
       isHistorical: r.is_historical || false,
     };
   });
+}
+
+/** /api/detections/diel-activity → [{hora, actividad}] for Recharts */
+export function transformDielActivity(rows) {
+  return rows.map((r) => ({
+    hora: `${String(r.hour).padStart(2, "0")}h`,
+    actividad: r.count,
+  }));
 }
 
 /** /api/detections/species-summary → speciesData array for Recharts */

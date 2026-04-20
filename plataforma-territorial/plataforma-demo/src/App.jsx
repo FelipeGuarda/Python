@@ -5,8 +5,8 @@ import L from "leaflet";
 import {
   getWeatherCurrent,
   getFireRiskCurrent, getFireRiskForecast, getFireRiskHistory, getSpeciesSummary,
-  getStationSummary,
-  transformRiskForecast, transformSpeciesSummary,
+  getStationSummary, getDielActivity, getCampaignStats,
+  transformRiskForecast, transformSpeciesSummary, transformDielActivity,
 } from "./api.js";
 
 // ── Color System (designer's green palette) ──
@@ -927,6 +927,16 @@ function Observatorio() {
   );
 }
 
+function timeAgo(isoStr) {
+  if (!isoStr) return null;
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days >= 1) return `hace ${days}d`;
+  const hrs = Math.floor(diff / 3600000);
+  if (hrs >= 1) return `hace ${hrs}h`;
+  return "reciente";
+}
+
 // ── PAGE: Dashboard ──
 function Dashboard() {
   const [tab, setTab] = useState("riesgo");
@@ -938,6 +948,9 @@ function Dashboard() {
   const { data: riskHistory } = useAPI(getFireRiskHistory, transformRiskForecast, []);
   const { data: speciesApiData } = useAPI(getSpeciesSummary, transformSpeciesSummary, []);
   const { data: weatherCurrent } = useAPI(getWeatherCurrent, null, []);
+  const { data: ctStations } = useAPI(getStationSummary, null, []);
+  const { data: dielData } = useAPI(getDielActivity, transformDielActivity, []);
+  const { data: ctStats } = useAPI(getCampaignStats, null, []);
 
   const riskTotal = riskCurrent?.rule_based?.total ? Math.round(riskCurrent.rule_based.total) : 0;
   const mlVal = riskCurrent?.ml_probability != null ? Math.round(riskCurrent.ml_probability * 100) : null;
@@ -1156,37 +1169,71 @@ function Dashboard() {
       {tab === "meteo" && mounted && <MeteoTab />}
 
       {tab === "camaras" && mounted && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <Card>
-            <SectionLabel>Actividad por hora</SectionLabel>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12, fontFamily: "'Georgia', serif" }}>Patron de actividad (todas las camaras)</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={activityByHour}>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                <XAxis dataKey="hora" tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} />
-                <YAxis tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
-                <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }} />
-                <Bar dataKey="actividad" fill={C.deepGreen} radius={[2, 2, 0, 0]} name="Detecciones" />
-              </BarChart>
-            </ResponsiveContainer>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 8, fontStyle: "italic" }}>
-              Pico nocturno consistente con fauna nativa de habitos crepusculares y nocturnos
-            </div>
-          </Card>
-          <Card>
-            <SectionLabel>Estado de camaras</SectionLabel>
-            <div style={{ marginTop: 8 }}>
-              {stations.filter(s => s.type === "camera").map(s => (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${C.paleMint}` }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                      Ultima: {s.lastDetection} — {s.time}
-                    </div>
-                  </div>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.medGreen }} title="Activa" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Row 1: diel activity + summary stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <Card>
+              <SectionLabel>Actividad por hora del día</SectionLabel>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={dielData || []} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+                  <XAxis dataKey="hora" tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }}
+                    interval={2} />
+                  <YAxis tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
+                  <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }}
+                    formatter={(v) => [v, "Detecciones"]} />
+                  <Bar dataKey="actividad" fill={C.deepGreen} radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 6, fontStyle: "italic" }}>
+                Todas las campañas · {ctStats ? `${ctStats.total_detections} detecciones totales` : "cargando…"}
+              </div>
+            </Card>
+            <Card>
+              <SectionLabel>Resumen del monitoreo</SectionLabel>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
+                <StatBlock value={ctStats?.total_detections ?? "…"} label="Detecciones" />
+                <StatBlock value={ctStats?.unique_species ?? "…"} label="Especies" />
+                <StatBlock value={ctStats?.active_stations ?? "…"} label="Estaciones" />
+                <StatBlock value={ctStats?.campaign_count ?? "…"} label="Campañas" />
+              </div>
+              {ctStats?.date_range_start && (
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 10, borderTop: `1px solid ${C.paleMint}`, paddingTop: 8 }}>
+                  <div>Período: {ctStats.date_range_start.slice(0, 10)} — {ctStats.date_range_end.slice(0, 10)}</div>
+                  <div style={{ marginTop: 2 }}>{ctStats.days_sampled} días con registros</div>
+                  <div style={{ marginTop: 2 }}>{ctStats.campaigns?.join(" · ")}</div>
                 </div>
-              ))}
+              )}
+            </Card>
+          </div>
+
+          {/* Row 2: station grid */}
+          <Card>
+            <SectionLabel>Estado de cámaras (26 estaciones)</SectionLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 8, marginTop: 10 }}>
+              {(ctStations || []).map(s => {
+                const isPriority = s.last_species && /puma|leopardus|guiña|guina/i.test(s.last_species);
+                const noData = !s.has_data || s.total_observations === 0;
+                return (
+                  <div key={s.tc_number} style={{
+                    padding: "10px 12px", borderRadius: 6,
+                    background: noData ? `${C.mint}40` : C.paleMint,
+                    borderLeft: `3px solid ${noData ? C.mint : isPriority ? C.amber : C.medGreen}`,
+                    opacity: noData ? 0.65 : 1,
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{s.canonical_name}</div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                      {s.total_observations} detección{s.total_observations !== 1 ? "es" : ""}
+                    </div>
+                    {s.last_species && (
+                      <div style={{ fontSize: 10, color: C.muted, marginTop: 3, fontStyle: "italic" }}>
+                        {s.last_species}
+                        {s.last_time && <span style={{ marginLeft: 4, color: C.lightMuted }}>· {timeAgo(s.last_time)}</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </Card>
         </div>
@@ -1227,23 +1274,47 @@ function Dashboard() {
             <Card>
               <SectionLabel>Resumen del mes</SectionLabel>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
-                <StatBlock value={speciesApiData ? speciesApiData.reduce((s, d) => s + d.detecciones, 0) : "—"} label="Total detecciones" />
-                <StatBlock value={speciesApiData ? speciesApiData.length : "—"} label="Especies" />
-                <StatBlock value={speciesApiData ? "—" : "—"} label="Cámaras activas" />
-                <StatBlock value="—" label="Días muestreados" />
+                <StatBlock value={ctStats?.total_detections ?? "—"} label="Total detecciones" />
+                <StatBlock value={ctStats?.unique_species ?? "—"} label="Especies" />
+                <StatBlock value={ctStats?.active_stations ?? "—"} label="Cámaras activas" />
+                <StatBlock value={ctStats?.days_sampled ?? "—"} label="Días muestreados" />
               </div>
             </Card>
             <Card>
-              <SectionLabel>Alertas de especies</SectionLabel>
+              <SectionLabel>Especies de interés</SectionLabel>
               <div style={{ marginTop: 8 }}>
-                <div style={{ padding: "8px 10px", background: `${C.amber}15`, borderRadius: 6, marginBottom: 6, borderLeft: `3px solid ${C.amber}` }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Puma detectado</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>Camara Laguna Sur — hace 2 dias</div>
-                </div>
-                <div style={{ padding: "8px 10px", background: `${C.red}12`, borderRadius: 6, borderLeft: `3px solid ${C.red}` }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Jabali: tendencia al alza</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>+23% vs mes anterior — 3 estaciones</div>
-                </div>
+                {speciesApiData
+                  ? (() => {
+                      const priority = speciesApiData.filter(d => /puma|leopardus|pudu/i.test(d.nombre));
+                      const invasive = speciesApiData.filter(d => /sus scrofa|lepus/i.test(d.nombre));
+                      return (
+                        <>
+                          {priority.map(d => (
+                            <div key={d.nombre} style={{ padding: "8px 10px", background: `${C.amber}15`, borderRadius: 6, marginBottom: 6, borderLeft: `3px solid ${C.amber}` }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{d.nombre}</div>
+                              <div style={{ fontSize: 11, color: C.muted }}>
+                                {d.detecciones} detección{d.detecciones !== 1 ? "es" : ""}
+                                {d.lastSeen && <span> · última: {d.lastSeen.slice(0, 10)}</span>}
+                              </div>
+                            </div>
+                          ))}
+                          {invasive.map(d => (
+                            <div key={d.nombre} style={{ padding: "8px 10px", background: `${C.red}12`, borderRadius: 6, marginBottom: 6, borderLeft: `3px solid ${C.red}` }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{d.nombre} <span style={{ fontSize: 10, color: C.red }}>invasora</span></div>
+                              <div style={{ fontSize: 11, color: C.muted }}>
+                                {d.detecciones} detección{d.detecciones !== 1 ? "es" : ""}
+                                {d.lastSeen && <span> · última: {d.lastSeen.slice(0, 10)}</span>}
+                              </div>
+                            </div>
+                          ))}
+                          {priority.length === 0 && invasive.length === 0 && (
+                            <div style={{ fontSize: 12, color: C.muted }}>Sin registros de especies prioritarias o invasoras.</div>
+                          )}
+                        </>
+                      );
+                    })()
+                  : <div style={{ fontSize: 12, color: C.muted }}>Cargando…</div>
+                }
               </div>
             </Card>
           </div>

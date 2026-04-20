@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-17
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -107,8 +107,8 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 | Observatorio (map) | **Real data** | 23 canonical stations from DuckDB, species counts + thumbnails in popups |
 | Dashboard — Meteo tab | **Real data** | Year of history, variable selector, wind rose, comparison mode |
 | Dashboard — Fire risk tab | **Real data** | Polar chart, FRI gauge, wind compass, 3-week bar chart with history+forecast+navigation |
-| Dashboard — Cameras tab | Mock data | Pending — Phase 3.4 |
-| Dashboard — Fauna tab | Partial | Species bar chart is real; "estado de cámaras" and alerts are mock |
+| Dashboard — Cameras tab | **Real data** | Diel activity chart, summary stats, station grid — all from DuckDB |
+| Dashboard — Fauna tab | **Real data** | Species bar chart + stats + priority/invasive alerts — all real |
 | Asistente (AI chat) | Mock data | Placeholder responses |
 | Reportes (newsletter) | Mock data | Draft generator with typing animation |
 | FastAPI backend | **Working** | Serves API + built frontend from single port 8000 |
@@ -126,9 +126,10 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 **Priority 1 — Connect frontend to real endpoints:**
 - [x] Replace mock data in fire risk tab with real API calls ← done 2026-03-30
 - [x] Observatorio map stations from real DuckDB data ← done 2026-04-15
+- [x] Cámaras trampa dashboard tab — diel activity, summary stats, station grid ← done 2026-04-17
+- [x] Fauna tab: real stats + priority/invasive species alerts ← done 2026-04-17
 - [ ] Resize thumbnails on Windows (Pillow in export_best_images.py), then increase popup image size
-- [ ] Cámaras trampa dashboard tab (Phase 3.4) — diel activity, species freq, heatmap, gallery
-- [ ] Fauna tab: replace mock "estado de cámaras" + alerts with real data
+- [ ] Cámaras tab Phase 3.4 extensions: species×station heatmap, image gallery
 - [ ] Retrain `fire_model.pkl` with current scikit-learn (pickle incompatible → ml_probability returns null)
 - [ ] Include ML index alongside rule-based index in fire risk view
 - [ ] Investigate forecast showing only ~4 days (pipeline may need to fetch more data)
