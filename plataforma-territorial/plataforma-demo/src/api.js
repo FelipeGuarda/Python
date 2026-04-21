@@ -65,6 +65,14 @@ export async function getCampaignStats() {
   return fetchJSON("/detections/summary-stats");
 }
 
+export async function getSpeciesList() {
+  return fetchJSON("/detections/species-list");
+}
+
+export async function getSpeciesOverlap(sp1, sp2) {
+  return fetchJSON(`/detections/overlap?sp1=${encodeURIComponent(sp1)}&sp2=${encodeURIComponent(sp2)}`);
+}
+
 // ── Health ──
 
 export async function getHealth() {

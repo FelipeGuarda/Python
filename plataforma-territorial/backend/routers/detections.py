@@ -1,5 +1,6 @@
 """Camera trap detection endpoints."""
 
+import math
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -9,6 +10,35 @@ from fastapi import APIRouter, HTTPException, Query
 from ..db import get_connection
 
 router = APIRouter(prefix="/api/detections", tags=["detections"])
+
+_COMMON_NAMES: dict[str, str] = {
+    "Puma concolor": "Puma",
+    "Leopardus guigna": "Güiña",
+    "Lycalopex culpaeus": "Zorro culpeo",
+    "Sus scrofa": "Jabalí",
+    "Lepus europaeus": "Liebre europea",
+    "Canis lupus familiaris": "Perro doméstico",
+    "Pteroptochos tectus": "Turca",
+    "Equus caballus": "Caballo",
+    "Turdus falcklandii": "Zorzal",
+    "Caracara plancus": "Traro",
+    "Milvago chimango": "Tiuque",
+    "Dromiciops gliroides": "Monito del monte",
+    "Cervus elaphus": "Ciervo rojo",
+    "Felis catus": "Gato doméstico",
+    "Pudu puda": "Pudú",
+    "Sephanoides sephaniodes": "Picaflor",
+    "Scelorchilus rubecula": "Huet-huet",
+    "Conepatus chinga": "Chingue",
+    "Strix rufipes": "Lechuza del sur",
+    "Enicognathus ferrugineus": "Choroy",
+    "Phrygilus gayi": "Cometocino",
+    "Aphrastura spinicauda": "Rayadito",
+    "Elaenia albiceps": "Fío-fío",
+    "Abrothrix longipilis": "Ratón de pelo largo",
+}
+
+_TOTAL_TC_STATIONS = 26
 
 # Station image exports live in the camera-traps repo (gitignored, large files).
 # Default: sibling repo layout on Linux — /home/fguarda/Dev/Python/camera-traps/exports
@@ -304,3 +334,108 @@ def station_summary():
 
     result.sort(key=lambda x: x["tc_number"])
     return result
+
+
+@router.get("/species-list")
+def species_list_with_occupancy():
+    """All detected species with total detections and naive occupancy across TC stations."""
+    with get_connection() as con:
+        rows = con.execute("""
+            SELECT
+                o.scientificName,
+                COUNT(*) AS total_detections,
+                COUNT(DISTINCT d.locationID) AS n_stations
+            FROM ct_observations o
+            JOIN ct_deployments d ON o.deploymentID = d.deploymentID
+            WHERE o.observationType = 'animal' AND o.scientificName IS NOT NULL
+            GROUP BY o.scientificName
+            ORDER BY total_detections DESC
+        """).fetchall()
+    return [
+        {
+            "scientific_name": r[0],
+            "common_name": _COMMON_NAMES.get(r[0], r[0]),
+            "total_detections": r[1],
+            "n_stations": r[2],
+            "occupancy_pct": round(r[2] / _TOTAL_TC_STATIONS * 100, 1),
+        }
+        for r in rows
+    ]
+
+
+@router.get("/overlap")
+def species_overlap(sp1: str = Query(...), sp2: str = Query(...)):
+    """
+    Pairwise comparison for two species: 24h activity distributions, per-station
+    detection counts, and a normalized overlap coefficient (0–1, Dhat1-style).
+    """
+    with get_connection() as con:
+        hourly = con.execute("""
+            SELECT o.scientificName, HOUR(o.eventStart) AS hour, COUNT(*) AS count
+            FROM ct_observations o
+            JOIN ct_deployments d ON o.deploymentID = d.deploymentID
+            WHERE o.observationType = 'animal' AND o.scientificName IN (?, ?)
+            GROUP BY o.scientificName, HOUR(o.eventStart)
+        """, [sp1, sp2]).fetchall()
+
+        station_counts = con.execute("""
+            SELECT d.locationID, o.scientificName, COUNT(*) AS count
+            FROM ct_observations o
+            JOIN ct_deployments d ON o.deploymentID = d.deploymentID
+            WHERE o.observationType = 'animal' AND o.scientificName IN (?, ?)
+            GROUP BY d.locationID, o.scientificName
+        """, [sp1, sp2]).fetchall()
+
+        occupancy = con.execute("""
+            SELECT o.scientificName, COUNT(DISTINCT d.locationID) AS n_stations
+            FROM ct_observations o
+            JOIN ct_deployments d ON o.deploymentID = d.deploymentID
+            WHERE o.observationType = 'animal' AND o.scientificName IN (?, ?)
+            GROUP BY o.scientificName
+        """, [sp1, sp2]).fetchall()
+
+    # Hourly distributions (fill 0s for missing hours)
+    hourly_by_sp: dict[str, list[int]] = {sp1: [0] * 24, sp2: [0] * 24}
+    for sp, hour, count in hourly:
+        if sp in hourly_by_sp and hour is not None:
+            hourly_by_sp[sp][hour] = count
+
+    # Per-station counts keyed by TC number
+    station_by_sp: dict[str, dict[int, int]] = {sp1: {}, sp2: {}}
+    for loc_id, sp, count in station_counts:
+        try:
+            tc = int(loc_id)
+            if sp in station_by_sp:
+                station_by_sp[sp][tc] = count
+        except (TypeError, ValueError):
+            pass
+
+    occ_by_sp = {sp: n for sp, n in occupancy}
+
+    # Dhat1-style overlap coefficient: sum of min of normalized hourly proportions
+    v1 = hourly_by_sp[sp1]
+    v2 = hourly_by_sp[sp2]
+    total1 = max(sum(v1), 1)
+    total2 = max(sum(v2), 1)
+    p1 = [v / total1 for v in v1]
+    p2 = [v / total2 for v in v2]
+    overlap_coeff = round(sum(min(p1[i], p2[i]) for i in range(24)), 3)
+
+    def station_markers(sp: str) -> list[dict]:
+        return [
+            {"tc": tc, "lat": lat, "lon": lon, "count": station_by_sp[sp].get(tc, 0)}
+            for tc, (lat, lon) in _TC_COORDS.items()
+        ]
+
+    return {
+        "chart": [{"hour": h, "sp1": v1[h], "sp2": v2[h]} for h in range(24)],
+        "stations_sp1": station_markers(sp1),
+        "stations_sp2": station_markers(sp2),
+        "occupancy_sp1": occ_by_sp.get(sp1, 0),
+        "occupancy_sp2": occ_by_sp.get(sp2, 0),
+        "total_sp1": sum(v1),
+        "total_sp2": sum(v2),
+        "overlap_coeff": overlap_coeff,
+        "sp1_name": _COMMON_NAMES.get(sp1, sp1),
+        "sp2_name": _COMMON_NAMES.get(sp2, sp2),
+    }

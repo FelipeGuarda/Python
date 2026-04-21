@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo, Component } from "react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell } from "recharts";
+import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell } from "recharts";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import {
   getWeatherCurrent,
   getFireRiskCurrent, getFireRiskForecast, getFireRiskHistory, getSpeciesSummary,
-  getStationSummary, getDielActivity, getCampaignStats,
+  getStationSummary, getDielActivity, getCampaignStats, getSpeciesList, getSpeciesOverlap,
   transformRiskForecast, transformSpeciesSummary, transformDielActivity,
 } from "./api.js";
 
@@ -943,6 +943,52 @@ function timeAgo(isoStr) {
   return "reciente";
 }
 
+// ── Species comparator colors ──
+const SP_COLORS = ["#006B54", "#C4573A"];
+
+// ── Mini Leaflet map for per-species detection bubble maps ──
+function SpeciesMap({ boundary, stations, colorIdx }) {
+  const color = SP_COLORS[colorIdx] ?? SP_COLORS[0];
+  const maxCount = stations ? Math.max(...stations.map(s => s.count), 1) : 1;
+  return (
+    <MapContainer
+      center={[-39.4417, -71.7420]}
+      zoom={13}
+      style={{ width: "100%", height: "100%", borderRadius: 8 }}
+      zoomControl={false}
+      scrollWheelZoom={false}
+    >
+      <TileLayer
+        attribution='Imagery &copy; <a href="https://www.esri.com/">Esri</a>'
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      />
+      {boundary && <FitBounds geojson={boundary} />}
+      {boundary && (
+        <GeoJSON data={boundary} style={{ color: "#FFFFFF", weight: 2.5, fillOpacity: 0, dashArray: "8 6" }} />
+      )}
+      {(stations || []).map(st =>
+        st.count === 0 ? (
+          <CircleMarker key={st.tc} center={[st.lat, st.lon]}
+            radius={3}
+            pathOptions={{ color: "#ffffff60", weight: 1, fillColor: "#888888", fillOpacity: 0.25 }}
+          />
+        ) : (
+          <CircleMarker key={st.tc} center={[st.lat, st.lon]}
+            radius={4 + Math.sqrt(st.count / maxCount) * 10}
+            pathOptions={{ color: "#ffffff", weight: 1.5, fillColor: color, fillOpacity: 0.85 }}
+          >
+            <Popup>
+              <div style={{ fontFamily: "'Trebuchet MS', sans-serif", fontSize: 12, color: C.text }}>
+                <strong>TC{String(st.tc).padStart(2, "0")}</strong>: {st.count} detecciones
+              </div>
+            </Popup>
+          </CircleMarker>
+        )
+      )}
+    </MapContainer>
+  );
+}
+
 // ── PAGE: Dashboard ──
 function Dashboard() {
   const [tab, setTab] = useState("riesgo");
@@ -958,10 +1004,46 @@ function Dashboard() {
   const { data: dielData } = useAPI(getDielActivity, transformDielActivity, []);
   const { data: ctStats } = useAPI(getCampaignStats, null, []);
 
+  // ── Species comparator state ──
+  const [speciesList, setSpeciesList] = useState([]);
+  const [sp1Sel, setSp1Sel] = useState("");
+  const [sp2Sel, setSp2Sel] = useState("");
+  const [overlapData, setOverlapData] = useState(null);
+  const [overlapLoading, setOverlapLoading] = useState(false);
+  const [camBoundary, setCamBoundary] = useState(null);
+
   const riskTotal = riskCurrent?.rule_based?.total ? Math.round(riskCurrent.rule_based.total) : 0;
   const mlVal = riskCurrent?.ml_probability != null ? Math.round(riskCurrent.ml_probability * 100) : null;
   const wx = riskCurrent?.weather || {};
   const speciesChartData = speciesApiData || speciesData;
+
+  // ── Load species list + boundary the first time the camaras tab is opened ──
+  useEffect(() => {
+    if (tab !== "camaras" || speciesList.length > 0) return;
+    fetch("/data/boundary.geojson").then(r => r.json()).then(setCamBoundary);
+    getSpeciesList().then(list => {
+      setSpeciesList(list);
+      if (list.length >= 2) {
+        const defSp1 = (list.find(s => s.scientific_name === "Puma concolor") ?? list[0]).scientific_name;
+        const defSp2 = (list.find(s => s.scientific_name === "Lycalopex culpaeus") ?? list[1]).scientific_name;
+        setSp1Sel(defSp1);
+        setSp2Sel(defSp2);
+        setOverlapLoading(true);
+        getSpeciesOverlap(defSp1, defSp2)
+          .then(d => { setOverlapData(d); setOverlapLoading(false); })
+          .catch(() => setOverlapLoading(false));
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  function applyOverlap() {
+    if (!sp1Sel || !sp2Sel || sp1Sel === sp2Sel || overlapLoading) return;
+    setOverlapLoading(true);
+    getSpeciesOverlap(sp1Sel, sp2Sel)
+      .then(d => { setOverlapData(d); setOverlapLoading(false); })
+      .catch(() => setOverlapLoading(false));
+  }
 
   // ── Bar chart: fixed 3-week window (prev week + current week + next week) ──
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
@@ -1167,23 +1249,22 @@ function Dashboard() {
 
       {tab === "camaras" && mounted && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Row 1: diel activity + summary stats */}
+
+          {/* Row 1: diel activity (all species) + summary stats */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <Card>
               <SectionLabel>Actividad por hora del día</SectionLabel>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={dielData || []} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-                  <XAxis dataKey="hora" tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }}
-                    interval={2} />
+                  <XAxis dataKey="hora" tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} interval={2} />
                   <YAxis tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
-                  <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }}
-                    formatter={(v) => [v, "Detecciones"]} />
+                  <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }} formatter={(v) => [v, "Detecciones"]} />
                   <Bar dataKey="actividad" fill={C.deepGreen} radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
               <div style={{ fontSize: 10, color: C.muted, marginTop: 6, fontStyle: "italic" }}>
-                Todas las campañas · {ctStats ? `${ctStats.total_detections} detecciones totales` : "cargando…"}
+                Todas las especies · {ctStats ? `${ctStats.total_detections} detecciones totales` : "cargando…"}
               </div>
             </Card>
             <Card>
@@ -1204,35 +1285,178 @@ function Dashboard() {
             </Card>
           </div>
 
-          {/* Row 2: station grid */}
+          {/* Species selector */}
           <Card>
-            <SectionLabel>Estado de cámaras (26 estaciones)</SectionLabel>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 8, marginTop: 10 }}>
-              {(ctStations || []).map(s => {
-                const isPriority = s.last_species && /puma|leopardus|guiña|guina/i.test(s.last_species);
-                const noData = !s.has_data || s.total_observations === 0;
-                return (
-                  <div key={s.tc_number} style={{
-                    padding: "10px 12px", borderRadius: 6,
-                    background: noData ? `${C.mint}40` : C.paleMint,
-                    borderLeft: `3px solid ${noData ? C.mint : isPriority ? C.amber : C.medGreen}`,
-                    opacity: noData ? 0.65 : 1,
-                  }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{s.canonical_name}</div>
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                      {s.total_observations} detección{s.total_observations !== 1 ? "es" : ""}
-                    </div>
-                    {s.last_species && (
-                      <div style={{ fontSize: 10, color: C.muted, marginTop: 3, fontStyle: "italic" }}>
-                        {s.last_species}
-                        {s.last_time && <span style={{ marginLeft: 4, color: C.lightMuted }}>· {timeAgo(s.last_time)}</span>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <SectionLabel>Comparador de Especies</SectionLabel>
+            <div style={{ display: "flex", gap: 16, alignItems: "flex-end", marginTop: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 10, color: SP_COLORS[0], fontWeight: 700 }}>Especie A</span>
+                <select value={sp1Sel} onChange={e => setSp1Sel(e.target.value)} style={{
+                  padding: "6px 10px", borderRadius: 6, border: `2px solid ${SP_COLORS[0]}`,
+                  fontSize: 12, color: C.text, background: C.white, minWidth: 200, cursor: "pointer",
+                }}>
+                  {speciesList.map(s => (
+                    <option key={s.scientific_name} value={s.scientific_name}>{s.common_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ fontSize: 13, color: C.lightMuted, paddingBottom: 6 }}>vs.</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 10, color: SP_COLORS[1], fontWeight: 700 }}>Especie B</span>
+                <select value={sp2Sel} onChange={e => setSp2Sel(e.target.value)} style={{
+                  padding: "6px 10px", borderRadius: 6, border: `2px solid ${SP_COLORS[1]}`,
+                  fontSize: 12, color: C.text, background: C.white, minWidth: 200, cursor: "pointer",
+                }}>
+                  {speciesList.map(s => (
+                    <option key={s.scientific_name} value={s.scientific_name}>{s.common_name}</option>
+                  ))}
+                </select>
+              </div>
+              <button onClick={applyOverlap}
+                disabled={!sp1Sel || !sp2Sel || sp1Sel === sp2Sel || overlapLoading}
+                style={{
+                  padding: "7px 22px",
+                  background: (!sp1Sel || !sp2Sel || sp1Sel === sp2Sel) ? C.lightMuted : C.deepGreen,
+                  color: C.white, border: "none", borderRadius: 6,
+                  cursor: (!sp1Sel || !sp2Sel || sp1Sel === sp2Sel || overlapLoading) ? "not-allowed" : "pointer",
+                  fontSize: 13, fontWeight: 600, fontFamily: "'Trebuchet MS', sans-serif",
+                  paddingBottom: 7,
+                }}>
+                {overlapLoading ? "Calculando…" : "Aplicar"}
+              </button>
+              {sp1Sel && sp2Sel && sp1Sel === sp2Sel && (
+                <span style={{ fontSize: 11, color: C.red, paddingBottom: 6 }}>Selecciona dos especies distintas</span>
+              )}
             </div>
           </Card>
+
+          {/* Loading placeholder */}
+          {overlapLoading && (
+            <Card>
+              <div style={{ fontSize: 13, color: C.muted, textAlign: "center", padding: "36px 0" }}>
+                Calculando solapamiento…
+              </div>
+            </Card>
+          )}
+
+          {/* Overlap activity chart — full width */}
+          {overlapData && !overlapLoading && (
+            <Card>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <SectionLabel>Actividad diaria — superposición</SectionLabel>
+                <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+                  {[overlapData.sp1_name, overlapData.sp2_name].map((name, i) => (
+                    <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <div style={{ width: 16, height: 3, background: SP_COLORS[i], borderRadius: 2 }} />
+                      <span style={{ fontSize: 11, color: C.muted }}>{name}</span>
+                    </div>
+                  ))}
+                  <div style={{
+                    padding: "3px 12px", borderRadius: 20,
+                    background: C.paleMint, fontSize: 11, color: C.text,
+                  }}>
+                    Solapamiento: <strong>{Math.round(overlapData.overlap_coeff * 100)}%</strong>
+                  </div>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={230}>
+                <AreaChart data={overlapData.chart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradSp1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={SP_COLORS[0]} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={SP_COLORS[0]} stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="gradSp2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={SP_COLORS[1]} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={SP_COLORS[1]} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+                  <XAxis dataKey="hour" tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }}
+                    tickFormatter={h => `${String(h).padStart(2, "0")}h`} interval={2} />
+                  <YAxis tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 6, fontSize: 11 }}
+                    labelFormatter={h => `${String(h).padStart(2, "0")}:00 h`}
+                    formatter={(v, key) => [v, key === "sp1" ? overlapData.sp1_name : overlapData.sp2_name]}
+                  />
+                  <Area type="monotone" dataKey="sp1" stroke={SP_COLORS[0]} strokeWidth={2}
+                    fill="url(#gradSp1)" dot={false} />
+                  <Area type="monotone" dataKey="sp2" stroke={SP_COLORS[1]} strokeWidth={2}
+                    fill="url(#gradSp2)" dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontStyle: "italic" }}>
+                {overlapData.total_sp1} detecciones de {overlapData.sp1_name} · {overlapData.total_sp2} de {overlapData.sp2_name}
+              </div>
+            </Card>
+          )}
+
+          {/* Detection maps — side by side */}
+          {overlapData && !overlapLoading && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {[
+                { name: overlapData.sp1_name, stations: overlapData.stations_sp1, occ: overlapData.occupancy_sp1, ci: 0 },
+                { name: overlapData.sp2_name, stations: overlapData.stations_sp2, occ: overlapData.occupancy_sp2, ci: 1 },
+              ].map(({ name, stations, occ, ci }) => (
+                <Card key={ci} style={{ padding: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <SectionLabel style={{ margin: 0 }}>{name}</SectionLabel>
+                    <div style={{ fontSize: 11, color: C.muted, textAlign: "right" }}>
+                      <span style={{ color: SP_COLORS[ci], fontWeight: 700 }}>{occ}</span>
+                      <span style={{ color: C.lightMuted }}> / 26 est.</span>
+                      <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 10,
+                        background: `${SP_COLORS[ci]}20`, color: SP_COLORS[ci], fontWeight: 600, fontSize: 10 }}>
+                        {Math.round(occ / 26 * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ width: "100%", aspectRatio: "1 / 1" }}>
+                    <SpeciesMap boundary={camBoundary} stations={stations} colorIdx={ci} />
+                  </div>
+                  <div style={{ fontSize: 10, color: C.lightMuted, marginTop: 6, fontStyle: "italic" }}>
+                    × = sin detección · Tamaño de burbuja proporcional al número de registros
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Naive occupancy — all species */}
+          {speciesList.length > 0 && (
+            <Card>
+              <SectionLabel>Ocupación por especie — % de estaciones con detecciones</SectionLabel>
+              <ResponsiveContainer width="100%" height={Math.max(180, speciesList.length * 22)}>
+                <BarChart data={speciesList} layout="vertical"
+                  margin={{ left: 150, right: 50, top: 4, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: C.muted }}
+                    axisLine={{ stroke: C.mint }} tickFormatter={v => `${v}%`} />
+                  <YAxis type="category" dataKey="common_name" tick={{ fontSize: 11, fill: C.text }}
+                    axisLine={{ stroke: C.mint }} width={150} />
+                  <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }}
+                    formatter={(v, _n, p) => [`${v}% (${p.payload.n_stations}/26 estaciones)`, "Ocupación"]} />
+                  <Bar dataKey="occupancy_pct" radius={[0, 4, 4, 0]}
+                    label={{ position: "right", fontSize: 10, fill: C.muted,
+                      formatter: (v) => `${v}%` }}>
+                    {speciesList.map((entry, i) => {
+                      const isPriority = /puma concolor|leopardus guigna|pudu puda/i.test(entry.scientific_name);
+                      const isInvasive = /sus scrofa|lepus europaeus|canis lupus familiaris|cervus elaphus|felis catus/i.test(entry.scientific_name);
+                      return <Cell key={i} fill={isPriority ? C.amber : isInvasive ? C.red : C.deepGreen} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
+                {[["Nativa", C.deepGreen], ["Prioritaria", C.amber], ["Invasora / introducida", C.red]].map(([label, color]) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.muted }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} /> {label}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
         </div>
       )}
 
