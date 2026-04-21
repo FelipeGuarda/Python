@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-04-17
+**Last updated:** 2026-04-21
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -76,7 +76,7 @@ Running as systemd service (`fma-pipeline.service`). Full pipeline with real dat
 | Component | Status | Notes |
 |---|---|---|
 | DuckDB schema (6 tables) | Done | `fma_data.duckdb` ~42 MB |
-| Open-Meteo fetcher | Done | Hourly, 7-day forecast |
+| Open-Meteo fetcher | Done | Hourly, 16-day forecast (extended 2026-04-21) |
 | Camera trap legacy parser | Done | Parses Timelapse2 CSV |
 | Camtrap DP parser | Done | Awaiting test with real DP package |
 | TOA5 parser (CR800 backfill) | Done | Column names fixed 2026-04-07 (RH_Avg, WindDir_Avg, incomingSW_Avg) |
@@ -106,7 +106,7 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 |---|---|---|
 | Observatorio (map) | **Real data** | 23 canonical stations from DuckDB, species counts + thumbnails in popups |
 | Dashboard — Meteo tab | **Real data** | Year of history, variable selector, wind rose, comparison mode |
-| Dashboard — Fire risk tab | **Real data** | Polar chart, FRI gauge, wind compass, 3-week bar chart with history+forecast+navigation |
+| Dashboard — Fire risk tab | **Real data** | All visuals use Open-Meteo exclusively. Polar chart color matches gauge. Fixed 3-week bar chart (no navigation). Wind compass from forecast. Freshness timestamps on all widgets. |
 | Dashboard — Cameras tab | **Real data** | Diel activity chart, summary stats, station grid — all from DuckDB |
 | Dashboard — Fauna tab | **Real data** | Species bar chart + stats + priority/invasive alerts — all real |
 | Asistente (AI chat) | Mock data | Placeholder responses |
@@ -132,7 +132,7 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 - [ ] Cámaras tab Phase 3.4 extensions: species×station heatmap, image gallery
 - [ ] Retrain `fire_model.pkl` with current scikit-learn (pickle incompatible → ml_probability returns null)
 - [ ] Include ML index alongside rule-based index in fire risk view
-- [ ] Investigate forecast showing only ~4 days (pipeline may need to fetch more data)
+- [x] Extended Open-Meteo forecast from 7 to 16 days — bar chart next week now populated ← done 2026-04-21
 
 **Priority 2 — Asistente with real Claude API:**
 - [ ] Connect Asistente tab to Claude API (Sonnet + tool use)

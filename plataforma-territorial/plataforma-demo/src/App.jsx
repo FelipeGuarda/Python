@@ -197,7 +197,7 @@ function RiskGauge({ value, color: colorProp = null, compact = false }) {
 }
 
 // ── POLAR CONTRIBUTION CHART ──
-function PolarContrib({ components, size = 180 }) {
+function PolarContrib({ components, size = 180, color = C.amber }) {
   const axes = [
     { key: "temp_score", label: "Temp", max: 25, angle: -90 },
     { key: "wind_score", label: "Viento", max: 15, angle: 0 },
@@ -220,8 +220,8 @@ function PolarContrib({ components, size = 180 }) {
         const rad = toRad(a.angle);
         return <line key={a.key} x1={cx} y1={cy} x2={cx + maxR * Math.cos(rad)} y2={cy + maxR * Math.sin(rad)} stroke={C.mint} strokeWidth="1" />;
       })}
-      <polygon points={pts.map(p => p.join(",")).join(" ")} fill={`${C.amber}35`} stroke={C.amber} strokeWidth="2" strokeLinejoin="round" />
-      {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={3} fill={C.amber} />)}
+      <polygon points={pts.map(p => p.join(",")).join(" ")} fill={`${color}35`} stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={3} fill={color} />)}
       {axes.map(a => {
         const rad = toRad(a.angle);
         const lx = cx + (maxR + 20) * Math.cos(rad);
@@ -905,6 +905,12 @@ function Observatorio() {
               {riskData.rule_based.label}
             </div>
           )}
+          {riskData?.timestamp && (
+            <div style={{ fontSize: 10, color: C.lightMuted, textAlign: "center", marginTop: 6 }}>
+              {new Date(riskData.timestamp).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}{" "}
+              {new Date(riskData.timestamp).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          )}
         </Card>
         <Card>
           <SectionLabel>Meteorología</SectionLabel>
@@ -957,14 +963,12 @@ function Dashboard() {
   const wx = riskCurrent?.weather || {};
   const speciesChartData = speciesApiData || speciesData;
 
-  // ── Bar chart: fixed Mon–Sun weeks, combined history + forecast ──
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = prev+current+next week
+  // ── Bar chart: fixed 3-week window (prev week + current week + next week) ──
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
-  // Returns the ISO date of the Monday of the week containing dateStr
   function getMondayOf(dateStr) {
     const d = new Date(dateStr + "T12:00:00");
-    const day = d.getDay(); // 0=Sun
+    const day = d.getDay();
     d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
     return d.toISOString().split("T")[0];
   }
@@ -972,18 +976,17 @@ function Dashboard() {
   const allRiskData = useMemo(() => {
     const hist = riskHistory || [];
     const fore = riskForecast || [];
-    // Merge: forecast takes precedence on same date (today may be in both)
     const map = new Map();
     hist.forEach(d => map.set(d.date, d));
     fore.forEach(d => map.set(d.date, d));
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   }, [riskHistory, riskForecast]);
 
-  // Build exactly 21 slots (Mon×3 weeks), filled from allRiskData where available
   const DAY_NAMES = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
   const windowData = useMemo(() => {
+    // Always: Monday of previous week → Sunday of next week (21 days fixed)
     const windowStart = new Date(getMondayOf(todayStr) + "T12:00:00");
-    windowStart.setDate(windowStart.getDate() + (weekOffset - 1) * 7);
+    windowStart.setDate(windowStart.getDate() - 7);
     const lookup = new Map(allRiskData.map(d => [d.date, d]));
     return Array.from({ length: 21 }, (_, i) => {
       const d = new Date(windowStart);
@@ -997,7 +1000,7 @@ function Dashboard() {
         : { date: dateStr, riesgo: null, color: null, isHistorical: null, diaLabel: `${dayName} ${dayNum}` };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRiskData, weekOffset, todayStr]);
+  }, [allRiskData, todayStr]);
 
   const todayDiaLabel = useMemo(() => {
     const d = new Date(todayStr + "T12:00:00");
@@ -1037,7 +1040,7 @@ function Dashboard() {
             <Card style={{ display: "flex", flexDirection: "column" }}>
               <SectionLabel>Contribución por factor al riesgo</SectionLabel>
               <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: "16px 0" }}>
-                <PolarContrib components={riskCurrent?.rule_based} size={430} />
+                <PolarContrib components={riskCurrent?.rule_based} size={430} color={riskCurrent?.rule_based?.color || C.amber} />
               </div>
             </Card>
 
@@ -1067,46 +1070,40 @@ function Dashboard() {
                       </div>
                     );
                   })()}
+                  {riskCurrent?.timestamp && (
+                    <div style={{ fontSize: 10, color: C.lightMuted, marginTop: 8 }}>
+                      Datos del{" "}
+                      {new Date(riskCurrent.timestamp).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}{" "}
+                      {new Date(riskCurrent.timestamp).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  )}
                 </div>
               </Card>
               <Card style={{ flex: 1, display: "flex", flexDirection: "column" }}>
                 <SectionLabel>Dirección del viento</SectionLabel>
                 <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: "8px 0" }}>
                   <WindCompass
-                    direction={weatherCurrent?.wind_direction}
+                    direction={riskCurrent?.weather?.wind_direction}
                     speed={wx.wind_speed_kmh}
                   />
                 </div>
+                {riskCurrent?.timestamp && (
+                  <div style={{ fontSize: 10, color: C.lightMuted, textAlign: "center", marginTop: 4 }}>
+                    Datos del{" "}
+                    {new Date(riskCurrent.timestamp).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}{" "}
+                    {new Date(riskCurrent.timestamp).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                )}
               </Card>
             </div>
           </div>
 
           {/* Bottom row: history + forecast bar chart — full width */}
           <Card>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div>
-                <SectionLabel>Índice FRI — historial y pronóstico</SectionLabel>
-                <div style={{ fontFamily: "'Georgia', serif", fontSize: 14, fontWeight: 700, color: C.text }}>
-                  {windowData[0]?.date} → {windowData[20]?.date}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setWeekOffset(o => o - 1)}
-                  style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.mint}`,
-                    background: C.paleMint, color: C.text, cursor: "pointer", fontSize: 11 }}>
-                  ← Sem ant
-                </button>
-                <button onClick={() => setWeekOffset(0)}
-                  style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.mint}`,
-                    background: weekOffset === 0 ? C.mint : C.paleMint, color: C.text,
-                    cursor: "pointer", fontSize: 11, fontWeight: weekOffset === 0 ? 700 : 400 }}>
-                  Hoy
-                </button>
-                <button onClick={() => setWeekOffset(o => o + 1)}
-                  style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.mint}`,
-                    background: C.paleMint, color: C.text, cursor: "pointer", fontSize: 11 }}>
-                  Sem sig →
-                </button>
+            <div style={{ marginBottom: 8 }}>
+              <SectionLabel>Índice FRI — historial y pronóstico</SectionLabel>
+              <div style={{ fontFamily: "'Georgia', serif", fontSize: 14, fontWeight: 700, color: C.text }}>
+                {windowData[0]?.date} → {windowData[20]?.date}
               </div>
             </div>
             <ResponsiveContainer width="100%" height={240}>

@@ -27,6 +27,7 @@ def fetch() -> pd.DataFrame:
             "et0_fao_evapotranspiration",
         ]),
         "timezone": "America/Santiago",
+        "forecast_days": 16,
     }
 
     resp = requests.get(OPEN_METEO_URL, params=params, timeout=30)
