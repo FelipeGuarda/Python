@@ -1,9 +1,10 @@
 # Plataforma Territorial FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Last Updated:** 2026-04-16
-**What Changed:** Observatorio map now shows all 26 TC locations (was 23) — `/api/detections/station-summary` rewritten to be TC-centric with an inlined `_TC_COORDS` dict as ground truth, left-joining DB data. Stations without identified species render as muted grey markers with "Sin detecciones identificadas" in the popup (CT17, TC22, TC23). Species counts now include newly-resolved Pudu / Chingue / Cachaña / Rayadito / Fío-fío / Libélula. Non-animal false positives (284 "No es un animal" etc.) no longer inflate detection totals.
-**Integration Status:** Ready [Observatorio map shows all 26 TCs + thumbnail lightbox] | Pending [cámaras trampa dashboard tab, fauna tab real data, proper deployment manifest (replaces hardcoded TC_COORDS)]
+**Last Updated:** 2026-04-24
+**What Changed:** Full code review complete (Block 4 backend + Block 5 frontend). No source-code changes this session — review artifacts live in `~/Documents/Obsidian FG/SecondBrain/Reviews/`. Top finding: `App.jsx` is a 1,816-line monolith (W41) with a documented 24-file decomposition proposal + 3-PR migration plan ready for when work starts. Secondary frontend concerns: MeteoTab bypasses `api.js` (W42), ~800 lines of inline styles (W44), leftover demo mocks (W45), coords and station count hardcoded (W46/W51 — mirrors backend W32/W39), 7 parallel fetches on Dashboard mount (W50), UTC-vs-Santiago date bug in bar-chart "hoy" highlight (W49).
+**Integration Status:** Ready [Observatorio map shows all 26 TCs + thumbnail lightbox] | Pending [cámaras trampa dashboard tab, fauna tab real data, proper deployment manifest (replaces hardcoded TC_COORDS), frontend decomposition per W41]
+**Blockers/Notes:** Review surfaced 6 cross-project finding chains — station registry, species catalog, station count, DST handling, deployment config, risk thresholds. Full table in `review-plan-fma-ecosystem.md`. `stations.yaml` is the declared canonical source but is not actually loaded by any code; the station-registry chain (4 findings across 3 projects) resolves by wiring that up.
 
 ---
 
