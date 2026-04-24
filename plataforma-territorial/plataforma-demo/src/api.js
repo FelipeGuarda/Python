@@ -73,6 +73,12 @@ export async function getSpeciesOverlap(sp1, sp2) {
   return fetchJSON(`/detections/overlap?sp1=${encodeURIComponent(sp1)}&sp2=${encodeURIComponent(sp2)}`);
 }
 
+// ── Config ──
+
+export async function getGeography() {
+  return fetchJSON("/config/geography");
+}
+
 // ── Health ──
 
 export async function getHealth() {
