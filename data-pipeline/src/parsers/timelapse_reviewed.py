@@ -20,38 +20,10 @@ from pathlib import Path
 
 import pandas as pd
 
-# ── Station coordinates ───────────────────────────────────────────────────────
-# TC camera number (1–26) → (latitude, longitude)
-# Source: GIS/CT ID and coordinates.xlsx, columns TC / S / W
-# S and W stored as positive decimal degrees; negated here (southern/western hemisphere).
-_TC_COORDS: dict[int, tuple[float, float]] = {
-     1: (-39.45183, -71.72707),
-     2: (-39.45163, -71.73252),
-     3: (-39.43796, -71.74220),
-     4: (-39.43774, -71.74829),
-     5: (-39.45579, -71.73253),
-     6: (-39.42418, -71.75465),
-     7: (-39.44718, -71.73228),
-     8: (-39.44286, -71.74485),
-     9: (-39.42885, -71.75478),
-    10: (-39.44675, -71.74390),
-    11: (-39.45130, -71.74873),
-    12: (-39.45905, -71.75111),
-    13: (-39.45556, -71.75083),
-    14: (-39.44709, -71.73836),
-    15: (-39.45142, -71.74398),
-    16: (-39.45524, -71.74502),
-    17: (-39.45180, -71.73987),
-    18: (-39.43320, -71.74338),
-    19: (-39.43286, -71.75497),
-    20: (-39.43752, -71.76076),
-    21: (-39.44299, -71.73801),
-    22: (-39.43296, -71.74903),
-    23: (-39.43704, -71.73900),
-    24: (-39.43359, -71.73804),
-    25: (-39.42929, -71.74325),
-    26: (-39.42908, -71.74894),  # corrected from DMS-encoded value in source Excel (2026-03-30)
-}
+from ..stations import tc_coords as _load_tc_coords
+
+# TC camera number (1..N) → (lat, lon). Canonical source: plataforma-territorial/data/stations.yaml.
+_TC_COORDS: dict[int, tuple[float, float]] = _load_tc_coords()
 
 
 def _station_to_tc_number(station: str) -> int | None:
