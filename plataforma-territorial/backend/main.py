@@ -22,7 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .routers import weather, fire_risk_router, detections
+from .routers import config_router, detections, fire_risk_router, weather
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "plataforma-demo" / "dist"
 
@@ -53,6 +53,7 @@ app.add_middleware(
 app.include_router(weather.router)
 app.include_router(fire_risk_router.router)
 app.include_router(detections.router)
+app.include_router(config_router.router)
 
 
 @app.get("/api/health")

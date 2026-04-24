@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 
 from ..db import get_connection
+from ..stations import tc_coords as _load_tc_coords
 
 router = APIRouter(prefix="/api/detections", tags=["detections"])
 
@@ -38,34 +39,17 @@ _COMMON_NAMES: dict[str, str] = {
     "Abrothrix longipilis": "Ratón de pelo largo",
 }
 
-_TOTAL_TC_STATIONS = 26
-
 # Station image exports live in the camera-traps repo (gitignored, large files).
 # Default: sibling repo layout on Linux — /home/fguarda/Dev/Python/camera-traps/exports
 # Override with CT_EXPORTS_DIR env var if the path differs.
 _DEFAULT_EXPORTS = Path(__file__).resolve().parents[3] / "camera-traps" / "exports"
 _CT_EXPORTS_DIR = Path(os.getenv("CT_EXPORTS_DIR", str(_DEFAULT_EXPORTS)))
 
-# Canonical TC camera locations (1..26). Canonical copy lives in
-# data-pipeline/src/parsers/timelapse_reviewed.py (_TC_COORDS); keep in sync.
-# Used so the Observatorio map shows all 26 deployed cameras even if the
-# reviewed CSV for a given campaign has no rows for that TC (Timelapse only
-# exports rows with animal images, so zero-animal stations are absent).
-_TC_COORDS: dict[int, tuple[float, float]] = {
-     1: (-39.45183, -71.72707),  2: (-39.45163, -71.73252),
-     3: (-39.43796, -71.74220),  4: (-39.43774, -71.74829),
-     5: (-39.45579, -71.73253),  6: (-39.42418, -71.75465),
-     7: (-39.44718, -71.73228),  8: (-39.44286, -71.74485),
-     9: (-39.42885, -71.75478), 10: (-39.44675, -71.74390),
-    11: (-39.45130, -71.74873), 12: (-39.45905, -71.75111),
-    13: (-39.45556, -71.75083), 14: (-39.44709, -71.73836),
-    15: (-39.45142, -71.74398), 16: (-39.45524, -71.74502),
-    17: (-39.45180, -71.73987), 18: (-39.43320, -71.74338),
-    19: (-39.43286, -71.75497), 20: (-39.43752, -71.76076),
-    21: (-39.44299, -71.73801), 22: (-39.43296, -71.74903),
-    23: (-39.43704, -71.73900), 24: (-39.43359, -71.73804),
-    25: (-39.42929, -71.74325), 26: (-39.42908, -71.74894),
-}
+# Canonical TC camera locations from plataforma-territorial/data/stations.yaml.
+# Used so the Observatorio map shows all deployed cameras even if the reviewed
+# CSV for a given campaign has no rows for that TC (Timelapse only exports rows
+# with animal images, so zero-animal stations are absent).
+_TC_COORDS: dict[int, tuple[float, float]] = _load_tc_coords()
 
 
 @router.get("/recent")
@@ -357,7 +341,7 @@ def species_list_with_occupancy():
             "common_name": _COMMON_NAMES.get(r[0], r[0]),
             "total_detections": r[1],
             "n_stations": r[2],
-            "occupancy_pct": round(r[2] / _TOTAL_TC_STATIONS * 100, 1),
+            "occupancy_pct": round(r[2] / len(_TC_COORDS) * 100, 1),
         }
         for r in rows
     ]

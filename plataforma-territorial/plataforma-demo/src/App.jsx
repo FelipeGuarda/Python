@@ -6,6 +6,7 @@ import {
   getWeatherCurrent,
   getFireRiskCurrent, getFireRiskForecast, getFireRiskHistory, getSpeciesSummary,
   getStationSummary, getDielActivity, getCampaignStats, getSpeciesList, getSpeciesOverlap,
+  getGeography,
   transformRiskForecast, transformSpeciesSummary, transformDielActivity,
 } from "./api.js";
 
@@ -746,6 +747,7 @@ function Observatorio() {
   const [lightboxImg, setLightboxImg] = useState(null);
   const { data: riskData } = useAPI(getFireRiskCurrent, null, []);
   const { data: stations } = useAPI(getStationSummary, null, []);
+  const { data: geo } = useAPI(getGeography, null, []);
 
   const riskTotal = riskData?.rule_based?.total ? Math.round(riskData.rule_based.total) : null;
   const wx = riskData?.weather || {};
@@ -767,8 +769,8 @@ function Observatorio() {
       {/* Map Area */}
       <Card style={{ padding: 0, overflow: "hidden", position: "relative" }}>
         <MapContainer
-          center={[-39.4417, -71.7420]}
-          zoom={14}
+          center={geo?.reserve?.center ?? [-39.4417, -71.7420]}
+          zoom={geo?.reserve?.zoom ?? 14}
           style={{ width: "100%", height: "100%", borderRadius: 8 }}
           zoomControl={false}
         >
@@ -785,13 +787,19 @@ function Observatorio() {
           )}
 
           {/* Weather station */}
-          {showCams && (
-            <Marker position={[-39.453642, -71.733092]} icon={weatherIcon}>
+          {showCams && geo?.weather_station && (
+            <Marker position={[geo.weather_station.lat, geo.weather_station.lon]} icon={weatherIcon}>
               <Popup>
                 <div style={{ fontFamily: "'Trebuchet MS', sans-serif", minWidth: 160 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 6 }}>Estación Meteorológica</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>Campbell Scientific CR800</div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>-39.453642, -71.733092</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 6 }}>
+                    {geo.weather_station.name || "Estación Meteorológica"}
+                  </div>
+                  {geo.weather_station.model && (
+                    <div style={{ fontSize: 11, color: C.muted }}>{geo.weather_station.model}</div>
+                  )}
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                    {geo.weather_station.lat.toFixed(6)}, {geo.weather_station.lon.toFixed(6)}
+                  </div>
                 </div>
               </Popup>
             </Marker>
@@ -947,12 +955,12 @@ function timeAgo(isoStr) {
 const SP_COLORS = ["#006B54", "#C4573A"];
 
 // ── Mini Leaflet map for per-species detection bubble maps ──
-function SpeciesMap({ boundary, stations, colorIdx }) {
+function SpeciesMap({ boundary, stations, colorIdx, center }) {
   const color = SP_COLORS[colorIdx] ?? SP_COLORS[0];
   const maxCount = stations ? Math.max(...stations.map(s => s.count), 1) : 1;
   return (
     <MapContainer
-      center={[-39.4417, -71.7420]}
+      center={center ?? [-39.4417, -71.7420]}
       zoom={13}
       style={{ width: "100%", height: "100%", borderRadius: 8 }}
       zoomControl={false}
@@ -1003,6 +1011,8 @@ function Dashboard() {
   const { data: ctStations } = useAPI(getStationSummary, null, []);
   const { data: dielData } = useAPI(getDielActivity, transformDielActivity, []);
   const { data: ctStats } = useAPI(getCampaignStats, null, []);
+  const { data: geo } = useAPI(getGeography, null, []);
+  const totalStations = geo?.camera_trap_count ?? null;
 
   // ── Species comparator state ──
   const [speciesList, setSpeciesList] = useState([]);
@@ -1404,15 +1414,17 @@ function Dashboard() {
                     <SectionLabel style={{ margin: 0 }}>{name}</SectionLabel>
                     <div style={{ fontSize: 11, color: C.muted, textAlign: "right" }}>
                       <span style={{ color: SP_COLORS[ci], fontWeight: 700 }}>{occ}</span>
-                      <span style={{ color: C.lightMuted }}> / 26 est.</span>
-                      <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 10,
-                        background: `${SP_COLORS[ci]}20`, color: SP_COLORS[ci], fontWeight: 600, fontSize: 10 }}>
-                        {Math.round(occ / 26 * 100)}%
-                      </span>
+                      <span style={{ color: C.lightMuted }}> / {totalStations ?? "…"} est.</span>
+                      {totalStations && (
+                        <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 10,
+                          background: `${SP_COLORS[ci]}20`, color: SP_COLORS[ci], fontWeight: 600, fontSize: 10 }}>
+                          {Math.round(occ / totalStations * 100)}%
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div style={{ width: "100%", aspectRatio: "1 / 1" }}>
-                    <SpeciesMap boundary={camBoundary} stations={stations} colorIdx={ci} />
+                    <SpeciesMap boundary={camBoundary} stations={stations} colorIdx={ci} center={geo?.reserve?.center} />
                   </div>
                   <div style={{ fontSize: 10, color: C.lightMuted, marginTop: 6, fontStyle: "italic" }}>
                     × = sin detección · Tamaño de burbuja proporcional al número de registros
@@ -1435,7 +1447,7 @@ function Dashboard() {
                   <YAxis type="category" dataKey="common_name" tick={{ fontSize: 11, fill: C.text }}
                     axisLine={{ stroke: C.mint }} width={150} />
                   <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }}
-                    formatter={(v, _n, p) => [`${v}% (${p.payload.n_stations}/26 estaciones)`, "Ocupación"]} />
+                    formatter={(v, _n, p) => [`${v}% (${p.payload.n_stations}/${totalStations ?? "…"} estaciones)`, "Ocupación"]} />
                   <Bar dataKey="occupancy_pct" radius={[0, 4, 4, 0]}
                     label={{ position: "right", fontSize: 10, fill: C.muted,
                       formatter: (v) => `${v}%` }}>

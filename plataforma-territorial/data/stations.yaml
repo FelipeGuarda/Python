@@ -1,12 +1,23 @@
 # Estaciones de monitoreo — Bosque Pehuén
 # Fuente: CT ID and coordinates.xlsx (Revisión Otoño 2025)
 # Generado: 2026-03-18
+# 2026-04-24: added `reserve` section (map default view); corrected WS-01 coords.
+#             The prior weather lat/lon (-39.4417, -71.7420) was the reserve
+#             center that the frontend uses as initial map view — never the
+#             real datalogger location. Field-verified station coords restored
+#             from App.jsx Marker (commit 0455a6c "accurate EM location").
+
+reserve:
+  name: Bosque Pehuén
+  center: [-39.4417, -71.7420]   # default map view; not a station location
+  zoom: 14
+  timezone: America/Santiago
 
 weather:
   - id: WS-01
     name: Estación Meteorológica CR800
-    lat: -39.4417
-    lon: -71.7420
+    lat: -39.453642
+    lon: -71.733092
     type: weather_station
     model: Campbell Scientific CR800
     connection: tailscale://100.97.202.90:2000
