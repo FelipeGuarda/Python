@@ -23,6 +23,8 @@ import streamlit as st
 import yaml
 from PIL import Image
 
+from classify_campaign.species import clip_species
+
 # ── Config ────────────────────────────────────────────────────────────────────
 CONFIG_PATH   = Path(__file__).parent.parent / "config.yaml"
 COLS_PER_ROW    = 5      # thumbnails per row
@@ -214,7 +216,7 @@ def main() -> None:
     json_path       = str(campaign_dir / config["megadetector_json"])
     threshold       = float(config["animal_confidence_threshold"])
 
-    species_list     = config["species"]
+    species_list     = clip_species()
     species_options  = sorted([s["spanish"] for s in species_list]) + SPECIAL_OPTIONS
     spanish_to_latin = {s["spanish"]: s["latin"] for s in species_list}
 

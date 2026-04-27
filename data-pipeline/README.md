@@ -121,10 +121,10 @@ Raw data analysis (MegaDetector, CLIP classification, image review) runs on the 
 
 ## Status
 
-**Last Updated:** 2026-04-16
-**What Changed:** `timelapse_reviewed` parser now honors human review: demotes `observationType='animal'` → `'blank'` when `observationComments` says "No es un animal" / "error de imagen" / "no aparece imagen" (284 records fixed), and resolves `scientificName` from Spanish names via a new `SPANISH_TO_LATIN` dict (18 previously-NULL rows now named: 6 Pudu, 4 Chingue, 3 Cachaña, 2 Rayadito, 2 Fío-fío, 1 Libélula). Both campaigns re-ingested. Legacy NULL-campaign data erased.
+**Last Updated:** 2026-04-27
+**What Changed:** Track B species-catalog migration complete. New canonical `species.yaml` (31 entries: 27 CLIP + 7 invasive + 3 priority flags, plus `taxonomic_group` and `spanish_aliases`) lives here as the single source of truth across the ecosystem. Loader at `src/species.py`; sibling loaders in `camera-traps/classify_campaign/species.py` and `plataforma-territorial/backend/species.py` read this same file. `parsers/timelapse_reviewed` now derives its `SPANISH_TO_LATIN` map from the canonical loader instead of an inline dict.
 **Integration Status:** Ready
-**Blockers/Notes:** Reviewed CSV is observation-centric — Timelapse2 only exports rows with animal images, so zero-animal stations are absent from ct_deployments. Platform map handles this with a TC-coords ground-truth list in the backend. Long-term: add a per-campaign deployment manifest (which TCs were deployed + start/end dates) so DB reflects actual deployments. Re-ingest pattern: DELETE rows for the campaign first, then `python run_fetch.py --ct`, otherwise upsert leaves orphan obs/media.
+**Blockers/Notes:** 8 Spanish display names changed to canonical form (e.g., "Güiña" → "Guiña", "Huet-huet" → "Chucao", "Lechuza del sur" → "Concón") — flag for biological review with Felipe before any user-facing release; species.yaml is the single edit point if any are biologically wrong. Reviewed CSV is observation-centric — Timelapse2 only exports rows with animal images, so zero-animal stations are absent from ct_deployments. Platform map handles this with a TC-coords ground-truth list in the backend. Long-term: add a per-campaign deployment manifest (which TCs were deployed + start/end dates) so DB reflects actual deployments. Re-ingest pattern: DELETE rows for the campaign first, then `python run_fetch.py --ct`, otherwise upsert leaves orphan obs/media.
 
 ---
 

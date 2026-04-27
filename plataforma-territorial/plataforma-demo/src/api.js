@@ -79,6 +79,10 @@ export async function getGeography() {
   return fetchJSON("/config/geography");
 }
 
+export async function getSpecies() {
+  return fetchJSON("/config/species");
+}
+
 // ── Health ──
 
 export async function getHealth() {

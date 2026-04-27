@@ -8,36 +8,13 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 
 from ..db import get_connection
+from ..species import load_species
 from ..stations import tc_coords as _load_tc_coords
 
 router = APIRouter(prefix="/api/detections", tags=["detections"])
 
-_COMMON_NAMES: dict[str, str] = {
-    "Puma concolor": "Puma",
-    "Leopardus guigna": "Güiña",
-    "Lycalopex culpaeus": "Zorro culpeo",
-    "Sus scrofa": "Jabalí",
-    "Lepus europaeus": "Liebre europea",
-    "Canis lupus familiaris": "Perro doméstico",
-    "Pteroptochos tectus": "Turca",
-    "Equus caballus": "Caballo",
-    "Turdus falcklandii": "Zorzal",
-    "Caracara plancus": "Traro",
-    "Milvago chimango": "Tiuque",
-    "Dromiciops gliroides": "Monito del monte",
-    "Cervus elaphus": "Ciervo rojo",
-    "Felis catus": "Gato doméstico",
-    "Pudu puda": "Pudú",
-    "Sephanoides sephaniodes": "Picaflor",
-    "Scelorchilus rubecula": "Huet-huet",
-    "Conepatus chinga": "Chingue",
-    "Strix rufipes": "Lechuza del sur",
-    "Enicognathus ferrugineus": "Choroy",
-    "Phrygilus gayi": "Cometocino",
-    "Aphrastura spinicauda": "Rayadito",
-    "Elaenia albiceps": "Fío-fío",
-    "Abrothrix longipilis": "Ratón de pelo largo",
-}
+# Scientific name → canonical Spanish common name. Source: data-pipeline/species.yaml.
+_COMMON_NAMES: dict[str, str] = {sp["latin"]: sp["spanish"] for sp in load_species()}
 
 # Station image exports live in the camera-traps repo (gitignored, large files).
 # Default: sibling repo layout on Linux — /home/fguarda/Dev/Python/camera-traps/exports

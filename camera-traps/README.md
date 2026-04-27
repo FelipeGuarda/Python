@@ -4,6 +4,15 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ---
 
+## Status
+
+**Last Updated:** 2026-04-27
+**What Changed:** Track B species-catalog migration complete. Project no longer holds its own species list — `config.yaml` inline `species:` block is gone, and `classify_campaign/species.py` (sibling loader) reads the canonical `data-pipeline/species.yaml` (31 entries). `run_classification.py`, `phase1_labeling/app.py`, and `export_best_images.py` all consume the loader. `slugify()` rewritten with NFD normalisation so canonical accented names (`Pudú`, `Guiña`) keep slugging to legacy directory names (`Pudu_…`, `Guina_…`) — historical exports unaffected. "Otro (especificar)" fallback in `export_best_images.py` now succeeds for accented Spanish names. Resolves W23.
+**Integration Status:** Ready
+**Blockers/Notes:** Sibling-loader pattern chosen over shared import so Windows runs work without data-pipeline on PYTHONPATH. 8 Spanish display names changed to canonical form via species.yaml (e.g., "Güiña" → "Guiña", "Huet-huet" → "Chucao", "Lechuza del sur" → "Concón") — flag for biological review with Felipe; species.yaml is the single edit point if any are wrong. Open follow-ups from review: env cleanup (W21/W22 — 9 dead deps, missing pyyaml), CLIP batching (W27, 10–50× speedup), README references nonexistent NEXT_SESSION.md (W24).
+
+---
+
 ## Project Structure
 
 ```

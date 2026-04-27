@@ -34,6 +34,7 @@ from tqdm import tqdm
 from classify_campaign.clip_classifier import CLIPZeroShotClassifier
 from classify_campaign.crop_utils import load_and_crop
 from classify_campaign.data_loader import load_animal_images
+from classify_campaign.species import clip_species
 
 
 def read_csv(path: Path) -> tuple[list[str], list[dict]]:
@@ -84,7 +85,7 @@ def main(config_path: str) -> None:
     print("Loading CLIP model …")
     classifier = CLIPZeroShotClassifier(
         model_name=config["clip_model"],
-        species_list=config["species"],
+        species_list=clip_species(),
     )
 
     # ── Classify ──────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-04-21
+**Last updated:** 2026-04-27
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -71,6 +71,8 @@ visualizaciones-artisticas (reads DuckDB for art generation)
 
 Running as systemd service (`fma-pipeline.service`). Full pipeline with real data flowing.
 
+**Canonical catalogs (2026-04-27):** `species.yaml` (31 entries — 27 CLIP + invasive/priority flags) is the single source of truth across the ecosystem. Sibling loaders in camera-traps and plataforma-territorial/backend read this same file. Pairs with `plataforma-territorial/data/stations.yaml` (also now consumed end-to-end after Track B).
+
 **Live data:** 264,944 rows weather_station · 168 rows weather_forecast · 7,652 rows ct_observations · 20,095 ct_media · 106 ct_deployments (Otoño 2025 + Primavera-verano 2025-2026 ingested 2026-04-15)
 
 | Component | Status | Notes |
@@ -101,6 +103,8 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 **Two-machine data note:** DuckDB lives on Linux (written by data-pipeline service). On Windows, run `python bootstrap_windows_db.py` from `plataforma-territorial/` to seed a local DB with Open-Meteo data (90-day archive + 7-day forecast). Enough for Meteo and Riesgo tabs. No Tailscale needed.
 
 **dist/ sync fix (2026-03-31):** Removed `dist` from `.gitignore`. Built frontend is now committed to git. Both machines get the same compiled UI via `git pull` — no per-machine rebuild needed.
+
+**Code review (2026-04-21 → 2026-04-27):** Full review of Blocks 3-5 complete; artifacts in `~/Documents/Obsidian FG/SecondBrain/Reviews/`. Track B closed the station-registry + species-catalog cross-project chains (W11/W23/W32/W33/W47/W51 map-center half). New endpoints: `/api/config/geography`, `/api/config/species`. Track A (CR800 backfill safety) and Track C (W41 App.jsx 24-file decomposition) still queued.
 
 | Component | Status | Notes |
 |---|---|---|
@@ -147,7 +151,7 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 ### 3. Camera Traps (`camera-traps/`) — FASE 1 OPERATIVA
 
-CLIP classification pipeline and Streamlit review UI are production-quality. Both campaigns (Otoño 2025 + Primavera-verano 2025-2026) classified and reviewed. 27 species (Pudú added 2026-04-14).
+CLIP classification pipeline and Streamlit review UI are production-quality. Both campaigns (Otoño 2025 + Primavera-verano 2025-2026) classified and reviewed. Species list now sourced from canonical `data-pipeline/species.yaml` via sibling loader (Track B, 2026-04-27) — 27 CLIP species + 4 non-CLIP entries (31 total).
 
 | Component | Status | Notes |
 |---|---|---|

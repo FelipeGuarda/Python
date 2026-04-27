@@ -1,10 +1,10 @@
 # Plataforma Territorial FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Last Updated:** 2026-04-24
-**What Changed:** Full code review complete (Block 4 backend + Block 5 frontend). No source-code changes this session — review artifacts live in `~/Documents/Obsidian FG/SecondBrain/Reviews/`. Top finding: `App.jsx` is a 1,816-line monolith (W41) with a documented 24-file decomposition proposal + 3-PR migration plan ready for when work starts. Secondary frontend concerns: MeteoTab bypasses `api.js` (W42), ~800 lines of inline styles (W44), leftover demo mocks (W45), coords and station count hardcoded (W46/W51 — mirrors backend W32/W39), 7 parallel fetches on Dashboard mount (W50), UTC-vs-Santiago date bug in bar-chart "hoy" highlight (W49).
-**Integration Status:** Ready [Observatorio map shows all 26 TCs + thumbnail lightbox] | Pending [cámaras trampa dashboard tab, fauna tab real data, proper deployment manifest (replaces hardcoded TC_COORDS), frontend decomposition per W41]
-**Blockers/Notes:** Review surfaced 6 cross-project finding chains — station registry, species catalog, station count, DST handling, deployment config, risk thresholds. Full table in `review-plan-fma-ecosystem.md`. `stations.yaml` is the declared canonical source but is not actually loaded by any code; the station-registry chain (4 findings across 3 projects) resolves by wiring that up.
+**Last Updated:** 2026-04-27
+**What Changed:** Track B complete — closes the station-registry and species-catalog chains. Backend loads station coords from `data/stations.yaml` via `backend/stations.py`; new `/api/config/geography` and `/api/config/species` endpoints. Frontend collapsed two map-center duplicates into a single `DEFAULT_MAP_CENTER` constant fed by `useAPI(getGeography)`, and replaced three hardcoded species-classification regex literals with `useAPI(getSpecies)` + memoised `isInvasive` / `isPriority` helpers. `detections.py:_COMMON_NAMES` now derived from `load_species()` reading `data-pipeline/species.yaml` (31 entries). Resolves W11, W32, W33, W47, W51 (map-center half).
+**Integration Status:** Ready [Observatorio map; 26 TCs from canonical stations.yaml; species classification via API] | Pending [cámaras trampa dashboard tab, fauna tab real data, weather-station coords at App.jsx:789 (small W51 follow-up), frontend decomposition per W41]
+**Blockers/Notes:** 6 cross-project chains opened by the Block 3-5 review; station-registry and species-catalog chains are now closed (Track B). Remaining: station-count drift (W39/W46), DST/timezone (W49 + Block 2 W8), deployment config (CORS W34), risk thresholds. Full table in `review-plan-fma-ecosystem.md`. 8 Spanish display names changed to canonical form via species.yaml — flag for biological review with Felipe before user-facing release.
 
 ---
 

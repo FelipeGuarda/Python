@@ -6,7 +6,7 @@ import {
   getWeatherCurrent,
   getFireRiskCurrent, getFireRiskForecast, getFireRiskHistory, getSpeciesSummary,
   getStationSummary, getDielActivity, getCampaignStats, getSpeciesList, getSpeciesOverlap,
-  getGeography,
+  getGeography, getSpecies,
   transformRiskForecast, transformSpeciesSummary, transformDielActivity,
 } from "./api.js";
 
@@ -1017,7 +1017,24 @@ function Dashboard() {
   const { data: dielData } = useAPI(getDielActivity, transformDielActivity, []);
   const { data: ctStats } = useAPI(getCampaignStats, null, []);
   const { data: geo } = useAPI(getGeography, null, []);
+  const { data: speciesCatalog } = useAPI(getSpecies, null, []);
   const totalStations = geo?.camera_trap_count ?? null;
+
+  // Build lowercase name lookups (both latin and spanish) for invasive/priority
+  // classification — fed by /api/config/species. Replaces three regex literals
+  // that drifted across this file.
+  const speciesIndex = useMemo(() => {
+    if (!speciesCatalog) return null;
+    const inv = new Set();
+    const pri = new Set();
+    for (const s of speciesCatalog) {
+      if (s.is_invasive) { inv.add(s.latin.toLowerCase()); inv.add(s.spanish.toLowerCase()); }
+      if (s.is_priority) { pri.add(s.latin.toLowerCase()); pri.add(s.spanish.toLowerCase()); }
+    }
+    return { inv, pri };
+  }, [speciesCatalog]);
+  const isInvasive = (name) => !!(name && speciesIndex?.inv.has(String(name).toLowerCase()));
+  const isPriority = (name) => !!(name && speciesIndex?.pri.has(String(name).toLowerCase()));
 
   // ── Species comparator state ──
   const [speciesList, setSpeciesList] = useState([]);
@@ -1457,9 +1474,10 @@ function Dashboard() {
                     label={{ position: "right", fontSize: 10, fill: C.muted,
                       formatter: (v) => `${v}%` }}>
                     {speciesList.map((entry, i) => {
-                      const isPriority = /puma concolor|leopardus guigna|pudu puda/i.test(entry.scientific_name);
-                      const isInvasive = /sus scrofa|lepus europaeus|canis lupus familiaris|cervus elaphus|felis catus/i.test(entry.scientific_name);
-                      return <Cell key={i} fill={isPriority ? C.amber : isInvasive ? C.red : C.deepGreen} />;
+                      const fill = isPriority(entry.scientific_name) ? C.amber
+                                 : isInvasive(entry.scientific_name) ? C.red
+                                 : C.deepGreen;
+                      return <Cell key={i} fill={fill} />;
                     })}
                   </Bar>
                 </BarChart>
@@ -1489,9 +1507,10 @@ function Dashboard() {
                 <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }} />
                 <Bar dataKey="detecciones" radius={[0, 4, 4, 0]} name="Detecciones">
                   {speciesChartData.map((entry, i) => {
-                    const invasive = /sus scrofa|lepus|jabali|liebre/i.test(entry.nombre);
-                    const priority = /puma|leopardus|guiña|guina/i.test(entry.nombre);
-                    return <Cell key={i} fill={priority ? C.amber : invasive ? C.red : C.deepGreen} />;
+                    const fill = isPriority(entry.nombre) ? C.amber
+                               : isInvasive(entry.nombre) ? C.red
+                               : C.deepGreen;
+                    return <Cell key={i} fill={fill} />;
                   })}
                 </Bar>
               </BarChart>
@@ -1523,8 +1542,8 @@ function Dashboard() {
               <div style={{ marginTop: 8 }}>
                 {speciesApiData
                   ? (() => {
-                      const priority = speciesApiData.filter(d => /puma|leopardus|pudu/i.test(d.nombre));
-                      const invasive = speciesApiData.filter(d => /sus scrofa|lepus/i.test(d.nombre));
+                      const priority = speciesApiData.filter(d => isPriority(d.nombre));
+                      const invasive = speciesApiData.filter(d => isInvasive(d.nombre));
                       return (
                         <>
                           {priority.map(d => (
