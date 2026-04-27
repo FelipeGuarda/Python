@@ -36,7 +36,7 @@ def fetch() -> pd.DataFrame:
 
     hourly = data["hourly"]
     df = pd.DataFrame({
-        "timestamp": pd.to_datetime(hourly["time"]).tz_localize("America/Santiago").tz_convert("UTC"),
+        "timestamp": pd.to_datetime(hourly["time"]).tz_localize("America/Santiago", ambiguous=False, nonexistent="shift_forward").tz_convert("UTC"),
         "temperature_2m": hourly["temperature_2m"],
         "relative_humidity_2m": hourly["relative_humidity_2m"],
         "precipitation": hourly["precipitation"],

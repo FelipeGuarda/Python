@@ -7,7 +7,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-_STATE_PATH = Path(__file__).parent.parent.parent / "data" / "cr800_state.json"
+from src.paths import _STATE_PATH
 _INTERVAL_MINUTES = 15
 _GAP_THRESHOLD_MINUTES = 16  # 15-min interval + 1 min tolerance
 

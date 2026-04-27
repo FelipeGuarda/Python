@@ -81,6 +81,9 @@ def parse(dat_path: Path, station_id: str = "bosque_pehuen") -> pd.DataFrame:
         if col not in df.columns:
             df[col] = None
 
+    extra = sorted(set(df.columns) - set(schema_cols))
+    if extra:
+        print(f"  toa5: dropping unrecognized columns: {extra}")
     result = df[schema_cols].dropna(subset=["timestamp"])
     print(f"  Parsed {len(result)} rows from {dat_path.name}.")
     return result

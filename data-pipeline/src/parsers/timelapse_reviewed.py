@@ -169,7 +169,7 @@ def parse(csv_path: Path, campaign_name: str):
             prob = float(prob_str) if prob_str else None
 
             count_str = row.get("count", "").strip()
-            count = int(count_str) if count_str else 1
+            count = int(count_str) if count_str else None
 
             obs_type = row.get("observationType", "").strip() or None
             sci_name = row.get("scientificName", "").strip() or None

@@ -1,14 +1,13 @@
 """CR800 Campbell Scientific datalogger fetcher via PakBus over TCP."""
 
 import json
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pandas as pd
 from pycampbellcr1000 import CR1000
 
-# State file tracks last fetch timestamp per table
-_STATE_PATH = Path(__file__).parent.parent.parent / "data" / "cr800_state.json"
+from src.paths import _STATE_PATH
 
 
 def _load_state() -> dict:
@@ -29,6 +28,16 @@ def connect(host: str, port: int, pakbus_address: int = 1):
     return CR1000.from_url(f"tcp:{host}:{port}", dest_addr=pakbus_address)
 
 
+@contextmanager
+def cr800_session(host: str, port: int, pakbus_address: int = 1):
+    """Connect to CR800 and send a PakBus Bye command on exit."""
+    logger = connect(host, port, pakbus_address)
+    try:
+        yield logger
+    finally:
+        logger.bye()
+
+
 def _decode_name(name) -> str:
     """Normalize a table/column name: decode bytes or strip b'...' string artifacts."""
     if isinstance(name, bytes):
@@ -44,7 +53,7 @@ def list_tables(logger) -> list:
     return [_decode_name(t) for t in logger.list_tables()]
 
 
-def _process_raw(data: list, station_id: str) -> pd.DataFrame:
+def process_raw(data: list, station_id: str) -> pd.DataFrame:
     """Convert a raw pycampbellcr1000 result list into a clean DataFrame."""
     df = pd.DataFrame(data)
     df.columns = [_decode_name(c) for c in df.columns]
@@ -126,7 +135,7 @@ def fetch_since(logger, station_id: str, table_name: str = None):
         data = logger.get_data(table_name, chunk_start, chunk_end)
 
         if data:
-            df = _process_raw(data, station_id)
+            df = process_raw(data, station_id)
             if not df.empty:
                 latest = df["timestamp"].max()
                 state[state_key] = latest.isoformat()
@@ -175,7 +184,7 @@ def fetch_range(logger, station_id: str, start: str, end: str, table_name: str =
 
         data = logger.get_data(table_name, chunk_start, chunk_end)
         if data:
-            df = _process_raw(data, station_id)
+            df = process_raw(data, station_id)
             if not df.empty:
                 total_rows += len(df)
                 yield df

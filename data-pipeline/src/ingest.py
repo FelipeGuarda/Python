@@ -91,15 +91,15 @@ def ingest_cr800_live(con: duckdb.DuckDBPyConnection) -> None:
 
     print(f"→ Connecting to CR800 at {host}:{port}...")
     try:
-        from src.fetchers.cr800 import connect as cr800_connect, fetch_since
-        logger = cr800_connect(host, port, addr)
+        from src.fetchers.cr800 import cr800_session, fetch_since
         total = 0
         first_chunk = True
-        for df in fetch_since(logger, station_id):
-            if first_chunk:
-                ensure_columns(con, "weather_station", df)
-                first_chunk = False
-            total += upsert_df(con, "weather_station", df)
+        with cr800_session(host, port, addr) as logger:
+            for df in fetch_since(logger, station_id):
+                if first_chunk:
+                    ensure_columns(con, "weather_station", df)
+                    first_chunk = False
+                total += upsert_df(con, "weather_station", df)
         if total:
             print(f"  Upserted {total} rows into weather_station.")
         else:
@@ -122,15 +122,15 @@ def ingest_cr800_range(con: duckdb.DuckDBPyConnection, start: str, end: str) -> 
     station_id = cfg["station_id"]
 
     print(f"→ Connecting to CR800 at {host}:{port} for range {start} → {end}...")
-    from src.fetchers.cr800 import connect as cr800_connect, fetch_range
-    logger = cr800_connect(host, port, addr)
+    from src.fetchers.cr800 import cr800_session, fetch_range
     total = 0
     first_chunk = True
-    for df in fetch_range(logger, station_id, start, end):
-        if first_chunk:
-            ensure_columns(con, "weather_station", df)
-            first_chunk = False
-        total += upsert_df(con, "weather_station", df)
+    with cr800_session(host, port, addr) as logger:
+        for df in fetch_range(logger, station_id, start, end):
+            if first_chunk:
+                ensure_columns(con, "weather_station", df)
+                first_chunk = False
+            total += upsert_df(con, "weather_station", df)
     print(f"  Upserted {total} rows into weather_station from range fetch.")
 
 

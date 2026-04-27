@@ -28,7 +28,10 @@ def run_once():
     con = connect()
     init_schema(con)
     try:
-        ingest_weather_forecast(con)
+        try:
+            ingest_weather_forecast(con)
+        except Exception as e:
+            print(f"  Warning: Open-Meteo fetch failed ({e}). Skipping.")
         ingest_cr800_live(con)
     finally:
         con.close()
