@@ -20,10 +20,16 @@ from pathlib import Path
 
 import pandas as pd
 
+from ..species import spanish_to_latin as _load_spanish_to_latin
 from ..stations import tc_coords as _load_tc_coords
 
 # TC camera number (1..N) → (lat, lon). Canonical source: plataforma-territorial/data/stations.yaml.
 _TC_COORDS: dict[int, tuple[float, float]] = _load_tc_coords()
+
+# Spanish common name (or alias) → scientific name. Canonical source: data-pipeline/species.yaml.
+# Used when reviewer typed a Spanish name in observationComments via
+# "Otro (especificar)" but scientificName was never filled.
+SPANISH_TO_LATIN: dict[str, str] = _load_spanish_to_latin()
 
 
 def _station_to_tc_number(station: str) -> int | None:
@@ -45,53 +51,6 @@ def _station_to_tc_number(station: str) -> int | None:
 def _slugify(s: str) -> str:
     return re.sub(r"[^a-zA-Z0-9]+", "_", str(s)).strip("_").lower()
 
-
-# Spanish common name → scientific name. Canonical copy lives in
-# camera-traps/export_best_images.py (SPECIES_COMMON_NAMES); keep in sync.
-# Used when reviewer typed a Spanish name in observationComments via
-# "Otro (especificar)" but scientificName was never filled.
-SPANISH_TO_LATIN: dict[str, str] = {
-    "puma":         "Puma concolor",
-    "guiña":        "Leopardus guigna",
-    "zorro culpeo": "Lycalopex culpaeus",
-    "zorro":        "Lycalopex culpaeus",
-    "perro":        "Canis lupus familiaris",
-    "jabali":       "Sus scrofa",
-    "jabalí":       "Sus scrofa",
-    "liebre":       "Lepus europaeus",
-    "caballo":      "Equus caballus",
-    "gato doméstico": "Felis catus",
-    "gato domestico": "Felis catus",
-    "hued hued":    "Pteroptochos tectus",
-    "chucao":       "Scelorchilus rubecula",
-    "concón":       "Strix rufipes",
-    "concon":       "Strix rufipes",
-    "carpintero":   "Campephilus magellanicus",
-    "bandurria":    "Theristicus melanopis",
-    "queltehue":    "Vanellus chilensis",
-    "tiuque":       "Milvago chimango",
-    "peuquito":     "Accipiter chilensis",
-    "zorzal":       "Turdus falcklandii",
-    "cometocino":   "Phrygilus gayi",
-    "picaflor":     "Sephanoides sephaniodes",
-    "diucón":       "Xolmis pyrope",
-    "diucon":       "Xolmis pyrope",
-    "traro":        "Caracara plancus",
-    "ciervo rojo":  "Cervus elaphus",
-    "pudu":         "Pudu puda",
-    "pudú":         "Pudu puda",
-    # Additions 2026-04-16 (FG review): species that appeared in
-    # observationComments as "Otro (especificar)" without a latin name saved.
-    "chingue":      "Conepatus chinga",
-    "cachaña":      "Enicognathus ferrugineus",
-    "cachana":      "Enicognathus ferrugineus",
-    "fio fio":      "Elaenia albiceps",
-    "fío-fío":      "Elaenia albiceps",
-    "fío fío":      "Elaenia albiceps",
-    "rayadito":     "Aphrastura spinicauda",
-    "libélula":     "Odonata",
-    "libelula":     "Odonata",
-}
 
 # observationComments values (lowercased) that override the automated
 # observationType='animal' — the reviewer explicitly said the image is not

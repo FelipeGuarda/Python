@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+plataforma-demo/node_modules/
+
+# Vite build output
+plataforma-demo/dist/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local databases (canonical DB lives elsewhere)
+*.duckdb
+*.duckdb.wal

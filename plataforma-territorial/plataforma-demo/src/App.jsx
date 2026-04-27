@@ -10,6 +10,11 @@ import {
   transformRiskForecast, transformSpeciesSummary, transformDielActivity,
 } from "./api.js";
 
+// ── Defaults (canonical values come from GET /api/config, i.e. stations.yaml) ──
+// These literals are only used if the config endpoint is unreachable on first paint.
+const DEFAULT_MAP_CENTER = [-39.4417, -71.7420];
+const DEFAULT_MAP_ZOOM = 14;
+
 // ── Color System (designer's green palette) ──
 const C = {
   deepGreen: "#004D3C",
@@ -769,8 +774,8 @@ function Observatorio() {
       {/* Map Area */}
       <Card style={{ padding: 0, overflow: "hidden", position: "relative" }}>
         <MapContainer
-          center={geo?.reserve?.center ?? [-39.4417, -71.7420]}
-          zoom={geo?.reserve?.zoom ?? 14}
+          center={geo?.reserve?.center ?? DEFAULT_MAP_CENTER}
+          zoom={geo?.reserve?.zoom ?? DEFAULT_MAP_ZOOM}
           style={{ width: "100%", height: "100%", borderRadius: 8 }}
           zoomControl={false}
         >
@@ -960,7 +965,7 @@ function SpeciesMap({ boundary, stations, colorIdx, center }) {
   const maxCount = stations ? Math.max(...stations.map(s => s.count), 1) : 1;
   return (
     <MapContainer
-      center={center ?? [-39.4417, -71.7420]}
+      center={center ?? DEFAULT_MAP_CENTER}
       zoom={13}
       style={{ width: "100%", height: "100%", borderRadius: 8 }}
       zoomControl={false}

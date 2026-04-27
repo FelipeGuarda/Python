@@ -21,10 +21,16 @@ import csv
 import json
 import re
 import shutil
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
 from PIL import Image
+
+from classify_campaign.species import (
+    common_names as _load_common_names,
+    spanish_to_latin as _load_spanish_to_latin,
+)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -39,51 +45,24 @@ TOP_N_SPECIES = 5   # best images per species (global, for sharing / reports)
 TOP_N_STATION = 3   # best images per station (any species, for map popups)
 SKIP_SPECIES  = {"", "No reconocible", "No es un animal"}
 
-# Spanish common names keyed by scientific name.
-# Used to build directory names: {common_slug}_{latin_slug}
-# Unknown species get a _UNKNOWN_ prefix so they are easy to spot.
-SPECIES_COMMON_NAMES: dict[str, str] = {
-    "Lycalopex culpaeus":       "Zorro culpeo",
-    "Puma concolor":            "Puma",
-    "Leopardus guigna":         "Guina",
-    "Sus scrofa":               "Jabali",
-    "Lepus europaeus":          "Liebre",
-    "Neogale vison":            "Vison",
-    "Canis lupus familiaris":   "Perro",
-    "Equus caballus":           "Caballo",
-    "Felis catus":              "Gato domestico",
-    "Dromiciops gliroides":     "Monito del monte",
-    "Abrothrix longipilis":     "Raton cola larga",
-    "Scelorchilus rubecula":    "Chucao",
-    "Pteroptochos tectus":      "Hued hued",
-    "Aphrastura spinicauda":    "Rayadito",
-    "Strix rufipes":            "Concon",
-    "Campephilus magellanicus": "Carpintero",
-    "Theristicus melanopis":    "Bandurria",
-    "Vanellus chilensis":       "Queltehue",
-    "Milvago chimango":         "Tiuque",
-    "Accipiter chilensis":      "Peuquito",
-    "Turdus falcklandii":       "Zorzal",
-    "Phrygilus gayi":           "Cometocino",
-    "Sephanoides sephaniodes":  "Picaflor",
-    "Xolmis pyrope":            "Diucon",
-    "Caracara plancus":         "Traro",
-    "Cervus elaphus":           "Ciervo rojo",
-    "Pudu puda":                "Pudu",
-}
+# Scientific name → Spanish common name. Canonical source: data-pipeline/species.yaml.
+# Used to build directory names {common_slug}_{latin_slug}; unknowns get _UNKNOWN_.
+SPECIES_COMMON_NAMES: dict[str, str] = _load_common_names()
 
-# Reverse lookup: lowercase Spanish common name → scientific name.
-# Used to recover scientificName for rows reviewed via "Otro (especificar)"
-# where the app couldn't fill in a latin name at review time.
-SPANISH_TO_LATIN: dict[str, str] = {
-    v.lower(): k for k, v in SPECIES_COMMON_NAMES.items()
-}
+# Lowercased Spanish common name (or alias) → scientific name. Canonical source:
+# data-pipeline/species.yaml. Used to recover scientificName for rows reviewed via
+# "Otro (especificar)" where the app couldn't fill in a latin name at review time.
+SPANISH_TO_LATIN: dict[str, str] = _load_spanish_to_latin()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def slugify(name: str) -> str:
-    return re.sub(r"[^a-zA-Z0-9]+", "_", name).strip("_")
+    # NFD-normalise so accented forms slug identically to their stripped variants
+    # (Guiña → Guina, Pudú → Pudu). Keeps directory names stable across the
+    # accent-consolidation of SPECIES_COMMON_NAMES.
+    stripped = "".join(c for c in unicodedata.normalize("NFD", name) if not unicodedata.combining(c))
+    return re.sub(r"[^a-zA-Z0-9]+", "_", stripped).strip("_")
 
 
 def species_dir_name(scientific_name: str) -> str:
