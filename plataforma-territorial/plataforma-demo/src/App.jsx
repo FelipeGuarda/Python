@@ -32,6 +32,15 @@ const C = {
   warmSand: "#E8DFD0",
 };
 
+const DAY_NAMES = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
+
+function getMondayOf(dateStr) {
+  const d = new Date(dateStr + "T12:00:00");
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d.toISOString().split("T")[0];
+}
+
 // ── Error Boundary ──
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -991,6 +1000,7 @@ function Dashboard() {
   const [overlapData, setOverlapData] = useState(null);
   const [overlapLoading, setOverlapLoading] = useState(false);
   const [camBoundary, setCamBoundary] = useState(null);
+  const speciesLoaded = useRef(false);
 
   const riskTotal = riskCurrent?.rule_based?.total ? Math.round(riskCurrent.rule_based.total) : 0;
   const mlVal = riskCurrent?.ml_probability != null ? Math.round(riskCurrent.ml_probability * 100) : null;
@@ -999,7 +1009,8 @@ function Dashboard() {
 
   // ── Load species list + boundary the first time the camaras tab is opened ──
   useEffect(() => {
-    if (tab !== "camaras" || speciesList.length > 0) return;
+    if (tab !== "camaras" || speciesLoaded.current) return;
+    speciesLoaded.current = true;
     fetch("/data/boundary.geojson").then(r => r.json()).then(setCamBoundary);
     getSpeciesList().then(list => {
       setSpeciesList(list);
@@ -1014,7 +1025,6 @@ function Dashboard() {
           .catch(() => setOverlapLoading(false));
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   function applyOverlap() {
@@ -1028,13 +1038,6 @@ function Dashboard() {
   // ── Bar chart: fixed 3-week window (prev week + current week + next week) ──
   const todayStr = useMemo(() => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" }), []);
 
-  function getMondayOf(dateStr) {
-    const d = new Date(dateStr + "T12:00:00");
-    const day = d.getDay();
-    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-    return d.toISOString().split("T")[0];
-  }
-
   const allRiskData = useMemo(() => {
     const hist = riskHistory || [];
     const fore = riskForecast || [];
@@ -1044,7 +1047,6 @@ function Dashboard() {
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   }, [riskHistory, riskForecast]);
 
-  const DAY_NAMES = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
   const windowData = useMemo(() => {
     // Always: Monday of previous week → Sunday of next week (21 days fixed)
     const windowStart = new Date(getMondayOf(todayStr) + "T12:00:00");
@@ -1061,7 +1063,6 @@ function Dashboard() {
         ? { ...found, diaLabel: `${dayName} ${dayNum}` }
         : { date: dateStr, riesgo: null, color: null, isHistorical: null, diaLabel: `${dayName} ${dayNum}` };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allRiskData, todayStr]);
 
   const todayDiaLabel = useMemo(() => {

@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -29,6 +30,44 @@ _CT_EXPORTS_DIR = Path(os.getenv("CT_EXPORTS_DIR", str(_DEFAULT_EXPORTS)))
 # CSV for a given campaign has no rows for that TC (Timelapse only exports rows
 # with animal images, so zero-animal stations are absent).
 _TC_COORDS: dict[int, tuple[float, float]] = _load_tc_coords()
+
+# ── Image cache ───────────────────────────────────────────────────────────
+# station_summary walks the exports tree once per TC per call (~26× on each
+# page load). The exports directory only changes on pipeline runs, so cache
+# the full scan and invalidate after 5 minutes.
+_IMAGE_CACHE_TTL = 300
+_image_cache: dict = {"expires": 0.0, "data": {}}
+
+
+def _build_image_cache() -> dict[str, list[dict]]:
+    if not _CT_EXPORTS_DIR.exists():
+        return {}
+    data: dict[str, list[dict]] = defaultdict(list)
+    for campaign_dir in sorted(_CT_EXPORTS_DIR.iterdir()):
+        if not campaign_dir.is_dir():
+            continue
+        stations_dir = campaign_dir / "stations"
+        if not stations_dir.is_dir():
+            continue
+        for station_dir in sorted(stations_dir.iterdir()):
+            if not station_dir.is_dir():
+                continue
+            for img in sorted(station_dir.glob("*.jpg"))[:2]:
+                data[station_dir.name].append({
+                    "campaign": campaign_dir.name,
+                    "url": f"/ct-images/{campaign_dir.name}/stations/{station_dir.name}/{img.name}",
+                })
+    return dict(data)
+
+
+def _get_image_cache() -> dict[str, list[dict]]:
+    now = time.time()
+    if now < _image_cache["expires"]:
+        return _image_cache["data"]
+    data = _build_image_cache()
+    _image_cache["expires"] = now + _IMAGE_CACHE_TTL
+    _image_cache["data"] = data
+    return data
 
 
 @router.get("/recent")
@@ -258,23 +297,14 @@ def station_summary():
         slot = by_tc.get(tc, {"location_names": [], "species": defaultdict(int)})
         location_names = slot["location_names"]
 
+        image_cache = _get_image_cache()
         images = []
         for loc_name in location_names:
             export_id = loc_name.replace(".", "_")
-            if _CT_EXPORTS_DIR.exists():
-                for campaign_dir in sorted(_CT_EXPORTS_DIR.iterdir()):
-                    if not campaign_dir.is_dir():
-                        continue
-                    station_dir = campaign_dir / "stations" / export_id
-                    if not station_dir.is_dir():
-                        continue
-                    for img in sorted(station_dir.glob("*.jpg"))[:2]:
-                        images.append({
-                            "campaign": campaign_dir.name,
-                            "url": f"/ct-images/{campaign_dir.name}/stations/{export_id}/{img.name}",
-                        })
-                    if len(images) >= 3:
-                        break
+            for img_entry in image_cache.get(export_id, []):
+                images.append(img_entry)
+                if len(images) >= 3:
+                    break
             if len(images) >= 3:
                 break
 

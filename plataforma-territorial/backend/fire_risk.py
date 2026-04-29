@@ -3,6 +3,7 @@ Fire risk calculation — ported from Estacion meteorologica/Fire risk dashboard
 Rule-based FRI (Fire Risk Index) + ML Random Forest model.
 """
 
+import os
 import pickle
 from pathlib import Path
 from typing import Optional
@@ -57,10 +58,11 @@ RISK_LABELS = {
 # ── ML model (lazy load) ────────────────────────────────────────────────
 
 _ml_model = None
-_ML_MODEL_PATH = (
+_DEFAULT_ML_MODEL_PATH = (
     Path(__file__).resolve().parent.parent.parent
     / "Estacion meteorologica" / "Fire risk dashboard" / "ml_model" / "fire_model.pkl"
 )
+_ML_MODEL_PATH = Path(os.getenv("FMA_ML_MODEL_PATH", str(_DEFAULT_ML_MODEL_PATH)))
 
 
 def _get_ml_model():
