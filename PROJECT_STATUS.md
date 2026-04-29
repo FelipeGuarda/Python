@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-04-27
+**Last updated:** 2026-04-29
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -106,7 +106,7 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 **dist/ sync fix (2026-03-31):** Removed `dist` from `.gitignore`. Built frontend is now committed to git. Both machines get the same compiled UI via `git pull` — no per-machine rebuild needed.
 
-**Code review (2026-04-21 → 2026-04-27):** Full review of Blocks 3-5 complete; artifacts in `~/Documents/Obsidian FG/SecondBrain/Reviews/`. Track B closed the station-registry + species-catalog cross-project chains (W11/W23/W32/W33/W47/W51 map-center half). New endpoints: `/api/config/geography`, `/api/config/species`. Track A (CR800 backfill safety) and Track C (W41 App.jsx 24-file decomposition) still queued.
+**Code review (2026-04-21 → 2026-04-29):** Full review of Blocks 3-5 complete; artifacts in `~/Documents/Obsidian FG/SecondBrain/Reviews/`. Track B closed the station-registry + species-catalog cross-project chains (W11/W23/W32/W33/W47/W51 map-center half). **Track C closed (2026-04-29):** W41 App.jsx 1805→37 line decomposition into 24 modules under `src/{constants,hooks,components,pages,pages/Dashboard/tabs}/`; pure structural move, build clean, two items deferred (chart_defaults extraction + Asistente `chatMessages` runtime fix) and logged as TODOs in the new App.jsx. New endpoints: `/api/config/geography`, `/api/config/species`. Track A (CR800 backfill safety) still queued.
 
 | Component | Status | Notes |
 |---|---|---|

@@ -1,10 +1,10 @@
 # Plataforma Territorial FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Last Updated:** 2026-04-27
-**What Changed:** Track B complete — closes the station-registry and species-catalog chains. Backend loads station coords from `data/stations.yaml` via `backend/stations.py`; new `/api/config/geography` and `/api/config/species` endpoints. Frontend collapsed two map-center duplicates into a single `DEFAULT_MAP_CENTER` constant fed by `useAPI(getGeography)`, and replaced three hardcoded species-classification regex literals with `useAPI(getSpecies)` + memoised `isInvasive` / `isPriority` helpers. `detections.py:_COMMON_NAMES` now derived from `load_species()` reading `data-pipeline/species.yaml` (31 entries). Resolves W11, W32, W33, W47, W51 (map-center half).
-**Integration Status:** Ready [Observatorio map; 26 TCs from canonical stations.yaml; species classification via API] | Pending [cámaras trampa dashboard tab, fauna tab real data, weather-station coords at App.jsx:789 (small W51 follow-up), frontend decomposition per W41]
-**Blockers/Notes:** 6 cross-project chains opened by the Block 3-5 review; station-registry and species-catalog chains are now closed (Track B). Remaining: station-count drift (W39/W46), DST/timezone (W49 + Block 2 W8), deployment config (CORS W34), risk thresholds. Full table in `review-plan-fma-ecosystem.md`. 8 Spanish display names changed to canonical form via species.yaml — flag for biological review with Felipe before user-facing release.
+**Last Updated:** 2026-04-29
+**What Changed:** Frontend decomposition (W41) complete — `plataforma-demo/src/App.jsx` reduced from 1805 to 37 lines. Split into 24 modules under `src/{constants,hooks,components,pages,pages/Dashboard/tabs}/`. Pure structural move with no behavior changes; build clean. Two items intentionally deferred to a future architectural pass and logged as TODOs in `App.jsx`: (1) `constants/chart_defaults.js` for repeated Recharts style hoisting, (2) fixing the latent `chatMessages` ReferenceError in Asistente.jsx and converting `sampleDraft` to a function. Dead code (`timeAgo`) removed.
+**Integration Status:** Ready [Observatorio map; 26 TCs from canonical stations.yaml; species classification via API; modular frontend per W41] | Pending [cámaras trampa dashboard tab polish, fauna tab real data, weather-station coords small W51 follow-up, Asistente runtime fix (chatMessages), Recharts chart-defaults extraction]
+**Blockers/Notes:** 6 cross-project chains opened by the Block 3-5 review; station-registry, species-catalog, and frontend-decomposition chains are now closed. Remaining: station-count drift (W39/W46), DST/timezone (W49 + Block 2 W8), deployment config (CORS W34), risk thresholds. Full table in `review-plan-fma-ecosystem.md`. 8 Spanish display names changed to canonical form via species.yaml — flag for biological review with Felipe before user-facing release.
 
 ---
 
