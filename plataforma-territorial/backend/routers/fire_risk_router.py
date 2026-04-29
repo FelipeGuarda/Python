@@ -1,6 +1,6 @@
 """Fire risk API endpoints — rule-based FRI + ML model."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Query
 
@@ -116,8 +116,8 @@ def fire_risk_forecast():
         result.append({
             "date": str(day),
             "weather": {
-                "temperature_c": round(temp, 1) if temp else None,
-                "relative_humidity_pct": round(rh, 1) if rh else None,
+                "temperature_c": round(temp, 1) if temp is not None else None,
+                "relative_humidity_pct": round(rh, 1) if rh is not None else None,
                 "wind_speed_kmh": round((wind or 0) * 3.6, 1),
                 "precipitation_mm": round(precip, 1) if precip else 0,
                 "days_without_rain": running_days_no_rain,
@@ -153,7 +153,7 @@ def fire_risk_history(days: int = Query(default=30, le=60)):
             ORDER BY day ASC
         """).fetchall()
 
-    cutoff_date = (datetime.utcnow() - timedelta(days=days)).date()
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).date()
     running_dnr = 0
     result = []
 
@@ -168,9 +168,9 @@ def fire_risk_history(days: int = Query(default=30, le=60)):
             result.append({
                 "date": str(day),
                 "weather": {
-                    "temperature_c": round(temp, 1) if temp else None,
-                    "relative_humidity_pct": round(rh, 1) if rh else None,
-                    "wind_speed_kmh": round(wind_kmh, 1) if wind_kmh else None,
+                    "temperature_c": round(temp, 1) if temp is not None else None,
+                    "relative_humidity_pct": round(rh, 1) if rh is not None else None,
+                    "wind_speed_kmh": round(wind_kmh, 1) if wind_kmh is not None else None,
                     "days_without_rain": running_dnr,
                 },
                 "rule_based": components,

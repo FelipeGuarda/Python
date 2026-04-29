@@ -1,6 +1,6 @@
 """Camera trap detection endpoints."""
 
-import math
+import logging
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -10,6 +10,8 @@ from fastapi import APIRouter, HTTPException, Query
 from ..db import get_connection
 from ..species import load_species
 from ..stations import tc_coords as _load_tc_coords
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/detections", tags=["detections"])
 
@@ -235,7 +237,7 @@ def station_summary():
         try:
             last_by_tc[int(loc_id)] = {"last_species": species, "last_time": t}
         except (TypeError, ValueError):
-            pass
+            logger.warning("station_summary: cannot parse loc_id %r in last_rows — skipping", loc_id)
 
     # Bucket DB rows by TC number. locationID is the TC number as text.
     by_tc: dict[int, dict] = {}
@@ -243,6 +245,7 @@ def station_summary():
         try:
             tc = int(loc_id)
         except (TypeError, ValueError):
+            logger.warning("station_summary: cannot parse loc_id %r — skipping row", loc_id)
             continue
         slot = by_tc.setdefault(tc, {"location_names": [], "species": defaultdict(int)})
         if loc_name and loc_name not in slot["location_names"]:

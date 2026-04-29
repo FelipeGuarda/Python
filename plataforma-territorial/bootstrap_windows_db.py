@@ -13,7 +13,6 @@ Usage (from plataforma-territorial/):
     conda run -n plataforma-territorial python bootstrap_windows_db.py
 """
 
-import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
