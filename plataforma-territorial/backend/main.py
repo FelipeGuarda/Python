@@ -15,6 +15,7 @@ Frontend development (hot reload):
     → open http://localhost:5173
 """
 
+import logging
 import os
 from pathlib import Path
 
@@ -23,6 +24,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .routers import config_router, detections, fire_risk_router, weather
+
+logger = logging.getLogger(__name__)
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "plataforma-demo" / "dist"
 
@@ -37,14 +40,12 @@ app = FastAPI(
     version="0.1.0",
 )
 
+_DEFAULT_CORS = "http://localhost:5173,http://localhost:4173,http://localhost:3000,http://127.0.0.1:5173"
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", _DEFAULT_CORS).split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # Vite dev server
-        "http://localhost:4173",   # Vite preview
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,3 +78,5 @@ if CT_EXPORTS_DIR.exists():
 # Run `cd plataforma-demo && npm run build` to update after frontend changes.
 if DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")
+else:
+    logger.warning("Frontend dist/ not found at %s — React UI unavailable. Run: cd plataforma-demo && npm run build", DIST_DIR)
