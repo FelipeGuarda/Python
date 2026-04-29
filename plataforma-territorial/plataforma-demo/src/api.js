@@ -21,6 +21,10 @@ export async function getWeatherHistory(hours = 24) {
   return fetchJSON(`/weather/history?hours=${hours}`);
 }
 
+export async function getWeatherHistoryRange(params) {
+  return fetchJSON(`/weather/history?${params}`);
+}
+
 export async function getWeatherForecast(hours = 168) {
   return fetchJSON(`/weather/forecast?hours=${hours}`);
 }

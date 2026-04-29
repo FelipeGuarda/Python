@@ -3,7 +3,7 @@ import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, Cartesia
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import {
-  getWeatherCurrent,
+  getWeatherCurrent, getWeatherHistoryRange,
   getFireRiskCurrent, getFireRiskForecast, getFireRiskHistory, getSpeciesSummary,
   getStationSummary, getDielActivity, getCampaignStats, getSpeciesList, getSpeciesOverlap,
   getGeography, getSpecies,
@@ -356,7 +356,7 @@ function MeteoTab() {
   const [loading2, setLoading2] = useState(false);
 
   useEffect(() => {
-    fetch("/api/weather/current").then(r => r.json()).then(setCurrent).catch(() => {});
+    getWeatherCurrent().then(setCurrent).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -367,8 +367,7 @@ function MeteoTab() {
       : [];
     const varList = [...selectedVars, ...windExtras].join(",");
     const p = new URLSearchParams({ start: appliedDates.start, end: appliedDates.end, resolution, variables: varList });
-    fetch(`/api/weather/history?${p}`)
-      .then(r => r.json())
+    getWeatherHistoryRange(p)
       .then(json => {
         setHistData(json.data || []);
         setWindRose(json.wind_rose || null);
@@ -387,8 +386,7 @@ function MeteoTab() {
       : [];
     const varList = [...selectedVars, ...windExtras].join(",");
     const p = new URLSearchParams({ start: appliedDates2.start, end: appliedDates2.end, resolution, variables: varList });
-    fetch(`/api/weather/history?${p}`)
-      .then(r => r.json())
+    getWeatherHistoryRange(p)
       .then(json => {
         setHistData2(json.data || []);
         setWindRose2(json.wind_rose || null);
