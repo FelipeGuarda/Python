@@ -107,15 +107,13 @@ def get_history(
 
     with get_connection() as con:
         if hours is not None:
-            # Simple last-N-hours query
-            rows = con.execute(f"""
+            df = con.execute(f"""
                 SELECT {cols_sql}
                 FROM weather_station
                 WHERE station_id = '{STATION_ID}'
                   AND timestamp >= NOW() - INTERVAL '{hours} hours'
                 ORDER BY timestamp ASC
-            """).fetchall()
-            df = pd.DataFrame(rows, columns=["timestamp"] + fetch_cols)
+            """).df()
         else:
             where = [f"station_id = '{STATION_ID}'"]
             params: list[str] = []
