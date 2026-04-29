@@ -139,7 +139,7 @@ def fire_risk_history(days: int = Query(default=30, le=60)):
     """
     with get_connection() as con:
         lookback = days + 60
-        rows = con.execute(f"""
+        rows = con.execute("""
             SELECT
                 CAST(timestamp AS DATE)                                                       AS day,
                 AVG(CASE WHEN EXTRACT(HOUR FROM timestamp) BETWEEN 14 AND 16 THEN temperature_2m       END) AS avg_temp,
@@ -148,10 +148,10 @@ def fire_risk_history(days: int = Query(default=30, le=60)):
                 SUM(precipitation)                                                            AS total_precip
             FROM weather_forecast
             WHERE CAST(timestamp AS DATE) <= CURRENT_DATE
-              AND CAST(timestamp AS DATE) >= CURRENT_DATE - INTERVAL '{lookback} days'
+              AND CAST(timestamp AS DATE) >= CURRENT_DATE - (? * INTERVAL '1 day')
             GROUP BY 1
             ORDER BY day ASC
-        """).fetchall()
+        """, [lookback]).fetchall()
 
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).date()
     running_dnr = 0

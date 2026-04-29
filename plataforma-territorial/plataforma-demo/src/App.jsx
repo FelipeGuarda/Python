@@ -61,11 +61,14 @@ class ErrorBoundary extends Component {
 }
 
 // ── Shared data-fetching hook ──
-function useAPI(fetchFn, transformFn, deps = []) {
+function useAPI(fetchFn, transformFn, deps = [], enabled = true) {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
+  const fetchedRef = useRef(false);
   useEffect(() => {
+    if (!enabled || fetchedRef.current) return;
+    fetchedRef.current = true;
     let cancelled = false;
     setLoading(true);
     fetchFn()
@@ -73,7 +76,8 @@ function useAPI(fetchFn, transformFn, deps = []) {
       .catch(err => { if (!cancelled) setError(err.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, deps);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, ...deps]);
   return { data, loading, error };
 }
 
@@ -968,11 +972,11 @@ function Dashboard() {
   const { data: riskCurrent } = useAPI(getFireRiskCurrent, null, []);
   const { data: riskForecast } = useAPI(getFireRiskForecast, transformRiskForecast, []);
   const { data: riskHistory } = useAPI(getFireRiskHistory, transformRiskForecast, []);
-  const { data: speciesApiData } = useAPI(getSpeciesSummary, transformSpeciesSummary, []);
+  const { data: speciesApiData } = useAPI(getSpeciesSummary, transformSpeciesSummary, [], tab === "fauna");
   const { data: weatherCurrent } = useAPI(getWeatherCurrent, null, []);
-  const { data: ctStations } = useAPI(getStationSummary, null, []);
-  const { data: dielData } = useAPI(getDielActivity, transformDielActivity, []);
-  const { data: ctStats } = useAPI(getCampaignStats, null, []);
+  const { data: ctStations } = useAPI(getStationSummary, null, [], tab === "camaras");
+  const { data: dielData } = useAPI(getDielActivity, transformDielActivity, [], tab === "fauna");
+  const { data: ctStats } = useAPI(getCampaignStats, null, [], tab === "camaras");
   const { data: geo } = useAPI(getGeography, null, []);
   const { data: speciesCatalog } = useAPI(getSpecies, null, []);
   const totalStations = geo?.camera_trap_count ?? null;

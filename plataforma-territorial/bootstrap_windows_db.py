@@ -205,7 +205,7 @@ def main():
 
     # Historical (weather_station proxy)
     hist_df = fetch_historical(days=90)
-    con.execute(f"DELETE FROM weather_station WHERE station_id = '{STATION_ID}'")
+    con.execute("DELETE FROM weather_station WHERE station_id = ?", [STATION_ID])
     con.register("hist_df", hist_df)
     con.execute("""
         INSERT OR REPLACE INTO weather_station

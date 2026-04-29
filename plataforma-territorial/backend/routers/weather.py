@@ -59,10 +59,10 @@ def get_current() -> dict[str, Any]:
         row = con.execute(f"""
             SELECT {', '.join(cols)}
             FROM weather_station
-            WHERE station_id = '{STATION_ID}'
+            WHERE station_id = ?
             ORDER BY timestamp DESC
             LIMIT 1
-        """).fetchone()
+        """, [STATION_ID]).fetchone()
 
     if not row:
         return {}
@@ -110,13 +110,13 @@ def get_history(
             df = con.execute(f"""
                 SELECT {cols_sql}
                 FROM weather_station
-                WHERE station_id = '{STATION_ID}'
-                  AND timestamp >= NOW() - INTERVAL '{hours} hours'
+                WHERE station_id = ?
+                  AND timestamp >= NOW() - (? * INTERVAL '1 hour')
                 ORDER BY timestamp ASC
-            """).df()
+            """, [STATION_ID, hours]).df()
         else:
-            where = [f"station_id = '{STATION_ID}'"]
-            params: list[str] = []
+            where = ["station_id = ?"]
+            params: list = [STATION_ID]
             if start:
                 where.append(
                     "timestamp >= timezone('UTC', timezone('America/Santiago', CAST(? AS TIMESTAMP)))"
@@ -138,7 +138,8 @@ def get_history(
         dt_global_max: float | None = None
         if "DT_Avg" in fetch_cols:
             row = con.execute(
-                f"SELECT MAX(DT_Avg) FROM weather_station WHERE station_id = '{STATION_ID}' AND DT_Avg IS NOT NULL"
+                "SELECT MAX(DT_Avg) FROM weather_station WHERE station_id = ? AND DT_Avg IS NOT NULL",
+                [STATION_ID],
             ).fetchone()
             if row:
                 dt_global_max = row[0]
@@ -195,7 +196,7 @@ def get_history(
 def weather_forecast(hours: int = Query(default=168, le=168)):
     """Open-Meteo hourly forecast (up to 7 days)."""
     with get_connection() as con:
-        rows = con.execute(f"""
+        rows = con.execute("""
             SELECT
                 CAST(timestamp AS TEXT) as timestamp,
                 temperature_2m, relative_humidity_2m,
@@ -204,8 +205,8 @@ def weather_forecast(hours: int = Query(default=168, le=168)):
             FROM weather_forecast
             WHERE timestamp >= NOW()
             ORDER BY timestamp ASC
-            LIMIT {hours}
-        """).fetchall()
+            LIMIT ?
+        """, [hours]).fetchall()
     cols = [
         "timestamp", "temperature_2m", "relative_humidity_2m",
         "precipitation", "wind_speed_10m", "wind_direction_10m",

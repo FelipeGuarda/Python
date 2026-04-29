@@ -74,7 +74,7 @@ def _get_image_cache() -> dict[str, list[dict]]:
 def recent_detections(limit: int = Query(default=20, le=100)):
     """Most recent animal detections."""
     with get_connection() as con:
-        rows = con.execute(f"""
+        rows = con.execute("""
             SELECT
                 o.scientificName as species,
                 o.count,
@@ -88,8 +88,8 @@ def recent_detections(limit: int = Query(default=20, le=100)):
             WHERE o.observationType = 'animal'
               AND o.scientificName IS NOT NULL
             ORDER BY o.eventStart DESC
-            LIMIT {limit}
-        """).fetchall()
+            LIMIT ?
+        """, [limit]).fetchall()
     cols = [
         "species", "count", "timestamp", "station",
         "latitude", "longitude",
