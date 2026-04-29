@@ -41,16 +41,8 @@ export async function getFireRiskHistory(days = 30) {
 
 // ── Detections ──
 
-export async function getRecentDetections(limit = 20) {
-  return fetchJSON(`/detections/recent?limit=${limit}`);
-}
-
 export async function getSpeciesSummary() {
   return fetchJSON("/detections/species-summary");
-}
-
-export async function getCameraStations() {
-  return fetchJSON("/detections/stations");
 }
 
 export async function getStationSummary() {
@@ -85,21 +77,7 @@ export async function getSpecies() {
 
 // ── Health ──
 
-export async function getHealth() {
-  return fetchJSON("/health");
-}
-
 // ── Data transformers (API shape → chart shape) ──
-
-/** /api/weather/history → weatherData array for Recharts */
-export function transformWeatherHistory(rows) {
-  return rows.map((r) => ({
-    hora: r.timestamp?.slice(11, 16) || "",
-    temp: r.temperature_air != null ? Math.round(r.temperature_air * 10) / 10 : null,
-    humedad: r.relative_humidity != null ? Math.round(r.relative_humidity * 10) / 10 : null,
-    viento: r.wind_speed != null ? Math.round(r.wind_speed * 3.6 * 10) / 10 : null,
-  }));
-}
 
 /** /api/fire-risk/forecast → weeklyRisk array for Recharts */
 export function transformRiskForecast(rows) {

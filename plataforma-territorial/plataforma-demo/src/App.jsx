@@ -68,56 +68,6 @@ function useAPI(fetchFn, transformFn, deps = []) {
   return { data, loading, error };
 }
 
-// ── Mock Data (partially replaced by API) ──
-
-const weeklyRisk = [
-  { dia: "Lun", riesgo: 32, temp: 18, humedad: 55 },
-  { dia: "Mar", riesgo: 28, temp: 16, humedad: 62 },
-  { dia: "Mie", riesgo: 45, temp: 22, humedad: 38 },
-  { dia: "Jue", riesgo: 67, temp: 26, humedad: 28 },
-  { dia: "Vie", riesgo: 58, temp: 24, humedad: 32 },
-  { dia: "Sab", riesgo: 42, temp: 20, humedad: 48 },
-  { dia: "Dom", riesgo: 35, temp: 17, humedad: 58 },
-];
-
-const speciesData = [
-  { nombre: "Raton cola larga", detecciones: 487, tendencia: "estable" },
-  { nombre: "Zorro culpeo", detecciones: 156, tendencia: "alza" },
-  { nombre: "Jabali", detecciones: 134, tendencia: "alza" },
-  { nombre: "Liebre europea", detecciones: 98, tendencia: "estable" },
-  { nombre: "Chingue", detecciones: 67, tendencia: "baja" },
-  { nombre: "Guina", detecciones: 23, tendencia: "estable" },
-  { nombre: "Puma", detecciones: 8, tendencia: "estable" },
-  { nombre: "Monito del monte", detecciones: 5, tendencia: "baja" },
-];
-
-const activityByHour = Array.from({ length: 24 }, (_, i) => ({
-  hora: i,
-  actividad: i >= 20 || i <= 4 ? 15 + Math.random() * 25 : 2 + Math.random() * 5,
-}));
-
-const stations = [
-  { id: 1, name: "Estacion Meteorologica", type: "weather", x: 45, y: 35, temp: "14.2°C", hum: "62%", wind: "12 km/h" },
-  { id: 2, name: "Camara Araucaria Norte", type: "camera", x: 30, y: 25, lastDetection: "Zorro culpeo", time: "Hace 3h" },
-  { id: 3, name: "Camara Rio Turbio", type: "camera", x: 62, y: 55, lastDetection: "Jabali", time: "Hace 45min" },
-  { id: 4, name: "Camara Sendero Pehuen", type: "camera", x: 38, y: 60, lastDetection: "Guina", time: "Hace 12h" },
-  { id: 5, name: "Camara Laguna Sur", type: "camera", x: 55, y: 40, lastDetection: "Puma", time: "Hace 2d" },
-  { id: 6, name: "Camara Bosque Antiguo", type: "camera", x: 25, y: 45, lastDetection: "Chingue", time: "Hace 6h" },
-];
-
-const fireZones = [
-  { cx: 50, cy: 30, r: 18, risk: "alto" },
-  { cx: 30, cy: 50, r: 14, risk: "medio" },
-  { cx: 65, cy: 60, r: 12, risk: "bajo" },
-];
-
-const chatMessages = [
-  { role: "user", text: "Cual es el riesgo de incendio hoy?" },
-  { role: "assistant", text: "El indice de riesgo de incendio para hoy en Bosque Pehuen es de 67/100 (ALTO). Este valor se calcula con la formula FRI = 0.35*T + 0.25*(100-H) + 0.20*V + 0.20*D, donde T=26°C, H=28%, V=18 km/h, y D=12 dias sin lluvia. El factor principal hoy es la baja humedad relativa." },
-  { role: "user", text: "Que especies se han detectado esta semana?" },
-  { role: "assistant", text: "Esta semana se registraron 47 detecciones en las 5 camaras trampa activas. Las especies mas frecuentes fueron: Raton cola larga (18), Zorro culpeo (9), Jabali (8), Liebre europea (5). Destaca 1 deteccion de Puma en la Camara Laguna Sur hace 2 dias, lo que es consistente con su patron de movimiento estacional." },
-];
-
 // ── Reusable Components ──
 function NavBar({ page, setPage }) {
   const pages = [
@@ -1047,7 +997,7 @@ function Dashboard() {
   const riskTotal = riskCurrent?.rule_based?.total ? Math.round(riskCurrent.rule_based.total) : 0;
   const mlVal = riskCurrent?.ml_probability != null ? Math.round(riskCurrent.ml_probability * 100) : null;
   const wx = riskCurrent?.weather || {};
-  const speciesChartData = speciesApiData || speciesData;
+  const speciesChartData = speciesApiData;
 
   // ── Load species list + boundary the first time the camaras tab is opened ──
   useEffect(() => {
@@ -1078,7 +1028,7 @@ function Dashboard() {
   }
 
   // ── Bar chart: fixed 3-week window (prev week + current week + next week) ──
-  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const todayStr = useMemo(() => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" }), []);
 
   function getMondayOf(dateStr) {
     const d = new Date(dateStr + "T12:00:00");

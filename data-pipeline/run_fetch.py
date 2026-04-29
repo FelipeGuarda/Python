@@ -32,7 +32,10 @@ def run_once():
             ingest_weather_forecast(con)
         except Exception as e:
             print(f"  Warning: Open-Meteo fetch failed ({e}). Skipping.")
-        ingest_cr800_live(con)
+        try:
+            ingest_cr800_live(con)
+        except Exception as e:
+            print(f"  Warning: CR800 fetch failed ({e}). Skipping.")
     finally:
         con.close()
 
