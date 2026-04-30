@@ -2,14 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { C } from "../constants/colors.js";
 import { Card } from "../components/Card.jsx";
 import { SectionLabel } from "../components/SectionLabel.jsx";
-
-// TODO(future-cleanup): `chatMessages` is referenced below but defined nowhere
-// in the codebase, so this page throws ReferenceError at runtime. Preserved
-// as-is during the App.jsx decomposition (pure structural move). Fix later by
-// adding a seed array (e.g. in `constants/demo_chat.js`) and importing it.
+import { chatMessages as initialMessages } from "../constants/demo_chat.js";
 
 export function Asistente() {
-  const [messages, setMessages] = useState(chatMessages);
+  const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const endRef = useRef(null);

@@ -11,7 +11,6 @@ from watchdog.observers import Observer
 def _detect_and_ingest(path: Path, con: duckdb.DuckDBPyConnection) -> None:
     """Detect file type and call appropriate ingest function."""
     from src.ingest import (
-        ingest_camera_trap_legacy,
         ingest_camtrap_dp,
         ingest_cr800_backfill,
     )
@@ -33,14 +32,10 @@ def _detect_and_ingest(path: Path, con: duckdb.DuckDBPyConnection) -> None:
 
     elif suffix == ".csv":
         print(f"→ Detected CSV file: {path}")
-        # Try to detect if it's a camtrap DP piece or legacy format
         try:
             import pandas as pd
-            header = pd.read_csv(path, nrows=0)
-            cols = set(header.columns)
-            if "RootFolder" in cols and "RelativePath" in cols:
-                ingest_camera_trap_legacy(con, path)
-            elif "deploymentID" in cols and "locationID" in cols:
+            cols = set(pd.read_csv(path, nrows=0).columns)
+            if "deploymentID" in cols and "locationID" in cols:
                 print("  Looks like a Camtrap DP CSV but needs full folder — skipping.")
             else:
                 print(f"  Unknown CSV format, columns: {list(cols)[:8]}...")

@@ -13,17 +13,6 @@ def ingest_weather_forecast(con: duckdb.DuckDBPyConnection) -> None:
     print(f"  Upserted {n} rows into weather_forecast.")
 
 
-def ingest_camera_trap_legacy(con: duckdb.DuckDBPyConnection, csv_path: Path = None) -> None:
-    from src.parsers.camera_trap_legacy import parse
-    if csv_path is None:
-        csv_path = Path(__file__).parent.parent / "old animal data DB.csv"
-    deployments, media, obs = parse(csv_path)
-    nd = upsert_df(con, "ct_deployments", deployments)
-    nm = upsert_df(con, "ct_media", media)
-    no = upsert_df(con, "ct_observations", obs)
-    print(f"  Legacy camera trap: {nd} deployments, {nm} media, {no} observations upserted.")
-
-
 def ingest_camtrap_dp(con: duckdb.DuckDBPyConnection, folder_path: Path) -> None:
     from src.parsers.camtrap_dp import parse
     deployments, media, obs = parse(folder_path)

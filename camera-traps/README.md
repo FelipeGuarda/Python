@@ -6,10 +6,10 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ## Status
 
-**Last Updated:** 2026-04-27
-**What Changed:** Track B species-catalog migration complete. Project no longer holds its own species list — `config.yaml` inline `species:` block is gone, and `classify_campaign/species.py` (sibling loader) reads the canonical `data-pipeline/species.yaml` (31 entries). `run_classification.py`, `phase1_labeling/app.py`, and `export_best_images.py` all consume the loader. `slugify()` rewritten with NFD normalisation so canonical accented names (`Pudú`, `Guiña`) keep slugging to legacy directory names (`Pudu_…`, `Guina_…`) — historical exports unaffected. "Otro (especificar)" fallback in `export_best_images.py` now succeeds for accented Spanish names. Resolves W23.
+**Last Updated:** 2026-04-30
+**What Changed:** Quick-fix pass: removed 9 dead deps from environment.yml, added pyyaml (W21/W22); removed stale NEXT_SESSION.md references from README (W24); added Primavera-verano 2025-2026 campaign to Campaign History (W25); documented wildlife-detector dep in environment.yml comment (W26).
 **Integration Status:** Ready
-**Blockers/Notes:** Sibling-loader pattern chosen over shared import so Windows runs work without data-pipeline on PYTHONPATH. 8 Spanish display names changed to canonical form via species.yaml (e.g., "Güiña" → "Guiña", "Huet-huet" → "Chucao", "Lechuza del sur" → "Concón") — flag for biological review with Felipe; species.yaml is the single edit point if any are wrong. Open follow-ups from review: env cleanup (W21/W22 — 9 dead deps, missing pyyaml), CLIP batching (W27, 10–50× speedup), README references nonexistent NEXT_SESSION.md (W24).
+**Blockers/Notes:** Sibling-loader pattern chosen over shared import so Windows runs work without data-pipeline on PYTHONPATH. 8 Spanish display names changed to canonical form via species.yaml — flag for biological review with Felipe; species.yaml is the single edit point if any are wrong. Open review follow-ups: CLIP batching (W27, 10–50× speedup), verify megadetector_campaigns.py absolute-path behavior (W28).
 
 ---
 
@@ -18,11 +18,9 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 ```
 camera-traps/
 ├── README.md                    ← this file
-├── NEXT_SESSION.md              ← technical notes and next steps
 ├── config.yaml                  ← per-campaign configuration (edit before each run)
 ├── environment.yml              ← conda environment definition
 ├── run_classification.py        ← Step 2: CLIP classification entry point
-├── old animal data DB.csv       ← historical species frequency table
 │
 ├── classify_campaign/           ← CLIP classification package
 │   ├── clip_classifier.py       ← zero-shot CLIP classifier (cosine similarity)
@@ -144,9 +142,7 @@ streamlit run phase1_labeling/app.py
 ```
 
 The UI:
-- Groups images by CLIP-proposed species
-- Species with ≥ `min_historical_count` (31) records in `old animal data DB.csv` get dedicated batch pages
-- Rare species + low-confidence images → "Otras especies" batch at the end
+- Groups images by CLIP-proposed species, one batch page per species sorted by detection count
 - **Two confirm buttons** per batch:
   - *Confirmar todo como X* — bulk confirm all images as the proposed species
   - *Confirmar con cambios* — apply any per-image dropdown edits before confirming
@@ -184,10 +180,6 @@ campaign_dir:      "C:/path/to/Season YYYY"   # ← update for each campaign
 megadetector_json: "timelapse_recognition_file.json"
 input_csv:         "ImageData_animals.csv"     # Timelapse2 export filtered to observationType=animal
 output_csv:        "ImageData_animals_classified.csv"
-
-# ── Historical data ───────────────────────────────────────────────────────────
-old_data_csv:           "old animal data DB.csv"   # relative to config file
-min_historical_count:   31   # species below this get no dedicated batch page
 
 # ── Detection filtering ───────────────────────────────────────────────────────
 animal_confidence_threshold: 0.38   # MegaDetector detection threshold
@@ -267,7 +259,7 @@ This is already done in the working environment. Only redo if rebuilding the con
 
 - **Forced-choice**: CLIP always picks the best match from the species list, even for empty or ambiguous images. The 0.28 threshold filters the worst ~12% but doesn't eliminate all errors.
 - **Diucón over-classification**: CLIP's "fire-eyed diucon" embedding attracts dark, ambiguous images. High false-positive rate for this species.
-- **Solution**: Phase 2 — custom EfficientNetV2 classifier trained on human-reviewed data (see `NEXT_SESSION.md`).
+- **Solution**: Phase 2 — custom EfficientNetV2 classifier trained on human-reviewed data.
 
 ---
 
@@ -277,3 +269,4 @@ This is already done in the working environment. Only redo if rebuilding the con
 |---|---|---|
 | Primavera 2025 | Complete | `data/campaigns/primavera_2025/new_labeled_data_reviewed.csv` |
 | Otoño 2025 | Complete (694 obs) | `<Synology>/Otoño 2025/Fotos/new_labeled_data_reviewed.csv` |
+| Primavera-verano 2025-2026 | In progress | `data/campaigns/primavera_verano_2025_2026/` |

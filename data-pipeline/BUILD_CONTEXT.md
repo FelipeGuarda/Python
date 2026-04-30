@@ -252,7 +252,6 @@ data-pipeline/
 │   │
 │   └── parsers/
 │       ├── __init__.py
-│       ├── camera_trap_legacy.py ← parse(csv_path) → (deployments_df, media_df, obs_df)
 │       ├── camtrap_dp.py         ← parse(folder_path) → (deployments_df, media_df, obs_df)
 │       └── toa5.py               ← parse(dat_path) → pd.DataFrame (for CR800 backfill)
 │
@@ -358,40 +357,21 @@ python -c "import duckdb; con = duckdb.connect('/home/fguarda/Dev/Python/fma_dat
 ---
 
 ### Phase 3 — Camera Trap Backfill
-**Files:** `src/parsers/camera_trap_legacy.py`, `src/parsers/camtrap_dp.py`
+**Files:** `src/parsers/camtrap_dp.py`
 
-Both parsers must return the same tuple: `(deployments_df, media_df, obs_df)`
-with columns exactly matching the DuckDB schema column names.
-
-`camera_trap_legacy.py` parses `old animal data DB.csv` (already in the project dir).
-Must handle:
-- Leading space in `DateTime`
-- Building `deploymentID` from `RelativePath`
-- Building `eventID` from `Note0`
-- Generating deterministic `mediaID` and `observationID`
-- Setting `source='legacy'` on all rows
+*(Note: `camera_trap_legacy.py` and `old animal data DB.csv` have been removed — legacy data was already ingested into DuckDB.)*
 
 `camtrap_dp.py` parses any folder dropped into `data/incoming/` that contains
 `deployments.csv + media.csv + observations.csv`. Map Camtrap DP columns to our schema.
 Set `source='camtrap_dp'`.
 
-Add `ingest_camera_trap_legacy(con)` and `ingest_camtrap_dp(con, folder_path)` to `ingest.py`.
+Add `ingest_camtrap_dp(con, folder_path)` to `ingest.py`.
 
 **Verify Phase 3:**
 ```bash
-python -c "
-from src.parsers.camera_trap_legacy import parse
-from pathlib import Path
-deps, media, obs = parse(Path('old animal data DB.csv'))
-print(f'Deployments: {len(deps)}, Media: {len(media)}, Observations: {len(obs)}')
-"
-# Then run full ingest:
-python -c "
-from src.db import connect, init_schema
-from src.ingest import ingest_camera_trap_legacy
-con = connect(); init_schema(con)
-ingest_camera_trap_legacy(con)
-"
+# Drop a Camtrap DP folder into data/incoming/ to test the watcher
+python run_watcher.py &
+# Copy a Camtrap DP package to data/incoming/test_package/
 ```
 
 ---
@@ -517,7 +497,7 @@ CR800_PAKBUS_ADDRESS=1
 | `data-pipeline/README.md` | Updated |
 | `fma_data.duckdb` | Created and populated (42 MB) |
 | All Python source files | All 5 phases implemented and working |
-| Legacy camera trap CSV | Lives at `camera-traps/old animal data DB.csv` (canonical copy) |
+| Legacy camera trap CSV | Removed — data already ingested into DuckDB; `camera_trap_legacy.py` parser deleted |
 
 ---
 

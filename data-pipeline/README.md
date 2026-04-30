@@ -84,7 +84,6 @@ data-pipeline/
     │   ├── open_meteo.py     ← Fetch hourly weather forecast
     │   └── cr800.py          ← Connect + fetch CR800 via PakBus TCP
     └── parsers/
-        ├── camera_trap_legacy.py  ← Parse Timelapse2 CSV format
         ├── camtrap_dp.py          ← Parse Camtrap DP (TDWG) standard
         ├── met_csv.py             ← Parse merged CR800 CSV exports
         └── toa5.py                ← Parse Campbell Scientific TOA5 files
@@ -98,7 +97,7 @@ data-pipeline/
 |---|---|---|---|
 | CR800 datalogger (Bosque Pehuén) | TOA5 ASCII / PakBus | Remote pull via Tailscale | Code complete, awaiting connection test |
 | Open-Meteo API | JSON → DataFrame | Scheduled fetch (hourly) | Working |
-| Camera trap exports (Timelapse2) | CSV | File watcher | Working (legacy parser tested) |
+| Camera trap exports (Timelapse2) | CSV | — | Legacy parser removed (data already ingested) |
 | Camera trap (Camtrap DP) | 3 CSVs (TDWG standard) | File watcher | Code complete, awaiting test data |
 
 ---

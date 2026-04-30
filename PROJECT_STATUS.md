@@ -249,9 +249,7 @@ Note: `visualizaciones-artisticas/` has the "Río de Sonidos" concept already de
 │
 ├── camera-traps/                        ← image analysis pipeline (Windows + Linux)
 │   ├── README.md
-│   ├── NEXT_SESSION.md                  ← Windows desktop session notes
-│   ├── GIS/                             ← source KML/Excel files
-│   └── old animal data DB.csv           ← legacy Timelapse2 export
+│   └── GIS/                             ← source KML/Excel files
 │
 ├── data-pipeline/                       ← DuckDB ingestion service
 │   ├── README.md
