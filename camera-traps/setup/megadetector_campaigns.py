@@ -38,7 +38,13 @@ def main():
 
     args = parser.parse_args()
 
-    input_dir = args.input_dir
+    input_dir = Path(args.input_dir)
+    if not input_dir.exists():
+        parser.error(f"--input_dir does not exist: {input_dir}")
+
+    output_json = Path(args.output_json)
+    output_json.parent.mkdir(parents=True, exist_ok=True)
+
     image_paths = gather_images(input_dir)
 
     print(f"Found {len(image_paths)} images.")

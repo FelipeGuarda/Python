@@ -96,21 +96,29 @@ def main(config_path: str) -> None:
     skipped  = 0
     low_conf = 0
 
-    print("Classifying …")
+    batch_size = int(config.get("clip_batch_size", 32))
+
+    print("Loading crops …")
+    to_classify = []
     for img_info in tqdm(images, unit="img"):
         crop = load_and_crop(img_info["full_path"], img_info["bbox"])
         if crop is None:
             skipped += 1
-            continue
-
-        norm_key = img_info["file_path"].replace("\\", "/").lower()
-        species, score = classifier.classify(crop)
-
-        if score < clip_threshold:
-            low_conf += 1
-            fp_to_result[norm_key] = {"latin": "", "spanish": "No reconocible", "score": score}
         else:
-            fp_to_result[norm_key] = {"latin": species["latin"], "spanish": species["spanish"], "score": score}
+            to_classify.append((img_info["file_path"], crop))
+
+    print(f"Classifying {len(to_classify)} crops (batch_size={batch_size}) …")
+    for i in tqdm(range(0, len(to_classify), batch_size), unit="batch"):
+        batch        = to_classify[i : i + batch_size]
+        paths, crops = zip(*batch)
+        results      = classifier.classify_batch(list(crops))
+        for raw_path, (species, score) in zip(paths, results):
+            norm_key = raw_path.replace("\\", "/").lower()
+            if score < clip_threshold:
+                low_conf += 1
+                fp_to_result[norm_key] = {"latin": "", "spanish": "No reconocible", "score": score}
+            else:
+                fp_to_result[norm_key] = {"latin": species["latin"], "spanish": species["spanish"], "score": score}
 
     print(f"  Classified: {len(fp_to_result)}  |  "
           f"Low confidence (<{clip_threshold}): {low_conf}  |  "

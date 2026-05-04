@@ -34,7 +34,7 @@ export function Dashboard() {
   const { data: speciesApiData } = useAPI(getSpeciesSummary, transformSpeciesSummary, [], tab === "fauna");
   const { data: weatherCurrent } = useAPI(getWeatherCurrent, null, []);
   const { data: ctStations } = useAPI(getStationSummary, null, [], tab === "camaras");
-  const { data: dielData } = useAPI(getDielActivity, transformDielActivity, [], tab === "fauna");
+  const { data: dielData } = useAPI(getDielActivity, transformDielActivity, [], tab === "camaras");
   const { data: ctStats } = useAPI(getCampaignStats, null, [], tab === "camaras");
   const { data: geo } = useAPI(getGeography, null, []);
   const { data: speciesCatalog } = useAPI(getSpecies, null, []);
@@ -135,8 +135,8 @@ export function Dashboard() {
 
   const tabs = [
     { id: "riesgo", label: "Riesgo de Incendio" },
-    { id: "meteo", label: "Meteorologia" },
-    { id: "camaras", label: "Camaras Trampa" },
+    { id: "meteo", label: "Meteorología" },
+    { id: "camaras", label: "Cámaras Trampa" },
     { id: "fauna", label: "Fauna" },
   ];
 

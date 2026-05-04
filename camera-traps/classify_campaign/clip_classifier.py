@@ -45,6 +45,19 @@ class CLIPZeroShotClassifier:
         best_i  = sims.argmax().item()
         return self.species[best_i], round(sims[best_i].item(), 4)
 
+    def classify_batch(self, images: list[Image.Image]) -> list[tuple[dict, float]]:
+        """Classify a batch of images in a single forward pass (10-50× faster than one-by-one)."""
+        inputs   = self.processor(images=images, return_tensors="pt").to(self.device)
+        with torch.no_grad():
+            out   = self.model.vision_model(**inputs)
+            feats = self.model.visual_projection(out.pooler_output)
+        img_embs = F.normalize(feats, dim=-1)
+        sims     = img_embs @ self.text_embeddings.T
+        return [
+            (self.species[row.argmax().item()], round(row.max().item(), 4))
+            for row in sims
+        ]
+
     @staticmethod
     def _pick_device() -> str:
         if not torch.cuda.is_available():
