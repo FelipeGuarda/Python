@@ -87,19 +87,31 @@ def fire_risk_forecast():
     with get_connection() as con:
         days_no_rain = _compute_days_without_rain(con)
 
-        # Daily aggregates from forecast (avg of 14:00-16:00 peak hours)
+        # Daily aggregates: peak-hour averages joined with full-day precipitation totals.
+        # The EXTRACT filter must not apply to precipitation — a rainy morning counts even
+        # if the 14–16h window is dry.
         rows = con.execute("""
-            SELECT
-                CAST(timestamp AS DATE) as day,
-                AVG(temperature_2m) as avg_temp,
-                AVG(relative_humidity_2m) as avg_rh,
-                AVG(wind_speed_10m) as avg_wind,
-                SUM(precipitation) as total_precip
-            FROM weather_forecast
-            WHERE timestamp >= NOW()
-            AND EXTRACT(HOUR FROM timestamp) BETWEEN 14 AND 16
-            GROUP BY CAST(timestamp AS DATE)
-            ORDER BY day ASC
+            SELECT h.day, h.avg_temp, h.avg_rh, h.avg_wind, p.total_precip
+            FROM (
+                SELECT
+                    CAST(timestamp AS DATE)   AS day,
+                    AVG(temperature_2m)       AS avg_temp,
+                    AVG(relative_humidity_2m) AS avg_rh,
+                    AVG(wind_speed_10m)       AS avg_wind
+                FROM weather_forecast
+                WHERE timestamp >= NOW()
+                  AND EXTRACT(HOUR FROM timestamp) BETWEEN 14 AND 16
+                GROUP BY 1
+            ) h
+            JOIN (
+                SELECT
+                    CAST(timestamp AS DATE) AS day,
+                    SUM(precipitation)      AS total_precip
+                FROM weather_forecast
+                WHERE timestamp >= NOW()
+                GROUP BY 1
+            ) p ON h.day = p.day
+            ORDER BY h.day ASC
         """).fetchall()
 
     result = []

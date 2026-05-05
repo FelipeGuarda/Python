@@ -1,12 +1,24 @@
 import { C } from "../constants/colors.js";
 
 // ── POLAR CONTRIBUTION CHART ──
-export function PolarContrib({ components, size = 180, color = C.amber }) {
+export function PolarContrib({ components, size = 180, color = C.amber, weather = null }) {
   const axes = [
-    { key: "temp_score", label: "Temp", max: 25, angle: -90 },
-    { key: "wind_score", label: "Viento", max: 15, angle: 0 },
-    { key: "days_score", label: "Días s/lluvia", max: 35, angle: 90 },
-    { key: "rh_score", label: "Humedad", max: 25, angle: 180 },
+    {
+      key: "temp_score", label: "Temp", max: 25, angle: -90,
+      actual: weather?.temperature_c != null ? `${weather.temperature_c.toFixed(1)}°C` : null,
+    },
+    {
+      key: "wind_score", label: "Viento", max: 15, angle: 0,
+      actual: weather?.wind_speed_kmh != null ? `${Math.round(weather.wind_speed_kmh)} km/h` : null,
+    },
+    {
+      key: "days_score", label: "Días s/lluvia", max: 35, angle: 90,
+      actual: weather?.days_without_rain != null ? `${weather.days_without_rain} días` : null,
+    },
+    {
+      key: "rh_score", label: "Humedad", max: 25, angle: 180,
+      actual: weather?.relative_humidity_pct != null ? `${Math.round(weather.relative_humidity_pct)}%` : null,
+    },
   ];
   const cx = 90, cy = 90, maxR = 58;
   const toRad = d => d * Math.PI / 180;
@@ -33,8 +45,14 @@ export function PolarContrib({ components, size = 180, color = C.amber }) {
         const val = (components?.[a.key] ?? 0).toFixed(1);
         return (
           <g key={a.key}>
-            <text x={lx} y={ly - 5} textAnchor="middle" fontSize="9" fontWeight="700" fill={C.text}>{a.label}</text>
-            <text x={lx} y={ly + 6} textAnchor="middle" fontSize="8" fill={C.muted}>{val}/{a.max}</text>
+            {a.actual && (
+              <text x={lx} y={ly - 14} textAnchor="middle" dominantBaseline="middle"
+                fontSize="11" fontWeight="700" fill={color}>{a.actual}</text>
+            )}
+            <text x={lx} y={a.actual ? ly - 2 : ly - 5} textAnchor="middle" dominantBaseline="middle"
+              fontSize="9" fontWeight="700" fill={C.text}>{a.label}</text>
+            <text x={lx} y={a.actual ? ly + 9 : ly + 6} textAnchor="middle" dominantBaseline="middle"
+              fontSize="8" fill={C.muted}>{val}/{a.max}</text>
           </g>
         );
       })}
