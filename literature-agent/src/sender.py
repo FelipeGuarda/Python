@@ -12,7 +12,7 @@ def send(subject, html, config):
     smtp_pass = os.environ.get("SMTP_PASSWORD", "")
     if not smtp_user or not smtp_pass:
         print("[WARN] SMTP_USER / SMTP_PASSWORD not set — saving HTML to file instead")
-        with open("last_digest.html", "w") as f:
+        with open("last_digest.html", "w", encoding="utf-8") as f:
             f.write(html)
         print("  → Saved to last_digest.html")
         return
@@ -26,7 +26,7 @@ def send(subject, html, config):
     msg["Subject"] = subject
     msg["From"] = smtp_user
     msg["To"] = ", ".join(recipients)
-    msg.attach(MIMEText(html, "html"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
 
     with smtplib.SMTP(host, port) as server:
         server.starttls()

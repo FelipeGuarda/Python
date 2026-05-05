@@ -1,11 +1,10 @@
-from src.fetchers import arxiv, openalex, pubmed, core_api, scielo
+from src.fetchers import arxiv, openalex, scielo, semantic_scholar
 
 FETCHERS = {
     "arxiv": arxiv.fetch,
     "openalex": openalex.fetch,
-    "pubmed": pubmed.fetch,
-    "core": core_api.fetch,
     "scielo": scielo.fetch,
+    "semantic_scholar": semantic_scholar.fetch,
 }
 
 

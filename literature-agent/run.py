@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 from src.fetchers import fetch_all
 from src.dedup import deduplicate
-from src.summarizer import summarize
+from src.summarizer import summarize, score_relevance
 from src.email_builder import build_html
 from src.sender import send
 
@@ -68,17 +68,28 @@ def main():
         dump_papers(papers)
         return
 
-    # 3. Summarize with Claude
+    # 3. Score relevance with Claude and drop low-scoring papers
+    print("Scoring relevance with Claude Haiku...")
+    papers = score_relevance(papers)
+    before = len(papers)
+    papers = [p for p in papers if p.get("relevance_score", 0) >= 3]
+    print(f"→ After relevance filter (score ≥ 3): {len(papers)}/{before} papers\n")
+
+    if not papers:
+        print("No relevant papers found. Nothing to send.")
+        return
+
+    # 4. Summarize with Claude
     print("Summarizing with Claude Haiku...")
     papers = summarize(papers)
     print(f"→ Summarized: {len(papers)}\n")
 
-    # 4. Build HTML email
+    # 5. Build HTML email
     print("Building email...")
     subject, html = build_html(papers, config)
     print(f"→ Subject: {subject}\n")
 
-    # 5. Send
+    # 6. Send
     print("Sending...")
     send(subject, html, config)
 

@@ -177,9 +177,11 @@ Note: `config.yaml` and `NEXT_SESSION.md` have Windows paths — intentional (ra
 
 ### 4. Literatura Agent (`literatura-agent/`) — DEPLOYED
 
-Complete and running on weekly cron. Fetches papers from arXiv, SciELO, PMC, CORE, OpenAlex. Summarizes in Spanish via Claude Haiku. Sends HTML email.
+Weekly cron script. Fetches from arXiv, OpenAlex, SciELO, Semantic Scholar (PubMed and CORE removed 2026-05-05). Claude Haiku scores each paper 1–5 for FMA relevance and drops scores < 3 before summarizing. Sends HTML email in Spanish.
 
-**Status:** No action needed. Has its own improvement roadmap (relevance scoring, feedback loop).
+**Last updated:** 2026-05-05 — relevance scoring gate added; PubMed/CORE replaced by Semantic Scholar; email UTF-8 encoding fixed.
+
+**Pending:** Gmail app password in `.env` · Semantic Scholar API key in `.env` · delete dead fetcher files · commit.
 
 ---
 

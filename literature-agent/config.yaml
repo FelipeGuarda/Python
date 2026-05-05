@@ -44,20 +44,17 @@ topics:
 sources:
   arxiv:
     enabled: true
-    max_results: 10
+    max_results: 5
   openalex:
     enabled: true
-    max_results: 10
+    max_results: 5
     email: "felipe.guarda@fundacionmaradentro.cl"
-  pubmed:
-    enabled: true
-    max_results: 10
-  core:
-    enabled: true
-    max_results: 10
   scielo:
     enabled: true
-    max_results: 10
+    max_results: 5
+  semantic_scholar:
+    enabled: true
+    max_results: 5
 
 # ── Email ─────────────────────────────────────────────────────────
 email:
