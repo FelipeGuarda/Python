@@ -15,7 +15,7 @@ export function RiesgoTab({ riskCurrent, riskTotal, mlVal, wx, windowData, today
         <Card style={{ display: "flex", flexDirection: "column" }}>
           <SectionLabel>Contribución por factor al riesgo</SectionLabel>
           <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: "16px 0" }}>
-            <PolarContrib components={riskCurrent?.rule_based} size={430} color={riskCurrent?.rule_based?.color || C.amber} />
+            <PolarContrib components={riskCurrent?.rule_based} weather={riskCurrent?.weather} size={430} color={riskCurrent?.rule_based?.color || C.amber} />
           </div>
         </Card>
 
