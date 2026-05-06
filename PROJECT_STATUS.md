@@ -179,9 +179,9 @@ Note: `config.yaml` and `NEXT_SESSION.md` have Windows paths — intentional (ra
 
 Weekly cron script. Fetches from arXiv, OpenAlex, SciELO, Semantic Scholar (PubMed and CORE removed 2026-05-05). Claude Haiku scores each paper 1–5 for FMA relevance and drops scores < 3 before summarizing. Sends HTML email in Spanish.
 
-**Last updated:** 2026-05-05 — relevance scoring gate added; PubMed/CORE replaced by Semantic Scholar; email UTF-8 encoding fixed.
+**Last updated:** 2026-05-06 — `.gitignore` added; `papers_dump.csv` untracked; Semantic Scholar API key confirmed in `.env`.
 
-**Pending:** Gmail app password in `.env` · Semantic Scholar API key in `.env` · delete dead fetcher files · commit.
+**Pending:** Gmail app password in `.env` · end-to-end dry-run (`python run.py`).
 
 ---
 

@@ -35,9 +35,8 @@ This is the reading assistant — it surfaces relevant science without requiring
 |---|---|---|
 | **arXiv** | Ecology, remote sensing, ML for conservation | REST (no key needed) |
 | **SciELO** | Latin American journals — critical for Chilean/regional literature | REST / OAI-PMH |
-| **PubMed Central (PMC)** | Ecology, biology, wildlife | NCBI E-utilities REST (free) |
-| **CORE** | Open-access aggregator, broad coverage | REST (free API key) |
 | **OpenAlex** | Comprehensive scholarly graph, best for filtering by topic/region | REST (no key needed) |
+| **Semantic Scholar** | Broad academic graph; `fieldsOfStudy` filter cuts irrelevant results upstream | REST (key optional — higher rate limit with key) |
 
 ---
 
@@ -47,22 +46,23 @@ This is the reading assistant — it surfaces relevant science without requiring
 Weekly cron trigger (every Monday, before work hours)
     ↓
 For each configured topic/keyword:
-    → Query arXiv API       → list of {title, abstract, doi, date, authors}
-    → Query SciELO API      → "
-    → Query PMC E-utils     → "
-    → Query CORE API        → "
-    → Query OpenAlex API    → "
+    → Query arXiv API            → list of {title, abstract, doi, date, authors}
+    → Query SciELO API           → "
+    → Query OpenAlex API         → "
+    → Query Semantic Scholar API → " (fieldsOfStudy filter applied upstream)
     ↓
 Deduplication by DOI (same paper from multiple sources → keep once)
 Filter: published in last 7 days (or since last run)
     ↓
-For each paper:
-    → Claude API: summarize abstract in Spanish (2–3 sentences, plain language)
-    → Classify into topic bucket (fire ecology, wildlife, remote sensing, etc.)
+Claude Haiku: score each paper 1–5 for FMA relevance
+Drop papers scoring < 3 (saves summarization calls, reduces email noise)
+    ↓
+For each surviving paper:
+    → Claude Haiku: summarize abstract in Spanish (2–3 sentences, plain language)
     ↓
 Build HTML email (grouped by topic, each paper: title + authors + source + Spanish summary + link)
     ↓
-Send via Gmail API (or SMTP)
+Send via SMTP (Gmail app password)
     ↓
 Optionally: store paper metadata in DuckDB (literature table) for the Plataforma Asistente
 ```
@@ -107,15 +107,14 @@ literatura-agent/
 │
 ├── src/
 │   ├── fetchers/
-│   │   ├── arxiv.py          ← arXiv API query
-│   │   ├── scielo.py         ← SciELO REST / OAI-PMH query
-│   │   ├── pubmed.py         ← NCBI E-utilities query
-│   │   ├── core_api.py       ← CORE API query
-│   │   └── openalex.py       ← OpenAlex API query
+│   │   ├── arxiv.py             ← arXiv API query
+│   │   ├── scielo.py            ← SciELO REST / OAI-PMH query
+│   │   ├── openalex.py          ← OpenAlex API query
+│   │   └── semantic_scholar.py  ← Semantic Scholar Graph API v1
 │   ├── dedup.py              ← DOI-based deduplication + date filtering
-│   ├── summarizer.py         ← Claude Haiku: abstract → Spanish summary
+│   ├── summarizer.py         ← Claude Haiku: relevance scoring (1–5) + Spanish summary
 │   ├── email_builder.py      ← HTML digest template
-│   └── sender.py             ← Gmail API or SMTP send
+│   └── sender.py             ← SMTP send (UTF-8)
 │
 └── run.py                    ← entry point (run manually or via cron)
 ```
@@ -146,9 +145,9 @@ Subject: [FMA Literatura] Semana del 2 de marzo 2026
 
 ## Ideas & Future Features
 
-- **Relevance scoring**: Use Claude to rate each paper's relevance to FMA's work (1–5) and only include papers scoring ≥ 3
 - **Citation tracking**: Alert when a paper cites a specific author or institution (e.g., FMA-affiliated researchers)
 - **DuckDB storage**: Save all papers and summaries to the `literatura` table in `fma_data.duckdb` so the Plataforma Asistente can answer "what does recent literature say about X?"
+- **HTML review page + feedback JSON**: Let recipient mark papers as relevant/irrelevant to calibrate the scoring prompt over time
 - **Slack delivery**: Alternative or additional delivery channel beyond email
 
 ---
