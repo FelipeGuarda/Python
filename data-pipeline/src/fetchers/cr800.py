@@ -8,6 +8,7 @@ import pandas as pd
 from pycampbellcr1000 import CR1000
 
 from src.paths import _STATE_PATH
+from src.tz_utils import localize_santiago_to_utc
 
 
 def _load_state() -> dict:
@@ -60,17 +61,7 @@ def process_raw(data: list, station_id: str) -> pd.DataFrame:
 
     ts_col = "Datetime" if "Datetime" in df.columns else df.columns[0]
     naive_ts = pd.to_datetime(df[ts_col], errors="coerce")
-    try:
-        dti = pd.DatetimeIndex(naive_ts).tz_localize(
-            "America/Santiago", ambiguous="infer", nonexistent="shift_forward"
-        )
-    except Exception:
-        # Fallback: if infer fails (e.g. chunk lacks context around DST boundary),
-        # treat ambiguous timestamps as standard time (UTC-4) rather than dropping them.
-        dti = pd.DatetimeIndex(naive_ts).tz_localize(
-            "America/Santiago", ambiguous=False, nonexistent="shift_forward"
-        )
-    df["timestamp"] = pd.Series(dti, index=df.index).dt.tz_convert("UTC")
+    df["timestamp"] = localize_santiago_to_utc(naive_ts)
     df["station_id"] = station_id
 
     rename_map = {
@@ -99,9 +90,12 @@ def fetch_since(logger, station_id: str, table_name: str = None):
     """
     Fetch all records since last saved timestamp, in 24-hour chunks.
 
-    Yields one DataFrame per chunk so the caller can upsert and the state is
-    saved incrementally. If interrupted mid-catch-up, the next run resumes
-    from the last successfully committed chunk — no records are lost.
+    Yields ``(df, commit)`` per chunk. The caller MUST call ``commit()`` only
+    after the chunk has been successfully persisted (e.g. upsert returned
+    without raising). State is advanced inside ``commit()`` — never before the
+    yield — so a failed upsert leaves the state pointing at the last
+    successfully-committed chunk and the next run replays from there. Upserts
+    are idempotent, so replay is safe.
     """
     from datetime import timedelta
     import pytz
@@ -137,11 +131,14 @@ def fetch_since(logger, station_id: str, table_name: str = None):
         if data:
             df = process_raw(data, station_id)
             if not df.empty:
-                latest = df["timestamp"].max()
-                state[state_key] = latest.isoformat()
-                _save_state(state)
+                latest_iso = df["timestamp"].max().isoformat()
+
+                def commit(_iso=latest_iso):
+                    state[state_key] = _iso
+                    _save_state(state)
+
                 total_rows += len(df)
-                yield df
+                yield df, commit
 
         chunk_start = chunk_end
 

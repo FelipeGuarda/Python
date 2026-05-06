@@ -3,7 +3,8 @@
 from pathlib import Path
 
 import pandas as pd
-import pytz
+
+from src.tz_utils import localize_santiago_to_utc
 
 
 def parse(dat_path: Path, station_id: str = "bosque_pehuen") -> pd.DataFrame:
@@ -45,17 +46,8 @@ def parse(dat_path: Path, station_id: str = "bosque_pehuen") -> pd.DataFrame:
         raise ValueError(f"No TIMESTAMP column found in {dat_path}. Columns: {list(df.columns)}")
 
     # Parse TIMESTAMP (Campbell format: "YYYY-MM-DD HH:MM:SS") as America/Santiago → UTC
-    santiago = pytz.timezone("America/Santiago")
     naive_ts = pd.to_datetime(df["TIMESTAMP"], errors="coerce")
-    try:
-        localized = pd.DatetimeIndex(naive_ts).tz_localize(
-            santiago, ambiguous="infer", nonexistent="shift_forward"
-        )
-    except Exception:
-        localized = pd.DatetimeIndex(naive_ts).tz_localize(
-            santiago, ambiguous=False, nonexistent="shift_forward"
-        )
-    df["TIMESTAMP"] = pd.Series(localized, index=df.index).dt.tz_convert("UTC")
+    df["TIMESTAMP"] = localize_santiago_to_utc(naive_ts)
 
     # Map known columns to weather_station schema
     rename_map = {

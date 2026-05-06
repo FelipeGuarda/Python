@@ -4,6 +4,8 @@ import yaml
 from pathlib import Path
 from datetime import datetime, timezone
 
+from src.tz_utils import localize_santiago_to_utc
+
 _config_path = Path(__file__).parent.parent.parent / "config.yaml"
 with open(_config_path) as f:
     _cfg = yaml.safe_load(f)["open_meteo"]
@@ -36,7 +38,7 @@ def fetch() -> pd.DataFrame:
 
     hourly = data["hourly"]
     df = pd.DataFrame({
-        "timestamp": pd.to_datetime(hourly["time"]).tz_localize("America/Santiago", ambiguous=False, nonexistent="shift_forward").tz_convert("UTC"),
+        "timestamp": localize_santiago_to_utc(pd.to_datetime(hourly["time"])),
         "temperature_2m": hourly["temperature_2m"],
         "relative_humidity_2m": hourly["relative_humidity_2m"],
         "precipitation": hourly["precipitation"],

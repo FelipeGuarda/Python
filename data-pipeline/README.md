@@ -4,6 +4,11 @@
 **Status:** Built and operational. All 5 phases complete.
 **Role in ecosystem:** Core plumbing. Every other project reads from the DuckDB database this pipeline maintains.
 
+**Last Updated:** 2026-05-06
+**What Changed:** Session A code-review fixes — C1 (CR800 state-before-commit) resolved via `(df, commit)` yield-pair contract; W8 (DST consolidation) resolved via new `src/tz_utils.py:localize_santiago_to_utc()`; W20 (systemd hardening) confirmed already in place on disk; S12 actually applied (`recover_dst_gaps.py` moved to `scripts/`).
+**Integration Status:** Ready. Smoke-tested via `run_fetch.py --once` — Open-Meteo round-trip clean. C1 will be exercised in vivo on the 8-day CR800 backfill burst once the antenna is replaced.
+**Blockers/Notes:** CR800 still offline since 2026-04-13 (antenna replacement pending).
+
 ---
 
 ## What This Project Does

@@ -22,6 +22,7 @@ import pandas as pd
 
 from ..species import spanish_to_latin as _load_spanish_to_latin
 from ..stations import tc_coords as _load_tc_coords
+from ..tz_utils import localize_santiago_to_utc
 
 # TC camera number (1..N) → (lat, lon). Canonical source: plataforma-territorial/data/stations.yaml.
 _TC_COORDS: dict[int, tuple[float, float]] = _load_tc_coords()
@@ -66,17 +67,7 @@ NON_ANIMAL_COMMENTS: set[str] = {
 def _parse_timestamp(dt_str: str) -> pd.Timestamp:
     """Parse Timelapse2 DateTime string to UTC. Returns NaT on failure."""
     try:
-        ts = pd.Timestamp(dt_str.strip())
-        # tz_localize on a scalar: ambiguous must be bool, not "infer"
-        # Try non-fold (DST) first; fall back to fold if the time is ambiguous.
-        try:
-            return ts.tz_localize(
-                "America/Santiago", ambiguous=False, nonexistent="shift_forward"
-            ).tz_convert("UTC")
-        except Exception:
-            return ts.tz_localize(
-                "America/Santiago", ambiguous=True, nonexistent="shift_forward"
-            ).tz_convert("UTC")
+        return localize_santiago_to_utc(pd.Timestamp(dt_str.strip()))
     except Exception:
         return pd.NaT
 

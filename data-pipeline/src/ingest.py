@@ -84,11 +84,15 @@ def ingest_cr800_live(con: duckdb.DuckDBPyConnection) -> None:
         total = 0
         first_chunk = True
         with cr800_session(host, port, addr) as logger:
-            for df in fetch_since(logger, station_id):
+            for df, commit in fetch_since(logger, station_id):
                 if first_chunk:
                     ensure_columns(con, "weather_station", df)
                     first_chunk = False
                 total += upsert_df(con, "weather_station", df)
+                # State advances only after the upsert above succeeds.
+                # If upsert raises, commit() never runs and the next run
+                # replays this chunk (idempotent via PK upsert).
+                commit()
         if total:
             print(f"  Upserted {total} rows into weather_station.")
         else:

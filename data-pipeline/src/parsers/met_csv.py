@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.tz_utils import localize_santiago_to_utc
+
 # Map CSV column names → weather_station schema column names (core 8)
 _CORE_RENAME = {
     "AirTC_Avg": "temperature_air",
@@ -37,11 +39,8 @@ def parse(csv_path: Path, station_id: str = "bosque_pehuen") -> pd.DataFrame:
 
     # Parse timestamp (America/Santiago → UTC)
     df["TIMESTAMP"] = df["TIMESTAMP"].str.strip()
-    df["timestamp"] = (
-        pd.to_datetime(df["TIMESTAMP"], errors="coerce")
-        .dt.tz_localize("America/Santiago", ambiguous="NaT", nonexistent="shift_forward")
-        .dt.tz_convert("UTC")
-    )
+    naive_ts = pd.to_datetime(df["TIMESTAMP"], errors="coerce")
+    df["timestamp"] = localize_santiago_to_utc(naive_ts)
     df = df.drop(columns=["TIMESTAMP"])
 
     # Rename core columns
