@@ -227,9 +227,9 @@ def main() -> None:
     if "current_group" not in st.session_state:
         st.session_state.current_group = 0
     if "confirmed" not in st.session_state:
-        st.session_state.confirmed: dict[str, str] = {}
+        st.session_state.confirmed = {}
     if "outcomes" not in st.session_state:
-        st.session_state.outcomes: dict[str, str] = {}
+        st.session_state.outcomes = {}
 
     confirmed      = st.session_state.confirmed
     n_confirmed    = len(confirmed)

@@ -1,4 +1,5 @@
-import subprocess, os
+import os
+import subprocess
 
 target = r'C:\Users\USUARIO\SynologyDrive\2. Camaras trampa (SC)\SynologyDrive\DATOS_GRILLA CÁMARAS TRAMPA\2. CAMPAÑAS DE RECOLECCION DE IMAGENES\Primavera 2025'
 link   = r'C:\ADDAX\Primavera_2025'

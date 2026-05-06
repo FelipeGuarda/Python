@@ -12,8 +12,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-os.chdir(Path(__file__).parent)
-sys.path.insert(0, str(Path(__file__).parent))
+os.chdir(Path(__file__).parent.parent)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import yaml
 from dotenv import load_dotenv

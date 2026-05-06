@@ -1,4 +1,9 @@
-# run_megadetector_v6.py
+"""MegaDetector v6 batch runner using the wildlife_detector package.
+
+Alternative to AddaxAI for running MD inference on campaign image folders.
+Requires ``wildlife_detector`` (not in environment.yml — install separately).
+Usage: python setup/megadetector_campaigns.py --input_dir <path> --output_json <path>
+"""
 import os
 import argparse
 from pathlib import Path

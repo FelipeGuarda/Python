@@ -28,7 +28,8 @@ try:
     while True:
         time.sleep(1)
 except (KeyboardInterrupt, SystemExit):
-    observer.stop()
     print("\n→ Watcher stopped.")
-
-observer.join()
+finally:
+    observer.stop()
+    observer.join()
+    con.close()

@@ -39,6 +39,11 @@ _IMAGE_CACHE_TTL = 300
 _image_cache: dict = {"expires": 0.0, "data": {}}
 
 
+def _loc_to_export_id(loc_name: str) -> str:
+    # "TC.01" → "TC_01" to match the export directory naming convention
+    return loc_name.replace(".", "_")
+
+
 def _build_image_cache() -> dict[str, list[dict]]:
     if not _CT_EXPORTS_DIR.exists():
         return {}
@@ -300,7 +305,7 @@ def station_summary():
         image_cache = _get_image_cache()
         images = []
         for loc_name in location_names:
-            export_id = loc_name.replace(".", "_")
+            export_id = _loc_to_export_id(loc_name)
             for img_entry in image_cache.get(export_id, []):
                 images.append(img_entry)
                 if len(images) >= 3:

@@ -83,7 +83,11 @@ def fire_risk_current():
 
 @router.get("/forecast")
 def fire_risk_forecast():
-    """Fire risk forecast for the next 7 days based on Open-Meteo data."""
+    """Fire risk forecast based on Open-Meteo data.
+
+    Returns as many forecast days as the weather fetcher last wrote; typically 7
+    days but fewer if the fetcher has not run recently.
+    """
     with get_connection() as con:
         days_no_rain = _compute_days_without_rain(con)
 

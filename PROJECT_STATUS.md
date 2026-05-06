@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-05-06
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -73,7 +73,7 @@ Running as systemd service (`fma-pipeline.service`). Full pipeline with real dat
 
 **Canonical catalogs (2026-04-27):** `species.yaml` (31 entries — 27 CLIP + invasive/priority flags) is the single source of truth across the ecosystem. Sibling loaders in camera-traps and plataforma-territorial/backend read this same file. Pairs with `plataforma-territorial/data/stations.yaml` (also now consumed end-to-end after Track B).
 
-**Code review Batch A+B (2026-04-27):** 9 warnings resolved — dead deps removed (W9), `_STATE_PATH` centralised to `src/paths.py` (W15), `cr800_session()` context manager (W18), Open-Meteo/CR800 fault isolation in `run_once()` (W19), `open_meteo.py` DST-safe `tz_localize` (W16), `_process_raw` made public (W12), algorithmic DST dates in `recover_dst_gaps.py` (W13), silent `count=1` default fixed (W14), `toa5.py` column-drop now logged (W17). Remaining: C1 + W8 (Batch E, needs Opus).
+**Code review Batch A+B (2026-04-27):** 9 warnings resolved — dead deps removed (W9), `_STATE_PATH` centralised to `src/paths.py` (W15), `cr800_session()` context manager (W18), Open-Meteo/CR800 fault isolation in `run_once()` (W19), `open_meteo.py` DST-safe `tz_localize` (W16), `_process_raw` made public (W12), algorithmic DST dates in `recover_dst_gaps.py` (W13), silent `count=1` default fixed (W14), `toa5.py` column-drop now logged (W17). **2026-05-06:** S12 (`recover_dst_gaps.py` moved to `scripts/`, path resolution updated), S13 (`run_watcher.py` connection cleanup in `finally` block). Remaining: C1 + W8 (Batch E, needs Opus).
 
 **Live data:** 264,944 rows weather_station · 168 rows weather_forecast · 7,652 rows ct_observations · 20,095 ct_media · 106 ct_deployments (Otoño 2025 + Primavera-verano 2025-2026 ingested 2026-04-15)
 
@@ -106,7 +106,7 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 **dist/ sync fix (2026-03-31):** Removed `dist` from `.gitignore`. Built frontend is now committed to git. Both machines get the same compiled UI via `git pull` — no per-machine rebuild needed.
 
-**Code review (2026-04-21 → 2026-04-29):** Full review of Blocks 3-5 complete; artifacts in `~/Documents/Obsidian FG/SecondBrain/Reviews/`. Track B closed the station-registry + species-catalog cross-project chains (W11/W23/W32/W33/W47/W51 map-center half). **Track C closed (2026-04-29):** W41 App.jsx 1805→37 line decomposition into 24 modules under `src/{constants,hooks,components,pages,pages/Dashboard/tabs}/`; pure structural move, build clean, two items deferred (chart_defaults extraction + Asistente `chatMessages` runtime fix) and logged as TODOs in the new App.jsx. New endpoints: `/api/config/geography`, `/api/config/species`. Track A (CR800 backfill safety) still queued.
+**Code review (2026-04-21 → 2026-04-29):** Full review of Blocks 3-5 complete; artifacts in `~/Documents/Obsidian FG/SecondBrain/Reviews/`. Track B closed the station-registry + species-catalog cross-project chains (W11/W23/W32/W33/W47/W51 map-center half). **Track C closed (2026-04-29):** W41 App.jsx 1805→37 line decomposition into 24 modules under `src/{constants,hooks,components,pages,pages/Dashboard/tabs}/`; pure structural move, build clean, two items deferred (chart_defaults extraction + Asistente `chatMessages` runtime fix) and logged as TODOs in the new App.jsx. New endpoints: `/api/config/geography`, `/api/config/species`. Track A (CR800 backfill safety) still queued. **2026-05-06:** S52 (`_loc_to_export_id()` helper in detections.py), S54 (/forecast docstring), S60 (ErrorBoundary `componentDidCatch`), S61 (MONTHS module scope in MeteoTab), S74 (`VITE_API_BASE` env override in vite.config.js). Review state fully synced (29 JSON entries updated).
 
 | Component | Status | Notes |
 |---|---|---|

@@ -20,7 +20,6 @@ Usage:
 import csv
 import json
 import re
-import shutil
 import unicodedata
 from collections import defaultdict
 from pathlib import Path

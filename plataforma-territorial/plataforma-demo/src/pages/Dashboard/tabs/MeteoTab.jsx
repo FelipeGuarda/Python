@@ -7,6 +7,8 @@ import { Card } from "../../../components/Card.jsx";
 import { SectionLabel } from "../../../components/SectionLabel.jsx";
 import { WindRose } from "../../../components/WindRose.jsx";
 
+const MONTHS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
 // ── METEO TAB ──
 export function MeteoTab() {
   const today = new Date().toISOString().split("T")[0];
@@ -82,7 +84,6 @@ export function MeteoTab() {
     if (!ts) return "";
     const [year, month, dayPart] = ts.split("-");
     const day = parseInt(dayPart);
-    const MONTHS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
     const m = parseInt(month) - 1;
     if (resolution === "ME") return `${MONTHS[m]} ${year.slice(2)}`;
     if (resolution === "Q") return `T${Math.ceil((m + 1) / 3)} ${year.slice(2)}`;

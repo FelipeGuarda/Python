@@ -5,6 +5,7 @@ import { C } from "../constants/colors.js";
 export class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { console.error(error, info.componentStack); }
   render() {
     if (this.state.error) return (
       <div style={{ padding: 40, color: C.red, fontFamily: "monospace", fontSize: 13 }}>
