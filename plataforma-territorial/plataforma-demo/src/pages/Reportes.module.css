@@ -1,0 +1,162 @@
+.container {
+  padding: 16px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+}
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.title {
+  font-family: 'Georgia', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 12px;
+}
+.formGroup { margin-bottom: 12px; }
+.formLabel {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-bottom: 4px;
+}
+.select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-mint);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--color-white);
+  color: var(--color-text);
+}
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text);
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+.generateBtn {
+  width: 100%;
+  color: var(--color-white);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 0;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.2s;
+}
+.noticeBody {
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.6;
+  margin-top: 6px;
+}
+.exportRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.exportBtn {
+  flex: 1;
+  padding: 8px 0;
+  border: 1px solid var(--color-mint);
+  border-radius: 6px;
+  background: var(--color-white);
+  color: var(--color-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.draftHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.draftTitle {
+  font-family: 'Georgia', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.draftBadge {
+  font-size: 10px;
+  color: var(--color-light-muted);
+  font-family: monospace;
+}
+.draftTextarea {
+  flex: 1;
+  min-height: 400px;
+  border: 1px solid var(--color-mint);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--color-text);
+  font-family: 'Georgia', serif;
+  resize: none;
+  outline: none;
+  background: var(--color-bg);
+}
+.placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: var(--color-light-muted);
+  font-size: 14px;
+}
+.placeholderInner { text-align: center; }
+.placeholderIcon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+.placeholderHint {
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* S78 — print styles for PDF/paper export */
+@media print {
+  body {
+    background: var(--color-white);
+  }
+  .container {
+    padding: 0;
+    height: auto;
+    overflow: visible;
+  }
+  .layout {
+    display: block;
+  }
+  .column {
+    display: none;
+  }
+  .draftHeader {
+    margin-bottom: 16px;
+  }
+  .draftBadge { display: none; }
+  .draftTextarea {
+    border: none;
+    background: var(--color-white);
+    min-height: 0;
+    padding: 0;
+    font-size: 12pt;
+    line-height: 1.6;
+    resize: none;
+    color: #000;
+  }
+  .placeholder { display: none; }
+}

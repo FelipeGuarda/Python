@@ -6,12 +6,12 @@ import {
   getGeography, getSpecies,
   transformRiskForecast, transformSpeciesSummary, transformDielActivity,
 } from "../../api.js";
-import { C } from "../../constants/colors.js";
 import { useAPI } from "../../hooks/useAPI.js";
 import { RiesgoTab } from "./tabs/RiesgoTab.jsx";
 import { MeteoTab } from "./tabs/MeteoTab.jsx";
 import { CamarasTab } from "./tabs/CamarasTab.jsx";
 import { FaunaTab } from "./tabs/FaunaTab.jsx";
+import styles from "./index.module.css";
 
 const DAY_NAMES = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
 
@@ -141,23 +141,19 @@ export function Dashboard() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 56px)" }}>
+    <div className={styles.shell}>
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 0, borderBottom: `2px solid ${C.mint}`, padding: "0 16px", flexShrink: 0 }}>
+      <div className={styles.tabBar}>
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            background: tab === t.id ? C.white : "transparent", border: "none",
-            borderBottom: tab === t.id ? `2px solid ${C.deepGreen}` : "2px solid transparent",
-            padding: "10px 20px", cursor: "pointer", fontSize: 13,
-            fontFamily: "'Trebuchet MS', sans-serif", color: tab === t.id ? C.text : C.muted,
-            fontWeight: tab === t.id ? 700 : 400, borderRadius: "6px 6px 0 0",
-            marginBottom: -2, transition: "all 0.2s",
-          }}>{t.label}</button>
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`${styles.tab} ${tab === t.id ? styles.tabActive : ""}`.trim()}>
+            {t.label}
+          </button>
         ))}
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+      <div className={styles.content}>
       {tab === "riesgo" && mounted && (
         <RiesgoTab
           riskCurrent={riskCurrent}

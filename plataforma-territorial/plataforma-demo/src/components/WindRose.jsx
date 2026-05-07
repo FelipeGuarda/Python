@@ -1,5 +1,6 @@
 import { C } from "../constants/colors.js";
 import { WIND_SPEED_COLORS } from "../constants/weather_vars.js";
+import styles from "./WindRose.module.css";
 
 // ── WIND ROSE SVG ──
 export function WindRose({ data, size = 230 }) {
@@ -47,7 +48,7 @@ export function WindRose({ data, size = 230 }) {
   ];
 
   return (
-    <svg width={size} height={size} style={{ display: "block", margin: "0 auto" }}>
+    <svg width={size} height={size} className={styles.svg}>
       {[0.25, 0.5, 0.75, 1].map(f => (
         <circle key={f} cx={cx} cy={cy} r={maxR * f} fill="none" stroke={C.paleMint} strokeWidth={0.8} strokeDasharray="3 3" />
       ))}

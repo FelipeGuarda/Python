@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { C } from "../constants/colors.js";
 import { Card } from "../components/Card.jsx";
 import { SectionLabel } from "../components/SectionLabel.jsx";
 import { chatMessages as initialMessages } from "../constants/demo_chat.js";
+import styles from "./Asistente.module.css";
+
+const CHAT_CARD_STYLE = { display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" };
 
 export function Asistente() {
   const [messages, setMessages] = useState(initialMessages);
@@ -35,29 +37,22 @@ export function Asistente() {
   ];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16, height: "calc(100vh - 56px)", padding: 16 }}>
-      <Card style={{ display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}>
+    <div className={styles.container}>
+      <Card style={CHAT_CARD_STYLE}>
         {/* Header */}
-        <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.paleMint}`, background: C.white }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, fontFamily: "'Georgia', serif" }}>Asistente Territorial</div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Consulta datos y metodologias en lenguaje natural</div>
+        <div className={styles.chatHeader}>
+          <div className={styles.chatHeaderTitle}>Asistente Territorial</div>
+          <div className={styles.chatHeaderSubtitle}>Consulta datos y metodologias en lenguaje natural</div>
         </div>
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 12, background: C.bg }}>
+        <div className={styles.messages}>
           {messages.map((m, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-              <div style={{
-                maxWidth: "80%", padding: "10px 14px", borderRadius: 12, fontSize: 13, lineHeight: 1.6,
-                background: m.role === "user" ? C.deepGreen : C.white,
-                color: m.role === "user" ? C.white : C.text,
-                borderBottomRightRadius: m.role === "user" ? 2 : 12,
-                borderBottomLeftRadius: m.role === "user" ? 12 : 2,
-                boxShadow: m.role === "assistant" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
-              }}>
+            <div key={i} className={`${styles.msgRow} ${m.role === "user" ? styles.msgRowUser : styles.msgRowAssistant}`}>
+              <div className={`${styles.bubble} ${m.role === "user" ? styles.bubbleUser : styles.bubbleAssistant}`}>
                 {m.text}
                 {m.role === "assistant" && (
-                  <div style={{ fontSize: 10, color: C.lightMuted, marginTop: 6, fontStyle: "italic" }}>
+                  <div className={styles.bubbleSource}>
                     Fuente: base de datos local + formula documentada
                   </div>
                 )}
@@ -65,8 +60,8 @@ export function Asistente() {
             </div>
           ))}
           {typing && (
-            <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <div style={{ background: C.white, padding: "10px 14px", borderRadius: 12, fontSize: 13, color: C.muted, boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+            <div className={`${styles.msgRow} ${styles.msgRowAssistant}`}>
+              <div className={styles.typing}>
                 Consultando datos...
               </div>
             </div>
@@ -75,31 +70,23 @@ export function Asistente() {
         </div>
 
         {/* Input */}
-        <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.paleMint}`, background: C.white, display: "flex", gap: 8 }}>
+        <div className={styles.inputBar}>
           <input value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSend()}
             placeholder="Pregunta sobre datos o metodologias..."
-            style={{ flex: 1, border: `1px solid ${C.mint}`, borderRadius: 8, padding: "10px 14px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+            className={styles.inputField}
           />
-          <button onClick={handleSend} style={{
-            background: C.deepGreen, color: C.white, border: "none", borderRadius: 8,
-            padding: "10px 20px", cursor: "pointer", fontSize: 13, fontWeight: 600,
-          }}>Enviar</button>
+          <button onClick={handleSend} className={styles.sendBtn}>Enviar</button>
         </div>
       </Card>
 
       {/* Sidebar */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className={styles.sidebar}>
         <Card>
           <SectionLabel>Preguntas sugeridas</SectionLabel>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+          <div className={styles.suggestions}>
             {suggestions.map((s, i) => (
-              <button key={i} onClick={() => { setInput(s); }}
-                style={{ background: C.paleMint, border: "none", borderRadius: 6, padding: "8px 10px",
-                  fontSize: 11, color: C.text, textAlign: "left", cursor: "pointer", lineHeight: 1.4,
-                  transition: "background 0.2s" }}
-                onMouseEnter={e => e.target.style.background = C.mint}
-                onMouseLeave={e => e.target.style.background = C.paleMint}>
+              <button key={i} onClick={() => { setInput(s); }} className={styles.suggBtn}>
                 {s}
               </button>
             ))}
@@ -107,16 +94,16 @@ export function Asistente() {
         </Card>
         <Card>
           <SectionLabel>Principio de transparencia</SectionLabel>
-          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6, marginTop: 6 }}>
+          <div className={styles.noticeBody}>
             Cada respuesta que involucre un valor calculado muestra su formula, los datos de entrada y el modelo que lo produjo. Sin cajas negras.
           </div>
         </Card>
         <Card>
           <SectionLabel>Capacidades</SectionLabel>
-          <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className={styles.caps}>
             {["Consultar riesgo de incendio", "Buscar detecciones de especies", "Explicar metodologias", "Analizar tendencias climaticas"].map((c, i) => (
-              <div key={i} style={{ fontSize: 11, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.medGreen, flexShrink: 0 }} />
+              <div key={i} className={styles.capRow}>
+                <div className={styles.capDot} />
                 {c}
               </div>
             ))}

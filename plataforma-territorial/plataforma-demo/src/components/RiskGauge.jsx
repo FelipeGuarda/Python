@@ -1,4 +1,5 @@
 import { C } from "../constants/colors.js";
+import styles from "./RiskGauge.module.css";
 
 export function RiskGauge({ value, color: colorProp = null, compact = false }) {
   const getColor = (v) =>
@@ -12,7 +13,7 @@ export function RiskGauge({ value, color: colorProp = null, compact = false }) {
   const w = compact ? 120 : 180;
   const h = compact ? 67 : 100;
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: compact ? "6px 0" : "10px 0" }}>
+    <div className={`${styles.box} ${compact ? styles.boxCompact : styles.boxRegular}`}>
       <svg width={w} height={h} viewBox="0 0 180 100">
         <path d="M 10 90 A 80 80 0 0 1 170 90" fill="none" stroke={C.paleMint} strokeWidth="12" strokeLinecap="round" />
         <path d="M 10 90 A 80 80 0 0 1 170 90" fill="none" stroke={color} strokeWidth="12" strokeLinecap="round"
@@ -20,7 +21,9 @@ export function RiskGauge({ value, color: colorProp = null, compact = false }) {
         <text x="90" y="75" textAnchor="middle" fontSize={compact ? "24" : "28"} fontWeight="700" fontFamily="Georgia" fill={color}>{value}</text>
         <text x="90" y="92" textAnchor="middle" fontSize="10" fill={C.muted}>/100</text>
       </svg>
-      <div style={{ fontSize: compact ? 10 : 13, fontWeight: 700, color, letterSpacing: 2, marginTop: 4 }}>{getLabel(value)}</div>
+      <div className={`${styles.label} ${compact ? styles.labelCompact : styles.labelRegular}`} style={{ color }}>
+        {getLabel(value)}
+      </div>
     </div>
   );
 }

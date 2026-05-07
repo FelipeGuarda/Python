@@ -1,7 +1,11 @@
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup } from "react-leaflet";
-import { C, SP_COLORS } from "../constants/colors.js";
+import { SP_COLORS } from "../constants/colors.js";
 import { DEFAULT_MAP_CENTER } from "../constants/map_defaults.js";
 import { FitBounds } from "./FitBounds.jsx";
+import styles from "./SpeciesMap.module.css";
+
+const MAP_HOST_STYLE = { width: "100%", height: "100%", borderRadius: 8 };
+const BOUNDARY_STYLE = { color: "#FFFFFF", weight: 2.5, fillOpacity: 0, dashArray: "8 6" };
 
 // ── Mini Leaflet map for per-species detection bubble maps ──
 export function SpeciesMap({ boundary, stations, colorIdx, center }) {
@@ -11,7 +15,7 @@ export function SpeciesMap({ boundary, stations, colorIdx, center }) {
     <MapContainer
       center={center ?? DEFAULT_MAP_CENTER}
       zoom={13}
-      style={{ width: "100%", height: "100%", borderRadius: 8 }}
+      style={MAP_HOST_STYLE}
       zoomControl={false}
       scrollWheelZoom={false}
     >
@@ -21,7 +25,7 @@ export function SpeciesMap({ boundary, stations, colorIdx, center }) {
       />
       {boundary && <FitBounds geojson={boundary} />}
       {boundary && (
-        <GeoJSON data={boundary} style={{ color: "#FFFFFF", weight: 2.5, fillOpacity: 0, dashArray: "8 6" }} />
+        <GeoJSON data={boundary} style={BOUNDARY_STYLE} />
       )}
       {(stations || []).map(st =>
         st.count === 0 ? (
@@ -35,7 +39,7 @@ export function SpeciesMap({ boundary, stations, colorIdx, center }) {
             pathOptions={{ color: "#ffffff", weight: 1.5, fillColor: color, fillOpacity: 0.85 }}
           >
             <Popup>
-              <div style={{ fontFamily: "'Trebuchet MS', sans-serif", fontSize: 12, color: C.text }}>
+              <div className={styles.popupContent}>
                 <strong>TC{String(st.tc).padStart(2, "0")}</strong>: {st.count} detecciones
               </div>
             </Popup>

@@ -1,0 +1,8 @@
+.label {
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--color-light-muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}

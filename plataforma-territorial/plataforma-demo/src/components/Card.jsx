@@ -1,8 +1,8 @@
-import { C } from "../constants/colors.js";
+import styles from "./Card.module.css";
 
-export function Card({ children, style = {} }) {
+export function Card({ children, className = "", style }) {
   return (
-    <div style={{ background: C.white, borderRadius: 8, padding: 20, boxShadow: "0 1px 4px rgba(0,77,60,0.06)", ...style }}>
+    <div className={`${styles.card} ${className}`.trim()} style={style}>
       {children}
     </div>
   );

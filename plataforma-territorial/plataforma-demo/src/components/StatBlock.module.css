@@ -1,0 +1,16 @@
+.box { text-align: center; }
+.value {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: 'Georgia', serif;
+  line-height: 1;
+}
+.unit {
+  font-size: 14px;
+  font-weight: 400;
+}
+.label {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-top: 4px;
+}

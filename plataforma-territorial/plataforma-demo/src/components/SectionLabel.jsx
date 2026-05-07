@@ -1,8 +1,8 @@
-import { C } from "../constants/colors.js";
+import styles from "./SectionLabel.module.css";
 
-export function SectionLabel({ children }) {
+export function SectionLabel({ children, className = "", style }) {
   return (
-    <div style={{ fontSize: 10, fontFamily: "monospace", color: C.lightMuted, letterSpacing: 3, textTransform: "uppercase", marginBottom: 6 }}>
+    <div className={`${styles.label} ${className}`.trim()} style={style}>
       {children}
     </div>
   );

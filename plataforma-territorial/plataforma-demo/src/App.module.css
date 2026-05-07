@@ -1,0 +1,5 @@
+.shell {
+  background: var(--color-bg);
+  min-height: 100vh;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+}

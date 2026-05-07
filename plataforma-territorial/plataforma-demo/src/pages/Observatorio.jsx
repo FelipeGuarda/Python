@@ -10,6 +10,7 @@ import { Card } from "../components/Card.jsx";
 import { SectionLabel } from "../components/SectionLabel.jsx";
 import { RiskGauge } from "../components/RiskGauge.jsx";
 import { StatBlock } from "../components/StatBlock.jsx";
+import styles from "./Observatorio.module.css";
 
 // Custom weather station icon
 const weatherIcon = L.divIcon({
@@ -21,6 +22,16 @@ const weatherIcon = L.divIcon({
   iconAnchor: [14, 14],
   popupAnchor: [0, -16],
 });
+
+const MAP_HOST_STYLE = { width: "100%", height: "100%", borderRadius: 8 };
+const CARD_MAP_STYLE = { padding: 0, overflow: "hidden", position: "relative" };
+const BOUNDARY_STYLE = {
+  color: "#FFFFFF",
+  weight: 2.5,
+  opacity: 0.9,
+  fillOpacity: 0,
+  dashArray: "8 6",
+};
 
 export function Observatorio() {
   const [boundary, setBoundary] = useState(null);
@@ -38,22 +49,14 @@ export function Observatorio() {
     fetch("/data/boundary.geojson").then(r => r.json()).then(setBoundary);
   }, []);
 
-  const boundaryStyle = {
-    color: "#FFFFFF",
-    weight: 2.5,
-    opacity: 0.9,
-    fillOpacity: 0,
-    dashArray: "8 6",
-  };
-
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16, height: "calc(100vh - 56px)", padding: 16 }}>
+    <div className={styles.container}>
       {/* Map Area */}
-      <Card style={{ padding: 0, overflow: "hidden", position: "relative" }}>
+      <Card style={CARD_MAP_STYLE}>
         <MapContainer
           center={geo?.reserve?.center ?? DEFAULT_MAP_CENTER}
           zoom={geo?.reserve?.zoom ?? DEFAULT_MAP_ZOOM}
-          style={{ width: "100%", height: "100%", borderRadius: 8 }}
+          style={MAP_HOST_STYLE}
           zoomControl={false}
         >
           <TileLayer
@@ -65,21 +68,21 @@ export function Observatorio() {
 
           {/* Reserve boundary */}
           {showBoundary && boundary && (
-            <GeoJSON data={boundary} style={boundaryStyle} />
+            <GeoJSON data={boundary} style={BOUNDARY_STYLE} />
           )}
 
           {/* Weather station */}
           {showCams && geo?.weather_station && (
             <Marker position={[geo.weather_station.lat, geo.weather_station.lon]} icon={weatherIcon}>
               <Popup>
-                <div style={{ fontFamily: "'Trebuchet MS', sans-serif", minWidth: 160 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 6 }}>
+                <div className={styles.popupContainer} style={{ minWidth: 160 }}>
+                  <div className={styles.popupTitle}>
                     {geo.weather_station.name || "Estación Meteorológica"}
                   </div>
                   {geo.weather_station.model && (
-                    <div style={{ fontSize: 11, color: C.muted }}>{geo.weather_station.model}</div>
+                    <div className={styles.popupModel}>{geo.weather_station.model}</div>
                   )}
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                  <div className={styles.popupCoords}>
                     {geo.weather_station.lat.toFixed(6)}, {geo.weather_station.lon.toFixed(6)}
                   </div>
                 </div>
@@ -101,40 +104,40 @@ export function Observatorio() {
               }}
             >
               <Popup maxWidth={360}>
-                <div style={{ fontFamily: "'Trebuchet MS', sans-serif", minWidth: 316 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 6 }}>
+                <div className={styles.popupContainer} style={{ minWidth: 316 }}>
+                  <div className={styles.popupTitle}>
                     {st.canonical_name}
-                    <span style={{ fontWeight: 400, color: C.muted, fontSize: 10, marginLeft: 6 }}>
+                    <span className={styles.popupTitleAside}>
                       {st.total_observations} detecciones
                     </span>
                   </div>
                   {/* Empty-state message: no identified animal detections */}
                   {st.species.length === 0 && (
-                    <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic", padding: "4px 0" }}>
+                    <div className={styles.popupEmpty}>
                       Sin detecciones identificadas
                     </div>
                   )}
                   {/* Species list */}
                   {st.species.length > 0 && (
-                    <div style={{ marginBottom: 8 }}>
+                    <div className={styles.spList}>
                       {st.species.slice(0, 5).map(sp => (
-                        <div key={sp.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted, padding: "2px 0", borderBottom: `1px solid ${C.paleMint}` }}>
-                          <span style={{ color: C.text }}>{sp.name}</span>
-                          <span style={{ fontWeight: 600 }}>{sp.count}</span>
+                        <div key={sp.name} className={styles.spRow}>
+                          <span className={styles.spRowName}>{sp.name}</span>
+                          <span className={styles.spRowCount}>{sp.count}</span>
                         </div>
                       ))}
                     </div>
                   )}
                   {/* Thumbnail images */}
                   {st.images.length > 0 && (
-                    <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    <div className={styles.thumbsRow}>
                       {st.images.map((img, i) => (
                         <img
                           key={i}
                           src={img.url}
                           alt={img.campaign}
                           onClick={() => setLightboxImg(img.url)}
-                          style={{ width: 250, height: 188, objectFit: "cover", borderRadius: 4, border: `1px solid ${C.mint}`, flexShrink: 0, cursor: "pointer" }}
+                          className={styles.thumb}
                         />
                       ))}
                     </div>
@@ -149,41 +152,41 @@ export function Observatorio() {
         {lightboxImg && (
           <div
             onClick={() => setLightboxImg(null)}
-            style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out" }}
+            className={styles.lightboxBackdrop}
           >
             <img
               src={lightboxImg}
               alt="Ampliado"
-              style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 6, boxShadow: "0 8px 40px rgba(0,0,0,0.6)" }}
+              className={styles.lightboxImg}
             />
           </div>
         )}
 
         {/* Legend overlay */}
-        <div style={{ position: "absolute", bottom: 12, left: 12, zIndex: 1000, background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: "10px 14px", fontSize: 11 }}>
-          <div style={{ fontWeight: 700, color: C.text, marginBottom: 6, fontSize: 10, letterSpacing: 1 }}>CAPAS</div>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, cursor: "pointer", color: C.text }}>
+        <div className={styles.legendOverlay}>
+          <div className={styles.legendTitle}>CAPAS</div>
+          <label className={`${styles.legendCheck} ${styles.legendCheckSpaced}`}>
             <input type="checkbox" checked={showBoundary} onChange={() => setShowBoundary(!showBoundary)} /> Límite reserva
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: C.text }}>
+          <label className={styles.legendCheck}>
             <input type="checkbox" checked={showCams} onChange={() => setShowCams(!showCams)} /> Estaciones
           </label>
         </div>
 
         {/* Station count */}
-        <div style={{ position: "absolute", top: 12, right: 12, zIndex: 1000, background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: C.muted }}>
+        <div className={styles.stationCountBadge}>
           {stations ? `${stations.length} estaciones` : "Cargando..."}
         </div>
       </Card>
 
       {/* Right sidebar */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, overflowY: "auto" }}>
+      <div className={styles.sidebar}>
         <Card>
           <SectionLabel>Estado actual</SectionLabel>
-          <div style={{ fontFamily: "'Georgia', serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 10 }}>
+          <div className={styles.sidebarTitle}>
             Bosque Pehuén
           </div>
-          <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>
+          <div className={styles.sidebarDate}>
             {new Date().toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })}
           </div>
         </Card>
@@ -191,12 +194,12 @@ export function Observatorio() {
           <SectionLabel>Riesgo de incendio</SectionLabel>
           <RiskGauge value={riskTotal ?? 0} />
           {riskData?.rule_based?.label && (
-            <div style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: 4 }}>
+            <div className={styles.riskLabel}>
               {riskData.rule_based.label}
             </div>
           )}
           {riskData?.timestamp && (
-            <div style={{ fontSize: 10, color: C.lightMuted, textAlign: "center", marginTop: 6 }}>
+            <div className={styles.riskTimestamp}>
               {new Date(riskData.timestamp).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}{" "}
               {new Date(riskData.timestamp).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
             </div>
@@ -204,7 +207,7 @@ export function Observatorio() {
         </Card>
         <Card>
           <SectionLabel>Meteorología</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
+          <div className={styles.statGrid}>
             <StatBlock value={wx.temperature_c != null ? wx.temperature_c.toFixed(1) : "—"} unit="°C" label="Temperatura" />
             <StatBlock value={wx.relative_humidity_pct != null ? Math.round(wx.relative_humidity_pct) : "—"} unit="%" label="Humedad" />
             <StatBlock value={wx.wind_speed_kmh != null ? wx.wind_speed_kmh.toFixed(0) : "—"} unit="km/h" label="Viento" />
@@ -213,7 +216,7 @@ export function Observatorio() {
         </Card>
         <Card>
           <SectionLabel>Resumen estaciones</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+          <div className={styles.statGridTight}>
             <StatBlock value={stations ? stations.length : "..."} label="Cámaras trampa" />
             <StatBlock value="1" label="Estación meteo" />
           </div>

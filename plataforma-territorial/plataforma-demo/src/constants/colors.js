@@ -1,4 +1,6 @@
 // ── Color System (designer's green palette) ──
+// NOTE: Hex values are mirrored in src/styles/vars.css as CSS custom properties.
+// If you change a value here, update the matching --color-* var in vars.css.
 export const C = {
   deepGreen: "#004D3C",
   medGreen: "#006B54",

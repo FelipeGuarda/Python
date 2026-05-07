@@ -1,0 +1,22 @@
+.errorBox {
+  padding: 40px;
+  color: var(--color-red);
+  font-family: monospace;
+  font-size: 13px;
+}
+.errorTitle {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.errorBody {
+  color: var(--color-muted);
+}
+.retryBtn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background: var(--color-deep-green);
+  color: var(--color-white);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}

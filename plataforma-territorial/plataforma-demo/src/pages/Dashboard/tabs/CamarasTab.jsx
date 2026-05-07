@@ -12,6 +12,7 @@ import { Card } from "../../../components/Card.jsx";
 import { SectionLabel } from "../../../components/SectionLabel.jsx";
 import { StatBlock } from "../../../components/StatBlock.jsx";
 import { SpeciesMap } from "../../../components/SpeciesMap.jsx";
+import styles from "./CamarasTab.module.css";
 
 export function CamarasTab({
   dielData, ctStats, speciesList,
@@ -20,11 +21,12 @@ export function CamarasTab({
   totalStations, camBoundary, geo,
   isInvasive, isPriority,
 }) {
+  const applyDisabled = !sp1Sel || !sp2Sel || sp1Sel === sp2Sel;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className={styles.container}>
 
       {/* Row 1: diel activity (all species) + summary stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className={styles.row2col}>
         <Card>
           <SectionLabel>Actividad por hora del día</SectionLabel>
           <ResponsiveContainer width="100%" height={220}>
@@ -36,23 +38,23 @@ export function CamarasTab({
               <Bar dataKey="actividad" fill={C.deepGreen} radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 6, fontStyle: "italic" }}>
+          <div className={styles.captionItalic}>
             Todas las especies · {ctStats ? `${ctStats.total_detections} detecciones totales` : "cargando…"}
           </div>
         </Card>
         <Card>
           <SectionLabel>Resumen del monitoreo</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
+          <div className={styles.statsGrid}>
             <StatBlock value={ctStats?.total_detections ?? "…"} label="Detecciones" />
             <StatBlock value={ctStats?.unique_species ?? "…"} label="Especies" />
             <StatBlock value={ctStats?.active_stations ?? "…"} label="Estaciones" />
             <StatBlock value={ctStats?.campaign_count ?? "…"} label="Campañas" />
           </div>
           {ctStats?.date_range_start && (
-            <div style={{ fontSize: 10, color: C.muted, marginTop: 10, borderTop: `1px solid ${C.paleMint}`, paddingTop: 8 }}>
+            <div className={styles.periodInfo}>
               <div>Período: {ctStats.date_range_start.slice(0, 10)} — {ctStats.date_range_end.slice(0, 10)}</div>
-              <div style={{ marginTop: 2 }}>{ctStats.days_sampled} días con registros</div>
-              <div style={{ marginTop: 2 }}>{ctStats.campaigns?.join(" · ")}</div>
+              <div className={styles.periodInfoSub}>{ctStats.days_sampled} días con registros</div>
+              <div className={styles.periodInfoSub}>{ctStats.campaigns?.join(" · ")}</div>
             </div>
           )}
         </Card>
@@ -61,44 +63,37 @@ export function CamarasTab({
       {/* Species selector */}
       <Card>
         <SectionLabel>Comparador de Especies</SectionLabel>
-        <div style={{ display: "flex", gap: 16, alignItems: "flex-end", marginTop: 10, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 10, color: SP_COLORS[0], fontWeight: 700 }}>Especie A</span>
-            <select value={sp1Sel} onChange={e => setSp1Sel(e.target.value)} style={{
-              padding: "6px 10px", borderRadius: 6, border: `2px solid ${SP_COLORS[0]}`,
-              fontSize: 12, color: C.text, background: C.white, minWidth: 200, cursor: "pointer",
-            }}>
+        <div className={styles.selectorRow}>
+          <div className={styles.selectorCol}>
+            <span className={styles.spLabel} style={{ color: SP_COLORS[0] }}>Especie A</span>
+            <select value={sp1Sel} onChange={e => setSp1Sel(e.target.value)}
+              className={styles.spSelect} style={{ borderColor: SP_COLORS[0] }}>
               {speciesList.map(s => (
                 <option key={s.scientific_name} value={s.scientific_name}>{s.common_name}</option>
               ))}
             </select>
           </div>
-          <div style={{ fontSize: 13, color: C.lightMuted, paddingBottom: 6 }}>vs.</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 10, color: SP_COLORS[1], fontWeight: 700 }}>Especie B</span>
-            <select value={sp2Sel} onChange={e => setSp2Sel(e.target.value)} style={{
-              padding: "6px 10px", borderRadius: 6, border: `2px solid ${SP_COLORS[1]}`,
-              fontSize: 12, color: C.text, background: C.white, minWidth: 200, cursor: "pointer",
-            }}>
+          <div className={styles.vsLabel}>vs.</div>
+          <div className={styles.selectorCol}>
+            <span className={styles.spLabel} style={{ color: SP_COLORS[1] }}>Especie B</span>
+            <select value={sp2Sel} onChange={e => setSp2Sel(e.target.value)}
+              className={styles.spSelect} style={{ borderColor: SP_COLORS[1] }}>
               {speciesList.map(s => (
                 <option key={s.scientific_name} value={s.scientific_name}>{s.common_name}</option>
               ))}
             </select>
           </div>
           <button onClick={applyOverlap}
-            disabled={!sp1Sel || !sp2Sel || sp1Sel === sp2Sel || overlapLoading}
+            disabled={applyDisabled || overlapLoading}
+            className={styles.applyBtn}
             style={{
-              padding: "7px 22px",
-              background: (!sp1Sel || !sp2Sel || sp1Sel === sp2Sel) ? C.lightMuted : C.deepGreen,
-              color: C.white, border: "none", borderRadius: 6,
-              cursor: (!sp1Sel || !sp2Sel || sp1Sel === sp2Sel || overlapLoading) ? "not-allowed" : "pointer",
-              fontSize: 13, fontWeight: 600, fontFamily: "'Trebuchet MS', sans-serif",
-              paddingBottom: 7,
+              background: applyDisabled ? C.lightMuted : C.deepGreen,
+              cursor: (applyDisabled || overlapLoading) ? "not-allowed" : "pointer",
             }}>
             {overlapLoading ? "Calculando…" : "Aplicar"}
           </button>
           {sp1Sel && sp2Sel && sp1Sel === sp2Sel && (
-            <span style={{ fontSize: 11, color: C.red, paddingBottom: 6 }}>Selecciona dos especies distintas</span>
+            <span className={styles.errMsg}>Selecciona dos especies distintas</span>
           )}
         </div>
       </Card>
@@ -106,7 +101,7 @@ export function CamarasTab({
       {/* Loading placeholder */}
       {overlapLoading && (
         <Card>
-          <div style={{ fontSize: 13, color: C.muted, textAlign: "center", padding: "36px 0" }}>
+          <div className={styles.loadingMsg}>
             Calculando solapamiento…
           </div>
         </Card>
@@ -115,19 +110,16 @@ export function CamarasTab({
       {/* Overlap activity chart — full width */}
       {overlapData && !overlapLoading && (
         <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <div className={styles.overlapHeader}>
             <SectionLabel>Actividad diaria — superposición</SectionLabel>
-            <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <div className={styles.legendGroup}>
               {[overlapData.sp1_name, overlapData.sp2_name].map((name, i) => (
-                <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <div style={{ width: 16, height: 3, background: SP_COLORS[i], borderRadius: 2 }} />
-                  <span style={{ fontSize: 11, color: C.muted }}>{name}</span>
+                <div key={i} className={styles.legendItem}>
+                  <div className={styles.legendDash} style={{ background: SP_COLORS[i] }} />
+                  <span className={styles.spName}>{name}</span>
                 </div>
               ))}
-              <div style={{
-                padding: "3px 12px", borderRadius: 20,
-                background: C.paleMint, fontSize: 11, color: C.text,
-              }}>
+              <div className={styles.chipPaleMint}>
                 Solapamiento: <strong>{Math.round(overlapData.overlap_coeff * 100)}%</strong>
               </div>
             </div>
@@ -159,7 +151,7 @@ export function CamarasTab({
                 fill="url(#gradSp2)" dot={false} />
             </AreaChart>
           </ResponsiveContainer>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontStyle: "italic" }}>
+          <div className={styles.captionItalicSm}>
             {overlapData.total_sp1} detecciones de {overlapData.sp1_name} · {overlapData.total_sp2} de {overlapData.sp2_name}
           </div>
         </Card>
@@ -167,29 +159,29 @@ export function CamarasTab({
 
       {/* Detection maps — side by side */}
       {overlapData && !overlapLoading && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className={styles.row2col}>
           {[
             { name: overlapData.sp1_name, stations: overlapData.stations_sp1, occ: overlapData.occupancy_sp1, ci: 0 },
             { name: overlapData.sp2_name, stations: overlapData.stations_sp2, occ: overlapData.occupancy_sp2, ci: 1 },
           ].map(({ name, stations, occ, ci }) => (
             <Card key={ci} style={{ padding: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div className={styles.mapHeader}>
                 <SectionLabel style={{ margin: 0 }}>{name}</SectionLabel>
-                <div style={{ fontSize: 11, color: C.muted, textAlign: "right" }}>
-                  <span style={{ color: SP_COLORS[ci], fontWeight: 700 }}>{occ}</span>
-                  <span style={{ color: C.lightMuted }}> / {totalStations ?? "…"} est.</span>
+                <div className={styles.countText}>
+                  <span className={styles.countNum} style={{ color: SP_COLORS[ci] }}>{occ}</span>
+                  <span className={styles.countDenom}> / {totalStations ?? "…"} est.</span>
                   {totalStations && (
-                    <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 10,
-                      background: `${SP_COLORS[ci]}20`, color: SP_COLORS[ci], fontWeight: 600, fontSize: 10 }}>
+                    <span className={styles.countChip}
+                      style={{ background: `${SP_COLORS[ci]}20`, color: SP_COLORS[ci] }}>
                       {Math.round(occ / totalStations * 100)}%
                     </span>
                   )}
                 </div>
               </div>
-              <div style={{ width: "100%", aspectRatio: "1 / 1" }}>
+              <div className={styles.mapBox}>
                 <SpeciesMap boundary={camBoundary} stations={stations} colorIdx={ci} center={geo?.reserve?.center} />
               </div>
-              <div style={{ fontSize: 10, color: C.lightMuted, marginTop: 6, fontStyle: "italic" }}>
+              <div className={styles.captionLightMuted}>
                 × = sin detección · Tamaño de burbuja proporcional al número de registros
               </div>
             </Card>
@@ -223,10 +215,10 @@ export function CamarasTab({
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
+          <div className={styles.occLegendRow}>
             {[["Nativa", C.deepGreen], ["Prioritaria", C.amber], ["Invasora / introducida", C.red]].map(([label, color]) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.muted }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} /> {label}
+              <div key={label} className={styles.occLegendItem}>
+                <div className={styles.swatchSm} style={{ background: color }} /> {label}
               </div>
             ))}
           </div>

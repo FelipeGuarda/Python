@@ -1,4 +1,5 @@
 import { C } from "../constants/colors.js";
+import styles from "./WindCompass.module.css";
 
 // ── WIND COMPASS ──
 export function WindCompass({ direction, speed }) {
@@ -7,7 +8,7 @@ export function WindCompass({ direction, speed }) {
   const dirs = ["N", "E", "S", "O"];
   const dirAngles = [0, 90, 180, 270];
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <div className={styles.box}>
       <svg width="110" height="110" viewBox="0 0 110 110">
         <defs>
           <marker id="windArrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
@@ -37,11 +38,11 @@ export function WindCompass({ direction, speed }) {
         })()}
         <circle cx={cx} cy={cy} r={3} fill={C.deepGreen} />
       </svg>
-      <div style={{ fontSize: 12, color: C.text, fontWeight: 600, marginTop: 2 }}>
+      <div className={styles.speed}>
         {speed != null ? `${Number(speed).toFixed(1)} km/h` : "—"}
       </div>
       {direction != null && (
-        <div style={{ fontSize: 10, color: C.muted }}>{direction}°</div>
+        <div className={styles.direction}>{direction}°</div>
       )}
     </div>
   );

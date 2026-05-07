@@ -1,0 +1,265 @@
+.container {
+  padding: 16px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.cardSpaced { margin-bottom: 12px; }
+
+.currentRow {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.currentTile { text-align: center; min-width: 64px; }
+.currentValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-family: 'Georgia', serif;
+  line-height: 1;
+}
+.currentUnit { font-size: 12px; font-weight: 400; }
+.currentLabel {
+  font-size: 10px;
+  color: var(--color-muted);
+  margin-top: 3px;
+}
+.connecting {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin-top: 6px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.varRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  margin-top: 6px;
+  margin-bottom: 12px;
+}
+.varCheck {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.controlsRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.dateGroup {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.dateLabel { font-size: 11px; color: var(--color-muted); }
+.dateInput {
+  border: 1px solid var(--color-mint);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--color-text);
+}
+.dateInputAmber {
+  border: 1px solid var(--color-amber);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--color-text);
+}
+.applyBtn {
+  padding: 5px 14px;
+  background: var(--color-deep-green);
+  color: var(--color-white);
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.applyBtnAmber {
+  padding: 5px 14px;
+  background: var(--color-amber);
+  color: var(--color-white);
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.resGroup { display: flex; gap: 12px; }
+.resLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.compareRow {
+  margin-top: 10px;
+  border-top: 1px solid var(--color-pale-mint);
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.compareCheck {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 600;
+}
+.amberHeader {
+  font-size: 11px;
+  color: var(--color-amber);
+  font-weight: 600;
+}
+
+.loading {
+  text-align: center;
+  padding: 24px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.periodLabelGreen {
+  font-size: 10px;
+  color: var(--color-deep-green);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.periodLabelAmberInChart {
+  font-size: 10px;
+  color: var(--color-amber);
+  font-weight: 600;
+  margin-top: 12px;
+  margin-bottom: 2px;
+}
+.noData {
+  font-size: 11px;
+  color: var(--color-muted);
+  padding: 8px;
+}
+
+.windRoseRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
+  margin-top: 8px;
+}
+.windRoseItem { text-align: center; }
+.windRoseLabelGreen {
+  font-size: 10px;
+  color: var(--color-deep-green);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.windRoseLabelAmber {
+  font-size: 10px;
+  color: var(--color-amber);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.windLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  margin-top: 8px;
+  justify-content: center;
+}
+.windLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--color-muted);
+}
+.windLegendSwatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.statsTable {
+  width: 100%;
+  font-size: 11px;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+.thVarRowSpan {
+  text-align: left;
+  color: var(--color-muted);
+  font-weight: 600;
+  padding-bottom: 2px;
+  font-size: 10px;
+}
+.thPeriodGreen {
+  text-align: center;
+  color: var(--color-deep-green);
+  font-weight: 600;
+  padding-bottom: 2px;
+  font-size: 10px;
+  border-bottom: 1px solid var(--color-pale-mint);
+}
+.thPeriodAmber {
+  text-align: center;
+  color: var(--color-amber);
+  font-weight: 600;
+  padding-bottom: 2px;
+  font-size: 10px;
+  border-bottom: 1px solid var(--color-pale-mint);
+}
+.thRight {
+  text-align: right;
+  color: var(--color-muted);
+  font-weight: 600;
+  padding-bottom: 4px;
+  font-size: 10px;
+}
+.thLeft {
+  text-align: left;
+  color: var(--color-muted);
+  font-weight: 600;
+  padding-bottom: 4px;
+  font-size: 10px;
+}
+.statRow { border-top: 1px solid var(--color-pale-mint); }
+.statName { color: var(--color-text); padding: 4px 0; }
+.statNum {
+  text-align: right;
+  font-family: monospace;
+  color: var(--color-text);
+}
+.statNumMuted {
+  text-align: right;
+  font-family: monospace;
+  color: var(--color-muted);
+}
+
+.empty {
+  color: var(--color-light-muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px 0;
+  line-height: 1.6;
+}

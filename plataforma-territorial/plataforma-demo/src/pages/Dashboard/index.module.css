@@ -1,0 +1,39 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 56px);
+}
+
+.tabBar {
+  display: flex;
+  border-bottom: 2px solid var(--color-mint);
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: 'Trebuchet MS', sans-serif;
+  color: var(--color-muted);
+  font-weight: 400;
+  border-radius: 6px 6px 0 0;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+.tabActive {
+  background: var(--color-white);
+  border-bottom-color: var(--color-deep-green);
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}

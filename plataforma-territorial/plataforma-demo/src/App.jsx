@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { C } from "./constants/colors.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
 import { NavBar } from "./components/NavBar.jsx";
 import { Observatorio } from "./pages/Observatorio.jsx";
 import { Dashboard } from "./pages/Dashboard/index.jsx";
 import { Asistente } from "./pages/Asistente.jsx";
 import { Reportes } from "./pages/Reportes.jsx";
+import styles from "./App.module.css";
 
 // TODO(future-cleanup): The decomposition of App.jsx (April 2026) deferred two
 // items from the planned `constants/` folder, both pending future architectural
@@ -24,7 +24,7 @@ export default function App() {
   const [page, setPage] = useState("observatorio");
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Trebuchet MS', 'Segoe UI', sans-serif" }}>
+    <div className={styles.shell}>
       <NavBar page={page} setPage={setPage} />
       <ErrorBoundary key={page}>
         {page === "observatorio" && <Observatorio />}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { C } from "../constants/colors.js";
 import { Card } from "../components/Card.jsx";
 import { SectionLabel } from "../components/SectionLabel.jsx";
+import styles from "./Reportes.module.css";
 
 // TODO(future-cleanup): `sampleDraft` is a template literal that interpolates
 // the `period` state, so it cannot be hoisted to a static constants module
@@ -9,6 +10,8 @@ import { SectionLabel } from "../components/SectionLabel.jsx";
 // Kept inside Reportes for the App.jsx decomposition (pure structural move).
 // When refining the frontend architecture, convert to a function and move to
 // `constants/demo_chat.js` (or similar).
+
+const DRAFT_CARD_STYLE = { display: "flex", flexDirection: "column" };
 
 export function Reportes() {
   const [generating, setGenerating] = useState(false);
@@ -43,60 +46,60 @@ Nota: Este borrador fue generado automaticamente a partir de los datos del repos
   };
 
   return (
-    <div style={{ padding: 16, height: "calc(100vh - 56px)", overflowY: "auto" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 16 }}>
+    <div className={styles.container}>
+      <div className={styles.layout}>
         {/* Config panel */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className={styles.column}>
           <Card>
             <SectionLabel>Configuracion</SectionLabel>
-            <div style={{ fontFamily: "'Georgia', serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Generar Reporte</div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Periodo</div>
+            <div className={styles.title}>Generar Reporte</div>
+            <div className={styles.formGroup}>
+              <div className={styles.formLabel}>Periodo</div>
               <select value={period} onChange={e => setPeriod(e.target.value)}
-                style={{ width: "100%", padding: "8px 10px", border: `1px solid ${C.mint}`, borderRadius: 6, fontSize: 13, background: C.white, color: C.text }}>
+                className={styles.select}>
                 <option>Febrero 2026</option>
                 <option>Enero 2026</option>
                 <option>Diciembre 2025</option>
               </select>
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Secciones a incluir</div>
+            <div className={styles.formGroup}>
+              <div className={styles.formLabel}>Secciones a incluir</div>
               {["Riesgo de incendio", "Meteorologia", "Fauna y camaras trampa", "Especies prioritarias"].map((s, i) => (
-                <label key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.text, marginBottom: 4, cursor: "pointer" }}>
+                <label key={i} className={styles.checkLabel}>
                   <input type="checkbox" defaultChecked /> {s}
                 </label>
               ))}
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Audiencia</div>
-              <select style={{ width: "100%", padding: "8px 10px", border: `1px solid ${C.mint}`, borderRadius: 6, fontSize: 13, background: C.white, color: C.text }}>
+            <div className={styles.formGroup}>
+              <div className={styles.formLabel}>Audiencia</div>
+              <select className={styles.select}>
                 <option>Equipo FMA (interna)</option>
                 <option>Socios de conservacion</option>
                 <option>Publico general</option>
               </select>
             </div>
             <button onClick={handleGenerate} disabled={generating}
+              className={styles.generateBtn}
               style={{
-                width: "100%", background: generating ? C.muted : C.deepGreen, color: C.white,
-                border: "none", borderRadius: 8, padding: "12px 0", cursor: generating ? "wait" : "pointer",
-                fontSize: 13, fontWeight: 700, transition: "background 0.2s",
+                background: generating ? C.muted : C.deepGreen,
+                cursor: generating ? "wait" : "pointer",
               }}>
               {generating ? "Generando..." : "Generar borrador"}
             </button>
           </Card>
           <Card>
             <SectionLabel>Importante</SectionLabel>
-            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6, marginTop: 6 }}>
+            <div className={styles.noticeBody}>
               La IA redacta un borrador a partir de los datos del periodo seleccionado. El equipo humano revisa, edita y decide si publicar. Este modulo es un acelerador de escritura, no un reemplazo.
             </div>
           </Card>
           <Card>
             <SectionLabel>Exportar</SectionLabel>
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <button style={{ flex: 1, padding: "8px 0", border: `1px solid ${C.mint}`, borderRadius: 6, background: C.white, color: C.text, fontSize: 11, cursor: "pointer" }}>
+            <div className={styles.exportRow}>
+              <button className={styles.exportBtn}>
                 Word .docx
               </button>
-              <button style={{ flex: 1, padding: "8px 0", border: `1px solid ${C.mint}`, borderRadius: 6, background: C.white, color: C.text, fontSize: 11, cursor: "pointer" }}>
+              <button className={styles.exportBtn}>
                 Copiar texto
               </button>
             </div>
@@ -104,30 +107,26 @@ Nota: Este borrador fue generado automaticamente a partir de los datos del repos
         </div>
 
         {/* Draft area */}
-        <Card style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <Card style={DRAFT_CARD_STYLE}>
+          <div className={styles.draftHeader}>
             <div>
               <SectionLabel>Borrador</SectionLabel>
-              <div style={{ fontFamily: "'Georgia', serif", fontSize: 15, fontWeight: 700, color: C.text }}>
+              <div className={styles.draftTitle}>
                 Reporte mensual — {period}
               </div>
             </div>
-            {draft && <div style={{ fontSize: 10, color: C.lightMuted, fontFamily: "monospace" }}>BORRADOR — REQUIERE REVISION</div>}
+            {draft && <div className={styles.draftBadge}>BORRADOR — REQUIERE REVISION</div>}
           </div>
           {draft ? (
             <textarea value={draft} onChange={e => setDraft(e.target.value)}
-              style={{
-                flex: 1, minHeight: 400, border: `1px solid ${C.mint}`, borderRadius: 8, padding: 16,
-                fontSize: 13, lineHeight: 1.8, color: C.text, fontFamily: "'Georgia', serif",
-                resize: "none", outline: "none", background: C.bg,
-              }}
+              className={styles.draftTextarea}
             />
           ) : (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400, color: C.lightMuted, fontSize: 14 }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>&#9998;</div>
+            <div className={styles.placeholder}>
+              <div className={styles.placeholderInner}>
+                <div className={styles.placeholderIcon}>&#9998;</div>
                 <div>Selecciona el periodo y haz clic en "Generar borrador"</div>
-                <div style={{ fontSize: 12, marginTop: 6 }}>El sistema consultara los datos del mes y redactara un resumen</div>
+                <div className={styles.placeholderHint}>El sistema consultara los datos del mes y redactara un resumen</div>
               </div>
             </div>
           )}

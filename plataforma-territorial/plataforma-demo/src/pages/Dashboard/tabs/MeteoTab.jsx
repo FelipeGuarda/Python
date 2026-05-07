@@ -12,6 +12,7 @@ import {
 import { Card } from "../../../components/Card.jsx";
 import { SectionLabel } from "../../../components/SectionLabel.jsx";
 import { WindRose } from "../../../components/WindRose.jsx";
+import styles from "./MeteoTab.module.css";
 
 const MONTHS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
@@ -136,15 +137,15 @@ export function MeteoTab() {
   };
 
   return (
-    <div style={{ padding: 16, overflowY: "auto", height: "100%" }}>
+    <div className={styles.container}>
       {/* Current conditions */}
-      <Card style={{ marginBottom: 12 }}>
+      <Card className={styles.cardSpaced}>
         <SectionLabel>
           Última medición
           {current?.timestamp ? ` — ${new Date(current.timestamp).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })}` : ""}
         </SectionLabel>
         {current ? (
-          <div style={{ display: "flex", gap: 28, flexWrap: "wrap", marginTop: 6 }}>
+          <div className={styles.currentRow}>
             {[
               { v: current.temperature_air,     decimals: 1, u: "°C",   l: "Temperatura" },
               { v: current.relative_humidity,   decimals: 0, u: "%",    l: "Humedad" },
@@ -153,51 +154,51 @@ export function MeteoTab() {
               { v: current.precipitation,       decimals: 1, u: " mm",  l: "Precip. 15min" },
               { v: current.solar_radiation,     decimals: 0, u: " W/m²",l: "Radiación solar" },
             ].map(item => item.v != null && (
-              <div key={item.l} style={{ textAlign: "center", minWidth: 64 }}>
-                <div style={{ fontSize: 20, fontWeight: 700, color: C.text, fontFamily: "'Georgia', serif", lineHeight: 1 }}>
-                  {Number(item.v).toFixed(item.decimals)}<span style={{ fontSize: 12, fontWeight: 400 }}>{item.u}</span>
+              <div key={item.l} className={styles.currentTile}>
+                <div className={styles.currentValue}>
+                  {Number(item.v).toFixed(item.decimals)}<span className={styles.currentUnit}>{item.u}</span>
                 </div>
-                <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>{item.l}</div>
+                <div className={styles.currentLabel}>{item.l}</div>
               </div>
             ))}
           </div>
         ) : (
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>Conectando con la API...</div>
+          <div className={styles.connecting}>Conectando con la API...</div>
         )}
       </Card>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className={styles.stack}>
           {/* Controls */}
           <Card>
             <SectionLabel>Variables</SectionLabel>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 14px", marginTop: 6, marginBottom: 12 }}>
+            <div className={styles.varRow}>
               {WEATHER_VARS.map(v => (
-                <label key={v.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: C.text, cursor: "pointer" }}>
+                <label key={v.id} className={styles.varCheck}>
                   <input type="checkbox" checked={selectedVars.includes(v.id)} onChange={() => toggleVar(v.id)} />
                   {v.label}
                 </label>
               ))}
-              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: C.text, cursor: "pointer" }}>
+              <label className={styles.varCheck}>
                 <input type="checkbox" checked={showWind} onChange={() => setShowWind(v => !v)} />
                 Rosa de vientos
               </label>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: C.muted }}>Desde:</span>
+            <div className={styles.controlsRow}>
+              <div className={styles.dateGroup}>
+                <span className={styles.dateLabel}>Desde:</span>
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                  style={{ border: `1px solid ${C.mint}`, borderRadius: 4, padding: "4px 8px", fontSize: 12, color: C.text }} />
-                <span style={{ fontSize: 11, color: C.muted }}>Hasta:</span>
+                  className={styles.dateInput} />
+                <span className={styles.dateLabel}>Hasta:</span>
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-                  style={{ border: `1px solid ${C.mint}`, borderRadius: 4, padding: "4px 8px", fontSize: 12, color: C.text }} />
+                  className={styles.dateInput} />
                 <button onClick={() => setAppliedDates({ start: startDate, end: endDate })}
-                  style={{ padding: "5px 14px", background: C.deepGreen, color: C.white, border: "none", borderRadius: 4, fontSize: 12, cursor: "pointer" }}>
+                  className={styles.applyBtn}>
                   Aplicar
                 </button>
               </div>
-              <div style={{ display: "flex", gap: 12 }}>
+              <div className={styles.resGroup}>
                 {RESOLUTIONS.map(r => (
-                  <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: C.text, cursor: "pointer" }}>
+                  <label key={r.id} className={styles.resLabel}>
                     <input type="radio" name="resolution" value={r.id} checked={resolution === r.id} onChange={() => setResolution(r.id)} />
                     {r.label}
                   </label>
@@ -206,22 +207,22 @@ export function MeteoTab() {
             </div>
 
             {/* Comparison mode toggle + Period 2 date range */}
-            <div style={{ marginTop: 10, borderTop: `1px solid ${C.paleMint}`, paddingTop: 10, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: C.text, cursor: "pointer", fontWeight: 600 }}>
+            <div className={styles.compareRow}>
+              <label className={styles.compareCheck}>
                 <input type="checkbox" checked={compareMode} onChange={() => setCompareMode(v => !v)} />
                 Comparar períodos
               </label>
               {compareMode && (
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <span style={{ fontSize: 11, color: C.amber, fontWeight: 600 }}>Período 2:</span>
-                  <span style={{ fontSize: 11, color: C.muted }}>Desde:</span>
+                <div className={styles.dateGroup}>
+                  <span className={styles.amberHeader}>Período 2:</span>
+                  <span className={styles.dateLabel}>Desde:</span>
                   <input type="date" value={startDate2} onChange={e => setStartDate2(e.target.value)}
-                    style={{ border: `1px solid ${C.amber}`, borderRadius: 4, padding: "4px 8px", fontSize: 12, color: C.text }} />
-                  <span style={{ fontSize: 11, color: C.muted }}>Hasta:</span>
+                    className={styles.dateInputAmber} />
+                  <span className={styles.dateLabel}>Hasta:</span>
                   <input type="date" value={endDate2} onChange={e => setEndDate2(e.target.value)}
-                    style={{ border: `1px solid ${C.amber}`, borderRadius: 4, padding: "4px 8px", fontSize: 12, color: C.text }} />
+                    className={styles.dateInputAmber} />
                   <button onClick={() => setAppliedDates2({ start: startDate2, end: endDate2 })}
-                    style={{ padding: "5px 14px", background: C.amber, color: C.white, border: "none", borderRadius: 4, fontSize: 12, cursor: "pointer" }}>
+                    className={styles.applyBtnAmber}>
                     Aplicar
                   </button>
                 </div>
@@ -230,7 +231,7 @@ export function MeteoTab() {
           </Card>
 
           {(loading || (compareMode && loading2)) && (
-            <div style={{ textAlign: "center", padding: 24, color: C.muted, fontSize: 13 }}>Cargando datos...</div>
+            <div className={styles.loading}>Cargando datos...</div>
           )}
 
           {/* Per-variable charts */}
@@ -241,7 +242,7 @@ export function MeteoTab() {
             if (chartData.length === 0 && chartData2.length === 0) return null;
             return (
               <Card key={varId}>
-                {compareMode && <div style={{ fontSize: 10, color: C.deepGreen, fontWeight: 600, marginBottom: 2 }}>Período 1</div>}
+                {compareMode && <div className={styles.periodLabelGreen}>Período 1</div>}
                 <SectionLabel>{conf.label} ({conf.unit})</SectionLabel>
                 {chartData.length > 0 && (
                   <ResponsiveContainer width="100%" height={150}>
@@ -250,13 +251,13 @@ export function MeteoTab() {
                 )}
                 {compareMode && (
                   <>
-                    <div style={{ fontSize: 10, color: C.amber, fontWeight: 600, marginTop: 12, marginBottom: 2 }}>Período 2</div>
+                    <div className={styles.periodLabelAmberInChart}>Período 2</div>
                     {chartData2.length > 0 ? (
                       <ResponsiveContainer width="100%" height={150}>
                         {renderVarChart(varId, chartData2, C.amber)}
                       </ResponsiveContainer>
                     ) : !loading2 && (
-                      <div style={{ fontSize: 11, color: C.muted, padding: 8 }}>Sin datos para este período</div>
+                      <div className={styles.noData}>Sin datos para este período</div>
                     )}
                   </>
                 )}
@@ -267,24 +268,24 @@ export function MeteoTab() {
           {showWind && (windRose || (compareMode && windRose2)) && (
             <Card>
               <SectionLabel>Rosa de vientos</SectionLabel>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 24, justifyContent: "center", marginTop: 8 }}>
+              <div className={styles.windRoseRow}>
                 {windRose && (
-                  <div style={{ textAlign: "center" }}>
-                    {compareMode && <div style={{ fontSize: 10, color: C.deepGreen, fontWeight: 600, marginBottom: 4 }}>Período 1</div>}
+                  <div className={styles.windRoseItem}>
+                    {compareMode && <div className={styles.windRoseLabelGreen}>Período 1</div>}
                     <WindRose data={windRose} size={compareMode ? 280 : 350} />
                   </div>
                 )}
                 {compareMode && windRose2 && (
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 10, color: C.amber, fontWeight: 600, marginBottom: 4 }}>Período 2</div>
+                  <div className={styles.windRoseItem}>
+                    <div className={styles.windRoseLabelAmber}>Período 2</div>
                     <WindRose data={windRose2} size={280} />
                   </div>
                 )}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 8px", marginTop: 8, justifyContent: "center" }}>
+              <div className={styles.windLegend}>
                 {["0–3","3–6","6–9","9–12","12–15","≥15"].map((r, i) => (
-                  <div key={r} style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: C.muted }}>
-                    <div style={{ width: 9, height: 9, borderRadius: 2, background: WIND_SPEED_COLORS[i], flexShrink: 0 }} />
+                  <div key={r} className={styles.windLegendItem}>
+                    <div className={styles.windLegendSwatch} style={{ background: WIND_SPEED_COLORS[i] }} />
                     {r} km/h
                   </div>
                 ))}
@@ -295,25 +296,25 @@ export function MeteoTab() {
           {!loading && (Object.keys(stats).length > 0 || (compareMode && !loading2 && Object.keys(stats2).length > 0)) && (
             <Card>
               <SectionLabel>Estadísticas del período</SectionLabel>
-              <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", marginTop: 8 }}>
+              <table className={styles.statsTable}>
                 <thead>
                   {compareMode ? (
                     <>
                       <tr>
-                        <th style={{ textAlign: "left", color: C.muted, fontWeight: 600, paddingBottom: 2, fontSize: 10 }} rowSpan={2}>Variable</th>
-                        <th style={{ textAlign: "center", color: C.deepGreen, fontWeight: 600, paddingBottom: 2, fontSize: 10, borderBottom: `1px solid ${C.paleMint}` }} colSpan={3}>Período 1</th>
-                        <th style={{ textAlign: "center", color: C.amber, fontWeight: 600, paddingBottom: 2, fontSize: 10, borderBottom: `1px solid ${C.paleMint}` }} colSpan={3}>Período 2</th>
+                        <th className={styles.thVarRowSpan} rowSpan={2}>Variable</th>
+                        <th className={styles.thPeriodGreen} colSpan={3}>Período 1</th>
+                        <th className={styles.thPeriodAmber} colSpan={3}>Período 2</th>
                       </tr>
                       <tr>
                         {["Media", "Mín", "Máx", "Media", "Mín", "Máx"].map((h, i) => (
-                          <th key={`${h}-${i}`} style={{ textAlign: "right", color: C.muted, fontWeight: 600, paddingBottom: 4, fontSize: 10 }}>{h}</th>
+                          <th key={`${h}-${i}`} className={styles.thRight}>{h}</th>
                         ))}
                       </tr>
                     </>
                   ) : (
                     <tr>
                       {["Variable", "Media", "Mín", "Máx"].map(h => (
-                        <th key={h} style={{ textAlign: h === "Variable" ? "left" : "right", color: C.muted, fontWeight: 600, paddingBottom: 4, fontSize: 10 }}>{h}</th>
+                        <th key={h} className={h === "Variable" ? styles.thLeft : styles.thRight}>{h}</th>
                       ))}
                     </tr>
                   )}
@@ -323,16 +324,16 @@ export function MeteoTab() {
                     const s1 = stats[key];
                     const s2 = compareMode ? stats2[key] : null;
                     return (
-                      <tr key={key} style={{ borderTop: `1px solid ${C.paleMint}` }}>
-                        <td style={{ color: C.text, padding: "4px 0" }}>{VAR_FRIENDLY[key] || key}</td>
-                        <td style={{ textAlign: "right", fontFamily: "monospace", color: C.text }}>{s1?.mean?.toFixed(1) ?? "—"}</td>
-                        <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s1?.min?.toFixed(1) ?? "—"}</td>
-                        <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s1?.max?.toFixed(1) ?? "—"}</td>
+                      <tr key={key} className={styles.statRow}>
+                        <td className={styles.statName}>{VAR_FRIENDLY[key] || key}</td>
+                        <td className={styles.statNum}>{s1?.mean?.toFixed(1) ?? "—"}</td>
+                        <td className={styles.statNumMuted}>{s1?.min?.toFixed(1) ?? "—"}</td>
+                        <td className={styles.statNumMuted}>{s1?.max?.toFixed(1) ?? "—"}</td>
                         {compareMode && (
                           <>
-                            <td style={{ textAlign: "right", fontFamily: "monospace", color: C.text }}>{s2?.mean?.toFixed(1) ?? "—"}</td>
-                            <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s2?.min?.toFixed(1) ?? "—"}</td>
-                            <td style={{ textAlign: "right", fontFamily: "monospace", color: C.muted }}>{s2?.max?.toFixed(1) ?? "—"}</td>
+                            <td className={styles.statNum}>{s2?.mean?.toFixed(1) ?? "—"}</td>
+                            <td className={styles.statNumMuted}>{s2?.min?.toFixed(1) ?? "—"}</td>
+                            <td className={styles.statNumMuted}>{s2?.max?.toFixed(1) ?? "—"}</td>
                           </>
                         )}
                       </tr>
@@ -345,7 +346,7 @@ export function MeteoTab() {
 
           {!showWind && !loading && Object.keys(stats).length === 0 && (
             <Card>
-              <div style={{ color: C.lightMuted, fontSize: 12, textAlign: "center", padding: "24px 0", lineHeight: 1.6 }}>
+              <div className={styles.empty}>
                 Selecciona variables,<br />define el período<br />y haz clic en Aplicar.
               </div>
             </Card>
