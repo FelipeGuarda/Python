@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-05-06
+**Last updated:** 2026-05-07
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
 
@@ -106,7 +106,7 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 **dist/ sync fix (2026-03-31):** Removed `dist` from `.gitignore`. Built frontend is now committed to git. Both machines get the same compiled UI via `git pull` — no per-machine rebuild needed.
 
-**Code review (2026-04-21 → 2026-04-29):** Full review of Blocks 3-5 complete; artifacts in `~/Documents/Obsidian FG/SecondBrain/Reviews/`. Track B closed the station-registry + species-catalog cross-project chains (W11/W23/W32/W33/W47/W51 map-center half). **Track C closed (2026-04-29):** W41 App.jsx 1805→37 line decomposition into 24 modules under `src/{constants,hooks,components,pages,pages/Dashboard/tabs}/`; pure structural move, build clean, two items deferred (chart_defaults extraction + Asistente `chatMessages` runtime fix) and logged as TODOs in the new App.jsx. New endpoints: `/api/config/geography`, `/api/config/species`. Track A (CR800 backfill safety) still queued. **2026-05-06:** S52 (`_loc_to_export_id()` helper in detections.py), S54 (/forecast docstring), S60 (ErrorBoundary `componentDidCatch`), S61 (MONTHS module scope in MeteoTab), S74 (`VITE_API_BASE` env override in vite.config.js). Review state fully synced (29 JSON entries updated).
+**Code review (2026-04-21 → 2026-04-29):** Full review of Blocks 3-5 complete; artifacts in `~/Documents/Obsidian FG/SecondBrain/Reviews/`. Track B closed the station-registry + species-catalog cross-project chains (W11/W23/W32/W33/W47/W51 map-center half). **Track C closed (2026-04-29):** W41 App.jsx 1805→37 line decomposition into 24 modules under `src/{constants,hooks,components,pages,pages/Dashboard/tabs}/`; pure structural move, build clean, two items deferred (chart_defaults extraction + Asistente `chatMessages` runtime fix) and logged as TODOs in the new App.jsx. New endpoints: `/api/config/geography`, `/api/config/species`. Track A (CR800 backfill safety) still queued. **2026-05-06:** S52 (`_loc_to_export_id()` helper in detections.py), S54 (/forecast docstring), S60 (ErrorBoundary `componentDidCatch`), S61 (MONTHS module scope in MeteoTab), S74 (`VITE_API_BASE` env override in vite.config.js). Review state fully synced (29 JSON entries updated). **2026-05-07:** S67 fully closed and W44 chart slice closed via new `src/styles/chart.js` (7 frozen Recharts-prop constants consumed by all 4 chart tabs); layout-side W44 (~150 inline `style={{}}` sites) still open and parked for a future styling-engine pass (CSS Modules / Tailwind).
 
 | Component | Status | Notes |
 |---|---|---|

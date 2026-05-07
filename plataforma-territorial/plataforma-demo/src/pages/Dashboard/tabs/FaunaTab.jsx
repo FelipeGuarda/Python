@@ -1,5 +1,12 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { C } from "../../../constants/colors.js";
+import {
+  CHART_TICK_MD,
+  CHART_TICK_CAT,
+  CHART_AXIS_LINE,
+  CHART_GRID,
+  CHART_TOOLTIP,
+} from "../../../styles/chart.js";
 import { Card } from "../../../components/Card.jsx";
 import { SectionLabel } from "../../../components/SectionLabel.jsx";
 import { StatBlock } from "../../../components/StatBlock.jsx";
@@ -11,10 +18,10 @@ export function FaunaTab({ speciesChartData, speciesApiData, ctStats, isInvasive
         <SectionLabel>Detecciones por especie (ultimo mes)</SectionLabel>
         <ResponsiveContainer width="100%" height={320}>
           <BarChart data={speciesChartData} layout="vertical" margin={{ left: 100 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} horizontal={false} />
-            <XAxis type="number" tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
-            <YAxis type="category" dataKey="nombre" tick={{ fontSize: 11, fill: C.text }} axisLine={{ stroke: C.mint }} width={100} />
-            <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }} />
+            <CartesianGrid {...CHART_GRID} horizontal={false} />
+            <XAxis type="number" tick={CHART_TICK_MD} axisLine={CHART_AXIS_LINE} />
+            <YAxis type="category" dataKey="nombre" tick={CHART_TICK_CAT} axisLine={CHART_AXIS_LINE} width={100} />
+            <Tooltip contentStyle={CHART_TOOLTIP} />
             <Bar dataKey="detecciones" radius={[0, 4, 4, 0]} name="Detecciones">
               {speciesChartData.map((entry, i) => {
                 const fill = isPriority(entry.nombre) ? C.amber

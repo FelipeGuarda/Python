@@ -3,6 +3,12 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { getWeatherCurrent, getWeatherHistoryRange } from "../../../api.js";
 import { C } from "../../../constants/colors.js";
 import { WEATHER_VARS, WIND_SPEED_COLORS, RESOLUTIONS, VAR_FRIENDLY } from "../../../constants/weather_vars.js";
+import {
+  CHART_TICK_SM,
+  CHART_AXIS_LINE,
+  CHART_GRID,
+  CHART_TOOLTIP_BORDERED,
+} from "../../../styles/chart.js";
 import { Card } from "../../../components/Card.jsx";
 import { SectionLabel } from "../../../components/SectionLabel.jsx";
 import { WindRose } from "../../../components/WindRose.jsx";
@@ -98,11 +104,11 @@ export function MeteoTab() {
   };
   const commonXAxis = (
     <XAxis dataKey="timestamp" tickFormatter={tickFmt}
-      tick={{ fontSize: 9, fill: C.muted }} interval="preserveStartEnd"
-      axisLine={{ stroke: C.mint }} tickLine={false} />
+      tick={CHART_TICK_SM} interval="preserveStartEnd"
+      axisLine={CHART_AXIS_LINE} tickLine={false} />
   );
   const commonTooltip = (label, unit) => (
-    <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11, border: `1px solid ${C.mint}` }}
+    <Tooltip contentStyle={CHART_TOOLTIP_BORDERED}
       labelFormatter={tickFmt}
       formatter={v => [v != null ? v.toFixed(2) : "—", label]} />
   );
@@ -112,17 +118,17 @@ export function MeteoTab() {
     const color = colorOverride || conf.color;
     return conf.type === "bar" ? (
       <BarChart data={data} {...commonChartProps}>
-        <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+        <CartesianGrid {...CHART_GRID} />
         {commonXAxis}
-        <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit={` ${conf.unit}`} width={52} />
+        <YAxis tick={CHART_TICK_SM} axisLine={CHART_AXIS_LINE} tickLine={false} unit={` ${conf.unit}`} width={52} />
         {commonTooltip(conf.label, conf.unit)}
         <Bar dataKey={varId} fill={color} radius={[2, 2, 0, 0]} />
       </BarChart>
     ) : (
       <LineChart data={data} {...commonChartProps}>
-        <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
+        <CartesianGrid {...CHART_GRID} />
         {commonXAxis}
-        <YAxis tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} tickLine={false} unit={` ${conf.unit}`} width={52} />
+        <YAxis tick={CHART_TICK_SM} axisLine={CHART_AXIS_LINE} tickLine={false} unit={` ${conf.unit}`} width={52} />
         {commonTooltip(conf.label, conf.unit)}
         <Line type="linear" dataKey={varId} stroke={color} strokeWidth={1.5} dot={false} connectNulls={false} />
       </LineChart>

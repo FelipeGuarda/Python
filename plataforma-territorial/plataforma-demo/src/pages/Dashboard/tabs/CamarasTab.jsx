@@ -1,5 +1,13 @@
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { C, SP_COLORS } from "../../../constants/colors.js";
+import {
+  CHART_TICK_SM,
+  CHART_TICK_MD,
+  CHART_TICK_CAT,
+  CHART_AXIS_LINE,
+  CHART_GRID,
+  CHART_TOOLTIP,
+} from "../../../styles/chart.js";
 import { Card } from "../../../components/Card.jsx";
 import { SectionLabel } from "../../../components/SectionLabel.jsx";
 import { StatBlock } from "../../../components/StatBlock.jsx";
@@ -21,10 +29,10 @@ export function CamarasTab({
           <SectionLabel>Actividad por hora del día</SectionLabel>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={dielData || []} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-              <XAxis dataKey="hora" tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} interval={2} />
-              <YAxis tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
-              <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }} formatter={(v) => [v, "Detecciones"]} />
+              <CartesianGrid {...CHART_GRID} />
+              <XAxis dataKey="hora" tick={CHART_TICK_SM} axisLine={CHART_AXIS_LINE} interval={2} />
+              <YAxis tick={CHART_TICK_MD} axisLine={CHART_AXIS_LINE} />
+              <Tooltip contentStyle={CHART_TOOLTIP} formatter={(v) => [v, "Detecciones"]} />
               <Bar dataKey="actividad" fill={C.deepGreen} radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -136,12 +144,12 @@ export function CamarasTab({
                   <stop offset="95%" stopColor={SP_COLORS[1]} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} />
-              <XAxis dataKey="hour" tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }}
+              <CartesianGrid {...CHART_GRID} />
+              <XAxis dataKey="hour" tick={CHART_TICK_SM} axisLine={CHART_AXIS_LINE}
                 tickFormatter={h => `${String(h).padStart(2, "0")}h`} interval={2} />
-              <YAxis tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
+              <YAxis tick={CHART_TICK_MD} axisLine={CHART_AXIS_LINE} />
               <Tooltip
-                contentStyle={{ borderRadius: 6, fontSize: 11 }}
+                contentStyle={CHART_TOOLTIP}
                 labelFormatter={h => `${String(h).padStart(2, "0")}:00 h`}
                 formatter={(v, key) => [v, key === "sp1" ? overlapData.sp1_name : overlapData.sp2_name]}
               />
@@ -196,12 +204,12 @@ export function CamarasTab({
           <ResponsiveContainer width="100%" height={Math.max(180, speciesList.length * 22)}>
             <BarChart data={speciesList} layout="vertical"
               margin={{ left: 150, right: 50, top: 4, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: C.muted }}
-                axisLine={{ stroke: C.mint }} tickFormatter={v => `${v}%`} />
-              <YAxis type="category" dataKey="common_name" tick={{ fontSize: 11, fill: C.text }}
-                axisLine={{ stroke: C.mint }} width={150} />
-              <Tooltip contentStyle={{ borderRadius: 6, fontSize: 11 }}
+              <CartesianGrid {...CHART_GRID} horizontal={false} />
+              <XAxis type="number" domain={[0, 100]} tick={CHART_TICK_MD}
+                axisLine={CHART_AXIS_LINE} tickFormatter={v => `${v}%`} />
+              <YAxis type="category" dataKey="common_name" tick={CHART_TICK_CAT}
+                axisLine={CHART_AXIS_LINE} width={150} />
+              <Tooltip contentStyle={CHART_TOOLTIP}
                 formatter={(v, _n, p) => [`${v}% (${p.payload.n_stations}/${totalStations ?? "…"} estaciones)`, "Ocupación"]} />
               <Bar dataKey="occupancy_pct" radius={[0, 4, 4, 0]}
                 label={{ position: "right", fontSize: 10, fill: C.muted,

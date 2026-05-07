@@ -1,5 +1,12 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Cell } from "recharts";
 import { C } from "../../../constants/colors.js";
+import {
+  CHART_TICK_SM,
+  CHART_TICK_MD,
+  CHART_AXIS_LINE,
+  CHART_GRID,
+  CHART_TOOLTIP_BORDERED,
+} from "../../../styles/chart.js";
 import { Card } from "../../../components/Card.jsx";
 import { SectionLabel } from "../../../components/SectionLabel.jsx";
 import { PolarContrib } from "../../../components/PolarContrib.jsx";
@@ -83,11 +90,11 @@ export function RiesgoTab({ riskCurrent, riskTotal, mlVal, wx, windowData, today
         </div>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={windowData} margin={{ top: 16, right: 12, left: 0, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={C.paleMint} vertical={false} />
-            <XAxis dataKey="diaLabel" tick={{ fontSize: 9, fill: C.muted }} axisLine={{ stroke: C.mint }} interval={0} />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: C.muted }} axisLine={{ stroke: C.mint }} />
+            <CartesianGrid {...CHART_GRID} vertical={false} />
+            <XAxis dataKey="diaLabel" tick={CHART_TICK_SM} axisLine={CHART_AXIS_LINE} interval={0} />
+            <YAxis domain={[0, 100]} tick={CHART_TICK_MD} axisLine={CHART_AXIS_LINE} />
             <Tooltip
-              contentStyle={{ borderRadius: 6, border: `1px solid ${C.mint}`, fontSize: 11 }}
+              contentStyle={CHART_TOOLTIP_BORDERED}
               formatter={(v, name) => [v ?? "—", "FRI"]}
               labelFormatter={(label, payload) => {
                 const d = payload?.[0]?.payload;
