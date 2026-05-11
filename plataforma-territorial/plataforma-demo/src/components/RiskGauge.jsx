@@ -1,14 +1,12 @@
 import { C } from "../constants/colors.js";
 import styles from "./RiskGauge.module.css";
 
-export function RiskGauge({ value, color: colorProp = null, compact = false }) {
-  const getColor = (v) =>
-    v >= 90 ? "#b71c1c" : v >= 80 ? "#e53935" : v >= 60 ? "#fb8c00" :
-    v >= 40 ? "#fbc02d" : v >= 20 ? "#c0ca33" : "#2e7d32";
-  const getLabel = (v) =>
-    v >= 90 ? "EXTREMO" : v >= 80 ? "MUY ALTO" : v >= 60 ? "ALTO" :
-    v >= 40 ? "MODERADO" : v >= 20 ? "MOD-BAJO" : "BAJO";
-  const color = colorProp || getColor(value);
+export function RiskGauge({ value, color: colorProp = null, label: labelProp = null, compact = false }) {
+  // Color + label come from the backend (fire_risk.py risk_components()), which is
+  // the single source of truth for the risk scale. Fall back to muted gray + "—"
+  // when no data is available (e.g. backend unreachable on first render).
+  const color = colorProp ?? C.muted;
+  const label = labelProp ?? "—";
   const angle = (value / 100) * 180;
   const w = compact ? 120 : 180;
   const h = compact ? 67 : 100;
@@ -22,7 +20,7 @@ export function RiskGauge({ value, color: colorProp = null, compact = false }) {
         <text x="90" y="92" textAnchor="middle" fontSize="10" fill={C.muted}>/100</text>
       </svg>
       <div className={`${styles.label} ${compact ? styles.labelCompact : styles.labelRegular}`} style={{ color }}>
-        {getLabel(value)}
+        {label}
       </div>
     </div>
   );

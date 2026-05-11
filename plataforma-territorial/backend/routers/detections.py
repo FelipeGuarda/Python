@@ -1,14 +1,13 @@
 """Camera trap detection endpoints."""
 
 import logging
-import os
 import time
 from collections import defaultdict
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 
 from ..db import get_connection
+from ..paths import ct_exports_dir
 from ..species import load_species
 from ..stations import tc_coords as _load_tc_coords
 
@@ -20,10 +19,7 @@ router = APIRouter(prefix="/api/detections", tags=["detections"])
 _COMMON_NAMES: dict[str, str] = {sp["latin"]: sp["spanish"] for sp in load_species()}
 
 # Station image exports live in the camera-traps repo (gitignored, large files).
-# Default: sibling repo layout on Linux — /home/fguarda/Dev/Python/camera-traps/exports
-# Override with CT_EXPORTS_DIR env var if the path differs.
-_DEFAULT_EXPORTS = Path(__file__).resolve().parents[3] / "camera-traps" / "exports"
-_CT_EXPORTS_DIR = Path(os.getenv("CT_EXPORTS_DIR", str(_DEFAULT_EXPORTS)))
+_CT_EXPORTS_DIR = ct_exports_dir()
 
 # Canonical TC camera locations from plataforma-territorial/data/stations.yaml.
 # Used so the Observatorio map shows all deployed cameras even if the reviewed

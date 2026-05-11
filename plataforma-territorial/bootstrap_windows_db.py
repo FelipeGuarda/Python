@@ -20,10 +20,15 @@ import duckdb
 import pandas as pd
 import requests
 
+from backend.stations import weather_station
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
-LAT = -39.61
-LON = -71.71
+# Canonical weather-station coords come from plataforma-territorial/data/stations.yaml.
+# STATION_ID is the data-pipeline DB primary key (independent of stations.yaml's id field).
+_WS = weather_station()
+LAT = _WS["lat"]
+LON = _WS["lon"]
 STATION_ID = "bosque_pehuen"
 
 # DB lives one level up (same location the backend expects)

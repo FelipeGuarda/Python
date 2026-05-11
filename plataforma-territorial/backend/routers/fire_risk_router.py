@@ -17,23 +17,23 @@ def _compute_days_without_rain(con, threshold_mm: float = 2.0) -> int:
     Uses full daily totals (all hours), not just a peak-hour window.
     Includes today's full forecast but excludes future days.
     """
-    rows = con.execute("""
-        SELECT
-            CAST(timestamp AS DATE) as day,
-            SUM(precipitation) as total_precip
-        FROM weather_forecast
-        WHERE CAST(timestamp AS DATE) <= CURRENT_DATE
-        GROUP BY CAST(timestamp AS DATE)
-        ORDER BY day DESC
-    """).fetchall()
-    if not rows:
-        return 0
-    count = 0
-    for day, precip in rows:
-        if precip is not None and precip > threshold_mm:
-            break
-        count += 1
-    return count
+    row = con.execute("""
+        WITH daily AS (
+            SELECT
+                CAST(timestamp AS DATE) AS day,
+                SUM(precipitation)      AS total_precip
+            FROM weather_forecast
+            WHERE CAST(timestamp AS DATE) <= CURRENT_DATE
+            GROUP BY 1
+        )
+        SELECT COUNT(*)
+        FROM daily
+        WHERE day > COALESCE(
+            (SELECT MAX(day) FROM daily WHERE total_precip > ?),
+            DATE '1970-01-01'
+        )
+    """, [threshold_mm]).fetchone()
+    return int(row[0]) if row else 0
 
 
 @router.get("/current")

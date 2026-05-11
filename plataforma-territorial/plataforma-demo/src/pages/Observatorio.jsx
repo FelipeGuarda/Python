@@ -192,12 +192,11 @@ export function Observatorio() {
         </Card>
         <Card>
           <SectionLabel>Riesgo de incendio</SectionLabel>
-          <RiskGauge value={riskTotal ?? 0} />
-          {riskData?.rule_based?.label && (
-            <div className={styles.riskLabel}>
-              {riskData.rule_based.label}
-            </div>
-          )}
+          <RiskGauge
+            value={riskTotal ?? 0}
+            color={riskData?.rule_based?.color}
+            label={riskData?.rule_based?.label}
+          />
           {riskData?.timestamp && (
             <div className={styles.riskTimestamp}>
               {new Date(riskData.timestamp).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}{" "}

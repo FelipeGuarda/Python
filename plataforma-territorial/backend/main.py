@@ -23,6 +23,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from .paths import ct_exports_dir
 from .routers import config_router, detections, fire_risk_router, weather
 
 logger = logging.getLogger(__name__)
@@ -30,9 +31,7 @@ logger = logging.getLogger(__name__)
 DIST_DIR = Path(__file__).resolve().parent.parent / "plataforma-demo" / "dist"
 
 # Camera trap image exports — served at /ct-images/<campaign>/stations/<station>/<file>
-# Same default path logic as detections.py; override with CT_EXPORTS_DIR env var.
-_DEFAULT_CT_EXPORTS = Path(__file__).resolve().parents[2] / "camera-traps" / "exports"
-CT_EXPORTS_DIR = Path(os.getenv("CT_EXPORTS_DIR", str(_DEFAULT_CT_EXPORTS)))
+CT_EXPORTS_DIR = ct_exports_dir()
 
 app = FastAPI(
     title="FMA Plataforma Territorial API",

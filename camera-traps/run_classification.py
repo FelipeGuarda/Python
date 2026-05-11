@@ -62,44 +62,19 @@ def row_file_path(row: dict) -> str:
     return fp.replace("\\", "/").lower()
 
 
-def main(config_path: str) -> None:
-    with open(config_path, encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-
-    campaign_dir = Path(config["campaign_dir"])
-
-    # ── Load image list ───────────────────────────────────────────────────────
-    print("Loading data sources …")
-    images   = load_animal_images(config)
-    n_md     = sum(1 for i in images if i["source"] == "megadetector")
-    n_csv    = sum(1 for i in images if i["source"] == "csv_only")
-    print(f"  {len(images)} images to classify  "
-          f"({n_md} MD detections >={config['animal_confidence_threshold']}, "
-          f"{n_csv} CSV-only / no MD bbox)")
-
-    if not images:
-        print("Nothing to classify. Check input_csv path and megadetector_json in config.yaml.")
-        return
-
-    # ── Load CLIP ─────────────────────────────────────────────────────────────
-    print("Loading CLIP model …")
-    classifier = CLIPZeroShotClassifier(
-        model_name=config["clip_model"],
-        species_list=clip_species(),
-    )
-
-    # ── Classify ──────────────────────────────────────────────────────────────
-    timestamp      = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-    clip_threshold = float(config.get("clip_confidence_threshold", 0.0))
-    # key: normalised relative path  →  classification result
+def classify_all(
+    images: list[dict],
+    classifier: CLIPZeroShotClassifier,
+    batch_size: int,
+    clip_threshold: float,
+) -> dict[str, dict]:
+    """Run CLIP over the given image list. Returns {normalised_file_path: {latin, spanish, score}}."""
     fp_to_result: dict[str, dict] = {}
-    skipped  = 0
+    skipped = 0
     low_conf = 0
 
-    batch_size = int(config.get("clip_batch_size", 32))
-
     print("Loading crops …")
-    to_classify = []
+    to_classify: list[tuple[str, object]] = []
     for img_info in tqdm(images, unit="img"):
         crop = load_and_crop(img_info["full_path"], img_info["bbox"])
         if crop is None:
@@ -123,11 +98,17 @@ def main(config_path: str) -> None:
     print(f"  Classified: {len(fp_to_result)}  |  "
           f"Low confidence (<{clip_threshold}): {low_conf}  |  "
           f"Skipped (unreadable): {skipped}")
+    return fp_to_result
 
-    # ── Update CSV ────────────────────────────────────────────────────────────
-    input_csv  = campaign_dir / config["input_csv"]
-    output_csv = campaign_dir / config["output_csv"]
 
+def apply_classifications(
+    input_csv: Path,
+    output_csv: Path,
+    fp_to_result: dict[str, dict],
+    timestamp: str,
+    config: dict,
+) -> int:
+    """Read input CSV, fill classified rows, write output CSV. Returns rows updated."""
     print(f"Writing {output_csv.name} …")
     fieldnames, rows = read_csv(input_csv)
     updated = 0
@@ -147,6 +128,42 @@ def main(config_path: str) -> None:
         updated += 1
 
     write_csv(output_csv, fieldnames, rows)
+    return updated
+
+
+def main(config_path: str) -> None:
+    with open(config_path, encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    campaign_dir = Path(config["campaign_dir"])
+
+    print("Loading data sources …")
+    images = load_animal_images(config)
+    n_md   = sum(1 for i in images if i["source"] == "megadetector")
+    n_csv  = sum(1 for i in images if i["source"] == "csv_only")
+    print(f"  {len(images)} images to classify  "
+          f"({n_md} MD detections >={config['animal_confidence_threshold']}, "
+          f"{n_csv} CSV-only / no MD bbox)")
+
+    if not images:
+        print("Nothing to classify. Check input_csv path and megadetector_json in config.yaml.")
+        return
+
+    print("Loading CLIP model …")
+    classifier = CLIPZeroShotClassifier(
+        model_name=config["clip_model"],
+        species_list=clip_species(),
+    )
+
+    timestamp      = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    clip_threshold = float(config.get("clip_confidence_threshold", 0.0))
+    batch_size     = int(config.get("clip_batch_size", 32))
+
+    fp_to_result = classify_all(images, classifier, batch_size, clip_threshold)
+
+    input_csv  = campaign_dir / config["input_csv"]
+    output_csv = campaign_dir / config["output_csv"]
+    updated = apply_classifications(input_csv, output_csv, fp_to_result, timestamp, config)
     print(f"Done. {updated} rows classified → {output_csv}")
 
 

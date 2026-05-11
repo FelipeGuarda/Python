@@ -36,7 +36,11 @@ export function RiesgoTab({ riskCurrent, riskTotal, mlVal, wx, windowData, today
             <SectionLabel>Índice de riesgo actual</SectionLabel>
             <div className={styles.gaugeCol}>
               <div className={styles.gaugeMethod}>Reglas (FRI)</div>
-              <RiskGauge value={riskTotal} color={riskCurrent?.rule_based?.color} />
+              <RiskGauge
+                value={riskTotal}
+                color={riskCurrent?.rule_based?.color}
+                label={riskCurrent?.rule_based?.label}
+              />
               {mlVal != null && (
                 <div className={styles.gaugeMlLine}>
                   ML: <span className={styles.gaugeMlVal}>{mlVal}%</span>

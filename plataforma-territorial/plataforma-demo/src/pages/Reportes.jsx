@@ -1,15 +1,9 @@
 import { useState } from "react";
 import { C } from "../constants/colors.js";
+import { sampleDraft } from "../constants/demo_report.js";
 import { Card } from "../components/Card.jsx";
 import { SectionLabel } from "../components/SectionLabel.jsx";
 import styles from "./Reportes.module.css";
-
-// TODO(future-cleanup): `sampleDraft` is a template literal that interpolates
-// the `period` state, so it cannot be hoisted to a static constants module
-// without being converted to a function (e.g. `sampleDraft(period) => ...`).
-// Kept inside Reportes for the App.jsx decomposition (pure structural move).
-// When refining the frontend architecture, convert to a function and move to
-// `constants/demo_chat.js` (or similar).
 
 const DRAFT_CARD_STYLE = { display: "flex", flexDirection: "column" };
 
@@ -18,29 +12,18 @@ export function Reportes() {
   const [draft, setDraft] = useState("");
   const [period, setPeriod] = useState("Febrero 2026");
 
-  const sampleDraft = `Resumen mensual — Bosque Pehuen, ${period}
-
-Durante ${period.toLowerCase()}, las condiciones en Bosque Pehuen se caracterizaron por temperaturas superiores al promedio historico y precipitaciones por debajo de lo esperado para la temporada.
-
-Riesgo de incendio: El indice promedio fue de 48/100 (moderado), con un pico de 72/100 el dia 15, coincidiendo con una ola de calor que elevo la temperatura maxima a 31°C con humedad relativa de 22%. Se recomienda mantener la vigilancia activa durante episodios similares.
-
-Monitoreo de fauna: Las 5 camaras trampa registraron un total de 978 detecciones de 8 especies. Destaca un aumento del 23% en registros de jabali respecto al mes anterior, concentrado en las estaciones Rio Turbio y Araucaria Norte. Se registro 1 evento de Puma en Laguna Sur, consistente con su rango de movimiento estacional.
-
-Especies prioritarias: Guina fue detectada en 23 ocasiones en Sendero Pehuen, lo que representa una frecuencia estable respecto a meses anteriores. No se detectaron nuevas especies invasoras.
-
-Nota: Este borrador fue generado automaticamente a partir de los datos del repositorio central. Requiere revision y edicion del equipo antes de su publicacion.`;
-
   const handleGenerate = () => {
     setGenerating(true);
     setDraft("");
+    const text = sampleDraft(period);
     let i = 0;
     const interval = setInterval(() => {
-      setDraft(sampleDraft.slice(0, i));
+      setDraft(text.slice(0, i));
       i += 3;
-      if (i > sampleDraft.length) {
+      if (i > text.length) {
         clearInterval(interval);
         setGenerating(false);
-        setDraft(sampleDraft);
+        setDraft(text);
       }
     }, 8);
   };
