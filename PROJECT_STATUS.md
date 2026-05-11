@@ -1,8 +1,20 @@
 # FMA Project Status
 
-**Last updated:** 2026-05-07 (W44 / Track K)
+**Last updated:** 2026-05-11 (first full code review complete)
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Field site:** Bosque Pehuén, La Araucanía, Chile (-39.61°, -71.71°)
+**Field site:** Bosque Pehuén, La Araucanía, Chile — reserve center -39.4417°, -71.7420° (canonical: `plataforma-territorial/data/stations.yaml` → `reserve.center`)
+
+---
+
+## 🏁 Milestone — First full code review complete (2026-05-11)
+
+The independent code review of the three actively-developed projects (`data-pipeline`, `camera-traps`, `plataforma-territorial`) — started 2026-04-21 — is finished. **Every finding is closed or explicitly deferred with a re-open trigger.** No silently-open work remains.
+
+- **Resolved:** 1 Critical · all Warnings · most Suggestions
+- **Closed-rejected (with rationale):** S57, S47, S14, S72
+- **Deferred (with re-open conditions):** S58 (field verification), S76 (Vitest tests, until CI exists)
+
+Full narrative: `CHANGELOG.md` (top entry) + `~/Documents/Obsidian FG/SecondBrain/Sessions/2026-05-11-fma-ecosystem-code-review-tier-1-and-tier-2.md`. Per-project snapshots: `~/Documents/Obsidian FG/SecondBrain/Reviews/review-state-*.md`.
 
 ---
 

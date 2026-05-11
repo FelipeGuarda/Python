@@ -4,10 +4,10 @@
 **Status:** Built and operational. All 5 phases complete.
 **Role in ecosystem:** Core plumbing. Every other project reads from the DuckDB database this pipeline maintains.
 
-**Last Updated:** 2026-05-06
-**What Changed:** Session A code-review fixes — C1 (CR800 state-before-commit) resolved via `(df, commit)` yield-pair contract; W8 (DST consolidation) resolved via new `src/tz_utils.py:localize_santiago_to_utc()`; W20 (systemd hardening) confirmed already in place on disk; S12 actually applied (`recover_dst_gaps.py` moved to `scripts/`).
-**Integration Status:** Ready. Smoke-tested via `run_fetch.py --once` — Open-Meteo round-trip clean. C1 will be exercised in vivo on the 8-day CR800 backfill burst once the antenna is replaced.
-**Blockers/Notes:** CR800 still offline since 2026-04-13 (antenna replacement pending).
+**Last Updated:** 2026-05-11 — code review complete
+**What Changed:** Tier 1 review fixes — S10 (factored 9× connection-lifecycle boilerplate into `@contextmanager managed_conn(init=…)`) and S11 (`watcher.py` now opens a short-lived DB connection per filesystem event via a `connect_fn` factory; `run_watcher.py` does one-shot bootstrap init then releases the lock). S14 closed-rejected — no measured benefit from secondary indices at current data scale (columnar engine + composite PKs already cover the hot reads). **First full code review now complete:** every finding in this project is closed or has an explicit re-open trigger. See repo-root `CHANGELOG.md`.
+**Integration Status:** Ready. Smoke-tested via `run_fetch.py --once` — Open-Meteo round-trip clean.
+**Blockers/Notes:** CR800 still offline since 2026-04-13 (antenna replacement pending). C1 (state-before-commit) will be exercised in vivo on the 8-day backfill burst once the antenna is back.
 
 ---
 

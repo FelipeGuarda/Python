@@ -6,10 +6,10 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ## Status
 
-**Last Updated:** 2026-04-30
-**What Changed:** Quick-fix pass: removed 9 dead deps from environment.yml, added pyyaml (W21/W22); removed stale NEXT_SESSION.md references from README (W24); added Primavera-verano 2025-2026 campaign to Campaign History (W25); documented wildlife-detector dep in environment.yml comment (W26).
+**Last Updated:** 2026-05-11 — code review complete
+**What Changed:** Today closed the camera-traps half of the FMA-ecosystem review. Tier 1: S37 mtime-keyed Streamlit cache. Tier 2: S39 `run_classification.py main()` split into `classify_all()` + `apply_classifications()`. Bundle C: S29 (`load_thumbnail` now reuses `crop_to_bbox`), S30 + S32 (argparse for `setup/fix_unicode_filenames.py` + `setup/create_junction.py`), S36 (env+CLI override for `CAMPAIGNS_BASE`), S43 (new `setup/_fileops.py` with `is_target` / `move_file` / `cleanup_empty_dirs`). Tier 4: S35 `AnimalRow` dataclass replaces in-place CSV-row mutation in `export_best_images.py`; S38 UI strings standardized to Spanish in `phase1_labeling/app.py`. **First full code review now complete:** every finding in this project is closed. See repo-root `CHANGELOG.md`.
 **Integration Status:** Ready
-**Blockers/Notes:** Sibling-loader pattern chosen over shared import so Windows runs work without data-pipeline on PYTHONPATH. 8 Spanish display names changed to canonical form via species.yaml — flag for biological review with Felipe; species.yaml is the single edit point if any are wrong. Open review follow-ups: CLIP batching (W27, 10–50× speedup), verify megadetector_campaigns.py absolute-path behavior (W28).
+**Blockers/Notes:** Sibling-loader pattern chosen over shared import so Windows runs work without data-pipeline on PYTHONPATH. 8 Spanish display names changed to canonical form via species.yaml — still flagged for biological review with Felipe; species.yaml is the single edit point if any are wrong.
 
 ---
 
