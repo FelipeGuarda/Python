@@ -155,7 +155,16 @@ def summary_stats():
 
 @router.get("/species-summary")
 def species_summary():
-    """Detection counts by species."""
+    """Per-species detection histogram for the Dashboard Fauna tab.
+
+    Returns total detection events, total individuals (SUM of count), last
+    observation timestamp, and Spanish common name. Pure observation-level
+    rollup — does NOT JOIN ct_deployments, so it's cheaper than /species-list.
+
+    Companion endpoint /species-list returns occupancy (n_stations,
+    occupancy_pct) for the camaras-tab comparator dropdown. total_detections
+    is intentionally duplicated between the two — the consumers differ.
+    """
     with get_connection() as con:
         rows = con.execute("""
             SELECT
@@ -169,8 +178,16 @@ def species_summary():
             GROUP BY scientificName
             ORDER BY total_detections DESC
         """).fetchall()
-    cols = ["species", "total_detections", "total_individuals", "last_seen"]
-    return [dict(zip(cols, r)) for r in rows]
+    return [
+        {
+            "species": r[0],
+            "common_name": _COMMON_NAMES.get(r[0], r[0]),
+            "total_detections": r[1],
+            "total_individuals": r[2],
+            "last_seen": r[3],
+        }
+        for r in rows
+    ]
 
 
 @router.get("/stations")
@@ -333,7 +350,16 @@ def station_summary():
 
 @router.get("/species-list")
 def species_list_with_occupancy():
-    """All detected species with total detections and naive occupancy across TC stations."""
+    """Species + occupancy for the camaras-tab comparator dropdown.
+
+    Returns detected species with total detections, distinct-station counts,
+    naive occupancy percentage (n_stations / total TC cameras), and Spanish
+    common name. JOINs ct_deployments to get the distinct-station count.
+
+    Companion endpoint /species-summary returns the per-species detection
+    histogram for the Fauna tab (with total_individuals and last_seen).
+    total_detections is intentionally duplicated between the two.
+    """
     with get_connection() as con:
         rows = con.execute("""
             SELECT
