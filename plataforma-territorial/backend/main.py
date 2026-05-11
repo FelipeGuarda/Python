@@ -19,7 +19,7 @@ import logging
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -59,14 +59,14 @@ app.include_router(config_router.router)
 
 @app.get("/api/health")
 def health():
-    """Health check — also verifies DB connectivity."""
+    """Health check — also verifies DB connectivity. Returns 503 if DB unreachable."""
     from .db import get_connection
     try:
         with get_connection() as con:
             count = con.execute("SELECT COUNT(*) FROM weather_station").fetchone()[0]
-        return {"status": "ok", "weather_station_rows": count}
     except Exception as e:
-        return {"status": "error", "detail": str(e)}
+        raise HTTPException(status_code=503, detail=f"DB unavailable: {e}")
+    return {"status": "ok", "weather_station_rows": count}
 
 
 # Serve camera trap station images — must come before the catch-all React mount.

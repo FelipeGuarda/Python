@@ -34,15 +34,25 @@ SPECIAL_OPTIONS = ["No es un animal", "No reconocible", "Otro (especificar)"]
 
 
 # ── Cached data loaders ───────────────────────────────────────────────────────
+# Each public loader stat()s its source file and passes the mtime as an extra
+# cache key, so the cached value invalidates when the underlying file changes.
+
+def load_config() -> dict:
+    return _load_config_cached(CONFIG_PATH.stat().st_mtime)
+
 
 @st.cache_data
-def load_config() -> dict:
+def _load_config_cached(_mtime: float) -> dict:
     with open(CONFIG_PATH, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
-@st.cache_data
 def load_classified_csv(path: str) -> tuple[list[str], list[dict]]:
+    return _load_classified_csv_cached(path, Path(path).stat().st_mtime)
+
+
+@st.cache_data
+def _load_classified_csv_cached(path: str, _mtime: float) -> tuple[list[str], list[dict]]:
     with open(path, encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         fieldnames = list(reader.fieldnames)
@@ -50,9 +60,13 @@ def load_classified_csv(path: str) -> tuple[list[str], list[dict]]:
     return fieldnames, rows
 
 
-@st.cache_data
 def load_bboxes(json_path: str, threshold: float) -> dict[str, tuple]:
     """Returns {normalised_file_path: (x, y, w, h) or None}."""
+    return _load_bboxes_cached(json_path, threshold, Path(json_path).stat().st_mtime)
+
+
+@st.cache_data
+def _load_bboxes_cached(json_path: str, threshold: float, _mtime: float) -> dict[str, tuple]:
     with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
     result: dict[str, tuple | None] = {}

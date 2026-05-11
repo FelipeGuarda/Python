@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.db import connect, init_schema
+from src.db import managed_conn
 from src.ingest import (
     ingest_weather_forecast,
     ingest_cr800_live,
@@ -25,9 +25,7 @@ from src.ingest import (
 
 def run_once():
     """Connect, fetch, disconnect — so the DB lock is released between cycles."""
-    con = connect()
-    init_schema(con)
-    try:
+    with managed_conn() as con:
         try:
             ingest_weather_forecast(con)
         except Exception as e:
@@ -36,49 +34,32 @@ def run_once():
             ingest_cr800_live(con)
         except Exception as e:
             print(f"  Warning: CR800 fetch failed ({e}). Skipping.")
-    finally:
-        con.close()
 
 
 def run_backfill(path: Path):
-    con = connect()
-    init_schema(con)
-    try:
+    with managed_conn() as con:
         if path.suffix.lower() == ".dat":
             ingest_cr800_backfill(con, path)
         elif path.suffix.lower() == ".csv":
             ingest_met_csv(con, path)
         else:
             print(f"Unknown backfill file type: {path.suffix}. Expected .dat or .csv")
-    finally:
-        con.close()
 
 
 def run_fetch_range(start: str, end: str):
-    con = connect()
-    init_schema(con)
-    try:
+    with managed_conn() as con:
         ingest_cr800_range(con, start, end)
-    finally:
-        con.close()
 
 
 def run_ingest_ct():
     """Ingest all configured camera trap campaigns into DuckDB."""
-    con = connect()
-    init_schema(con)
-    try:
+    with managed_conn() as con:
         ingest_all_ct_campaigns(con)
-    finally:
-        con.close()
 
 
 def run_export():
-    con = connect()
-    try:
+    with managed_conn(init=False) as con:
         export_weather_station(con)
-    finally:
-        con.close()
 
 
 def run_health(verbose: bool = False):
@@ -87,35 +68,23 @@ def run_health(verbose: bool = False):
     with open("config.yaml") as f:
         cfg = yaml.safe_load(f)["exports"]
     output_dir = Path(cfg["output_dir"])
-    con = connect()
-    try:
+    with managed_conn(init=False) as con:
         health_check(con, output_dir, verbose=verbose)
-    finally:
-        con.close()
 
 
 def scheduled_open_meteo():
-    con = connect()
-    try:
+    with managed_conn(init=False) as con:
         ingest_weather_forecast(con)
-    finally:
-        con.close()
 
 
 def scheduled_cr800():
-    con = connect()
-    try:
+    with managed_conn(init=False) as con:
         ingest_cr800_live(con)
-    finally:
-        con.close()
 
 
 def scheduled_export():
-    con = connect()
-    try:
+    with managed_conn(init=False) as con:
         export_weather_station(con)
-    finally:
-        con.close()
 
 
 def main():

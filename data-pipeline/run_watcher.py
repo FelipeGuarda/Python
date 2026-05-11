@@ -19,10 +19,15 @@ with open("config.yaml") as f:
 
 incoming_dir = Path(config["watcher"]["incoming_dir"])
 
-con = connect()
-init_schema(con)
+# One-shot bootstrap: ensure the schema exists, then release the DB lock.
+# Each filesystem-event handler opens its own short-lived connection.
+_bootstrap = connect()
+try:
+    init_schema(_bootstrap)
+finally:
+    _bootstrap.close()
 
-observer = start_watcher(incoming_dir, con)
+observer = start_watcher(incoming_dir, connect)
 
 try:
     while True:
@@ -32,4 +37,3 @@ except (KeyboardInterrupt, SystemExit):
 finally:
     observer.stop()
     observer.join()
-    con.close()

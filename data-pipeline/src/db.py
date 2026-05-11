@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 import duckdb
@@ -24,6 +25,18 @@ def connect() -> duckdb.DuckDBPyConnection:
 def init_schema(con: duckdb.DuckDBPyConnection) -> None:
     sql = _schema_path.read_text()
     con.execute(sql)
+
+
+@contextmanager
+def managed_conn(init: bool = True):
+    """Open a DuckDB connection, optionally init the schema, and guarantee close on exit."""
+    con = connect()
+    if init:
+        init_schema(con)
+    try:
+        yield con
+    finally:
+        con.close()
 
 
 def ensure_columns(con: duckdb.DuckDBPyConnection, table: str, df: pd.DataFrame) -> None:
