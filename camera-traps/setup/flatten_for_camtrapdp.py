@@ -13,35 +13,14 @@ Usage:
 import argparse
 import csv
 import os
-import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
 
-
-# ── Constants ─────────────────────────────────────────────────────────────────
-
-TARGET_EXTENSIONS: frozenset = frozenset({
-    '.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff',
-    '.mp4', '.avi', '.mov', '.mpg', '.mpeg', '.wmv', '.asf', '.mkv',
-})
-
-IGNORED_NAMES: frozenset = frozenset({
-    'thumbs.db', 'desktop.ini', '.ds_store',
-})
+from _fileops import cleanup_empty_dirs, is_target, move_file
 
 
 # ── File helpers ──────────────────────────────────────────────────────────────
-
-def is_target(path: Path) -> bool:
-    """Return True if this file should be moved (correct extension, not hidden/system)."""
-    name = path.name
-    if name.startswith('.'):
-        return False
-    if name.lower() in IGNORED_NAMES:
-        return False
-    return path.suffix.lower() in TARGET_EXTENSIONS
-
 
 def collect_subdir_files(deployment_dir: Path) -> list:
     """
@@ -125,54 +104,6 @@ def resolve_dest(
         if candidate.stat().st_size == src_size:
             return candidate, 'skipped_duplicate'
         counter += 1
-
-
-# ── Move helper ───────────────────────────────────────────────────────────────
-
-def move_file(src: Path, dest: Path) -> None:
-    """Move src → dest, restoring the original access/modification timestamps."""
-    st = src.stat()
-    shutil.move(str(src), str(dest))
-    os.utime(dest, (st.st_atime, st.st_mtime))
-
-
-# ── Cleanup ───────────────────────────────────────────────────────────────────
-
-def cleanup_empty_dirs(deployment_dir: Path, dry_run: bool) -> list:
-    """
-    Walk bottom-up through all subdirectories of deployment_dir, removing
-    each one that is completely empty.
-
-    Returns a list of (Path, reason: str) for any directory that could not
-    be removed, so the caller can warn the user.
-    """
-    problems = []
-    for root_str, _dirs, _files in os.walk(deployment_dir, topdown=False):
-        root = Path(root_str)
-        if root == deployment_dir:
-            continue
-
-        try:
-            contents = list(root.iterdir())
-        except PermissionError as exc:
-            problems.append((root, f"permission error: {exc}"))
-            continue
-
-        if not contents:
-            if not dry_run:
-                try:
-                    root.rmdir()
-                except OSError as exc:
-                    problems.append((root, str(exc)))
-            # In dry-run we don't report these as problems; they would be removed
-        else:
-            leftover_files = [p for p in contents if p.is_file()]
-            if leftover_files:
-                names = ', '.join(p.name for p in leftover_files[:5])
-                more = f" (and {len(leftover_files) - 5} more)" if len(leftover_files) > 5 else ''
-                problems.append((root, f"contains non-target file(s): {names}{more}"))
-
-    return problems
 
 
 # ── Per-deployment processing ─────────────────────────────────────────────────

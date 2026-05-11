@@ -7,17 +7,12 @@ import { Asistente } from "./pages/Asistente.jsx";
 import { Reportes } from "./pages/Reportes.jsx";
 import styles from "./App.module.css";
 
-// TODO(future-cleanup): The decomposition of App.jsx (April 2026) deferred two
-// items from the planned `constants/` folder, both pending future architectural
-// refinement. They are kept out of scope here to preserve the "pure structural
-// move" guarantee of this refactor.
-//   1. `constants/chart_defaults.js` — repeated Recharts axis/grid/tick style
-//      objects could be extracted to named constants once we are willing to
-//      rewrite call sites uniformly across MeteoTab, RiesgoTab, CamarasTab,
-//      and FaunaTab.
-//   2. `constants/demo_chat.js` — should hold the missing `chatMessages` seed
-//      array (referenced by Asistente.jsx but undefined; runtime ReferenceError)
-//      and a `sampleDraft(period)` function-form for Reportes.jsx.
+// Page state lives in a single useState — no URL routing by design. The
+// platform is a single-user internal tool with 4 pages and no current need
+// for deep-linkable URLs or back-button page navigation. When that need
+// surfaces (e.g. sharing a link to a specific Dashboard tab), introduce
+// react-router-dom: wrap App in <BrowserRouter>, replace this switch with
+// <Routes>, and the NavBar's setPage calls with <Link>/useNavigate.
 
 // ── MAIN APP ──
 export default function App() {

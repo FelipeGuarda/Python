@@ -8,17 +8,14 @@ causing some apps to fail reading those files. NFC merges them back
 into a single character — visually identical, universally compatible.
 
 Usage:
-    python fix_unicode_filenames.py              # dry run (safe, no changes)
-    python fix_unicode_filenames.py --apply      # actually rename files
+    python fix_unicode_filenames.py /path/to/root              # dry run
+    python fix_unicode_filenames.py /path/to/root --apply      # actually rename
 """
 
+import argparse
 import os
 import sys
 import unicodedata
-
-ROOT_DIR = r'C:\Users\USUARIO\SynologyDrive\2. Camaras trampa (SC)\SynologyDrive'
-
-DRY_RUN = '--apply' not in sys.argv
 
 
 def needs_normalization(name: str) -> bool:
@@ -73,28 +70,39 @@ def fix_names(root: str, dry_run: bool) -> tuple[int, int]:
 
 
 def main():
-    if not os.path.isdir(ROOT_DIR):
-        print(f'ERROR: Directory not found:\n  {ROOT_DIR}')
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description='Rename files with NFD Unicode encoding to NFC form.',
+    )
+    parser.add_argument('root', help='Root directory to scan recursively')
+    parser.add_argument(
+        '--apply', action='store_true',
+        help='Actually rename files (default is a dry run that prints what would change)',
+    )
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.root):
+        sys.exit(f'ERROR: Directory not found: {args.root}')
+
+    dry_run = not args.apply
 
     print('=' * 70)
     print('Unicode NFD -> NFC Filename Fixer')
     print('=' * 70)
-    print(f'Root:    {ROOT_DIR}')
-    print(f'Mode:    {"DRY RUN (no changes will be made)" if DRY_RUN else "APPLY (files will be renamed)"}')
+    print(f'Root:    {args.root}')
+    print(f'Mode:    {"DRY RUN (no changes will be made)" if dry_run else "APPLY (files will be renamed)"}')
     print()
 
-    count, errors = fix_names(ROOT_DIR, DRY_RUN)
+    count, errors = fix_names(args.root, dry_run)
 
     print()
     print('=' * 70)
     if count == 0:
         print('No files with NFD encoding found. Nothing to do.')
-    elif DRY_RUN:
+    elif dry_run:
         print(f'Found {count} item(s) that need renaming.')
         print()
         print('Run with --apply to actually rename them:')
-        print('  python fix_unicode_filenames.py --apply')
+        print(f'  python fix_unicode_filenames.py {args.root!r} --apply')
     else:
         print(f'Done. Renamed {count} item(s). Errors: {errors}')
 

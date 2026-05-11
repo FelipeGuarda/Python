@@ -21,40 +21,11 @@ Usage:
 import argparse
 import csv
 import os
-import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
 
-
-# ── Constants ─────────────────────────────────────────────────────────────────
-
-TARGET_EXTENSIONS: frozenset = frozenset({
-    '.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff',
-    '.mp4', '.avi', '.mov', '.mpg', '.mpeg', '.wmv', '.asf', '.mkv',
-})
-
-IGNORED_NAMES: frozenset = frozenset({
-    'thumbs.db', 'desktop.ini', '.ds_store',
-})
-
-
-# ── File helpers ──────────────────────────────────────────────────────────────
-
-def is_target(path: Path) -> bool:
-    name = path.name
-    if name.startswith('.'):
-        return False
-    if name.lower() in IGNORED_NAMES:
-        return False
-    return path.suffix.lower() in TARGET_EXTENSIONS
-
-
-def move_file(src: Path, dest: Path) -> None:
-    """Move src → dest, preserving original timestamps."""
-    st = src.stat()
-    shutil.move(str(src), str(dest))
-    os.utime(dest, (st.st_atime, st.st_mtime))
+from _fileops import cleanup_empty_dirs, is_target, move_file
 
 
 def resolve_dest(dest_dir: Path, filename: str, src: Path, prefix_parts: list[str] = None) -> tuple[Path, str]:
@@ -93,34 +64,6 @@ def resolve_dest(dest_dir: Path, filename: str, src: Path, prefix_parts: list[st
         if candidate.stat().st_size == src_size:
             return candidate, 'skip_duplicate'
         counter += 1
-
-
-def cleanup_empty_dirs(directory: Path, dry_run: bool) -> list[tuple[Path, str]]:
-    """Remove empty subdirectories bottom-up. Returns problems."""
-    problems = []
-    for root_str, _dirs, _files in os.walk(directory, topdown=False):
-        root = Path(root_str)
-        if root == directory:
-            continue
-        try:
-            contents = list(root.iterdir())
-        except PermissionError as exc:
-            problems.append((root, f"permission error: {exc}"))
-            continue
-
-        if not contents:
-            if not dry_run:
-                try:
-                    root.rmdir()
-                except OSError as exc:
-                    problems.append((root, str(exc)))
-        else:
-            leftover = [p for p in contents if p.is_file()]
-            if leftover:
-                names = ', '.join(p.name for p in leftover[:5])
-                more = f" (and {len(leftover) - 5} more)" if len(leftover) > 5 else ''
-                problems.append((root, f"non-target file(s): {names}{more}"))
-    return problems
 
 
 # ── Phase 1: Flatten Videos ──────────────────────────────────────────────────

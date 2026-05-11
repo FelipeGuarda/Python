@@ -17,11 +17,15 @@ Usage:
     python export_best_images.py
 """
 
+import argparse
 import csv
 import json
+import os
 import re
+import sys
 import unicodedata
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
@@ -31,13 +35,20 @@ from classify_campaign.species import (
     spanish_to_latin as _load_spanish_to_latin,
 )
 
+
+@dataclass
+class AnimalRow:
+    """CSV row plus derived fields. Replaces in-place mutation of row dicts."""
+    row: dict
+    md_conf: float
+    src: Path
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
-CAMPAIGNS_BASE = Path(
-    r"C:\Users\USUARIO\SynologyDrive\2. Camaras trampa (SC)"
-    r"\SynologyDrive\DATOS_GRILLA CÁMARAS TRAMPA"
-    r"\2. CAMPAÑAS DE RECOLECCION DE IMAGENES"
-)
+# Campaigns root: pass --campaigns-base on the CLI or set FMA_CAMPAIGNS_BASE.
+# Typical value on the Windows dev box:
+#   C:\Users\USUARIO\SynologyDrive\2. Camaras trampa (SC)\SynologyDrive\
+#     DATOS_GRILLA CÁMARAS TRAMPA\2. CAMPAÑAS DE RECOLECCION DE IMAGENES
 
 EXPORT_DIR    = Path(__file__).resolve().parent / "exports"
 TOP_N_SPECIES = 5   # best images per species (global, for sharing / reports)
@@ -108,9 +119,9 @@ def load_md_confidence(md_json_path: Path) -> dict[str, float]:
     return best
 
 
-def find_campaigns() -> list[dict]:
+def find_campaigns(campaigns_base: Path) -> list[dict]:
     """
-    Walk CAMPAIGNS_BASE and return one entry per campaign that has a
+    Walk campaigns_base and return one entry per campaign that has a
     reviewed CSV and a MegaDetector JSON.
 
     Checks two locations per season folder:
@@ -118,7 +129,7 @@ def find_campaigns() -> list[dict]:
       2. <season>/Fotos/new_labeled_data_reviewed.csv    (Otoño layout)
     """
     campaigns = []
-    for season_dir in sorted(CAMPAIGNS_BASE.iterdir()):
+    for season_dir in sorted(campaigns_base.iterdir()):
         if not season_dir.is_dir():
             continue
         for candidate in [season_dir, season_dir / "Fotos"]:
@@ -158,7 +169,7 @@ def export_campaign(campaign: dict) -> tuple[int, int]:
     # scientificName left empty (no latin name was available at review time).
     # Try to resolve those via a case-insensitive Spanish name lookup.
     resolved = 0
-    animal_rows = []
+    animal_rows: list[AnimalRow] = []
     for r in rows:
         if r.get("observationType", "").strip() != "animal":
             continue
@@ -170,18 +181,17 @@ def export_campaign(campaign: dict) -> tuple[int, int]:
                 r["scientificName"] = sci
                 resolved += 1
         if sci and sci not in SKIP_SPECIES:
-            animal_rows.append(r)
+            fp_key = row_fp(r).lower()
+            animal_rows.append(AnimalRow(
+                row=r,
+                md_conf=md_conf.get(fp_key, 0.0),
+                src=campaign_dir / row_fp(r),
+            ))
 
     print(f"  {len(animal_rows)} animal rows with valid species"
           + (f"  ({resolved} resolved from comments)" if resolved else ""))
 
-    # Attach MD confidence and source path
-    for r in animal_rows:
-        fp_key    = row_fp(r).lower()
-        r["_md_conf"] = md_conf.get(fp_key, 0.0)
-        r["_src"]     = campaign_dir / row_fp(r)
-
-    no_md = sum(1 for r in animal_rows if r["_md_conf"] == 0.0)
+    no_md = sum(1 for ar in animal_rows if ar.md_conf == 0.0)
     if no_md:
         print(f"  Note: {no_md} rows had no MD detection entry (will sort last)")
 
@@ -206,55 +216,74 @@ def _copy(src: Path, dst_dir: Path, filename: str) -> bool:
     return True
 
 
-def _export_species(animal_rows: list[dict], out_base: Path) -> int:
+def _export_species(animal_rows: list[AnimalRow], out_base: Path) -> int:
     """Top N images per species globally, sorted by MD confidence desc."""
-    by_species: dict[str, list] = defaultdict(list)
-    for r in animal_rows:
-        by_species[r["scientificName"].strip()].append(r)
+    by_species: dict[str, list[AnimalRow]] = defaultdict(list)
+    for ar in animal_rows:
+        by_species[ar.row["scientificName"].strip()].append(ar)
 
     total = 0
     for species in sorted(by_species):
-        top = sorted(by_species[species], key=lambda r: r["_md_conf"], reverse=True)[:TOP_N_SPECIES]
+        top = sorted(by_species[species], key=lambda ar: ar.md_conf, reverse=True)[:TOP_N_SPECIES]
         out_dir = out_base / species_dir_name(species)
         copied = sum(
-            1 for r in top
-            if _copy(r["_src"], out_dir, output_filename(r))
+            1 for ar in top
+            if _copy(ar.src, out_dir, output_filename(ar.row))
         )
         total += copied
         print(f"  [species] {species:<40} {copied}/{len(top)}  "
-              f"(best conf: {top[0]['_md_conf']:.3f})")
+              f"(best conf: {top[0].md_conf:.3f})")
     return total
 
 
-def _export_stations(animal_rows: list[dict], out_base: Path) -> int:
+def _export_stations(animal_rows: list[AnimalRow], out_base: Path) -> int:
     """Top M images per station (any species), sorted by MD confidence desc."""
-    by_station: dict[str, list] = defaultdict(list)
-    for r in animal_rows:
-        station = r.get("RelativePath", "").strip().replace("\\", "/")
+    by_station: dict[str, list[AnimalRow]] = defaultdict(list)
+    for ar in animal_rows:
+        station = ar.row.get("RelativePath", "").strip().replace("\\", "/")
         if station:
-            by_station[station].append(r)
+            by_station[station].append(ar)
 
     total = 0
     for station in sorted(by_station):
-        top = sorted(by_station[station], key=lambda r: r["_md_conf"], reverse=True)[:TOP_N_STATION]
+        top = sorted(by_station[station], key=lambda ar: ar.md_conf, reverse=True)[:TOP_N_STATION]
         station_slug = re.sub(r"[^a-zA-Z0-9_\-]", "_", station)
         out_dir = out_base / station_slug
         copied = sum(
-            1 for r in top
-            if _copy(r["_src"], out_dir, output_filename(r))
+            1 for ar in top
+            if _copy(ar.src, out_dir, output_filename(ar.row))
         )
         total += copied
         print(f"  [station] {station:<25} {copied}/{len(top)}  "
-              f"(best conf: {top[0]['_md_conf']:.3f})")
+              f"(best conf: {top[0].md_conf:.3f})")
     return total
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    campaigns = find_campaigns()
+    parser = argparse.ArgumentParser(
+        description="Export top-N best images per species and per station for all campaigns.",
+    )
+    parser.add_argument(
+        "--campaigns-base",
+        default=os.getenv("FMA_CAMPAIGNS_BASE"),
+        help="Root directory containing campaign season folders. "
+             "Falls back to FMA_CAMPAIGNS_BASE env var.",
+    )
+    args = parser.parse_args()
+
+    if not args.campaigns_base:
+        sys.exit(
+            "ERROR: --campaigns-base or FMA_CAMPAIGNS_BASE env var required."
+        )
+    campaigns_base = Path(args.campaigns_base)
+    if not campaigns_base.is_dir():
+        sys.exit(f"ERROR: campaigns base directory not found: {campaigns_base}")
+
+    campaigns = find_campaigns(campaigns_base)
     if not campaigns:
-        print(f"No campaigns found in {CAMPAIGNS_BASE}")
+        print(f"No campaigns found in {campaigns_base}")
         print("Each campaign folder must contain new_labeled_data_reviewed.csv "
               "and timelapse_recognition_file.json (at root or in Fotos/).")
         return

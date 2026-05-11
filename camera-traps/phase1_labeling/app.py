@@ -23,6 +23,7 @@ import streamlit as st
 import yaml
 from PIL import Image
 
+from classify_campaign.crop_utils import crop_to_bbox
 from classify_campaign.species import clip_species
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -86,15 +87,7 @@ def load_thumbnail(image_path: str, bbox: tuple | None) -> bytes | None:
     """Crop image to bbox and return JPEG bytes. Result is cached."""
     try:
         img = Image.open(image_path).convert("RGB")
-        if bbox is not None:
-            iw, ih = img.size
-            x, y, bw, bh = bbox
-            pad = 0.05
-            x1 = max(0, int((x - pad) * iw))
-            y1 = max(0, int((y - pad) * ih))
-            x2 = min(iw, int((x + bw + pad) * iw))
-            y2 = min(ih, int((y + bh + pad) * ih))
-            img = img.crop((x1, y1, x2, y2))
+        img = crop_to_bbox(img, list(bbox) if bbox is not None else None)
         img.thumbnail((THUMB_SIZE, THUMB_SIZE))
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=JPEG_QUALITY)
@@ -206,7 +199,7 @@ def confirm_with_edits(rows: list[dict], per_image_proposed: dict, n_groups: int
 
 def main() -> None:
     st.set_page_config(
-        page_title="Species Review",
+        page_title="Revisión de Especies",
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -227,7 +220,7 @@ def main() -> None:
 
     animal_rows = [r for r in all_rows if r["observationType"] == "animal"]
     if not animal_rows:
-        st.error("No classified animal rows found in the input CSV. Run run_classification.py first.")
+        st.error("No se encontraron filas de animales clasificados en el CSV de entrada. Ejecuta run_classification.py primero.")
         return
 
     groups: dict[str, list[dict]] = defaultdict(list)
@@ -251,12 +244,12 @@ def main() -> None:
 
     # ── Sidebar ───────────────────────────────────────────────────────────────
     with st.sidebar:
-        st.title("Species Review")
-        st.metric("Confirmed", f"{n_confirmed} / {n_total}")
+        st.title("Revisión de Especies")
+        st.metric("Confirmadas", f"{n_confirmed} / {n_total}")
         st.progress(n_confirmed / n_total if n_total else 0)
         st.divider()
 
-        st.caption("Jump to species:")
+        st.caption("Ir a especie:")
         for i, sp in enumerate(sorted_species):
             grp = groups[sp]
             n_done = sum(1 for r in grp if row_fp(r) in confirmed)
@@ -266,14 +259,14 @@ def main() -> None:
             )
             done_mark = "✓" if n_done == len(grp) else ("◑" if n_done else "○")
             corr_tag = f", {n_corr} corr." if n_corr else ""
-            label = f"{done_mark} {sp}  ({n_done}/{len(grp)}{corr_tag})"
+            label = f"{done_mark} {sp}  ({n_done}/{len(grp)}{corr_tag})"  # "corr." = corregidas
             if st.button(label, key=f"jump_{i}", use_container_width=True):
                 go_to(i)
                 st.rerun()
 
         st.divider()
         export_clicked = st.button(
-            "Export reviewed CSV",
+            "Exportar CSV revisado",
             type="primary",
             use_container_width=True,
             disabled=n_confirmed == 0,
@@ -283,12 +276,12 @@ def main() -> None:
                 all_rows, fieldnames, confirmed, st.session_state.outcomes,
                 spanish_to_latin, campaign_dir
             )
-            st.success(f"Saved: {out.name}")
+            st.success(f"Guardado: {out.name}")
 
     # ── All done ──────────────────────────────────────────────────────────────
     idx = st.session_state.current_group
     if idx >= n_groups:
-        st.success("All species reviewed! Export the CSV from the sidebar.")
+        st.success("¡Todas las especies revisadas! Exporta el CSV desde la barra lateral.")
         return
 
     current_species = sorted_species[idx]
@@ -300,7 +293,7 @@ def main() -> None:
     col_prev, col_title, col_skip = st.columns([1, 6, 1])
     with col_prev:
         st.button(
-            "← Prev",
+            "← Anterior",
             disabled=idx == 0,
             on_click=go_to,
             args=(idx - 1,),
@@ -313,7 +306,7 @@ def main() -> None:
         )
     with col_skip:
         st.button(
-            "Skip →",
+            "Saltar →",
             disabled=idx >= n_groups - 1,
             on_click=go_to,
             args=(idx + 1,),
@@ -361,7 +354,7 @@ def main() -> None:
                 if thumb:
                     st.image(thumb, use_container_width=True)
                 else:
-                    st.warning("image not found")
+                    st.warning("imagen no encontrada")
 
                 st.caption(fp.replace("\\", "/"))
 
