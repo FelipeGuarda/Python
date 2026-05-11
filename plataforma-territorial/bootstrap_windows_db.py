@@ -34,6 +34,11 @@ STATION_ID = "bosque_pehuen"
 # DB lives one level up (same location the backend expects)
 DB_PATH = Path(__file__).resolve().parent.parent / "fma_data.duckdb"
 
+# Schema duplicated verbatim from data-pipeline/schema.sql. Kept inline (not
+# read from disk) so this script remains self-contained on the Windows dev
+# machine, which does NOT clone data-pipeline/ alongside plataforma-territorial.
+# When the schema changes, update both files. When the Windows machine migrates
+# to Linux, delete this whole script — data-pipeline will own the DB end-to-end.
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS weather_station (
     station_id        TEXT NOT NULL,

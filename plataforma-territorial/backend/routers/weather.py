@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 from typing import Any
 
@@ -11,11 +12,21 @@ from fastapi import APIRouter, Query
 
 from ..db import get_connection
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/weather", tags=["weather"])
 
 STATION_ID = "bosque_pehuen"
 
-# All columns the frontend may request (validated to prevent SQL injection)
+# Hand-maintained whitelist of selectable columns. Two jobs:
+#   1. Security — gates `variables=…` against SQL identifier injection.
+#   2. Public API surface — controls what the frontend can request.
+#
+# Drift: the data-pipeline's ensure_columns() (data-pipeline/src/db.py) widens
+# weather_station dynamically from TOA5 headers at ingest time, so the DB can
+# hold columns not listed here — they'll be silently dropped from /history.
+# When CR800 grows a new sensor, add it below. check_allowed_cols_drift()
+# (called at backend startup) logs a warning listing extras.
 ALLOWED_COLS: set[str] = {
     "temperature_air",
     "relative_humidity",
@@ -245,6 +256,24 @@ def _resample(df: pd.DataFrame, freq: str) -> pd.DataFrame:
         result["wind_direction"] = (np.degrees(np.arctan2(u_r, v_r)) % 360)
 
     return result
+
+
+def check_allowed_cols_drift() -> None:
+    """Log a warning if weather_station has columns not exposed in ALLOWED_COLS."""
+    try:
+        with get_connection() as con:
+            db_cols = {row[0] for row in con.execute("DESCRIBE weather_station").fetchall()}
+    except Exception as e:
+        logger.warning("ALLOWED_COLS drift check skipped: %s", e)
+        return
+    db_cols -= {"station_id", "timestamp"}
+    extras = db_cols - ALLOWED_COLS
+    if extras:
+        logger.warning(
+            "weather_station has columns not in ALLOWED_COLS: %s — "
+            "add them to backend/routers/weather.py to expose via /api/weather/history.",
+            sorted(extras),
+        )
 
 
 def _compute_wind_rose(

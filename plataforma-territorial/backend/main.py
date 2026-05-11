@@ -56,6 +56,11 @@ app.include_router(detections.router)
 app.include_router(config_router.router)
 
 
+@app.on_event("startup")
+def _schema_drift_check() -> None:
+    weather.check_allowed_cols_drift()
+
+
 @app.get("/api/health")
 def health():
     """Health check — also verifies DB connectivity. Returns 503 if DB unreachable."""
