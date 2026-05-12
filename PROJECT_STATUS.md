@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-05-11 (first full code review complete)
+**Last updated:** 2026-05-12 (post-review planning sync: React canonical, station coords confirmed, thumbnails confirmed shipped)
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile — reserve center -39.4417°, -71.7420° (canonical: `plataforma-territorial/data/stations.yaml` → `reserve.center`)
 
@@ -48,14 +48,9 @@ The personal laptop (Linux) will NOT be left on permanently — it's a personal 
 
 ---
 
-## Pending Decision: React vs Streamlit
+## Resolved Decision: React/Vite is canonical (2026-05-12)
 
-The README for `plataforma-territorial/` describes a Streamlit app. What exists and works today is a React/Vite prototype (`plataforma-demo/`).
-
-**Before building real modules, decide:** does the React prototype become the definitive version, or do we build the Streamlit version from the README?
-
-- **React:** more visual control, better for the Observatorio (interactive map, animations), requires maintaining frontend + backend separately.
-- **Streamlit:** faster to connect to Python/DuckDB, less friction for data modules, but visual limitations in the Observatorio.
+React/Vite + FastAPI is the definitive platform stack. Streamlit references in `plataforma-territorial/README.md` are stale and should be cleaned up next time the README is touched.
 
 ---
 
@@ -146,7 +141,7 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 - [x] Observatorio map stations from real DuckDB data ← done 2026-04-15
 - [x] Cámaras trampa dashboard tab — diel activity, summary stats, station grid ← done 2026-04-17
 - [x] Fauna tab: real stats + priority/invasive species alerts ← done 2026-04-17
-- [ ] Resize thumbnails on Windows (Pillow in export_best_images.py), then increase popup image size
+- [x] Resize thumbnails (Pillow 1000px in export_best_images.py) + lightbox in Observatorio popups ← done 2026-04-16 (commit 22f6a08)
 - [ ] Cámaras tab Phase 3.4 extensions: species×station heatmap, image gallery
 - [ ] Retrain `fire_model.pkl` with current scikit-learn (pickle incompatible → ml_probability returns null)
 - [ ] Include ML index alongside rule-based index in fire risk view
@@ -158,8 +153,9 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 - [ ] Each response with calculated values must cite its formula and input data (methodological transparency)
 
 **Priority 3 — Observatorio: real map layers:**
-- [ ] Verify real coordinates for all camera stations and weather station
-- [ ] Add optional layers: fire risk zones, historical fire perimeters
+- [x] Verify real coordinates for all camera stations and weather station ← confirmed 2026-05-12
+- [ ] BP boundary delimitation — final polygon version pending (carried from Open Items)
+- ~~Optional layers: fire risk zones, historical fire perimeters~~ — dropped 2026-05-12 (out of scope)
 
 ---
 

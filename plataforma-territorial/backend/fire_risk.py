@@ -4,11 +4,14 @@ Rule-based FRI (Fire Risk Index) + ML Random Forest model.
 """
 
 import os
-import pickle
+import logging
 from pathlib import Path
 from typing import Optional
 
+import joblib
+
 import numpy as np
+import pandas as pd
 
 # ── Scoring bins (sum to 100 max) ────────────────────────────────────────
 
@@ -69,10 +72,11 @@ def _get_ml_model():
     global _ml_model
     if _ml_model is None and _ML_MODEL_PATH.exists():
         try:
-            with open(_ML_MODEL_PATH, "rb") as f:
-                _ml_model = pickle.load(f)
-        except Exception:
-            # Model may be pickled with a different scikit-learn version
+            _ml_model = joblib.load(_ML_MODEL_PATH)
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                "Fire risk ML model failed to load (%s): %s", _ML_MODEL_PATH, e
+            )
             _ml_model = False  # sentinel: tried and failed
     return _ml_model if _ml_model is not False else None
 
@@ -128,6 +132,8 @@ def ml_fire_probability(
     model = _get_ml_model()
     if model is None:
         return None
-    features = np.array([[temp_c, rh_pct, wind_kmh, days_no_rain]])
+    features = pd.DataFrame(
+        [{"temp_c": temp_c, "rh_pct": rh_pct, "wind_kmh": wind_kmh, "days_no_rain": days_no_rain}]
+    )
     proba = model.predict_proba(features)[0][1]
     return float(proba)

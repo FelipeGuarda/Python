@@ -195,12 +195,12 @@ export function CamarasTab({
           <SectionLabel>Ocupación por especie — % de estaciones con detecciones</SectionLabel>
           <ResponsiveContainer width="100%" height={Math.max(180, speciesList.length * 22)}>
             <BarChart data={speciesList} layout="vertical"
-              margin={{ left: 150, right: 50, top: 4, bottom: 4 }}>
+              margin={{ left: 180, right: 50, top: 4, bottom: 4 }}>
               <CartesianGrid {...CHART_GRID} horizontal={false} />
               <XAxis type="number" domain={[0, 100]} tick={CHART_TICK_MD}
                 axisLine={CHART_AXIS_LINE} tickFormatter={v => `${v}%`} />
               <YAxis type="category" dataKey="common_name" tick={CHART_TICK_CAT}
-                axisLine={CHART_AXIS_LINE} width={150} />
+                axisLine={CHART_AXIS_LINE} width={180} interval={0} />
               <Tooltip contentStyle={CHART_TOOLTIP}
                 formatter={(v, _n, p) => [`${v}% (${p.payload.n_stations}/${totalStations ?? "…"} estaciones)`, "Ocupación"]} />
               <Bar dataKey="occupancy_pct" radius={[0, 4, 4, 0]}
