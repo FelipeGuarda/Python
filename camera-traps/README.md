@@ -6,10 +6,10 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ## Status
 
-**Last Updated:** 2026-05-11 — code review complete
-**What Changed:** Today closed the camera-traps half of the FMA-ecosystem review. Tier 1: S37 mtime-keyed Streamlit cache. Tier 2: S39 `run_classification.py main()` split into `classify_all()` + `apply_classifications()`. Bundle C: S29 (`load_thumbnail` now reuses `crop_to_bbox`), S30 + S32 (argparse for `setup/fix_unicode_filenames.py` + `setup/create_junction.py`), S36 (env+CLI override for `CAMPAIGNS_BASE`), S43 (new `setup/_fileops.py` with `is_target` / `move_file` / `cleanup_empty_dirs`). Tier 4: S35 `AnimalRow` dataclass replaces in-place CSV-row mutation in `export_best_images.py`; S38 UI strings standardized to Spanish in `phase1_labeling/app.py`. **First full code review now complete:** every finding in this project is closed. See repo-root `CHANGELOG.md`.
-**Integration Status:** Ready
-**Blockers/Notes:** Sibling-loader pattern chosen over shared import so Windows runs work without data-pipeline on PYTHONPATH. 8 Spanish display names changed to canonical form via species.yaml — still flagged for biological review with Felipe; species.yaml is the single edit point if any are wrong.
+**Last Updated:** 2026-05-20 — added `Anual-reports/2025/` annual-report sub-project
+**What Changed:** New self-contained subfolder `Anual-reports/2025/` with the first annual report under the CONAF methodology (oct 2024 – mar 2026). Includes a Python pipeline (`01_data_prep.py` + `02_figures_tables.py`), a Spanish-language Markdown narrative (`informe_anual_2025.md`), six rendered figures, and a `render.sh` pandoc helper that converts to DOCX for boss review. Filters the dataset to 11 medium/large mammals (5 nativas, 6 introducidas) and produces richness maps + per-species panel. Methodology consolidated from `Anual-reports/REVISIÓN DISEÑO METODOLÓGICO DE CONAF.pdf` and `Anual-reports/Resultados de evaluación Megadetector.docx.pdf` (MegaDetector threshold fixed at 0.38 for high recall). Previous milestone (2026-05-11 — full code review complete) was kept intact; the report sub-project does not touch existing code.
+**Integration Status:** Ready (annual report sub-project is its own deliverable, not yet wired into `plataforma-territorial`).
+**Blockers/Notes:** Pandoc is not installed on the dev machine — `sudo apt install pandoc` is the one-time prereq to render the DOCX. Sibling-loader pattern from earlier still applies for the species-classifier code. Annual report uses the canonical `plataforma-territorial/data/{boundary,camera_trap_stations}.geojson` files directly; legacy GIS files in `camera-traps/GIS/` are deprecated.
 
 ---
 
@@ -30,11 +30,24 @@ camera-traps/
 ├── phase1_labeling/             ← human review Streamlit app
 │   └── app.py                   ← review UI (batch by species, export reviewed CSV)
 │
-└── setup/                       ← pre-processing utilities (run once per campaign)
-    ├── flatten_for_camtrapdp.py ← flatten per-camera subfolders to deployment level
-    ├── fix_unicode_filenames.py ← NFD → NFC filename normalization (Synology sync fix)
-    ├── create_junction.py       ← Windows junction for accented-path workaround
-    └── megadetector_campaigns.py← MegaDetector v6 CLI wrapper (alternative to AddaxAI)
+├── setup/                       ← pre-processing utilities (run once per campaign)
+│   ├── flatten_for_camtrapdp.py ← flatten per-camera subfolders to deployment level
+│   ├── fix_unicode_filenames.py ← NFD → NFC filename normalization (Synology sync fix)
+│   ├── create_junction.py       ← Windows junction for accented-path workaround
+│   └── megadetector_campaigns.py← MegaDetector v6 CLI wrapper (alternative to AddaxAI)
+│
+└── Anual-reports/               ← deliverable reports (separate from the pipeline above)
+    ├── 2022_2024_legacy methodology.pdf
+    ├── REVISIÓN DISEÑO METODOLÓGICO DE CONAF.pdf
+    ├── Resultados de evaluación Megadetector.docx.pdf
+    ├── Registro de monitoreo CT.xlsx
+    └── 2025/                    ← Informe anual 2025 (oct 2024 – mar 2026), self-contained
+        ├── informe_anual_2025.md  ← Spanish narrative source
+        ├── render.sh             ← pandoc helper → DOCX (for Word review)
+        ├── README.md
+        ├── py/                   ← 01_data_prep.py + 02_figures_tables.py
+        ├── data/                 ← records_clean.parquet, events_clean.parquet, prep_log.txt
+        └── figures/              ← 6 PNGs embedded by the .md
 ```
 
 ---

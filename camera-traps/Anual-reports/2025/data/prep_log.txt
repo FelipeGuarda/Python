@@ -1,0 +1,117 @@
+==============================================================================
+01_data_prep.py — Informe Anual 2025 (Bosque Pehuén)
+==============================================================================
+Species catalog rows : 31
+Install registry rows: 26  (unique cameras: 26)
+
+Raw records loaded   : 3,582
+campaign
+otono_2025         830
+primavera_2025    1960
+pv_2025_2026       792
+
+[FLAG] Deployments without CT mapping → dropping 252 rows
+campaign        deployment_raw
+primavera_2025  100EK113          252
+
+------------------------------------------------------------------------------
+DATE-FIX AUDIT
+------------------------------------------------------------------------------
+{'camera_num': 16, 'campaign': 'otono_2025', 'issue': 'year_2017_offset', 'n_records': 9, 'action': '+8yr', 'install_date': '2025-01-09', 'corrected_range': '2025-01-01 .. 2025-02-06'}
+{'camera_num': 19, 'campaign': 'otono_2025', 'issue': 'year_2017_anchored', 'n_records': 101, 'action': 'shift by 2951 days 14:12:00', 'install_date': '2025-01-30', 'corrected_range': '2025-01-30 .. 2025-02-04'}
+{'camera_num': 15, 'campaign': 'otono_2025', 'issue': 'year_2017_offset', 'n_records': 49, 'action': '+8yr', 'install_date': '2025-01-09', 'corrected_range': '2025-01-01 .. 2025-03-29'}
+{'camera_num': 16, 'campaign': 'primavera_2025', 'issue': 'predeploy_2017_dropped', 'n_records': 68, 'action': 'dropped'}
+{'camera_num': 16, 'campaign': 'pv_2025_2026', 'issue': 'predeploy_2017_dropped', 'n_records': 3, 'action': 'dropped'}
+
+Dropped by date audit: 71
+
+Dropping 3 records before Conaf cutoff 2024-10-01
+
+Recovered records via Spanish-name fallback (species.yaml):
+observationComments  __recovered_latin       
+Pudu                 Pudu puda                   4
+cachana              Enicognathus ferrugineus    3
+chingue              Conepatus chinga            4
+fio fio              Elaenia albiceps            2
+libelula             Odonata                     1
+pudu                 Pudu puda                   2
+rayadito             Aphrastura spinicauda       1
+
+Animal filter        : 3,256 → 1,558 (kept rows with scientificName)
+
+Small-species / non-mammal filter — dropping:
+taxonomic_group          spanish  n
+            ave        Hued hued 69
+            ave            Traro 66
+            ave           Zorzal 53
+            ave           Tiuque 17
+       mamifero Monito del monte 11
+            ave         Picaflor  6
+            ave           Chucao  5
+            ave           Concón  4
+            ave          Cachaña  3
+            ave       Cometocino  3
+            ave          Fío-fío  2
+            ave         Rayadito  2
+            ave        Queltehue  1
+   invertebrado         Libélula  1
+       mamifero Ratón cola larga  1
+
+Final record rows    : 1,314
+Final event rows     : 424  (30-min episode rule per camera×species)
+
+==============================================================================
+SUMMARY FOR SIGN-OFF
+==============================================================================
+
+# Events per camera (top 30)
+camera_num
+3     71
+19    70
+9     64
+10    55
+20    41
+4     28
+15    22
+18    14
+5     11
+13     9
+2      7
+11     7
+6      6
+7      4
+14     4
+24     2
+21     2
+16     2
+26     2
+8      1
+12     1
+25     1
+
+# Events per species (full list — these are the species in the report)
+       spanish         scientificName  is_invasive  n_events  n_images
+        Liebre        Lepus europaeus         True       189       594
+  Zorro culpeo     Lycalopex culpaeus        False       118       227
+         Perro Canis lupus familiaris         True        42       153
+          Puma          Puma concolor        False        17        49
+        Jabalí             Sus scrofa         True        17       160
+       Caballo         Equus caballus         True        11        83
+         Guiña       Leopardus guigna        False        11        14
+   Ciervo rojo         Cervus elaphus         True        10        16
+          Pudú              Pudu puda        False         4         6
+Gato doméstico            Felis catus         True         3         8
+       Chingue       Conepatus chinga        False         2         4
+
+Species kept: 11  (nativas: 5, introducidas: 6)
+
+# Records per (campaign, year) AFTER correction
+campaign        year
+otono_2025      2024    215
+                2025    298
+primavera_2025  2025    333
+pv_2025_2026    2025    462
+                2026      6
+
+Wrote → /home/fguarda/Dev/Python/camera-traps/Anual-reports/2025/data/records_clean.parquet
+Wrote → /home/fguarda/Dev/Python/camera-traps/Anual-reports/2025/data/events_clean.parquet
