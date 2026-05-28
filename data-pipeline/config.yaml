@@ -28,5 +28,9 @@ camera_traps:
   campaigns:
     - csv: ../camera-traps/data/campaigns/otono_2025/new_labeled_data_reviewed.csv
       name: "Otoño 2025"
+    # Deduped: rows already present in pv (partial re-pull) and the unmappable
+    # 100EK113 folder are removed. See scripts/dedup_primavera_2025.py.
+    - csv: ../camera-traps/data/campaigns/primavera_2025/new_labeled_data_reviewed.dedup.csv
+      name: "Primavera 2025"
     - csv: ../camera-traps/data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv
       name: "Primavera-verano 2025-2026"
