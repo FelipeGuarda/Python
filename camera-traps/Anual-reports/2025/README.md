@@ -10,19 +10,28 @@ Carpeta autocontenida con los datos, código, figuras y narrativa del informe an
 ├── render.sh                  ← convierte a DOCX (y opcionalmente PDF)
 ├── README.md                  ← este archivo
 ├── py/
-│   ├── 01_data_prep.py        ← limpia y corrige los datos crudos
-│   └── 02_figures_tables.py   ← genera todas las figuras
+│   ├── 01_data_prep.py                 ← limpia y corrige los datos crudos
+│   ├── 02_figures_tables.py            ← genera todas las figuras
+│   ├── list_ciervo_guina_images.py     ← lista cada imagen tagged ciervo/güiña con su ruta (revisión manual)
+│   └── apply_verdicts.py               ← aplica los veredictos de revisión visual y regenera records/events
 ├── data/
-│   ├── records_clean.parquet  ← una fila por imagen (post-filtros)
-│   ├── events_clean.parquet   ← una fila por episodio de 30 min
-│   └── prep_log.txt           ← auditoría completa del prep
-└── figures/
-    ├── 01_top_species.png
-    ├── 02_native_introduced.png
-    ├── 03_richness_total.png
-    ├── 04_richness_nativas.png
-    ├── 05_richness_introducidas.png
-    └── 06_panel_por_especie.png
+│   ├── records_clean.parquet                          ← una fila por imagen (canónico, post-correcciones)
+│   ├── events_clean.parquet                           ← una fila por episodio de 30 min (canónico)
+│   ├── records_clean_pre_correction.parquet           ← snapshot pre-revisión visual (no editar)
+│   ├── events_clean_pre_correction.parquet            ← snapshot pre-revisión visual (no editar)
+│   ├── manual_review_ciervo_guina.csv / .md           ← listado de imágenes etiquetadas ciervo/güiña con rutas
+│   ├── manual_review_verdicts_2026-06-02.csv          ← veredictos imagen-por-imagen (Felipe, 2026-06-02)
+│   ├── corrections_report.md                          ← deltas pre-vs-post revisión (regenerado por apply_verdicts.py)
+│   └── prep_log.txt                                   ← auditoría completa del prep automático
+├── figures/                              ← figuras canónicas (post-correcciones)
+│   ├── 01_top_species.png
+│   ├── 02_native_introduced.png
+│   ├── 03_richness_total.png
+│   ├── 04_richness_nativas.png
+│   ├── 05_richness_introducidas.png
+│   └── 06_panel_por_especie.png
+└── figures_pre_correction/               ← snapshot de figuras antes de la revisión visual (referencia)
+    └── …
 ```
 
 ## Cómo editar y compartir el informe
@@ -55,12 +64,15 @@ Si llega más data o se ajusta el código:
 ```bash
 # Activar un entorno con pandas, openpyxl, pyarrow, yaml
 conda activate data-pipeline
-python py/01_data_prep.py        # actualiza records_clean.parquet + events_clean.parquet
+python py/01_data_prep.py        # escribe records_clean_pre_correction.parquet + events_clean_pre_correction.parquet
+python py/apply_verdicts.py      # aplica los veredictos manuales → records_clean.parquet + events_clean.parquet canónicos
 
 # Cambiar al entorno con matplotlib
 conda activate fire_risk_dashboard
 python py/02_figures_tables.py   # actualiza figures/*.png
 ```
+
+> **Nota.** Tras la primera publicación se incorporó una revisión visual de las detecciones de Ciervo rojo y Güiña (sec. 1.6 del informe). El flujo canónico ahora es: `01_data_prep` produce el snapshot pre-revisión, `apply_verdicts` aplica los veredictos del archivo `data/manual_review_verdicts_2026-06-02.csv` para escribir los parquets canónicos, y `02_figures_tables` los lee. Si en el futuro se etiqueta correctamente al nivel de la revisión humana (etapa 3 del pipeline) y se confirma que los veredictos del archivo ya están reflejados en los CSV de campaña, el paso `apply_verdicts` puede eliminarse del flujo.
 
 ## Fuentes de datos canónicas
 

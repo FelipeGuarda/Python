@@ -49,12 +49,14 @@ import yaml
 # ─────────────────────────────────────────────────────────────────────────────
 # Paths
 
-REPO = Path("/home/fguarda/Dev/Python")
+HERE = Path(__file__).resolve()
+REPORT_ROOT = HERE.parents[1]               # .../camera-traps/Anual-reports/2025
+REPO = HERE.parents[4]                      # .../Python
 CAMPAIGNS = REPO / "camera-traps" / "data" / "campaigns"
 REGISTRY_XLSX = REPO / "camera-traps" / "Anual-reports" / "Registro de monitoreo CT.xlsx"
 SPECIES_YAML = REPO / "data-pipeline" / "species.yaml"
 
-OUT_DIR = REPO / "camera-traps" / "Anual-reports" / "2025" / "data"
+OUT_DIR = REPORT_ROOT / "data"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CAMPAIGN_FILES = {

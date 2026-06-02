@@ -2,7 +2,7 @@
 title: "Informe anual de fotomonitoreo en Bosque Pehuén"
 subtitle: "Resultados bajo la metodología CONAF (octubre 2024 – marzo 2026)"
 author: "Programa de Fotomonitoreo · Fundación Mar Adentro"
-date: "2026-05-20"
+date: "2026-06-02"
 lang: es
 ---
 
@@ -35,9 +35,11 @@ El informe agrega los resultados de tres campañas:
 | Campaña | Período | N° eventos |
 |---|---|---:|
 | Otoño 2025 | oct 2024 – may 2025 | 210 |
-| Primavera 2025 | jun 2025 – nov 2025 | 205 |
-| Primavera-Verano 2025–2026 | dic 2025 – ene 2026 *(en curso)* | 9 |
-| **Total** | | **424** |
+| Primavera 2025 | jun 2025 – nov 2025 | 83 |
+| Primavera-Verano 2025–2026 | dic 2025 – ene 2026 *(en curso)* | 126 |
+| **Total** | | **419** |
+
+> Cada evento se atribuye a la campaña que contiene su **primer** registro temporal. Las imágenes que aparecen replicadas entre las campañas Primavera 2025 y Primavera-Verano 2025–2026 (por re-revisión humana del mismo lote de fotografías) se colapsan en un único evento bajo la regla de 30 minutos. Esta dedup­licación, junto con la verificación visual descrita en la sección 1.6, modifica el conteo total con respecto a versiones preliminares del informe.
 
 > La campaña Primavera-Verano 2025–2026 se encuentra aún en desarrollo al cierre de este informe; sólo se procesaron los registros recibidos hasta el 10 de enero de 2026. Sus cifras aumentarán al cerrarse la campaña en marzo de 2026.
 
@@ -61,11 +63,26 @@ Para la etapa 1 se requiere fijar un **umbral de confianza** que separa imágene
 
 Dado que el objetivo del fotomonitoreo en BP es maximizar la riqueza de especies registrada, se priorizó la **exhaustividad** (*recall*) sobre la precisión: se fijó un umbral de confianza de **0.38**, que entrega un *recall* de 0.97, una precisión de 0.80 y un puntaje F1 de 0.88. En la práctica esto significa que el modelo identifica correctamente el 97% de las imágenes con animales reales, al costo de incorporar algunos falsos positivos (ramas, sombras) que son filtrados en la revisión humana posterior. Esta decisión es consistente con el protocolo de control de calidad sugerido por Silva-Rodríguez et al. (2025).
 
+## 1.6 Revisión visual de especies prioritarias
+
+Tras una primera lectura del informe se identificó que dos especies —**Ciervo rojo** (*Cervus elaphus*) y **Güiña** (*Leopardus guigna*)— presentaban una distribución espacial llamativamente amplia para lo que se conocía del área. Como control adicional de calidad, se ejecutó una **revisión visual imagen por imagen** de las 37 detecciones etiquetadas con esas dos especies en las tres campañas (16 etiquetas de ciervo + 21 de güiña, antes de aplicar dedup­licación entre campañas y filtros de ventana temporal).
+
+El protocolo fue el siguiente:
+
+1. Generar el listado completo de imágenes etiquetadas como *Cervus elaphus* o *Leopardus guigna* en los CSV de revisión humana de las tres campañas, junto con la ruta de cada miniatura sobre disco (`Anual-reports/2025/data/manual_review_ciervo_guina.csv`).
+2. Revisión visual de cada imagen por el equipo de fotomonitoreo (Felipe Guarda, junio 2026).
+3. Para cada detección, registrar veredicto (*Verdadero* / *Falso*) y, en caso de *Falso*, la especie real observada en la imagen. El registro completo está en `Anual-reports/2025/data/manual_review_verdicts_2026-06-02.csv`.
+4. Aplicar las correcciones a los registros, recomputar los eventos bajo la regla de 30 minutos y regenerar todas las figuras (`Anual-reports/2025/py/apply_verdicts.py`).
+
+El resultado fue que la mayor parte de las detecciones de Ciervo rojo correspondían en realidad a otras especies (Liebre, Pudú, Jabalí, Zorro culpeo, Puma) y que una detección de Güiña era un disparo en falso sin animal. La especie más afectada fue **Ciervo rojo**, cuya presencia pasó de 7 cámaras a 1 (CT13); los detalles cuantitativos se incorporan a las cifras del resto del informe.
+
+Esta revisión visual se aplicó únicamente a las dos especies bajo sospecha. Una auditoría visual sistemática de todas las etiquetas queda como tarea pendiente para futuras versiones del informe, junto con la incorporación de un protocolo de revisión cruzada (dos revisores independientes) descrito por Silva-Rodríguez et al. (2025).
+
 ---
 
 # 2. Listado de especies
 
-Tras aplicar el filtro de episodio independiente y la exclusión de aves y micromamíferos (justificada en la sección 1.5: insuficientes observaciones para análisis cuantitativo significativo en esta primera fase), se registraron **11 especies** de mamíferos medianos y grandes en Bosque Pehuén durante el período del informe. La tabla 2 resume el listado, indicando nombre común, nombre científico y origen (nativa / introducida).
+Tras aplicar el filtro de episodio independiente, la exclusión de aves y micromamíferos (justificada en la sección 1.5: insuficientes observaciones para análisis cuantitativo significativo en esta primera fase) y la verificación visual descrita en 1.6, se registraron **11 especies** de mamíferos medianos y grandes en Bosque Pehuén durante el período del informe. La tabla 2 resume el listado, indicando nombre común, nombre científico y origen (nativa / introducida).
 
 **Tabla 2.** Listado de especies registradas (oct 2024 – mar 2026).
 
@@ -89,11 +106,11 @@ De las 11 especies, **5 son nativas** (de las cuales tres —Puma, Güiña y Pud
 
 # 3. Especies más observadas
 
-La figura 1 ordena las 11 especies por número de eventos durante el período del informe. Liebre europea (189 eventos) y Zorro culpeo (118) concentran el **72% del total de detecciones**. Tres especies introducidas (Liebre, Perro, Jabalí) explican el **58% de los eventos**.
+La figura 1 ordena las 11 especies por número de eventos durante el período del informe. Liebre europea (191 eventos) y Zorro culpeo (119) concentran el **74% del total de detecciones**. Tres especies introducidas (Liebre, Perro, Jabalí) explican el **60% de los eventos**.
 
 ![Figura 1. Número de eventos por especie, oct 2024 – mar 2026.](figures/01_top_species.png){#fig:01_top_species width=80%}
 
-A pesar de la dominancia numérica de introducidas, la riqueza específica está repartida casi equitativamente: 5 especies nativas y 6 introducidas. En términos de eventos totales, las introducidas representan el **64%** de las detecciones (figura 2).
+A pesar de la dominancia numérica de introducidas, la riqueza específica está repartida casi equitativamente: 5 especies nativas y 6 introducidas. En términos de eventos totales, las introducidas representan el **63%** de las detecciones (figura 2).
 
 ![Figura 2. Composición de detecciones por origen.](figures/02_native_introduced.png){#fig:02_native_introduced width=60%}
 
@@ -103,7 +120,7 @@ A pesar de la dominancia numérica de introducidas, la riqueza específica está
 
 ## 4.1 Mapa de riqueza total
 
-La figura 3 muestra el número de especies registradas en cada cámara trampa durante el período del informe. Las cámaras CT3 y CT15 presentaron la mayor riqueza (7 especies cada una). Cuatro cámaras (CT1, CT17, CT22, CT23) no registraron eventos retenidos en este análisis, indicadas como puntos grises.
+La figura 3 muestra el número de especies registradas en cada cámara trampa durante el período del informe. **CT3** presenta la mayor riqueza (7 especies), seguida por **CT15** (6 especies). Cuatro cámaras (CT1, CT17, CT22, CT23) no registraron eventos retenidos en este análisis, indicadas como puntos grises.
 
 ![Figura 3. Riqueza de especies por cámara trampa.](figures/03_richness_total.png){#fig:03_richness_total width=85%}
 
@@ -115,7 +132,7 @@ CT3 es la única cámara que registró 4 especies nativas distintas; CT15 y CT5 
 
 ## 4.3 Mapa de riqueza de especies introducidas
 
-CT9, CT19, CT18, CT4, CT13 y CT15 muestran la mayor riqueza de introducidas (4 especies cada una; figura 5). El patrón espacial es heterogéneo, pero coincide con vías de acceso al área y zonas con uso humano frecuente.
+CT13, CT18 y CT19 muestran la mayor riqueza de introducidas (4 especies cada una; figura 5). El patrón espacial es heterogéneo, pero coincide con vías de acceso al área y zonas con uso humano frecuente.
 
 > **Contexto operativo importante:** CT19 está ubicada cerca de las viviendas de los guardaparques, lo que explica el alto número de eventos en su entorno —principalmente caballos, perros y liebres— en una ventana temporal corta (cinco días de operación corregida). Esta cámara aparece como un *hotspot* en los mapas de riqueza de introducidas y en los paneles por especie de Liebre, Perro y Caballo.
 
@@ -124,6 +141,8 @@ CT9, CT19, CT18, CT4, CT13 y CT15 muestran la mayor riqueza de introducidas (4 e
 ## 4.4 Distribución por especie
 
 La figura 6 muestra un panel de mini-mapas, uno por especie, con el tamaño de cada burbuja proporcional al número de eventos en esa cámara. Permite comparar visualmente la cobertura espacial de cada especie en BP.
+
+Tras la verificación visual (sec. 1.6), **Ciervo rojo** queda registrado en una única cámara (CT13), con un sólo evento independiente. La **Güiña** se registra en 6 cámaras (CT3, CT5, CT8, CT16, CT25, CT26); el resto de las nativas y de las especies introducidas mantienen su distribución espacial sustancialmente sin cambios respecto del prep­rocesado automático.
 
 ![Figura 6. Distribución de eventos por especie, eventos sumados oct 2024 – mar 2026.](figures/06_panel_por_especie.png){#fig:06_panel_especie width=100%}
 
@@ -134,7 +153,8 @@ La figura 6 muestra un panel de mini-mapas, uno por especie, con el tamaño de c
 - **Cobertura de la red.** Las 26 CT instaladas representan el 87% de la meta de diseño de 30 cámaras. Cuatro cámaras (CT1, CT17, CT22, CT23) no aportaron datos al análisis durante el período cubierto; se priorizará revisar su funcionamiento en la próxima campaña.
 - **Aves y micromamíferos.** Su exclusión en este informe responde al bajo número de detecciones registrado durante el período, no a su ausencia en el área. Próximas iteraciones del informe podrán incorporarlos a medida que se acumule volumen de datos suficiente.
 - **Errores de reloj.** Las correcciones aplicadas a CT15, CT16 y CT19 fueron documentadas en el registro de procesamiento (`data/prep_log.txt`). Es recomendable revisar la configuración inicial del reloj y las pilas en la próxima campaña de instalación, y verificar el timestamp directamente en terreno antes de dejar cada cámara operativa.
-- **Datos no recuperados.** El despliegue identificado como `100EK113` (252 imágenes en la campaña Primavera 2025) no pudo asociarse a una CT específica. Estos registros se excluyeron del análisis. Asimismo, 71 registros de la cámara TC16 con fecha 2017 que corresponden a un período pre-redespliegue no se incluyeron.
+- **Datos no recuperados.** El despliegue identificado como `100EK113` (252 imágenes en la campaña Primavera 2025) no pudo asociarse a una CT específica en el flujo automático; evidencia visual posterior sugiere que corresponde físicamente a CT5 (ver `Sessions/2026-05-27-camera-traps-ciervo-guina-ct-validation.md`), pero su reincorporación queda pendiente de confirmación adicional. Asimismo, 71 registros de la cámara TC16 con fecha 2017 que corresponden a un período pre-redespliegue no se incluyeron.
+- **Calidad de etiquetado y revisión cruzada.** La revisión visual descrita en la sección 1.6 reveló que la clasificación CLIP + revisión humana inicial produjo una tasa de falsos positivos no despreciable para *Cervus elaphus* (10 de 16 etiquetas, ~63%) y muy baja para *Leopardus guigna* (1 de 21, ~5%). El detalle por imagen está en `data/manual_review_verdicts_2026-06-02.csv` y el resumen de impacto en `data/corrections_report.md`. Se recomienda aplicar este protocolo de verificación visual al resto de las especies prioritarias en futuras campañas, y considerar un esquema de revisión cruzada (dos revisores) que reduzca la varianza entre pases de revisión humana.
 
 ---
 
@@ -149,4 +169,4 @@ La figura 6 muestra un panel de mini-mapas, uno por especie, con el tamaño de c
 
 ---
 
-*Datos y código fuente:* `camera-traps/Anual-reports/2025/`. Para regenerar las cifras: `python py/01_data_prep.py && python py/02_figures_tables.py`.
+*Datos y código fuente:* `camera-traps/Anual-reports/2025/`. Para regenerar las cifras: `python py/01_data_prep.py && python py/02_figures_tables.py && python py/apply_verdicts.py`.

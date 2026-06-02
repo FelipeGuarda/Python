@@ -39,9 +39,13 @@ from matplotlib.patches import Polygon as MplPolygon
 # ─────────────────────────────────────────────────────────────────────────────
 # Paths
 
-REPO = Path("/home/fguarda/Dev/Python")
-DATA = REPO / "camera-traps" / "Anual-reports" / "2025" / "data"
-FIGS = REPO / "camera-traps" / "Anual-reports" / "2025" / "figures"
+# Resolve the repo root from this file's location so the script runs on any
+# machine (Linux/Windows) without edits.
+HERE = Path(__file__).resolve()
+REPORT_ROOT = HERE.parents[1]               # .../camera-traps/Anual-reports/2025
+REPO = HERE.parents[4]                      # .../Python
+DATA = REPORT_ROOT / "data"
+FIGS = REPORT_ROOT / "figures"
 FIGS.mkdir(parents=True, exist_ok=True)
 
 EVENTS_PARQUET = DATA / "events_clean.parquet"

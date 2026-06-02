@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-05-12 (post-review planning sync: React canonical, station coords confirmed, thumbnails confirmed shipped)
+**Last updated:** 2026-06-02 (camera-traps: revisión visual ciervo/güiña aplicada al informe anual 2025)
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile — reserve center -39.4417°, -71.7420° (canonical: `plataforma-territorial/data/stations.yaml` → `reserve.center`)
 
@@ -159,9 +159,14 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 ---
 
-### 3. Camera Traps (`camera-traps/`) — FASE 1 OPERATIVA
+### 3. Camera Traps (`camera-traps/`) — FASE 1 OPERATIVA · Informe Anual 2025 publicado y corregido
 
 CLIP classification pipeline and Streamlit review UI are production-quality. Both campaigns (Otoño 2025 + Primavera-verano 2025-2026) classified and reviewed. Species list now sourced from canonical `data-pipeline/species.yaml` via sibling loader (Track B, 2026-04-27) — 27 CLIP species + 4 non-CLIP entries (31 total).
+
+**Last Updated:** 2026-06-02
+**What Changed:** Revisión visual imagen-por-imagen de las 37 detecciones de Ciervo rojo y Güiña en el Informe Anual 2025. Ciervo rojo colapsa de 7 → 1 cámara (sólo CT13); Güiña 7 → 6 (sale CT14). Informe (`Anual-reports/2025/informe_anual_2025.md`) reescrito con nueva sec. 1.6 documentando el protocolo. Pipeline ampliado a 3 pasos idempotentes (`01_data_prep` → `apply_verdicts` → `02_figures_tables`); snapshots pre-corrección preservados.
+**Integration Status:** Ready — el flujo es reproducible en Windows y Linux; verdicts en `data/manual_review_verdicts_2026-06-02.csv`.
+**Blockers/Notes:** Pendiente decidir si re-mapear despliegue `100EK113` a CT5 (sospecha confirmada por foto pero no re-ingestado). Pendiente correr `render.sh` en Linux para regenerar el `.docx` con las cifras nuevas para el jefe.
 
 | Component | Status | Notes |
 |---|---|---|
@@ -170,8 +175,9 @@ CLIP classification pipeline and Streamlit review UI are production-quality. Bot
 | Streamlit review UI | Done | `phase1_labeling/app.py` — handles empty filePath column |
 | GIS data (KML → GeoJSON) | Done | Boundary + 26 station coordinates (TC-26 fixed 2026-03-30) |
 | Otoño 2025 classification | Done | 697 animal obs reviewed |
-| Primavera-verano 2025-2026 | **Done** | 500 animal obs reviewed |
-| Species image export | **Done** | `export_best_images.py`: auto-discovers campaigns; 155 species images + 103 station images in `exports/` (gitignored); filenames traceable to source |
+| Primavera-verano 2025-2026 | Done | 500 animal obs reviewed |
+| Species image export | Done | `export_best_images.py`: auto-discovers campaigns; 155 species images + 103 station images in `exports/` (gitignored); filenames traceable to source |
+| **Informe Anual 2025** | **Done (v2)** | `Anual-reports/2025/` — markdown source, 6 figuras, pipeline reproducible, revisión visual aplicada (2026-06-02). 419 eventos, 11 especies, 22/26 CTs con detecciones. |
 | EfficientNetV2 fine-tuning | Planned | Needs ≥50 reviewed images/species — now viable for common species |
 | Otoño 2025 videos | Deferred | 2,593 videos, MegaDetector not run — process post-migration on Linux |
 
@@ -240,6 +246,9 @@ Note: `visualizaciones-artisticas/` has the "Río de Sonidos" concept already de
 - [x] **TC-26 coordinates** — grid 22, SD M23. Spreadsheet has wrong coords (30 km off). Get correct GPS from field team.
 - [ ] **BP boundary delimitation** — polygon under review. Confirm which version to use.
 - [x] **Otoño 2025 camera trap processing** — done. Both campaigns reviewed, backed up, species images exported.
+- [x] **Informe Anual 2025 — revisión visual ciervo/güiña aplicada (2026-06-02).** Ciervo rojo 7 → 1 cámara, Güiña 7 → 6 cámaras. Pipeline ampliado (`apply_verdicts.py`), informe re-escrito con sec. 1.6 documentando el protocolo. Ver `camera-traps/Anual-reports/2025/data/correction_log.txt`.
+- [ ] **100EK113 → CT5 re-mapping.** Sospecha confirmada visualmente (sesión 2026-05-27 + verdicts 2026-06-02) pero aún no re-ingestado en DuckDB ni en los CSVs de campaña.
+- [ ] **Render del DOCX del Informe Anual 2025 v2.** Requiere `pandoc` en Linux; correr `bash camera-traps/Anual-reports/2025/render.sh`.
 - [ ] **Flora plot coordinates** — not yet available.
 - [ ] **Aves en BP/** — contains bird list comparison notebooks and Excel files. No README. Appears to be taxonomic reference data for camera trap species list. Document before using in platform.
 - [x] **Meteo tab** — label fixed to "Última medición", wind rose moved below charts (larger).
