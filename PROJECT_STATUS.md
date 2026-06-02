@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-06-02 (camera-traps: revisión visual ciervo/güiña aplicada al informe anual 2025)
+**Last updated:** 2026-06-02 (plataforma: nueva capa "piso vegetacional" en Observatorio · camera-traps: revisión visual ciervo/güiña aplicada al informe anual 2025)
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile — reserve center -39.4417°, -71.7420° (canonical: `plataforma-territorial/data/stations.yaml` → `reserve.center`)
 
@@ -117,7 +117,7 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 | Component | Status | Notes |
 |---|---|---|
-| Observatorio (map) | **Real data** | 23 canonical stations from DuckDB, species counts + thumbnails in popups |
+| Observatorio (map) | **Real data** | 23 canonical stations from DuckDB, species counts + thumbnails in popups; piso vegetacional overlay (2026-06-02) — 48 polygons by BIOTOPO, off by default |
 | Dashboard — Meteo tab | **Real data** | Year of history, variable selector, wind rose, comparison mode |
 | Dashboard — Fire risk tab | **Real data** | All visuals use Open-Meteo exclusively. Polar chart color matches gauge. Fixed 3-week bar chart (no navigation). Wind compass from forecast. Freshness timestamps on all widgets. |
 | Dashboard — Cameras tab | **Real data** | Diel activity chart, summary stats, station grid — all from DuckDB |
@@ -154,7 +154,9 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 **Priority 3 — Observatorio: real map layers:**
 - [x] Verify real coordinates for all camera stations and weather station ← confirmed 2026-05-12
+- [x] Piso vegetacional (fotointerpretación) — 48 BIOTOPO polygons, toggle layer ← done 2026-06-02
 - [ ] BP boundary delimitation — final polygon version pending (carried from Open Items)
+- [ ] DISTRITO (geomorphological) layer — same source GeoJSON, 4-color physiographic classification; queued
 - ~~Optional layers: fire risk zones, historical fire perimeters~~ — dropped 2026-05-12 (out of scope)
 
 ---

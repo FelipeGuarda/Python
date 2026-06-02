@@ -1,10 +1,10 @@
 # Plataforma Territorial FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Last Updated:** 2026-05-11 — code review complete
-**What Changed:** Closed the plataforma half of the FMA-ecosystem review in five batches today. Tier 1: S50 (`/api/health` raises 503 on DB failure). Tier 2: S44 (`backend/paths.py`), S48 (stations.yaml coords — fixed ~17 km drift in bootstrap), S55 (DuckDB CTE for `days_without_rain`), S64 (`demo_report.js`), S66 (RiskGauge pure presentational component). Bundle A — schema authority: S49 (startup drift-check; surfaced 27 real DB columns missing from `ALLOWED_COLS` including `battery_voltage`). Bundle B: S53 (species-endpoint docstring tightening + `common_name` symmetry on `/species-summary`), S59 (`useAPI` now exposes `refetch`). Tier 4: S72 closed-rejected (SPA-by-design comment added to `App.jsx`); S76 deferred until CI exists. **First full code review now complete:** every finding in this project is closed or has an explicit re-open trigger. See repo-root `CHANGELOG.md`.
-**Integration Status:** Ready [Observatorio map; 26 TCs from canonical stations.yaml; species classification via API; modular frontend per W41; CSS-Modules styling per W44; schema-drift visible at boot per S49] | Pending [`battery_voltage` curation in `ALLOWED_COLS` — surfaced by S49 drift check; cámaras trampa dashboard tab polish; fauna tab real data; Asistente real Claude API]
-**Blockers/Notes:** Code review complete. Deferred items with explicit triggers: S58 needs Felipe's field records (TC-11 vs TC-18 SD-card duplication in stations.yaml); S76 re-opens when CI lands. 8 Spanish display names changed to canonical form via species.yaml — still flagged for biological review before user-facing release.
+**Last Updated:** 2026-06-02 — added piso-vegetacional GeoJSON layer to Observatorio
+**What Changed:** New toggleable Leaflet layer on Observatorio: photointerpretation of Bosque Pehuén's vegetational floor (48 polygons, colored by BIOTOPO across 3 semantic groups — greens for Bosque, ochres for Renoval, blues/violets for Matorral/Pradera/Estepa). Layer is **off by default**; click a polygon for `BIOTOPO / Distrito / Superficie`. Self-contained component (`PisoVegetacionalLayer.jsx`) — adding more GIS layers later follows the same shape. Conversion is reproducible via `scripts/convert_piso_vegetacional.py` (shapefile → GeoJSON, UTM 18S → WGS84, latin-1/utf-8 quirks handled).
+**Integration Status:** Ready [Observatorio map + piso vegetacional overlay; 26 TCs from canonical stations.yaml; species classification via API; modular frontend per W41; CSS-Modules styling per W44; schema-drift visible at boot per S49] | Pending [`battery_voltage` curation in `ALLOWED_COLS` — surfaced by S49 drift check; cámaras trampa dashboard tab polish; fauna tab real data; Asistente real Claude API]
+**Blockers/Notes:** Piso-vegetacional palette approved visually but Bosque Achaparrado / Bosque Abierto may need a stronger split if it blurs in field use — colors live at the top of `PisoVegetacionalLayer.jsx`, single edit. Deferred items unchanged: S58 needs Felipe's field records (TC-11 vs TC-18 SD-card duplication in stations.yaml); S76 re-opens when CI lands.
 
 ---
 
@@ -53,7 +53,7 @@ npm run dev         # opens at http://localhost:5173
 
 | Page | Status | Description |
 |---|---|---|
-| Observatorio | Real data | Leaflet + Esri satellite, BP boundary polygon, 26 camera markers |
+| Observatorio | Real data | Leaflet + Esri satellite, BP boundary polygon, 26 camera markers, piso vegetacional overlay (toggle, off by default) |
 | Dashboard — Meteo | **Real data** | Year of weather history, variable selector, wind rose, comparison mode |
 | Dashboard — Fire risk | **Real data** | Polar contribution chart, FRI gauge, wind compass, 3-week bar chart with history+forecast |
 | Dashboard — Cameras/Fauna | Mock data | Pending |
@@ -77,6 +77,7 @@ Logs: `journalctl --user -u fma-platform -f`
 
 - `data/boundary.geojson` — Bosque Pehuén reserve boundary (86 vertices)
 - `data/camera_trap_stations.geojson` — 26 cameras with real coordinates
+- `data/piso_vegetacional.geojson` — photointerpretation of vegetational floor (48 polygons, BIOTOPO + DISTRITO + Supe). Regenerable from the source shapefile (`data/piso_vegetacional_source/veg_foto_BP.*`) via `scripts/convert_piso_vegetacional.py`.
 - `data/stations.yaml` — single source of truth for all monitoring stations
 - **NOTE:** BP boundary delimitation under review — confirm which polygon to use
 

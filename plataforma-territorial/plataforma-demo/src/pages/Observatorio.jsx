@@ -10,6 +10,7 @@ import { Card } from "../components/Card.jsx";
 import { SectionLabel } from "../components/SectionLabel.jsx";
 import { RiskGauge } from "../components/RiskGauge.jsx";
 import { StatBlock } from "../components/StatBlock.jsx";
+import { PisoVegetacionalLayer } from "../components/PisoVegetacionalLayer.jsx";
 import styles from "./Observatorio.module.css";
 
 // Custom weather station icon
@@ -37,6 +38,7 @@ export function Observatorio() {
   const [boundary, setBoundary] = useState(null);
   const [showBoundary, setShowBoundary] = useState(true);
   const [showCams, setShowCams] = useState(true);
+  const [showPisoVeg, setShowPisoVeg] = useState(false);
   const [lightboxImg, setLightboxImg] = useState(null);
   const { data: riskData } = useAPI(getFireRiskCurrent, null, []);
   const { data: stations } = useAPI(getStationSummary, null, []);
@@ -65,6 +67,9 @@ export function Observatorio() {
           />
 
           {boundary && <FitBounds geojson={boundary} />}
+
+          {/* Piso vegetacional (fotointerpretación) — off by default */}
+          {showPisoVeg && <PisoVegetacionalLayer />}
 
           {/* Reserve boundary */}
           {showBoundary && boundary && (
@@ -168,8 +173,11 @@ export function Observatorio() {
           <label className={`${styles.legendCheck} ${styles.legendCheckSpaced}`}>
             <input type="checkbox" checked={showBoundary} onChange={() => setShowBoundary(!showBoundary)} /> Límite reserva
           </label>
-          <label className={styles.legendCheck}>
+          <label className={`${styles.legendCheck} ${styles.legendCheckSpaced}`}>
             <input type="checkbox" checked={showCams} onChange={() => setShowCams(!showCams)} /> Estaciones
+          </label>
+          <label className={styles.legendCheck}>
+            <input type="checkbox" checked={showPisoVeg} onChange={() => setShowPisoVeg(!showPisoVeg)} /> Vegetación (fotointerp.)
           </label>
         </div>
 
