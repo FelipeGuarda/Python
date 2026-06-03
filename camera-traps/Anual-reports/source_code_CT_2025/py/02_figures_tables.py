@@ -1,14 +1,14 @@
 """
 02_figures_tables.py — Produce all figures for the 2025 annual report.
 
-Inputs
-------
-- 2025/data/events_clean.parquet                                   (from step 01)
-- plataforma-territorial/data/boundary.geojson                     (canonical BP polygon)
-- plataforma-territorial/data/camera_trap_stations.geojson         (26 CT points)
+Inputs (all under source_code_CT_2025/)
+---------------------------------------
+- data/events_clean.parquet              (canonical, post-verdict-application)
+- inputs/boundary.geojson                (Bosque Pehuén polygon)
+- inputs/camera_trap_stations.geojson    (26 CT points)
 
-Outputs (2025/figures/)
------------------------
+Outputs (figures/)
+------------------
 - 01_top_species.png            barplot of events per species, colored by origen
 - 02_native_introduced.png      donut: nativas vs introducidas (eventos totales)
 - 03_richness_total.png         map: # de especies registradas por CT
@@ -44,20 +44,18 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Paths
+# Paths (all resolved relative to this script — no external repo dependency)
 
-# Resolve the repo root from this file's location so the script runs on any
-# machine (Linux/Windows) without edits.
 HERE = Path(__file__).resolve()
-REPORT_ROOT = HERE.parents[1]               # .../camera-traps/Anual-reports/2025
-REPO = HERE.parents[4]                      # .../Python
-DATA = REPORT_ROOT / "data"
-FIGS = REPORT_ROOT / "figures"
+ROOT = HERE.parents[1]                      # source_code_CT_2025/
+INPUTS = ROOT / "inputs"
+DATA = ROOT / "data"
+FIGS = ROOT / "figures"
 FIGS.mkdir(parents=True, exist_ok=True)
 
 EVENTS_PARQUET = DATA / "events_clean.parquet"
-BOUNDARY_GEOJSON = REPO / "plataforma-territorial" / "data" / "boundary.geojson"
-STATIONS_GEOJSON = REPO / "plataforma-territorial" / "data" / "camera_trap_stations.geojson"
+BOUNDARY_GEOJSON = INPUTS / "boundary.geojson"
+STATIONS_GEOJSON = INPUTS / "camera_trap_stations.geojson"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Style

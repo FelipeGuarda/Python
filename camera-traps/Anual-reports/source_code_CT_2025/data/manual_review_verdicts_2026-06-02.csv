@@ -1,0 +1,38 @@
+campaign,camera_num,Deployments,File,original_label,verdict,corrected_species_spanish,corrected_species_latin,reviewer,review_date,notes
+pv_2025_2026,4,TC4_M5.2,09060102.JPG,Cervus elaphus,Falso,Liebre,Lepus europaeus,Felipe,2026-06-02,
+pv_2025_2026,4,TC4_M5.2,10150189.JPG,Cervus elaphus,Falso,Liebre,Lepus europaeus,Felipe,2026-06-02,
+pv_2025_2026,4,TC4_M5.2,11040253.JPG,Cervus elaphus,Falso,Liebre,Lepus europaeus,Felipe,2026-06-02,
+otono_2025,7,CT07,06020042.JPG,Cervus elaphus,Falso,Pudú,Pudu puda,Felipe,2026-06-02,
+otono_2025,9,CT09,04030431.JPG,Cervus elaphus,Falso,Liebre,Lepus europaeus,Felipe,2026-06-02,
+primavera_2025,13,TC13_M16.2,10250085.JPG,Cervus elaphus,Verdadero,,,Felipe,2026-06-02,"Duplicado con pv_2025_2026 (mismo archivo, mismo evento)"
+primavera_2025,13,TC13_M16.2,10250086.JPG,Cervus elaphus,Verdadero,,,Felipe,2026-06-02,"Duplicado con pv_2025_2026"
+primavera_2025,13,TC13_M16.2,10250087.JPG,Cervus elaphus,Verdadero,,,Felipe,2026-06-02,"Duplicado con pv_2025_2026"
+pv_2025_2026,13,TC13_M16.2,10250085.JPG,Cervus elaphus,Verdadero,,,Felipe,2026-06-02,"Duplicado con primavera_2025"
+pv_2025_2026,13,TC13_M16.2,10250086.JPG,Cervus elaphus,Verdadero,,,Felipe,2026-06-02,"Duplicado con primavera_2025"
+pv_2025_2026,13,TC13_M16.2,10250087.JPG,Cervus elaphus,Verdadero,,,Felipe,2026-06-02,"Duplicado con primavera_2025"
+pv_2025_2026,14,TC14_M11.2,10020834.JPG,Cervus elaphus,Falso,Jabalí,Sus scrofa,Felipe,2026-06-02,
+otono_2025,15,CT15,01230193.JPG,Cervus elaphus,Falso,Pudú,Pudu puda,Felipe,2026-06-02,
+otono_2025,15,CT15,01230194.JPG,Cervus elaphus,Falso,Pudú,Pudu puda,Felipe,2026-06-02,
+otono_2025,15,CT15,01290209.JPG,Cervus elaphus,Falso,Zorro culpeo,Lycalopex culpaeus,Felipe,2026-06-02,"Identificado como 'zorro' por el revisor; asumido culpeo (la otra opción sería Lycalopex griseus / chilla — confirmar visualmente si importa)"
+primavera_2025,20,TC20_M17.2,11140392.JPG,Cervus elaphus,Falso,Puma,Puma concolor,Felipe,2026-06-02,"Coincide con el segundo pase (pv) que ya lo había marcado Puma concolor"
+otono_2025,3,CT03,10180013.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,
+otono_2025,3,CT03,10180014.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,
+pv_2025_2026,5,TC5_M9.2,07110001.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"Todos los güiña de TC5_M9.2 confirmados correctos"
+pv_2025_2026,5,TC5_M9.2,08300093.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,
+pv_2025_2026,5,TC5_M9.2,10180169.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,
+pv_2025_2026,5,TC5_M9.2,10180170.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,
+pv_2025_2026,5,TC5_M9.2,10300189.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,
+otono_2025,8,CT08,09260026.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"Pre-corte Conaf (2024-09-26): la especie es correcta pero el informe lo descarta por estar fuera de ventana 2024-10-01+"
+otono_2025,8,CT08,11260099.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,
+pv_2025_2026,14,TC14_M11.2,01030967.JPG,Leopardus guigna,Falso,Sin animales,,Felipe,2026-06-02,"No hay animal en la imagen (gatillo en falso)"
+otono_2025,16,CT16,09100029.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"Reloj corregido +8yr → 2025-01-03 (filename codifica 09-10)"
+otono_2025,16,CT16,09100030.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"Reloj corregido +8yr"
+otono_2025,16,CT16,02060086.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"Reloj corregido +8yr"
+pv_2025_2026,25,TC25_M22.2,06260001.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,
+pv_2025_2026,26,TC26_M23.2,07180010.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,
+primavera_2025,,100EK113,07110001.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"100EK113 = CT05 físicamente (per session log 2026-05-27); mismo archivo que pv_2025_2026 TC5_M9.2"
+primavera_2025,,100EK113,08300093.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"100EK113 = CT05"
+primavera_2025,,100EK113,10180169.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"100EK113 = CT05"
+primavera_2025,,100EK113,10180170.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"100EK113 = CT05"
+primavera_2025,,100EK113,10300189.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"100EK113 = CT05"
+primavera_2025,,100EK113,10300190.JPG,Leopardus guigna,Verdadero,,,Felipe,2026-06-02,"100EK113 = CT05; imagen extra (no presente en TC5_M9.2 pv) — 1s después de 10300189"

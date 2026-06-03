@@ -1,0 +1,194 @@
+# Species catalog — Bosque Pehuén monitoring ecosystem
+# Canonical source for data-pipeline, camera-traps, and plataforma-territorial.
+# Generated: 2026-04-24
+#
+# Fields per entry:
+#   latin            — scientific name (required, unique, cross-project join key)
+#   spanish          — canonical Spanish common name (required)
+#   spanish_aliases  — accent-strip / synonym variants for reviewer "Otro (especificar)" matching
+#   english          — CLIP text prompt (used by camera-traps classifier; optional)
+#   taxonomic_group  — mamifero | ave | invertebrado (reptil reserved for future)
+#   is_invasive      — true for introduced / feral species (defaults false)
+#   is_priority      — true for conservation-priority natives (defaults false)
+#
+# Lookup order for SPANISH_TO_LATIN: lowercased spanish, then each lowercased alias.
+# Species added 2026-04-16 (Chingue, Cachaña, Fío-fío, Libélula) came from reviewer
+# comments and were not part of the original 27-entry CLIP catalog — they have no
+# english prompt and are NOT passed to the CLIP classifier.
+
+species:
+  # ── Mamíferos ──
+  - latin: Lycalopex culpaeus
+    spanish: Zorro culpeo
+    spanish_aliases: [zorro]
+    english: culpeo fox
+    taxonomic_group: mamifero
+
+  - latin: Puma concolor
+    spanish: Puma
+    english: puma mountain lion cougar
+    taxonomic_group: mamifero
+    is_priority: true
+
+  - latin: Leopardus guigna
+    spanish: Guiña
+    spanish_aliases: [guina]
+    english: guiña kodkod small wild cat
+    taxonomic_group: mamifero
+    is_priority: true
+
+  - latin: Sus scrofa
+    spanish: Jabalí
+    spanish_aliases: [jabali]
+    english: wild boar
+    taxonomic_group: mamifero
+    is_invasive: true
+
+  - latin: Lepus europaeus
+    spanish: Liebre
+    english: European hare
+    taxonomic_group: mamifero
+    is_invasive: true
+
+  - latin: Neogale vison
+    spanish: Visón
+    spanish_aliases: [vison]
+    english: American mink
+    taxonomic_group: mamifero
+    is_invasive: true
+
+  - latin: Canis lupus familiaris
+    spanish: Perro
+    english: domestic dog
+    taxonomic_group: mamifero
+    is_invasive: true
+
+  - latin: Equus caballus
+    spanish: Caballo
+    english: domestic horse
+    taxonomic_group: mamifero
+    is_invasive: true
+
+  - latin: Felis catus
+    spanish: Gato doméstico
+    spanish_aliases: [gato domestico]
+    english: domestic cat
+    taxonomic_group: mamifero
+    is_invasive: true
+
+  - latin: Dromiciops gliroides
+    spanish: Monito del monte
+    english: monito del monte small marsupial
+    taxonomic_group: mamifero
+
+  - latin: Abrothrix longipilis
+    spanish: Ratón cola larga
+    spanish_aliases: [raton cola larga]
+    english: long-haired mouse small rodent
+    taxonomic_group: mamifero
+
+  - latin: Cervus elaphus
+    spanish: Ciervo rojo
+    english: red deer
+    taxonomic_group: mamifero
+    is_invasive: true
+
+  - latin: Pudu puda
+    spanish: Pudú
+    spanish_aliases: [pudu]
+    english: pudu small deer
+    taxonomic_group: mamifero
+    is_priority: true
+
+  - latin: Conepatus chinga
+    spanish: Chingue
+    taxonomic_group: mamifero
+
+  # ── Aves ──
+  - latin: Scelorchilus rubecula
+    spanish: Chucao
+    english: chucao tapaculo small bird
+    taxonomic_group: ave
+
+  - latin: Pteroptochos tectus
+    spanish: Hued hued
+    english: moustached turca ground bird
+    taxonomic_group: ave
+
+  - latin: Aphrastura spinicauda
+    spanish: Rayadito
+    english: thorn-tailed rayadito small bird
+    taxonomic_group: ave
+
+  - latin: Strix rufipes
+    spanish: Concón
+    spanish_aliases: [concon]
+    english: rufous-legged owl
+    taxonomic_group: ave
+
+  - latin: Campephilus magellanicus
+    spanish: Carpintero
+    english: Magellanic woodpecker
+    taxonomic_group: ave
+
+  - latin: Theristicus melanopis
+    spanish: Bandurria
+    english: black-faced ibis
+    taxonomic_group: ave
+
+  - latin: Vanellus chilensis
+    spanish: Queltehue
+    english: southern lapwing
+    taxonomic_group: ave
+
+  - latin: Milvago chimango
+    spanish: Tiuque
+    english: chimango caracara
+    taxonomic_group: ave
+
+  - latin: Accipiter chilensis
+    spanish: Peuquito
+    english: Chilean hawk
+    taxonomic_group: ave
+
+  - latin: Turdus falcklandii
+    spanish: Zorzal
+    english: Austral thrush
+    taxonomic_group: ave
+
+  - latin: Phrygilus gayi
+    spanish: Cometocino
+    english: grey-hooded sierra finch
+    taxonomic_group: ave
+
+  - latin: Sephanoides sephaniodes
+    spanish: Picaflor
+    english: green-backed firecrown hummingbird
+    taxonomic_group: ave
+
+  - latin: Xolmis pyrope
+    spanish: Diucón
+    spanish_aliases: [diucon]
+    english: fire-eyed diucon
+    taxonomic_group: ave
+
+  - latin: Caracara plancus
+    spanish: Traro
+    english: southern caracara
+    taxonomic_group: ave
+
+  - latin: Enicognathus ferrugineus
+    spanish: Cachaña
+    spanish_aliases: [cachana]
+    taxonomic_group: ave
+
+  - latin: Elaenia albiceps
+    spanish: Fío-fío
+    spanish_aliases: [fio fio, fío fío, fio-fio]
+    taxonomic_group: ave
+
+  # ── Invertebrados ──
+  - latin: Odonata
+    spanish: Libélula
+    spanish_aliases: [libelula]
+    taxonomic_group: invertebrado

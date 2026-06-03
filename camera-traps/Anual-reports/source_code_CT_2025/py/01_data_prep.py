@@ -1,17 +1,24 @@
 """
 01_data_prep.py — Build the cleaned record table for the 2025 annual report.
 
-Inputs
-------
-- camera-traps/data/campaigns/{otono_2025, primavera_2025, pv_2025_2026}/new_labeled_data_reviewed.csv
-- camera-traps/Anual-reports/Registro de monitoreo CT.xlsx  (sheet: Registro de instalacion)
-- data-pipeline/species.yaml                                 (canonical species catalog)
+Inputs (all under source_code_CT_2025/inputs/)
+----------------------------------------------
+- inputs/campaigns/{otono_2025, primavera_2025, pv_2025_2026}/new_labeled_data_reviewed.csv
+- inputs/Registro de monitoreo CT.xlsx  (sheet: Registro de instalacion)
+- inputs/species.yaml                    (canonical species catalog)
 
-Output
-------
-- camera-traps/Anual-reports/2025/data/records_clean.parquet  (one row per image record)
-- camera-traps/Anual-reports/2025/data/events_clean.parquet   (one row per 30-min episode)
+Outputs (under source_code_CT_2025/data/)
+-----------------------------------------
+- data/records_clean.parquet  (one row per image record, pre-manual-review)
+- data/events_clean.parquet   (one row per 30-min episode, pre-manual-review)
 - Console summary printed to stdout.
+
+Note
+----
+This script produces the PRE-MANUAL-REVIEW parquets. The canonical (corrected)
+parquets that feed the figures are produced by `apply_verdicts.py`, which reads
+the preserved `*_pre_correction.parquet` snapshots and applies the manual
+verdicts from `data/manual_review_verdicts_2026-06-02.csv`.
 
 Rules applied
 -------------
@@ -53,16 +60,16 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Paths
+# Paths (all resolved relative to this script — no external repo dependency)
 
 HERE = Path(__file__).resolve()
-REPORT_ROOT = HERE.parents[1]               # .../camera-traps/Anual-reports/2025
-REPO = HERE.parents[4]                      # .../Python
-CAMPAIGNS = REPO / "camera-traps" / "data" / "campaigns"
-REGISTRY_XLSX = REPO / "camera-traps" / "Anual-reports" / "Registro de monitoreo CT.xlsx"
-SPECIES_YAML = REPO / "data-pipeline" / "species.yaml"
+ROOT = HERE.parents[1]                      # source_code_CT_2025/
+INPUTS = ROOT / "inputs"
+CAMPAIGNS = INPUTS / "campaigns"
+REGISTRY_XLSX = INPUTS / "Registro de monitoreo CT.xlsx"
+SPECIES_YAML = INPUTS / "species.yaml"
 
-OUT_DIR = REPORT_ROOT / "data"
+OUT_DIR = ROOT / "data"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CAMPAIGN_FILES = {

@@ -1,20 +1,23 @@
 """
 apply_verdicts.py — Apply Felipe's manual photo-verdicts to the 2025 report data.
 
-Reads:
-- camera-traps/Anual-reports/2025/data/records_clean.parquet   (1314 rows)
-- camera-traps/Anual-reports/2025/data/manual_review_verdicts_2026-06-02.csv
-- data-pipeline/species.yaml
+Reads (all under source_code_CT_2025/)
+--------------------------------------
+- data/records_clean_pre_correction.parquet   (preserved snapshot, do not edit)
+- data/events_clean_pre_correction.parquet    (preserved snapshot, do not edit)
+- data/manual_review_verdicts_2026-06-02.csv  (image-by-image verdicts)
+- inputs/species.yaml
 
-Writes:
-- records_clean_corrected.parquet
-- events_clean_corrected.parquet
-- corrections_report.md  (deltas vs original report)
+Writes
+------
+- data/records_clean.parquet      (canonical, with verdicts applied)
+- data/events_clean.parquet       (canonical, with verdicts applied)
+- data/corrections_report.md      (deltas vs pre-revision snapshot)
 
 Logic
 -----
-For each verdict that matches a row in records_clean (joining on
-campaign + deployment_raw + File):
+For each verdict that matches a row in the pre-correction records snapshot
+(joining on campaign + deployment_raw + File):
   - Verdadero  → keep row, no change
   - Falso + corrected_species_latin → rewrite scientificName / spanish /
     taxonomic_group / is_invasive / is_priority via species.yaml
@@ -25,6 +28,9 @@ already excluded by the report; CT08 09260026 — pre-Conaf cutoff) are
 ignored with a printed audit.
 
 Then re-build events using the same 30-min episode rule as 01_data_prep.py.
+
+This script is idempotent: it always reads from the preserved pre-correction
+snapshots, so re-running it reproduces the canonical parquets exactly.
 """
 
 from __future__ import annotations
@@ -41,11 +47,14 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Paths (all resolved relative to this script — no external repo dependency)
+
 HERE = Path(__file__).resolve()
-REPORT_ROOT = HERE.parents[1]
-REPO = HERE.parents[4]
-DATA = REPORT_ROOT / "data"
-SPECIES_YAML = REPO / "data-pipeline" / "species.yaml"
+ROOT = HERE.parents[1]                      # source_code_CT_2025/
+INPUTS = ROOT / "inputs"
+DATA = ROOT / "data"
+SPECIES_YAML = INPUTS / "species.yaml"
 
 # Read from the archived pre-correction snapshot so the script is idempotent:
 # re-running always recomputes the canonical (corrected) parquets from the

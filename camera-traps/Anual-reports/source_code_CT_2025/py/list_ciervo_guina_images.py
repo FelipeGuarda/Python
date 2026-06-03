@@ -1,13 +1,28 @@
 """
-list_ciervo_guina_images.py — Manual-review aid for the 2025 annual report.
+list_ciervo_guina_images.py — HISTORICAL helper, included for transparency.
 
-Lists every image tagged Cervus elaphus (Ciervo rojo) or Leopardus guigna (Güiña)
-in the three campaign review CSVs, with paths to the on-disk thumbnails (when
-present on this Windows machine) and to the raw filePath (for the Linux box).
+This script was used during the original manual review (May–June 2026) to list
+every image tagged Cervus elaphus (Ciervo rojo) or Leopardus guigna (Güiña)
+across the three campaign CSVs, with paths to the on-disk thumbnails so the
+reviewer (Felipe) could open them one by one.
 
-Outputs:
-- camera-traps/Anual-reports/2025/data/manual_review_ciervo_guina.csv
-- Markdown tables printed to stdout, grouped by species and camera.
+The output of this script (`data/manual_review_ciervo_guina.csv` and
+`manual_review_ciervo_guina.md`) is already bundled in `data/`, as are the
+final verdicts (`data/manual_review_verdicts_2026-06-02.csv`).  You do NOT need
+to re-run this script to reproduce the report.
+
+It is included here so colleagues can see exactly how the manual-review list
+was generated.  If you do want to re-run it, be aware:
+
+  - The thumbnail-export folder (`camera-traps/exports/...`) is NOT bundled
+    (it contains thousands of cropped JPGs and is large).  Without it, the
+    `thumbnail_path` / `thumbnail_on_disk` columns will be empty/false but
+    the CSV/MD output will still be generated.
+
+  - The label-conflicts CSV (`label_conflicts_primavera_vs_pv_2026-05-27.csv`)
+    is also not bundled.  The conflict-flag columns will all be False.
+
+These two missing pieces are flagged at runtime with a console warning.
 """
 
 from __future__ import annotations
@@ -24,11 +39,19 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-REPO = Path(r"C:\Users\USUARIO\Dev\Python")
-CAMPAIGNS = REPO / "camera-traps" / "data" / "campaigns"
-EXPORTS = REPO / "camera-traps" / "exports"
-OUT_DIR = REPO / "camera-traps" / "Anual-reports" / "2025" / "data"
+# ─────────────────────────────────────────────────────────────────────────────
+# Paths (all resolved relative to this script — no external repo dependency)
+
+HERE = Path(__file__).resolve()
+ROOT = HERE.parents[1]                      # source_code_CT_2025/
+INPUTS = ROOT / "inputs"
+CAMPAIGNS = INPUTS / "campaigns"
+OUT_DIR = ROOT / "data"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Thumbnail exports are NOT bundled; these would point to the original
+# camera-traps/exports/ folder if it were present.
+EXPORTS: Path | None = None
 
 CAMPAIGN_FILES = {
     "otono_2025": CAMPAIGNS / "otono_2025" / "new_labeled_data_reviewed.csv",
@@ -36,12 +59,11 @@ CAMPAIGN_FILES = {
     "pv_2025_2026": CAMPAIGNS / "pv_2025_2026" / "new_labeled_data_reviewed.csv",
 }
 
-# Where the species thumbnails live, per campaign.  primavera_2025 has no
-# Windows-side export (Linux-only reprocess).
+# When EXPORTS is available, thumbnails live here per campaign.
 SPECIES_EXPORT_DIR = {
-    "otono_2025": EXPORTS / "Otoño 2025" / "species",
+    "otono_2025": None if EXPORTS is None else EXPORTS / "Otoño 2025" / "species",
     "primavera_2025": None,
-    "pv_2025_2026": EXPORTS / "Primavera-verano 2025-2026" / "species",
+    "pv_2025_2026": None if EXPORTS is None else EXPORTS / "Primavera-verano 2025-2026" / "species",
 }
 
 SPECIES_FOLDER = {
@@ -54,9 +76,9 @@ SPANISH = {
     "Leopardus guigna": "Güiña",
 }
 
-CONFLICTS_CSV = (
-    CAMPAIGNS / "label_conflicts_primavera_vs_pv_2026-05-27.csv"
-)
+# The label-conflicts CSV is not bundled.  Set this path to the actual file if
+# you have it; otherwise the conflict columns will all be False.
+CONFLICTS_CSV: Path | None = None
 
 CT_RE = re.compile(r"^(?:CT|TC)0*(\d+)(?:_M.*)?$", re.IGNORECASE)
 
@@ -88,17 +110,11 @@ def load_campaign(campaign: str, path: Path) -> pd.DataFrame:
 
 
 def apply_date_corrections(df: pd.DataFrame) -> pd.DataFrame:
-    """Mirror 01_data_prep.py: flag dropped rows, fix CT15/CT16 +8yr in otono.
-
-    We do NOT drop rows here — for a manual-review listing we want to *see*
-    every candidate.  We add a `date_fix` column so the reviewer can spot
-    records the report would have excluded.
-    """
+    """Mirror 01_data_prep.py: flag dropped rows, fix CT15/CT16 +8yr in otono."""
     df = df.copy()
     df["timestamp_corrected"] = df["timestamp"]
     df["date_fix"] = "none"
 
-    # Otoño CT15/CT16 → +8yr (year-only)
     for cam in (15, 16):
         mask = (
             (df["campaign"] == "otono_2025")
@@ -109,7 +125,6 @@ def apply_date_corrections(df: pd.DataFrame) -> pd.DataFrame:
             df.loc[mask, "timestamp_corrected"] = df.loc[mask, "timestamp"] + pd.DateOffset(years=8)
             df.loc[mask, "date_fix"] = "+8yr"
 
-    # Otoño CT19 stuck-clock: report drops these (>=80% identical ts).  Flag.
     mask19 = (
         (df["campaign"] == "otono_2025")
         & (df["camera_num"] == 19)
@@ -118,7 +133,6 @@ def apply_date_corrections(df: pd.DataFrame) -> pd.DataFrame:
     if mask19.any():
         df.loc[mask19, "date_fix"] = "dropped_clock_frozen_in_report"
 
-    # Primavera / PV TC16 with 2017 ts: dropped pre-deploy in report.  Flag.
     for camp in ("primavera_2025", "pv_2025_2026"):
         mask16 = (
             (df["campaign"] == camp)
@@ -132,12 +146,11 @@ def apply_date_corrections(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def thumbnail_path(row) -> tuple[str, bool]:
-    """Return (path-as-string, exists-on-disk).  Empty string if no export for this campaign."""
+    """Return (path-as-string, exists-on-disk).  Empty string when no exports bundled."""
     base = SPECIES_EXPORT_DIR.get(row["campaign"])
     folder = SPECIES_FOLDER.get(row["scientificName"])
     if base is None or folder is None or not row["File"]:
         return ("", False)
-    # exports use deployment + filename, lowercased extension, with `.` → `_` in deployment.
     deploy = row["Deployments"]
     safe_deploy = deploy.replace(".", "_")
     fname = row["File"]
@@ -145,17 +158,14 @@ def thumbnail_path(row) -> tuple[str, bool]:
     candidate = base / folder / f"{safe_deploy}_{stem}.{ext.lower()}"
     if candidate.exists():
         return (str(candidate), True)
-    # Fallback: try as-is filename
     candidate2 = base / folder / f"{safe_deploy}_{fname}"
     if candidate2.exists():
         return (str(candidate2), True)
-    # Return the expected (non-existing) path for the reviewer's record
     return (str(candidate), False)
 
 
 def load_conflicts() -> dict[tuple[str, str], tuple[str, str]]:
-    """Return {(deployment, filename): (primavera_label, pv_label)} for label-conflict images."""
-    if not CONFLICTS_CSV.exists():
+    if CONFLICTS_CSV is None or not CONFLICTS_CSV.exists():
         return {}
     df = pd.read_csv(CONFLICTS_CSV, low_memory=False, encoding="utf-8")
     df.columns = [c.strip().lstrip("﻿") for c in df.columns]
@@ -171,8 +181,12 @@ def load_conflicts() -> dict[tuple[str, str], tuple[str, str]]:
 
 def main() -> None:
     print("=" * 78)
-    print("list_ciervo_guina_images.py — Manual review for ciervo & güiña")
+    print("list_ciervo_guina_images.py — Manual review for ciervo & güiña (historical)")
     print("=" * 78)
+    if EXPORTS is None:
+        print("[INFO] Thumbnail-export folder not bundled — `thumbnail_path` will be empty.")
+    if CONFLICTS_CSV is None:
+        print("[INFO] Label-conflicts CSV not bundled — conflict columns will be False.\n")
 
     raw = pd.concat(
         [load_campaign(c, p) for c, p in CAMPAIGN_FILES.items()],
@@ -185,12 +199,10 @@ def main() -> None:
 
     df = apply_date_corrections(df)
 
-    # Thumbnail paths + on-disk flag
     paths = df.apply(thumbnail_path, axis=1)
     df["thumbnail_path"] = [p[0] for p in paths]
     df["thumbnail_on_disk"] = [p[1] for p in paths]
 
-    # Conflict flag (with the other-pass label for context)
     conflicts = load_conflicts()
     df["label_conflict_pv_vs_primavera"] = [
         (dep, fn) in conflicts for dep, fn in zip(df["Deployments"], df["File"])
@@ -204,7 +216,6 @@ def main() -> None:
         for dep, fn in zip(df["Deployments"], df["File"])
     ]
 
-    # Order columns for review
     cols = [
         "campaign",
         "camera_num",
@@ -230,7 +241,6 @@ def main() -> None:
     out.to_csv(out_csv, index=False, encoding="utf-8")
     print(f"\nWrote → {out_csv}")
 
-    # ── Per-camera summary
     print("\n# Per-camera image counts (raw rows in CSVs, before report dedup/event collapse)")
     summary = (
         out.groupby(["scientificName", "camera_num"])
@@ -239,7 +249,6 @@ def main() -> None:
     )
     print(summary.to_string(index=False))
 
-    # ── Markdown tables
     for latin in ("Cervus elaphus", "Leopardus guigna"):
         sub = out[out["scientificName"] == latin].copy()
         spn = SPANISH[latin]
@@ -248,7 +257,7 @@ def main() -> None:
             print("_(no rows)_")
             continue
         header = (
-            "| Campaign | CT | Deployment | Date (corrected) | File | Thumbnail (on Windows) | "
+            "| Campaign | CT | Deployment | Date (corrected) | File | Thumbnail | "
             "Source filePath | Review | Conflict? |"
         )
         sep = "|" + "|".join(["---"] * 9) + "|"
@@ -257,7 +266,7 @@ def main() -> None:
         mapped = sub[sub["camera_num"].notna()]
         unmapped = sub[sub["camera_num"].isna()]
         for _, r in mapped.iterrows():
-            thumb = r["thumbnail_path"] if r["thumbnail_path"] else "_(no export — Linux side)_"
+            thumb = r["thumbnail_path"] if r["thumbnail_path"] else "_(no export bundled)_"
             on_disk = "✓" if r["thumbnail_on_disk"] else ("—" if not r["thumbnail_path"] else "✗ missing")
             ts = (
                 r["timestamp_corrected"].strftime("%Y-%m-%d %H:%M:%S")
