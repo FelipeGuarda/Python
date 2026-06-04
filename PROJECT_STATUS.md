@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-06-02 (plataforma: nueva capa "piso vegetacional" en Observatorio · camera-traps: revisión visual ciervo/güiña aplicada al informe anual 2025)
+**Last updated:** 2026-06-03 (camera-traps: bundle autocontenido `source_code_CT_2025/` para entrega vía Drive a colega de FMA + fix bug UTF-8 stdout en `2025/py/*.py`)
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile — reserve center -39.4417°, -71.7420° (canonical: `plataforma-territorial/data/stations.yaml` → `reserve.center`)
 
@@ -165,10 +165,10 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 CLIP classification pipeline and Streamlit review UI are production-quality. Both campaigns (Otoño 2025 + Primavera-verano 2025-2026) classified and reviewed. Species list now sourced from canonical `data-pipeline/species.yaml` via sibling loader (Track B, 2026-04-27) — 27 CLIP species + 4 non-CLIP entries (31 total).
 
-**Last Updated:** 2026-06-02
-**What Changed:** Revisión visual imagen-por-imagen de las 37 detecciones de Ciervo rojo y Güiña en el Informe Anual 2025. Ciervo rojo colapsa de 7 → 1 cámara (sólo CT13); Güiña 7 → 6 (sale CT14). Informe (`Anual-reports/2025/informe_anual_2025.md`) reescrito con nueva sec. 1.6 documentando el protocolo. Pipeline ampliado a 3 pasos idempotentes (`01_data_prep` → `apply_verdicts` → `02_figures_tables`); snapshots pre-corrección preservados.
-**Integration Status:** Ready — el flujo es reproducible en Windows y Linux; verdicts en `data/manual_review_verdicts_2026-06-02.csv`.
-**Blockers/Notes:** Pendiente decidir si re-mapear despliegue `100EK113` a CT5 (sospecha confirmada por foto pero no re-ingestado). Pendiente correr `render.sh` en Linux para regenerar el `.docx` con las cifras nuevas para el jefe.
+**Last Updated:** 2026-06-03
+**What Changed:** Creado `Anual-reports/source_code_CT_2025/` — bundle autocontenido (2.7 MB, 33 archivos) para que un colega de FMA replique el informe desde Drive sin clonar el superrepo `Python/`. Incluye `inputs/` con copia inmutable de los 7 archivos de entrada externos, scripts con paths relativos al bundle, `requirements.txt` pinneado, `render.ps1` para Windows, y `GUIA_REPLICACION.md` exhaustiva en español. Durante el smoke-test se descubrió y corrigió bug latente UTF-8 en `2025/py/*.py` (Windows cp1252 crashea con `→` y `ñ` en stdout); fix backporteado a los 4 scripts originales.
+**Integration Status:** Ready — bundle smoke-testeado end-to-end (419 eventos, 6 figuras regeneradas). Pendiente subir a Drive de FMA.
+**Blockers/Notes:** Pendiente decidir si re-mapear despliegue `100EK113` a CT5 (sospecha confirmada por foto pero no re-ingestado). Pendiente correr `render.sh` en Linux para regenerar el `.docx` con las cifras nuevas para el jefe. Bundle untracked en git — decidir si commit + Drive o sólo Drive (el usuario indicó borrar local tras subir).
 
 | Component | Status | Notes |
 |---|---|---|
@@ -251,6 +251,7 @@ Note: `visualizaciones-artisticas/` has the "Río de Sonidos" concept already de
 - [x] **Informe Anual 2025 — revisión visual ciervo/güiña aplicada (2026-06-02).** Ciervo rojo 7 → 1 cámara, Güiña 7 → 6 cámaras. Pipeline ampliado (`apply_verdicts.py`), informe re-escrito con sec. 1.6 documentando el protocolo. Ver `camera-traps/Anual-reports/2025/data/correction_log.txt`.
 - [ ] **100EK113 → CT5 re-mapping.** Sospecha confirmada visualmente (sesión 2026-05-27 + verdicts 2026-06-02) pero aún no re-ingestado en DuckDB ni en los CSVs de campaña.
 - [ ] **Render del DOCX del Informe Anual 2025 v2.** Requiere `pandoc` en Linux; correr `bash camera-traps/Anual-reports/2025/render.sh`.
+- [ ] **Subir bundle `source_code_CT_2025/` a Drive de FMA** (2026-06-03). Zip de 2.7 MB autocontenido, listo para entregar al colega. Decidir antes si se commitea o sólo Drive + borrar local.
 - [ ] **Flora plot coordinates** — not yet available.
 - [ ] **Aves en BP/** — contains bird list comparison notebooks and Excel files. No README. Appears to be taxonomic reference data for camera trap species list. Document before using in platform.
 - [x] **Meteo tab** — label fixed to "Última medición", wind rose moved below charts (larger).
