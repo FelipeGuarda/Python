@@ -130,7 +130,7 @@ camera_traps:
     name: Cámara Trampa 11
     lat: -39.45130
     lon: -71.74873
-    altitude_m: 820
+    altitude_m: 1102  # corrected 2026-06-09 from KMZ "Monitoreo TC 2024" + Google Earth (prior log value 820 m was a data-entry error)
     type: camera_trap
 
   - id: TC-12
@@ -140,7 +140,7 @@ camera_traps:
     name: Cámara Trampa 12
     lat: -39.45905
     lon: -71.75111
-    altitude_m: 819
+    altitude_m: 1209  # corrected 2026-06-09 from KMZ "Monitoreo TC 2024" (prior log value 819 m was a data-entry error)
     type: camera_trap
 
   - id: TC-13
@@ -150,7 +150,7 @@ camera_traps:
     name: Cámara Trampa 13
     lat: -39.45556
     lon: -71.75083
-    altitude_m: 819
+    altitude_m: 1172  # corrected 2026-06-09 from KMZ "Monitoreo TC 2024" (prior log value 819 m was a data-entry error)
     type: camera_trap
 
   - id: TC-14

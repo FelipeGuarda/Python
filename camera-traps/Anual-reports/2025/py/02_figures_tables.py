@@ -6,6 +6,10 @@ Inputs
 - 2025/data/events_clean.parquet                                   (from step 01)
 - plataforma-territorial/data/boundary.geojson                     (canonical BP polygon)
 - plataforma-territorial/data/camera_trap_stations.geojson         (26 CT points)
+- plataforma-territorial/data/basemap/hydric_main.geojson          (2 main streams)
+- plataforma-territorial/data/basemap/roads_main.geojson           (vehicular roads)
+- plataforma-territorial/data/basemap/bp_high_zone.geojson         (area above 1000 m)
+- plataforma-territorial/data/basemap/bp_threshold_contour.geojson (1000 m contour)
 
 Outputs (2025/figures/)
 -----------------------
@@ -58,6 +62,12 @@ FIGS.mkdir(parents=True, exist_ok=True)
 EVENTS_PARQUET = DATA / "events_clean.parquet"
 BOUNDARY_GEOJSON = REPO / "plataforma-territorial" / "data" / "boundary.geojson"
 STATIONS_GEOJSON = REPO / "plataforma-territorial" / "data" / "camera_trap_stations.geojson"
+BASEMAP_DIR = REPO / "plataforma-territorial" / "data" / "basemap"
+HYDRIC_GEOJSON = BASEMAP_DIR / "hydric_main.geojson"
+ROADS_GEOJSON = BASEMAP_DIR / "roads_main.geojson"
+HIGH_ZONE_GEOJSON = BASEMAP_DIR / "bp_high_zone.geojson"
+THRESHOLD_CONTOUR_GEOJSON = BASEMAP_DIR / "bp_threshold_contour.geojson"
+THRESHOLD_M = 1000
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Style
@@ -65,8 +75,12 @@ STATIONS_GEOJSON = REPO / "plataforma-territorial" / "data" / "camera_trap_stati
 COL_NATIVA = "#3a7d44"
 COL_INTROD = "#bc4749"
 COL_GHOST = "#bfbfbf"          # cameras with zero detections
-COL_BOUNDARY_FILL = "#f4ede4"
+COL_BOUNDARY_FILL = "#f4ede4"  # "low" zone (below threshold)
 COL_BOUNDARY_EDGE = "#7a6b5d"
+COL_HIGH_FILL = "#d9c9a8"      # "high" zone overlay (above threshold) — darker tan
+COL_CONTOUR = "#8a7359"        # 1000 m contour line
+COL_WATER = "#5b8aa8"          # main rivers
+COL_ROAD = "#666666"           # main vehicular roads
 
 plt.rcParams.update(
     {
@@ -112,12 +126,66 @@ def load_boundary() -> np.ndarray:
     return np.asarray(geom["coordinates"][0])
 
 
+def _iter_line_coords(geom: dict):
+    """Yield each line's coords array from a LineString or MultiLineString geometry."""
+    if geom["type"] == "LineString":
+        yield np.asarray(geom["coordinates"])
+    elif geom["type"] == "MultiLineString":
+        for ls in geom["coordinates"]:
+            yield np.asarray(ls)
+
+
+def _iter_polygon_rings(geom: dict):
+    """Yield each outer ring (closed) from a Polygon or MultiPolygon geometry."""
+    if geom["type"] == "Polygon":
+        yield np.asarray(geom["coordinates"][0])
+    elif geom["type"] == "MultiPolygon":
+        for poly in geom["coordinates"]:
+            yield np.asarray(poly[0])
+
+
+def load_lines_geojson(path: Path) -> list[np.ndarray]:
+    """Flatten a GeoJSON of line features into a list of Nx2 arrays."""
+    if not path.exists():
+        return []
+    gj = json.loads(path.read_text(encoding="utf-8"))
+    out = []
+    for ft in gj["features"]:
+        for arr in _iter_line_coords(ft["geometry"]):
+            out.append(arr)
+    return out
+
+
+def load_polygons_geojson(path: Path) -> list[np.ndarray]:
+    """Flatten a GeoJSON of polygon features into a list of ring arrays (outer ring only)."""
+    if not path.exists():
+        return []
+    gj = json.loads(path.read_text(encoding="utf-8"))
+    out = []
+    for ft in gj["features"]:
+        for arr in _iter_polygon_rings(ft["geometry"]):
+            out.append(arr)
+    return out
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Map helper
 
 
-def draw_map_base(ax: plt.Axes, boundary: np.ndarray) -> None:
-    """Fill the BP polygon, set extent and aspect."""
+def draw_map_base(
+    ax: plt.Axes,
+    boundary: np.ndarray,
+    basemap: dict | None = None,
+    show_water: bool = True,
+    show_roads: bool = True,
+    show_high_zone: bool = True,
+) -> None:
+    """Fill the BP polygon, overlay basemap layers, set extent and aspect.
+
+    `basemap` is a dict with optional keys: high_zone, contour, water, roads.
+    Each value is a list of Nx2 numpy arrays. Pass it to avoid re-reading the
+    GeoJSONs for every subplot in figure 06.
+    """
     poly = MplPolygon(
         boundary,
         closed=True,
@@ -127,6 +195,57 @@ def draw_map_base(ax: plt.Axes, boundary: np.ndarray) -> None:
         zorder=1,
     )
     ax.add_patch(poly)
+
+    if basemap is None:
+        basemap = {}
+
+    # High-elevation zone — semi-transparent darker tan over the BP fill
+    if show_high_zone:
+        for ring in basemap.get("high_zone", []):
+            ax.add_patch(
+                MplPolygon(
+                    ring,
+                    closed=True,
+                    facecolor=COL_HIGH_FILL,
+                    edgecolor="none",
+                    alpha=0.65,
+                    zorder=1.3,
+                )
+            )
+        # Threshold contour itself (single 1000 m line)
+        for line in basemap.get("contour", []):
+            ax.plot(
+                line[:, 0],
+                line[:, 1],
+                color=COL_CONTOUR,
+                linewidth=0.9,
+                linestyle="-",
+                zorder=1.5,
+            )
+
+    # Main rivers — thin solid blue
+    if show_water:
+        for line in basemap.get("water", []):
+            ax.plot(
+                line[:, 0],
+                line[:, 1],
+                color=COL_WATER,
+                linewidth=1.0,
+                linestyle="-",
+                zorder=1.7,
+            )
+
+    # Main vehicular roads — gray dashed
+    if show_roads:
+        for line in basemap.get("roads", []):
+            ax.plot(
+                line[:, 0],
+                line[:, 1],
+                color=COL_ROAD,
+                linewidth=0.9,
+                linestyle=(0, (4, 2)),
+                zorder=1.8,
+            )
 
     pad_x = (boundary[:, 0].max() - boundary[:, 0].min()) * 0.05
     pad_y = (boundary[:, 1].max() - boundary[:, 1].min()) * 0.05
@@ -139,6 +258,34 @@ def draw_map_base(ax: plt.Axes, boundary: np.ndarray) -> None:
     ax.set_yticks([])
     for spine in ax.spines.values():
         spine.set_visible(False)
+
+
+def load_basemap() -> dict:
+    return {
+        "high_zone": load_polygons_geojson(HIGH_ZONE_GEOJSON),
+        "contour": load_lines_geojson(THRESHOLD_CONTOUR_GEOJSON),
+        "water": load_lines_geojson(HYDRIC_GEOJSON),
+        "roads": load_lines_geojson(ROADS_GEOJSON),
+    }
+
+
+def add_basemap_legend(ax: plt.Axes, loc: str = "lower left") -> None:
+    """Compact basemap legend for the three standalone richness maps."""
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+
+    handles = [
+        Patch(facecolor=COL_HIGH_FILL, edgecolor="none", alpha=0.65,
+              label=f"Sobre {THRESHOLD_M} m"),
+        Line2D([0], [0], color=COL_CONTOUR, lw=0.9,
+               label=f"Curva {THRESHOLD_M} m"),
+        Line2D([0], [0], color=COL_WATER, lw=1.0, label="Curso de agua principal"),
+        Line2D([0], [0], color=COL_ROAD, lw=0.9, linestyle=(0, (4, 2)),
+               label="Camino vehicular"),
+    ]
+    leg = ax.legend(handles=handles, loc=loc, frameon=True, fontsize=7,
+                    framealpha=0.85, edgecolor="#bbb")
+    leg.set_zorder(5)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -239,9 +386,11 @@ def _draw_richness(
     title: str,
     out: Path,
     palette: str = "YlOrBr",
+    basemap: dict | None = None,
+    show_legend: bool = False,
 ) -> None:
     fig, ax = plt.subplots(figsize=(7, 7))
-    draw_map_base(ax, boundary)
+    draw_map_base(ax, boundary, basemap=basemap)
 
     cams_zero = df[df["n_species"] == 0]
     cams_pos = df[df["n_species"] > 0]
@@ -291,11 +440,17 @@ def _draw_richness(
 
     ax.set_title(title)
     ax.legend(loc="lower left", frameon=False, fontsize=9)
+    if show_legend:
+        # Second legend with basemap entries, anchored bottom-right so it doesn't
+        # overlap the "Sin registros" entry on the left.
+        add_basemap_legend(ax, loc="lower right")
     fig.savefig(out)
     plt.close(fig)
 
 
-def fig_richness_maps(events: pd.DataFrame, stations: pd.DataFrame, boundary: np.ndarray) -> None:
+def fig_richness_maps(
+    events: pd.DataFrame, stations: pd.DataFrame, boundary: np.ndarray, basemap: dict
+) -> None:
     natives = events[~events["is_invasive"]]
     invasives = events[events["is_invasive"]]
 
@@ -305,6 +460,8 @@ def fig_richness_maps(events: pd.DataFrame, stations: pd.DataFrame, boundary: np
         "Riqueza de especies por cámara — Bosque Pehuén",
         FIGS / "03_richness_total.png",
         palette="YlOrBr",
+        basemap=basemap,
+        show_legend=True,  # only on figure 03; the report explains layers once
     )
     _draw_richness(
         _richness_per_camera(events, stations, natives),
@@ -312,6 +469,7 @@ def fig_richness_maps(events: pd.DataFrame, stations: pd.DataFrame, boundary: np
         "Riqueza de especies nativas por cámara",
         FIGS / "04_richness_nativas.png",
         palette="Greens",
+        basemap=basemap,
     )
     _draw_richness(
         _richness_per_camera(events, stations, invasives),
@@ -319,6 +477,7 @@ def fig_richness_maps(events: pd.DataFrame, stations: pd.DataFrame, boundary: np
         "Riqueza de especies introducidas por cámara",
         FIGS / "05_richness_introducidas.png",
         palette="Reds",
+        basemap=basemap,
     )
 
 
@@ -327,7 +486,7 @@ def fig_richness_maps(events: pd.DataFrame, stations: pd.DataFrame, boundary: np
 
 
 def fig_per_species_panel(
-    events: pd.DataFrame, stations: pd.DataFrame, boundary: np.ndarray
+    events: pd.DataFrame, stations: pd.DataFrame, boundary: np.ndarray, basemap: dict
 ) -> None:
     # Order species by total events, descending; native first within ties.
     sp_order = (
@@ -352,7 +511,9 @@ def fig_per_species_panel(
     )
 
     for ax, sp in zip(axes_flat, species):
-        draw_map_base(ax, boundary)
+        # Per-subplot: keep high-zone fill + contour + water for context, but
+        # drop roads (too noisy at this size).
+        draw_map_base(ax, boundary, basemap=basemap, show_roads=False)
         sub = events[events["spanish"] == sp]
         per_cam = sub.groupby("camera_num").size().rename("n").reset_index()
         merged = stations.merge(per_cam, on="camera_num", how="left").fillna({"n": 0})
@@ -392,12 +553,17 @@ def fig_per_species_panel(
         ax.set_visible(False)
 
     # Legend
+    from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
     fig.legend(
         handles=[
             Patch(facecolor=COL_NATIVA, label="Nativa"),
             Patch(facecolor=COL_INTROD, label="Introducida"),
             Patch(facecolor=COL_GHOST, label="Cámara sin registro de esa especie"),
+            Patch(facecolor=COL_HIGH_FILL, alpha=0.65,
+                  label=f"Sobre {THRESHOLD_M} m"),
+            Line2D([0], [0], color=COL_WATER, lw=1.0,
+                   label="Curso de agua principal"),
         ],
         loc="lower center",
         ncol=3,
@@ -426,9 +592,13 @@ def main() -> None:
     events = pd.read_parquet(EVENTS_PARQUET)
     stations = load_stations()
     boundary = load_boundary()
+    basemap = load_basemap()
     print(f"  events  : {len(events):,}")
     print(f"  stations: {len(stations)} (camera_num 1..{stations['camera_num'].max()})")
     print(f"  boundary: {len(boundary)} vertices")
+    print(f"  basemap : high_zone={len(basemap['high_zone'])} "
+          f"contour={len(basemap['contour'])} water={len(basemap['water'])} "
+          f"roads={len(basemap['roads'])}")
 
     cams_in_events = set(events["camera_num"].unique())
     cams_missing = sorted(set(stations["camera_num"]) - cams_in_events)
@@ -439,11 +609,11 @@ def main() -> None:
     print("  ✓ 01_top_species.png")
     fig_native_donut(events)
     print("  ✓ 02_native_introduced.png")
-    fig_richness_maps(events, stations, boundary)
+    fig_richness_maps(events, stations, boundary, basemap)
     print("  ✓ 03_richness_total.png")
     print("  ✓ 04_richness_nativas.png")
     print("  ✓ 05_richness_introducidas.png")
-    fig_per_species_panel(events, stations, boundary)
+    fig_per_species_panel(events, stations, boundary, basemap)
     print("  ✓ 06_panel_por_especie.png")
 
     print(f"\nAll figures written to {FIGS}")

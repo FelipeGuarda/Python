@@ -200,7 +200,7 @@
         "sd_card": "M15",
         "name": "Cámara Trampa 11",
         "type": "camera_trap",
-        "altitude_m": 820
+        "altitude_m": 1102
       },
       "geometry": {
         "type": "Point",
@@ -219,7 +219,7 @@
         "sd_card": "M17",
         "name": "Cámara Trampa 12",
         "type": "camera_trap",
-        "altitude_m": 819
+        "altitude_m": 1209
       },
       "geometry": {
         "type": "Point",
@@ -238,7 +238,7 @@
         "sd_card": "M16",
         "name": "Cámara Trampa 13",
         "type": "camera_trap",
-        "altitude_m": 819
+        "altitude_m": 1172
       },
       "geometry": {
         "type": "Point",

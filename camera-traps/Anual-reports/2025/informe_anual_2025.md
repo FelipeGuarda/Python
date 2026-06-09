@@ -78,6 +78,16 @@ El resultado fue que la mayor parte de las detecciones de Ciervo rojo correspond
 
 Esta revisión visual se aplicó únicamente a las dos especies bajo sospecha. Una auditoría visual sistemática de todas las etiquetas queda como tarea pendiente para futuras versiones del informe, junto con la incorporación de un protocolo de revisión cruzada (dos revisores independientes) descrito por Silva-Rodríguez et al. (2025).
 
+## 1.7 Capas de contexto geográfico en los mapas
+
+A partir de esta versión del informe, los mapas de distribución (figuras 3 a 6) incorporan tres capas de contexto que ayudan a interpretar los patrones de detección:
+
+- **Gradiente altitudinal simplificado.** Se distinguen dos zonas dentro del polígono de BP: zona **baja** (por debajo de 1000 m s.n.m.) y zona **alta** (sobre 1000 m). De las 26 cámaras instaladas, **16 se ubican sobre los 1000 m y 10 por debajo**; el rango altitudinal de la red es 861–1270 m. Las cámaras de zona baja se concentran exclusivamente en el sector norte (entrada del predio) y un sector adyacente noroeste, lo que coincide con el acceso vehicular: el camino sube desde la zona baja del norte hacia el resto del predio sin volver a descender. La zona alta y la línea divisoria de 1000 m se derivan ambas del **shapefile de curvas de nivel a 5 m de paso** entregado por el equipo FMA/ICN (`cn_5m.shp`), recortado al polígono de BP. Verificación cruzada contra las altitudes GPS de cada CT confirma la clasificación correcta para 25/26 cámaras (la única discrepancia es CT4, a 1004 m, que cae geométricamente dentro de un pequeño "bolsillo" rodeado por terreno bajo 1000 m según el shapefile; la diferencia es menor a la resolución vertical del propio shapefile, 5 m, y se considera aceptable).
+- **Cursos de agua principales.** Los dos esteros principales del área (Estero la cascada y Estero San Marcos) se dibujan en azul.
+- **Caminos vehiculares principales.** Se muestran sólo los dos caminos vehiculares de penetración: Puma y Araucarias. Se omite intencionalmente el ramal de servicio en torno a la zona de guardería (caminos vecinales y senderos peatonales) para no saturar el mapa.
+
+Las capas de contexto se cargan desde `plataforma-territorial/data/basemap/` y se generan una sola vez con `py/00_prepare_basemap.py` a partir de los shapefiles de origen entregados por el equipo de FMA/ICN. La carpeta resultante también queda disponible para uso de la plataforma territorial.
+
 ---
 
 # 2. Listado de especies
@@ -122,17 +132,19 @@ A pesar de la dominancia numérica de introducidas, la riqueza específica está
 
 La figura 3 muestra el número de especies registradas en cada cámara trampa durante el período del informe. **CT3** presenta la mayor riqueza (7 especies), seguida por **CT15** (6 especies). Cuatro cámaras (CT1, CT17, CT22, CT23) no registraron eventos retenidos en este análisis, indicadas como puntos grises.
 
-![Figura 3. Riqueza de especies por cámara trampa.](figures/03_richness_total.png){#fig:03_richness_total width=85%}
+Las cámaras con mayor riqueza se distribuyen entre las dos zonas altitudinales: CT3 (998 m) y CT18 (978 m) están en la zona baja del sector norte, mientras que CT15 (1118 m), CT5 (1270 m), CT10 (1135 m) y CT16 (1126 m) se ubican sobre los 1000 m. CT3 y CT15 —las dos cámaras con mayor riqueza acumulada— se ubican en posiciones cercanas a los cursos de los esteros principales, lo que sugiere que el acceso al agua opera como un factor que agrega múltiples especies en un mismo sector.
+
+![Figura 3. Riqueza de especies por cámara trampa. La zona sombreada en tono oscuro corresponde al sector sobre 1000 m s.n.m. (derivado del shapefile de curvas de nivel `cn_5m` recortado al límite de BP); la línea marrón es el contorno de 1000 m. Los cursos de agua principales aparecen en azul y los caminos vehiculares Puma y Araucarias como líneas grises segmentadas.](figures/03_richness_total.png){#fig:03_richness_total width=85%}
 
 ## 4.2 Mapa de riqueza de especies nativas
 
-CT3 es la única cámara que registró 4 especies nativas distintas; CT15 y CT5 alcanzaron 3. Las nativas se concentran preferentemente en el sector central y sur del área (figura 4).
+CT3 es la única cámara que registró 4 especies nativas distintas; CT15 y CT5 alcanzaron 3. Las nativas se concentran preferentemente en el sector central y sur del área (figura 4): dos de las tres cámaras con mayor riqueza nativa están en zona alta (CT5 a 1270 m y CT15 a 1118 m) y CT3 está apenas por debajo del umbral (998 m), cerca de la confluencia visible de los esteros principales.
 
 ![Figura 4. Riqueza de especies nativas por cámara trampa.](figures/04_richness_nativas.png){#fig:04_richness_nativas width=85%}
 
 ## 4.3 Mapa de riqueza de especies introducidas
 
-CT13, CT18 y CT19 muestran la mayor riqueza de introducidas (4 especies cada una; figura 5). El patrón espacial es heterogéneo, pero coincide con vías de acceso al área y zonas con uso humano frecuente.
+CT13, CT18 y CT19 muestran la mayor riqueza de introducidas (4 especies cada una; figura 5). El patrón espacial es heterogéneo, pero coincide con vías de acceso al área y zonas con uso humano frecuente: CT18, CT19 y CT9 se ubican en el sector de la entrada del predio, en zona baja y próximos al camino vehicular Puma. CT13 está en la mitad sur del predio, sobre los 1000 m, en un sector accesible por el camino vehicular Araucarias. La concentración de cámaras con ≥3 introducidas a lo largo de los caminos vehiculares (Puma en el norte, Araucarias en el sur) es notoria al comparar las figuras 4 y 5: independiente de la altitud, las especies asociadas a actividad humana (Liebre, Perro, Caballo) se ven preferentemente cerca de las vías de penetración.
 
 > **Contexto operativo importante:** CT19 está ubicada cerca de las viviendas de los guardaparques, lo que explica el alto número de eventos en su entorno —principalmente caballos, perros y liebres— en una ventana temporal corta (cinco días de operación corregida). Esta cámara aparece como un *hotspot* en los mapas de riqueza de introducidas y en los paneles por especie de Liebre, Perro y Caballo.
 
@@ -140,11 +152,11 @@ CT13, CT18 y CT19 muestran la mayor riqueza de introducidas (4 especies cada una
 
 ## 4.4 Distribución por especie
 
-La figura 6 muestra un panel de mini-mapas, uno por especie, con el tamaño de cada burbuja proporcional al número de eventos en esa cámara. Permite comparar visualmente la cobertura espacial de cada especie en BP.
+La figura 6 muestra un panel de mini-mapas, uno por especie, con el tamaño de cada burbuja proporcional al número de eventos en esa cámara. Permite comparar visualmente la cobertura espacial de cada especie en BP, incluyendo el gradiente altitudinal y los cursos de agua principales como contexto.
 
-Tras la verificación visual (sec. 1.6), **Ciervo rojo** queda registrado en una única cámara (CT13), con un sólo evento independiente. La **Güiña** se registra en 6 cámaras (CT3, CT5, CT8, CT16, CT25, CT26); el resto de las nativas y de las especies introducidas mantienen su distribución espacial sustancialmente sin cambios respecto del prep­rocesado automático.
+Tras la verificación visual (sec. 1.6), **Ciervo rojo** queda registrado en una única cámara (CT13, en zona alta a 1172 m), con un sólo evento independiente. La **Güiña** se registra en 6 cámaras (CT3, CT5, CT8, CT16, CT25, CT26), tres en zona alta (CT5, CT8, CT16) y tres en zona baja (CT3, CT25, CT26), varias de ellas próximas a los esteros principales. El **Pudú** aparece sólo en zona alta (CT7 a 1232 m y CT15 a 1118 m), consistente con su preferencia por bosque siempreverde de altitud. El **Puma** se concentra en zona alta (CT4, CT5, CT10, CT15, CT20) con un único registro en zona baja (CT3, a 998 m). En el grupo de introducidas, **Liebre europea** y **Perro** ocupan ambas zonas y se asocian fuertemente con los caminos vehiculares (CT9, CT11, CT13, CT15, CT18, CT19, CT20 todas próximas a los trazados de Puma o Araucarias). El **Caballo** se concentra en tres cámaras vinculadas a la red vial (CT4, CT18, CT19). El resto de las nativas e introducidas mantiene su distribución espacial sustancialmente sin cambios respecto del prep­rocesado automático.
 
-![Figura 6. Distribución de eventos por especie, eventos sumados oct 2024 – mar 2026.](figures/06_panel_por_especie.png){#fig:06_panel_especie width=100%}
+![Figura 6. Distribución de eventos por especie, eventos sumados oct 2024 – mar 2026. Cada mini-mapa muestra el polígono de BP con la zona sobre 1000 m sombreada en tono oscuro y los cursos de agua principales en azul.](figures/06_panel_por_especie.png){#fig:06_panel_especie width=100%}
 
 ---
 
@@ -169,4 +181,4 @@ Tras la verificación visual (sec. 1.6), **Ciervo rojo** queda registrado en una
 
 ---
 
-*Datos y código fuente:* `camera-traps/Anual-reports/2025/`. Para regenerar las cifras: `python py/01_data_prep.py && python py/02_figures_tables.py && python py/apply_verdicts.py`.
+*Datos y código fuente:* `camera-traps/Anual-reports/2025/`. Para regenerar las cifras: `python py/01_data_prep.py && python py/apply_verdicts.py && python py/02_figures_tables.py`. Las capas de contexto geográfico se generan una sola vez con `python py/00_prepare_basemap.py` (requiere `shapely`, `pyproj`, `pyshp`, `scipy`).
