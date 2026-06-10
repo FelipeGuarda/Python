@@ -3,7 +3,7 @@
 
 Inputs
 ------
-- 2025/data/events_clean.parquet                                   (from step 01)
+- 2025/data/events_clean.parquet                                   (canonical post-verdict; written by apply_verdicts.py)
 - plataforma-territorial/data/boundary.geojson                     (canonical BP polygon)
 - plataforma-territorial/data/camera_trap_stations.geojson         (26 CT points)
 - plataforma-territorial/data/basemap/hydric_main.geojson          (2 main streams)

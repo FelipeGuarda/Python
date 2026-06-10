@@ -46,11 +46,10 @@ Resultado (eventos pre → post)
   Total registros: 1314 → 1313
 
 Artefactos
-  Pre-corrección (preservados):
-    data/records_clean_pre_correction.parquet
-    data/events_clean_pre_correction.parquet
-    figures_pre_correction/01..06_*.png
-  Canónicos (post-corrección):
+  Baseline pre-veredicto (input a apply_verdicts):
+    data/records_baseline.parquet
+    data/events_baseline.parquet
+  Canónicos (post-veredicto):
     data/records_clean.parquet
     data/events_clean.parquet
     figures/01..06_*.png
@@ -60,7 +59,7 @@ Artefactos
     data/manual_review_verdicts_2026-06-02.csv  (veredictos)
 
 Reproducibilidad
-  $ python py/01_data_prep.py        # regenera *_pre_correction.parquet
+  $ python py/01_data_prep.py        # regenera records_baseline + events_baseline
   $ python py/apply_verdicts.py      # aplica veredictos → canónicos
   $ python py/02_figures_tables.py   # regenera figures/*.png
 

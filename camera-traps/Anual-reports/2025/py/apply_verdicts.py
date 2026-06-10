@@ -2,14 +2,15 @@
 apply_verdicts.py — Apply Felipe's manual photo-verdicts to the 2025 report data.
 
 Reads:
-- camera-traps/Anual-reports/2025/data/records_clean.parquet   (1314 rows)
+- camera-traps/Anual-reports/2025/data/records_baseline.parquet
+- camera-traps/Anual-reports/2025/data/events_baseline.parquet
 - camera-traps/Anual-reports/2025/data/manual_review_verdicts_2026-06-02.csv
 - data-pipeline/species.yaml
 
-Writes:
-- records_clean_corrected.parquet
-- events_clean_corrected.parquet
-- corrections_report.md  (deltas vs original report)
+Writes (canonical post-verdict, consumed by 02_figures_tables.py):
+- records_clean.parquet
+- events_clean.parquet
+- corrections_report.md  (deltas vs pre-verdict)
 
 Logic
 -----
@@ -50,8 +51,8 @@ SPECIES_YAML = REPO / "data-pipeline" / "species.yaml"
 # Read from the archived pre-correction snapshot so the script is idempotent:
 # re-running always recomputes the canonical (corrected) parquets from the
 # preserved originals + the verdicts CSV.
-RECORDS_IN = DATA / "records_clean_pre_correction.parquet"
-EVENTS_IN = DATA / "events_clean_pre_correction.parquet"
+RECORDS_IN = DATA / "records_baseline.parquet"
+EVENTS_IN = DATA / "events_baseline.parquet"
 VERDICTS_IN = DATA / "manual_review_verdicts_2026-06-02.csv"
 
 RECORDS_OUT = DATA / "records_clean.parquet"

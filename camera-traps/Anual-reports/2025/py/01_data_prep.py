@@ -9,8 +9,11 @@ Inputs
 
 Output
 ------
-- camera-traps/Anual-reports/2025/data/records_clean.parquet  (one row per image record)
-- camera-traps/Anual-reports/2025/data/events_clean.parquet   (one row per 30-min episode)
+- camera-traps/Anual-reports/2025/data/records_baseline.parquet  (one row per image record, before manual verdicts)
+- camera-traps/Anual-reports/2025/data/events_baseline.parquet   (one row per 30-min episode, before manual verdicts)
+
+These are the inputs to `apply_verdicts.py`, which writes the canonical
+`records_clean.parquet` / `events_clean.parquet` consumed by 02_figures_tables.
 - Console summary printed to stdout.
 
 Rules applied
@@ -488,13 +491,13 @@ def main() -> None:
     df["year"] = df["timestamp_corrected"].dt.year
     print(df.groupby(["campaign", "year"]).size().to_string())
 
-    # ── Write outputs
-    df.drop(columns=["__prev_ts"], errors="ignore").to_parquet(
-        OUT_DIR / "records_clean.parquet", index=False
-    )
-    events.to_parquet(OUT_DIR / "events_clean.parquet", index=False)
-    print(f"\nWrote → {OUT_DIR / 'records_clean.parquet'}")
-    print(f"Wrote → {OUT_DIR / 'events_clean.parquet'}")
+    # ── Write outputs (inputs to apply_verdicts.py)
+    records_out = OUT_DIR / "records_baseline.parquet"
+    events_out = OUT_DIR / "events_baseline.parquet"
+    df.drop(columns=["__prev_ts"], errors="ignore").to_parquet(records_out, index=False)
+    events.to_parquet(events_out, index=False)
+    print(f"\nWrote → {records_out}")
+    print(f"Wrote → {events_out}")
 
 
 if __name__ == "__main__":
