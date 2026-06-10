@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-06-09 (camera-traps: informe anual 2025 — capas de contexto geográfico v2. **Corregidas altitudes CT11/12/13 en `plataforma-territorial/data/stations.yaml`** (819–820 m → 1102/1209/1172 m) tras detección de error de digitación al cruzar con el KMZ de campaña Otoño 2024 y verificación visual en Google Earth. Polígono "zona alta" ahora derivado del contorno 1000 m de `cn_5m.shp` (canónico, no Voronoi). Caminos reducidos a Puma + Araucarias. 25/26 cámaras correctamente clasificadas; única excepción CT4 a 1004 m (dentro de la tolerancia del shapefile, 5 m).)
+**Last updated:** 2026-06-10 (camera-traps: informe anual 2025 — swap de fuente de curvas de nivel a entrega nueva `Curvas de nivel_BP-*.zip` (15 m, ELEV limpio). Umbral del polígono pasa a 1005 m (curva más cercana al nominal 1000 m). Se resuelven los dos artefactos visuales pendientes de v2 (borde occidental dentado, stubs paralelos a BP). 26/26 cámaras correctamente clasificadas. Refactor del pipeline de datos: `01_data_prep.py` ahora escribe `records_baseline.parquet`/`events_baseline.parquet` (antes escribía al canónico, dejaba a `apply_verdicts.py` leyendo un snapshot congelado). Rename _pre_correction → _baseline en data/. Commit `a5bb400`, pendiente push.)
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile — reserve center -39.4417°, -71.7420° (canonical: `plataforma-territorial/data/stations.yaml` → `reserve.center`)
 
