@@ -19,6 +19,8 @@ Outputs (2025/figures/)
 - 04_richness_nativas.png       map: # de especies nativas por CT
 - 05_richness_introducidas.png  map: # de especies introducidas por CT
 - 06_panel_por_especie.png      A4 panel — un mini-mapa por especie
+- 07_zonas_por_especie.png      composite: %eventos por zona (elevación/caminos/agua)
+- (stdout) markdown summary table — copy-paste into report §4.5
 
 Conventions
 -----------
@@ -67,7 +69,11 @@ HYDRIC_GEOJSON = BASEMAP_DIR / "hydric_main.geojson"
 ROADS_GEOJSON = BASEMAP_DIR / "roads_main.geojson"
 HIGH_ZONE_GEOJSON = BASEMAP_DIR / "bp_high_zone.geojson"
 THRESHOLD_CONTOUR_GEOJSON = BASEMAP_DIR / "bp_threshold_contour.geojson"
-THRESHOLD_M = 1000
+THRESHOLD_M = 1000              # nominal elevation threshold for narrative
+THRESHOLD_ELEV_M = 1005         # actual contour used to classify cameras
+ROAD_PROX_M = 100               # ≤ 100 m → "cerca camino"
+WATER_PROX_M = 100              # ≤ 100 m → "cerca agua"
+MIN_EVENTS_FOR_ZONE_FIG = 5     # species below this go in text only
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Style
@@ -81,6 +87,11 @@ COL_HIGH_FILL = "#d9c9a8"      # "high" zone overlay (above threshold) — darke
 COL_CONTOUR = "#8a7359"        # 1000 m contour line
 COL_WATER = "#5b8aa8"          # main rivers
 COL_ROAD = "#666666"           # main vehicular roads
+
+# Figure 07 — zone bars
+COL_NEAR_LOW = "#c79c5d"       # warm tan: baja / cerca-camino / cerca-agua
+COL_FAR_HIGH = "#7e94a5"       # cool slate: alta / lejos-camino / lejos-agua
+COL_REF_LINE = "#222222"
 
 plt.rcParams.update(
     {
@@ -117,6 +128,50 @@ def load_stations() -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows).sort_values("camera_num").reset_index(drop=True)
+
+
+def enrich_stations_with_zones(stations: pd.DataFrame) -> pd.DataFrame:
+    """Add three boolean zone columns (low_elev / near_road / near_water) plus
+    the underlying metric distances. Distances are computed in UTM 18S
+    (EPSG:32718) against the same line GeoJSONs used by the maps."""
+    from pyproj import Transformer
+    from shapely.geometry import LineString, MultiLineString, Point, shape
+    from shapely.ops import unary_union
+
+    tx = Transformer.from_crs("EPSG:4326", "EPSG:32718", always_xy=True)
+
+    def reproj(geom: dict):
+        g = shape(geom)
+        if g.geom_type == "LineString":
+            return LineString([tx.transform(x, y) for x, y in g.coords])
+        if g.geom_type == "MultiLineString":
+            return MultiLineString([
+                LineString([tx.transform(x, y) for x, y in seg.coords])
+                for seg in g.geoms
+            ])
+        raise TypeError(f"Unsupported geometry: {g.geom_type}")
+
+    def union_of_lines(path: Path):
+        gj = json.loads(path.read_text(encoding="utf-8"))
+        return unary_union([reproj(ft["geometry"]) for ft in gj["features"]])
+
+    roads_u = union_of_lines(ROADS_GEOJSON)
+    water_u = union_of_lines(HYDRIC_GEOJSON)
+
+    road_d, water_d = [], []
+    for _, r in stations.iterrows():
+        x, y = tx.transform(r["lon"], r["lat"])
+        pt = Point(x, y)
+        road_d.append(pt.distance(roads_u))
+        water_d.append(pt.distance(water_u))
+
+    out = stations.copy()
+    out["road_dist_m"] = road_d
+    out["water_dist_m"] = water_d
+    out["low_elev"] = out["altitude_m"].astype(float) <= THRESHOLD_ELEV_M
+    out["near_road"] = out["road_dist_m"] <= ROAD_PROX_M
+    out["near_water"] = out["water_dist_m"] <= WATER_PROX_M
+    return out
 
 
 def load_boundary() -> np.ndarray:
@@ -584,6 +639,213 @@ def fig_per_species_panel(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Figure 7 — zone distribution per species (elevation / roads / water)
+
+
+def _zone_share_per_species(
+    events: pd.DataFrame, stations: pd.DataFrame, zone_col: str
+) -> pd.DataFrame:
+    """Return one row per species: n_total + n_in_zone + pct_in_zone.
+    `zone_col` is a boolean column on `stations` (low_elev, near_road, near_water).
+    Cameras with no events are simply unused."""
+    cam_zone = stations.set_index("camera_num")[zone_col].to_dict()
+    df = events.copy()
+    df["_in_zone"] = df["camera_num"].map(cam_zone).fillna(False)
+    by_sp = df.groupby("spanish").agg(
+        n_total=("event_start", "size"),
+        n_in_zone=("_in_zone", "sum"),
+    ).reset_index()
+    by_sp["pct_in_zone"] = by_sp["n_in_zone"] / by_sp["n_total"] * 100.0
+    return by_sp
+
+
+def _reference_pct(events: pd.DataFrame, stations: pd.DataFrame, zone_col: str) -> float:
+    """% of all events (any species) captured at cameras in the focal zone."""
+    cam_zone = stations.set_index("camera_num")[zone_col].to_dict()
+    in_zone = events["camera_num"].map(cam_zone).fillna(False)
+    return float(in_zone.sum()) / max(len(events), 1) * 100.0
+
+
+def _draw_zone_panel(
+    ax: plt.Axes,
+    species_order: list[str],
+    invasive_lookup: dict[str, bool],
+    df: pd.DataFrame,
+    ref_pct: float,
+    label_left: str,
+    label_right: str,
+    title: str,
+) -> None:
+    """One horizontal stacked-bar panel for figure 07."""
+    df_idx = df.set_index("spanish")
+    y_pos = np.arange(len(species_order))
+    near = np.array([df_idx.loc[s, "pct_in_zone"] for s in species_order])
+    far = 100.0 - near
+
+    ax.barh(y_pos, near, color=COL_NEAR_LOW, edgecolor="white", linewidth=0.5, label=label_left)
+    ax.barh(y_pos, far, left=near, color=COL_FAR_HIGH, edgecolor="white", linewidth=0.5, label=label_right)
+
+    # Percent labels inside segments (only if segment is wide enough to fit)
+    for i, (n_pct, f_pct) in enumerate(zip(near, far)):
+        if n_pct >= 12:
+            ax.text(n_pct / 2, i, f"{n_pct:.0f}%", ha="center", va="center",
+                    color="white", fontsize=8, fontweight="bold")
+        if f_pct >= 12:
+            ax.text(n_pct + f_pct / 2, i, f"{f_pct:.0f}%", ha="center", va="center",
+                    color="white", fontsize=8, fontweight="bold")
+
+    # n annotation at right edge of bar
+    for i, s in enumerate(species_order):
+        n_total = int(df_idx.loc[s, "n_total"])
+        ax.text(101.5, i, f"n={n_total}", ha="left", va="center",
+                fontsize=8, color="#333")
+
+    # Reference line — expected % if the species used the landscape like the
+    # camera network samples it.
+    ax.axvline(ref_pct, color=COL_REF_LINE, linewidth=1.2, linestyle=(0, (4, 2)),
+               zorder=5)
+    ax.text(ref_pct, len(species_order) - 0.3, f"  ref. {ref_pct:.0f}%",
+            ha="left", va="bottom", fontsize=7.5, color=COL_REF_LINE,
+            fontweight="bold")
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(species_order, fontsize=9)
+    # Color the species label red if introduced, green if native
+    for tick_lbl, sp in zip(ax.get_yticklabels(), species_order):
+        tick_lbl.set_color(COL_INTROD if invasive_lookup[sp] else COL_NATIVA)
+    ax.invert_yaxis()
+    ax.set_xlim(0, 110)
+    ax.set_xticks([0, 25, 50, 75, 100])
+    ax.set_xticklabels(["0%", "25%", "50%", "75%", "100%"])
+    ax.set_title(title, loc="left", fontsize=11, fontweight="bold")
+    ax.tick_params(axis="y", length=0)
+    for spine_name in ("top", "right", "left"):
+        ax.spines[spine_name].set_visible(False)
+
+
+def fig_zone_distribution(events: pd.DataFrame, stations: pd.DataFrame) -> None:
+    """Composite figure 07: distribution per species across 3 environmental
+    gradients (elevation, road proximity, water proximity)."""
+    # Build species order from total events desc, exclude small-n.
+    totals = events.groupby("spanish").size().rename("n").reset_index()
+    totals = totals.sort_values("n", ascending=False)
+    kept = totals[totals["n"] >= MIN_EVENTS_FOR_ZONE_FIG]["spanish"].tolist()
+    dropped = totals[totals["n"] < MIN_EVENTS_FOR_ZONE_FIG]
+    invasive_lookup = (
+        events.drop_duplicates("spanish").set_index("spanish")["is_invasive"].to_dict()
+    )
+
+    elev_df = _zone_share_per_species(events, stations, "low_elev")
+    road_df = _zone_share_per_species(events, stations, "near_road")
+    water_df = _zone_share_per_species(events, stations, "near_water")
+
+    elev_ref = _reference_pct(events, stations, "low_elev")
+    road_ref = _reference_pct(events, stations, "near_road")
+    water_ref = _reference_pct(events, stations, "near_water")
+
+    # A4 portrait + extra height for legend/footnote
+    fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(8.27, 11.5),
+                             sharex=False)
+    _draw_zone_panel(
+        axes[0], kept, invasive_lookup, elev_df, elev_ref,
+        label_left=f"Baja (≤{THRESHOLD_M} m)",
+        label_right=f"Alta (>{THRESHOLD_M} m)",
+        title="A. Elevación — % de eventos por zona altitudinal",
+    )
+    _draw_zone_panel(
+        axes[1], kept, invasive_lookup, road_df, road_ref,
+        label_left=f"Cerca de camino (≤{ROAD_PROX_M} m)",
+        label_right=f"Lejos de camino (>{ROAD_PROX_M} m)",
+        title="B. Proximidad a caminos vehiculares",
+    )
+    _draw_zone_panel(
+        axes[2], kept, invasive_lookup, water_df, water_ref,
+        label_left=f"Cerca de agua (≤{WATER_PROX_M} m)",
+        label_right=f"Lejos de agua (>{WATER_PROX_M} m)",
+        title="C. Proximidad a cursos de agua principales",
+    )
+    axes[2].set_xlabel("Porcentaje de eventos de la especie")
+
+    # Single shared legend at the bottom
+    from matplotlib.patches import Patch
+    handles = [
+        Patch(facecolor=COL_NEAR_LOW, label="Zona baja / cerca"),
+        Patch(facecolor=COL_FAR_HIGH, label="Zona alta / lejos"),
+    ]
+    fig.legend(handles=handles, loc="lower center", ncol=2, frameon=False,
+               bbox_to_anchor=(0.5, 0.075), fontsize=9)
+
+    # Footnote about excluded species — placed below the legend
+    if not dropped.empty:
+        dropped_str = ", ".join(
+            f"{row['spanish']} (n={int(row['n'])})"
+            for _, row in dropped.iterrows()
+        )
+        footnote = (
+            f"La línea punteada vertical en cada panel marca el porcentaje "
+            f"de TODOS los eventos del informe que ocurrieron en la zona destacada "
+            f"(esperado si la especie no mostrara preferencia respecto al "
+            f"patrón de muestreo de la red).  Especies omitidas por n<{MIN_EVENTS_FOR_ZONE_FIG}: "
+            f"{dropped_str}."
+        )
+    else:
+        footnote = (
+            "La línea punteada vertical en cada panel marca el porcentaje "
+            "de TODOS los eventos del informe que ocurrieron en la zona destacada "
+            "(esperado si la especie no mostrara preferencia respecto al "
+            "patrón de muestreo de la red)."
+        )
+    fig.text(0.5, 0.015, footnote, ha="center", va="bottom",
+             fontsize=7.5, color="#444", wrap=True)
+
+    fig.suptitle(
+        "Distribución de eventos por especie según contexto ambiental — Bosque Pehuén\n"
+        "(eventos oct 2024 – mar 2026)",
+        fontsize=11, fontweight="bold", y=0.995,
+    )
+    fig.subplots_adjust(top=0.93, bottom=0.13, hspace=0.45, left=0.20, right=0.94)
+    fig.savefig(FIGS / "07_zonas_por_especie.png")
+    plt.close(fig)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Summary table — printed to stdout as markdown for inclusion in report §4.5
+
+
+def print_zone_summary_table(events: pd.DataFrame, stations: pd.DataFrame) -> None:
+    elev_df = _zone_share_per_species(events, stations, "low_elev").set_index("spanish")
+    road_df = _zone_share_per_species(events, stations, "near_road").set_index("spanish")
+    water_df = _zone_share_per_species(events, stations, "near_water").set_index("spanish")
+
+    species_order = (
+        events.groupby("spanish").size().sort_values(ascending=False).index.tolist()
+    )
+
+    elev_ref = _reference_pct(events, stations, "low_elev")
+    road_ref = _reference_pct(events, stations, "near_road")
+    water_ref = _reference_pct(events, stations, "near_water")
+
+    print("\n" + "=" * 78)
+    print("Markdown summary table (copy into informe_anual_2025.md §4.5)")
+    print("=" * 78)
+    print()
+    print("| Especie | n eventos | % baja | % cerca camino | % cerca agua |")
+    print("|---|---:|---:|---:|---:|")
+    for sp in species_order:
+        n = int(elev_df.loc[sp, "n_total"])
+        marker = " †" if n < MIN_EVENTS_FOR_ZONE_FIG else ""
+        pct_baja = elev_df.loc[sp, "pct_in_zone"]
+        pct_road = road_df.loc[sp, "pct_in_zone"]
+        pct_water = water_df.loc[sp, "pct_in_zone"]
+        print(f"| {sp}{marker} | {n} | {pct_baja:.0f}% | {pct_road:.0f}% | {pct_water:.0f}% |")
+    print(f"| **Referencia (todas las especies)** | {len(events)} | "
+          f"**{elev_ref:.0f}%** | **{road_ref:.0f}%** | **{water_ref:.0f}%** |")
+    print()
+    print(f"† Especies con <{MIN_EVENTS_FOR_ZONE_FIG} eventos: porcentajes "
+          "informativos pero inestables; se omiten de la figura 7.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main
 
 
@@ -591,6 +853,7 @@ def main() -> None:
     print("Loading data...")
     events = pd.read_parquet(EVENTS_PARQUET)
     stations = load_stations()
+    stations = enrich_stations_with_zones(stations)
     boundary = load_boundary()
     basemap = load_basemap()
     print(f"  events  : {len(events):,}")
@@ -615,8 +878,13 @@ def main() -> None:
     print("  ✓ 05_richness_introducidas.png")
     fig_per_species_panel(events, stations, boundary, basemap)
     print("  ✓ 06_panel_por_especie.png")
+    fig_zone_distribution(events, stations)
+    print("  ✓ 07_zonas_por_especie.png")
 
     print(f"\nAll figures written to {FIGS}")
+
+    # Markdown summary table to stdout
+    print_zone_summary_table(events, stations)
 
 
 if __name__ == "__main__":

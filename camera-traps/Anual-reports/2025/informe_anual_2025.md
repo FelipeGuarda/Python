@@ -88,6 +88,18 @@ A partir de esta versión del informe, los mapas de distribución (figuras 3 a 6
 
 Las capas de contexto se cargan desde `plataforma-territorial/data/basemap/` y se generan una sola vez con `py/00_prepare_basemap.py` a partir de los shapefiles de origen entregados por el equipo de FMA/ICN. La carpeta resultante también queda disponible para uso de la plataforma territorial.
 
+Adicionalmente, las capas de caminos y cursos de agua se usan para clasificar a cada cámara según su **proximidad** a esos elementos. Para cada CT se calculó la distancia geométrica al camino vehicular más cercano y al curso de agua principal más cercano (proyección UTM 18S, distancias en metros). Se define una cámara como "cerca" cuando la distancia es ≤ 100 m y "lejos" cuando supera ese umbral. El umbral de 100 m se eligió por dos motivos: (a) en la red de BP, valores menores (50 m) generan agrupaciones demasiado pequeñas (2 cámaras cerca de cursos de agua, 5 cerca de camino) para describir patrones por especie con estabilidad; (b) la literatura de ecología de caminos describe "zonas de efecto" entre decenas y centenas de metros según especie y tipo de vía (Forman & Alexander 1998; Forman 2000), siendo 100 m un valor intermedio razonable. Los amortiguadores ribereños regulatorios suelen ser más estrechos (15–30 m), pero a esa distancia la red de cámaras de BP no produce grupos comparables; el umbral de 100 m responde aquí principalmente a la geometría de la red de muestreo.
+
+La clasificación resultante es:
+
+- **Elevación.** 15 cámaras en zona alta (>1000 m) y 11 en zona baja (≤1000 m).
+- **Caminos.** 11 cámaras a ≤100 m de algún camino vehicular (Puma o Araucarias); 15 a más de 100 m.
+- **Cursos de agua.** 7 cámaras a ≤100 m de los esteros principales (la Cascada o San Marcos); 19 a más de 100 m.
+
+Las tres clasificaciones se usan en la sección 4.5 para describir cómo se reparten los eventos de cada especie entre las zonas. Para interpretar esas distribuciones se utiliza como referencia el **porcentaje de todos los eventos del informe** que ocurrieron en cada zona destacada (baja, cerca de camino, cerca de agua): 61%, 44% y 16% respectivamente. Estos valores describen el patrón natural de captura de la red —dado dónde están las cámaras y cuánto registra cada una— y sirven como línea base contra la cual se compara la distribución observada de cada especie individual. Si una especie tiene un porcentaje claramente distinto al de la línea base, sugiere uso diferencial del paisaje respecto al promedio del muestreo. **No se trata de un test de causalidad ni de preferencia ecológica formal**: es una descripción comparativa de cómo se distribuyen los eventos observados.
+
+> **Importante:** los tres ejes no son independientes en BP. Varias cámaras cercanas a cursos de agua están también en zona alta, de modo que las clasificaciones por elevación y por proximidad a agua capturan parcialmente la misma estructura geográfica. Esto debe tenerse en cuenta al interpretar la sección 4.5.
+
 ---
 
 # 2. Listado de especies
@@ -158,6 +170,43 @@ Tras la verificación visual (sec. 1.6), **Ciervo rojo** queda registrado en una
 
 ![Figura 6. Distribución de eventos por especie, eventos sumados oct 2024 – mar 2026. Cada mini-mapa muestra el polígono de BP con la zona sobre 1000 m sombreada en tono oscuro y los cursos de agua principales en azul.](figures/06_panel_por_especie.png){#fig:06_panel_especie width=100%}
 
+## 4.5 Distribución por gradiente ambiental
+
+La figura 7 resume, para cada especie con ≥5 eventos en el período, el porcentaje de detecciones que ocurrieron en cada lado de los tres gradientes definidos en la sección 1.7: zona altitudinal (baja vs alta), proximidad a caminos vehiculares (cerca vs lejos) y proximidad a cursos de agua principales (cerca vs lejos). En cada panel, la **línea punteada vertical** marca la línea base interpretativa descrita en 1.7: el porcentaje de **todos** los eventos del informe que ocurrieron en la zona destacada (61% en zona baja, 44% cerca de camino, 16% cerca de agua). Una barra que se aparta claramente de esa línea hacia un lado indica que la especie tiene una distribución observada distinta al patrón general de muestreo.
+
+![Figura 7. Distribución de eventos por especie según contexto ambiental. Paneles: (A) altitud, (B) proximidad a caminos vehiculares, (C) proximidad a cursos de agua principales. La línea punteada vertical en cada panel es la línea base esperada si la especie utilizara el paisaje como la red de cámaras lo muestrea (sec. 1.7). Se omiten del gráfico las especies con menos de 5 eventos por inestabilidad estadística; sus cifras aparecen en la Tabla 3.](figures/07_zonas_por_especie.png){#fig:07_zonas width=100%}
+
+**Patrones por gradiente.**
+
+- **Elevación (panel A).** **Pudú** (100% en zona alta) y **Jabalí** (76% alta) son las especies más fuertemente asociadas al sector sobre 1000 m. En el extremo opuesto, **Caballo** (100% baja, 11 eventos) ocupa exclusivamente zona baja. **Puma** y **Güiña** también se inclinan hacia zona alta (65% y 70% respectivamente). **Zorro culpeo**, **Perro** y **Liebre** se distribuyen cerca de la línea base de 61% en zona baja: para estas especies el muestreo está dominado por las cámaras de zona baja y no muestran preferencia altitudinal evidente.
+- **Caminos (panel B).** **Zorro culpeo** (77% cerca de camino), **Jabalí** (71%) y **Puma** (59%) registran un porcentaje claramente mayor que la línea base del 44%, sugiriendo asociación con los caminos vehiculares Puma y Araucarias. En el extremo opuesto, **Caballo** (9% cerca), **Liebre** (23%) y **Güiña** (30%) tienen mayor presencia lejos de los caminos vehiculares principales. El patrón de Liebre y Caballo se entiende al cruzarlo con la sección 4.3: ambas especies concentran detecciones en torno a CT19 (sector de la guardería), cámara que está en zona baja pero a más de 100 m de los caminos vehiculares principales en la red definida en 1.7.
+- **Cursos de agua (panel C).** Es el gradiente más asimétrico: sólo 7 cámaras (27% de la red) caen en la zona "cerca". A pesar de eso, **Pudú** (50% cerca, 3 de 6 eventos) y **Perro** (33%) superan ampliamente la línea base del 16%. **Puma**, **Jabalí** y **Caballo** no tienen ningún evento en cámaras cercanas a esteros principales en el período cubierto. **Liebre** (25%) está ligeramente por sobre la línea base.
+
+**Tabla 3.** Distribución de eventos por especie según zona, oct 2024 – mar 2026.
+
+| Especie | n eventos | % baja | % cerca camino | % cerca agua |
+|---|---:|---:|---:|---:|
+| Liebre | 191 | 70% | 23% | 25% |
+| Zorro culpeo | 119 | 56% | 77% | 2% |
+| Perro | 42 | 64% | 48% | 33% |
+| Puma | 17 | 35% | 59% | 0% |
+| Jabalí | 17 | 24% | 71% | 0% |
+| Caballo | 11 | 100% | 9% | 0% |
+| Güiña | 10 | 30% | 30% | 10% |
+| Pudú | 6 | 0% | 50% | 50% |
+| Gato doméstico † | 3 | 67% | 0% | 33% |
+| Chingue † | 2 | 100% | 50% | 0% |
+| Ciervo rojo † | 1 | 0% | 100% | 0% |
+| **Línea base (todas las especies)** | **419** | **61%** | **44%** | **16%** |
+
+> † Especies con menos de 5 eventos: las proporciones son informativas pero estadísticamente inestables y se omiten de la figura 7 para no sugerir certeza donde no la hay. Resumen por especie: **Gato doméstico** (3 eventos en CT18 y CT19, sector entrada); **Chingue** (2 eventos en CT24, zona baja); **Ciervo rojo** (1 evento, CT13, zona alta cercana al camino Araucarias).
+
+**Caveats interpretativos.**
+
+1. Los tres ejes **no son independientes en BP**. Varias cámaras cercanas a esteros están también en zona alta (CT1, CT7, CT17), de modo que "preferencia por zona alta" y "preferencia por proximidad a agua" pueden capturar parcialmente la misma estructura geográfica del paisaje. Una interpretación causal de cada gradiente por separado requeriría un análisis multivariado que excede el alcance de este informe descriptivo.
+2. Las especies con n bajo (Pudú con n=6, Güiña con n=10) son sensibles a uno o dos eventos: "Pudú 50% cerca de agua" corresponde a 3 de 6 eventos, una señal real pero de magnitud ruidosa. Los patrones de Liebre (n=191) y Zorro culpeo (n=119) son los más robustos.
+3. El conjunto "caminos vehiculares" se restringe a los dos caminos principales de penetración (Puma y Araucarias). Caminos vecinales, ramales de servicio y senderos peatonales no se consideran en la clasificación de proximidad. Especies asociadas a esos otros tipos de huella pueden aparecer como "lejos de camino" cuando en realidad utilizan vías de menor categoría.
+
 ---
 
 # 5. Consideraciones
@@ -173,6 +222,8 @@ Tras la verificación visual (sec. 1.6), **Ciervo rojo** queda registrado en una
 # Referencias
 
 - **CONAF.** Diseño metodológico para fotomonitoreo en Áreas SNASPE *(documento interno revisado, 2026).*
+- **Forman, R. T. T., & Alexander, L. E.** (1998). *Roads and their major ecological effects.* Annual Review of Ecology and Systematics, 29, 207–231.
+- **Forman, R. T. T.** (2000). *Estimate of the area affected ecologically by the road system in the United States.* Conservation Biology, 14(1), 31–35.
 - **Meek, P. D., et al.** (2014). *Recommended guiding principles for reporting on camera trapping research.* Biodiversity and Conservation, 23(9), 2321–2343.
 - **O'Brien, T. G.** (2011). *Abundance, density and relative abundance: a conceptual framework.* En *Camera Traps in Animal Ecology* (Springer).
 - **Silva-Rodríguez, E. A., Cortés, E. I., Vasquez-Ibarra, V., Gálvez, N., Cusack, J., Ohrens, O., Moreira-Arce, D., Farías, A. A., & Infante-Varela, J.** (2025). *A protocol for error prevention and quality control in camera trap datasets.* Journal of Applied Ecology, 00, 1–10. <https://doi.org/10.1111/1365-2664.70010>.

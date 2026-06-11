@@ -12,7 +12,8 @@ Carpeta autocontenida con los datos, código, figuras y narrativa del informe an
 ├── py/
 │   ├── 00_prepare_basemap.py           ← (one-shot) extrae shapefiles de los ZIPs y genera los GeoJSONs de contexto geográfico (caminos, esteros, contorno y zona sobre 1000 m)
 │   ├── 01_data_prep.py                 ← limpia y corrige los datos crudos
-│   ├── 02_figures_tables.py            ← genera todas las figuras
+│   ├── 02_figures_tables.py            ← genera todas las figuras + tabla resumen (stdout)
+│   ├── 03_compute_proximity.py         ← (diagnóstico) reporta distancias CT→camino/agua y candidatos de umbral
 │   ├── list_ciervo_guina_images.py     ← lista cada imagen tagged ciervo/güiña con su ruta (revisión manual)
 │   └── apply_verdicts.py               ← aplica los veredictos de revisión visual y regenera records/events
 ├── data/
@@ -30,7 +31,8 @@ Carpeta autocontenida con los datos, código, figuras y narrativa del informe an
 │   ├── 03_richness_total.png
 │   ├── 04_richness_nativas.png
 │   ├── 05_richness_introducidas.png
-│   └── 06_panel_por_especie.png
+│   ├── 06_panel_por_especie.png
+│   └── 07_zonas_por_especie.png
 └── figures_pre_correction/               ← snapshot de figuras antes de la revisión visual (referencia)
     └── …
 ```
@@ -70,7 +72,7 @@ python py/apply_verdicts.py      # aplica los veredictos manuales → records_cl
 
 # Cambiar al entorno con matplotlib
 conda activate fire_risk_dashboard
-python py/02_figures_tables.py   # actualiza figures/*.png
+python py/02_figures_tables.py   # actualiza figures/*.png + imprime la Tabla 3 (zonas) en stdout
 ```
 
 > **Capas de contexto (one-shot).** El script `py/00_prepare_basemap.py` se corre **una sola vez** para generar `plataforma-territorial/data/basemap/*.geojson` a partir de los ZIPs de origen (`Anual-reports/Curvas de nivel_BP-*.zip`, `Anual-reports/Figura 5_Sistema hídrico SN BP-*.zip` y `Anual-reports/Red senderos y Caminos-*.zip`). Requiere `shapely`, `pyproj` y `pyshp` en el entorno. No es necesario volver a correrlo a menos que cambien los shapefiles de origen.
