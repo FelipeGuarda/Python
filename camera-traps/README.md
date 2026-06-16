@@ -6,10 +6,10 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ## Status
 
-**Last Updated:** 2026-05-20 — added `Anual-reports/2025/` annual-report sub-project
-**What Changed:** New self-contained subfolder `Anual-reports/2025/` with the first annual report under the CONAF methodology (oct 2024 – mar 2026). Includes a Python pipeline (`01_data_prep.py` + `02_figures_tables.py`), a Spanish-language Markdown narrative (`informe_anual_2025.md`), six rendered figures, and a `render.sh` pandoc helper that converts to DOCX for boss review. Filters the dataset to 11 medium/large mammals (5 nativas, 6 introducidas) and produces richness maps + per-species panel. Methodology consolidated from `Anual-reports/REVISIÓN DISEÑO METODOLÓGICO DE CONAF.pdf` and `Anual-reports/Resultados de evaluación Megadetector.docx.pdf` (MegaDetector threshold fixed at 0.38 for high recall). Previous milestone (2026-05-11 — full code review complete) was kept intact; the report sub-project does not touch existing code.
-**Integration Status:** Ready (annual report sub-project is its own deliverable, not yet wired into `plataforma-territorial`).
-**Blockers/Notes:** Pandoc is not installed on the dev machine — `sudo apt install pandoc` is the one-time prereq to render the DOCX. Sibling-loader pattern from earlier still applies for the species-classifier code. Annual report uses the canonical `plataforma-territorial/data/{boundary,camera_trap_stations}.geojson` files directly; legacy GIS files in `camera-traps/GIS/` are deprecated.
+**Last Updated:** 2026-06-16 — Phase-1 review UI overhaul + Vaca added + resume loader
+**What Changed:** Streamlit review now shows a 3-col triptych per cell (`[anterior | actual | siguiente]`, sourced from the MD JSON so empty triggers are visible) and full-frame thumbnails at higher resolution (1280px / Q85) so the expand view stays sharp. CLIP classifier untouched — it still uses the bbox crop, only the human-review UI changed. New resume loader rehydrates review progress from `new_labeled_data_reviewed.csv` on session start; the exported CSV is now the durable checkpoint. Added Vaca (*Bos taurus*) to the shared species catalog (28 CLIP species now; was 27) — cows on BP Mayo 2026 were being misclassified as Caballo. Renamed `crop_utils.py` → `cropping.py` (file was cohesive, `_utils` suffix unjustified). Fixed a latent `ModuleNotFoundError` when launching Streamlit from the project root via a 2-line sys.path injection at the top of `app.py`.
+**Integration Status:** Ready. CLIP classifier output format is unchanged (only the species set grew by one). Annual report sub-project (`Anual-reports/2025/`) is untouched.
+**Blockers/Notes:** None blocking. CLIP horse/cow confusion may persist on side/rear shots even with the Vaca prompt — revisit `clip_confidence_threshold` (0.28) only after seeing the new run. Pandoc still required for `Anual-reports/2025/render.sh`. Annual report uses the canonical `plataforma-territorial/data/{boundary,camera_trap_stations}.geojson` files directly; legacy GIS files in `camera-traps/GIS/` are deprecated.
 
 ---
 
@@ -24,7 +24,7 @@ camera-traps/
 │
 ├── classify_campaign/           ← CLIP classification package
 │   ├── clip_classifier.py       ← zero-shot CLIP classifier (cosine similarity)
-│   ├── crop_utils.py            ← MegaDetector bbox crop + resize
+│   ├── cropping.py              ← MegaDetector bbox crop + resize
 │   └── data_loader.py           ← loads animals from ImageData_animals.csv + MD JSON
 │
 ├── phase1_labeling/             ← human review Streamlit app
@@ -156,6 +156,8 @@ streamlit run phase1_labeling/app.py
 
 The UI:
 - Groups images by CLIP-proposed species, one batch page per species sorted by detection count
+- **Burst context**: each image is shown as a triptych `[anterior | actual | siguiente]` — the previous and next frames from the same station (full-frame, sourced from the MD JSON so empty triggers are included). Camera traps fire in bursts of 2–3 frames, so the neighbours often show the same animal at a different angle — strong cue for species ID.
+- Full-frame thumbnails (no bbox crop) so habitat / scale context is visible. The CLIP classifier itself still sees the cropped subject — only the human-review UI displays the full frame.
 - **Two confirm buttons** per batch:
   - *Confirmar todo como X* — bulk confirm all images as the proposed species
   - *Confirmar con cambios* — apply any per-image dropdown edits before confirming
@@ -245,8 +247,9 @@ This is already done in the working environment. Only redo if rebuilding the con
 | Liebre | *Lepus europaeus* | Invasive |
 | Visón | *Neogale vison* | Invasive |
 | Perro | *Canis lupus familiaris* | |
-| Caballo | *Equus caballus* | |
-| Gato doméstico | *Felis catus* | |
+| Caballo | *Equus caballus* | Invasive |
+| Vaca | *Bos taurus* | Invasive |
+| Gato doméstico | *Felis catus* | Invasive |
 | Monito del monte | *Dromiciops gliroides* | |
 | Ratón cola larga | *Abrothrix longipilis* | |
 | Chucao | *Scelorchilus rubecula* | |

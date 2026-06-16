@@ -32,7 +32,7 @@ import yaml
 from tqdm import tqdm
 
 from classify_campaign.clip_classifier import CLIPZeroShotClassifier
-from classify_campaign.crop_utils import load_and_crop
+from classify_campaign.cropping import load_and_crop
 from classify_campaign.data_loader import load_animal_images
 from classify_campaign.species import clip_species
 

@@ -1,5 +1,5 @@
 # ─── Paths ────────────────────────────────────────────────────────────────────
-campaign_dir: "C:\\Users\\USUARIO\\SynologyDrive\\2. Camaras trampa (SC)\\SynologyDrive\\DATOS_GRILLA CÁMARAS TRAMPA\\2. CAMPAÑAS DE RECOLECCION DE IMAGENES\\Primavera-verano 2025-2026"
+campaign_dir: "C:\\Users\\USUARIO\\Desktop\\BP Mayo 2026\\SynologyDrive"
 megadetector_json: "timelapse_recognition_file.json"
 input_csv:        "ImageData_animals.csv"
 output_csv:       "ImageData_animals_classified.csv"

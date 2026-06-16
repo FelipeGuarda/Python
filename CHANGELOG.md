@@ -6,6 +6,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## [2026-06-16] — Camera-traps: review UI burst context, full-frame display, resume loader, +Vaca
+
+Reworked Phase-1 review UI to better support species disambiguation. Reviewers now see burst context (prev/current/next thumbnails sourced from the MD JSON, including empty triggers) and full frames instead of bbox crops. CLIP classifier untouched — it still receives the bbox crop, keeping its subject-isolation accuracy. Added a startup loader that rehydrates review progress from the previously-exported CSV, eliminating the in-memory-only footgun that bit during this session.
+
+### Added
+- **`phase1_labeling/app.py`** — `load_station_index()` builds `{station: [files sorted alphabetically]}` from the MD JSON (includes empty triggers, so reviewer sees what happened before/after the animal trigger). `neighbors(fp)` returns prev/next within station, `None` at deployment boundaries. **Resume loader**: on a fresh session with empty `confirmed`, reads `new_labeled_data_reviewed.csv` and rehydrates `st.session_state.confirmed` / `outcomes`, auto-jumping to the first species batch with unconfirmed images.
+- **`data-pipeline/species.yaml`** — Vaca (*Bos taurus*). Aliases: `vaca, vacuno, ganado vacuno, bovino`. CLIP prompt: `"domestic cow cattle bovine"`. `is_invasive: true`. 28 CLIP species now (was 27). Cows were being misclassified as Caballo on BP Mayo 2026.
+
+### Changed
+- **`classify_campaign/crop_utils.py` → `cropping.py`** — the file is cohesive (only cropping code, no junk drawer), so the `_utils` suffix was lazy. Imports updated in `run_classification.py`; the now-unused `crop_to_bbox` import was dropped from `phase1_labeling/app.py`. General principle to apply elsewhere when `_utils` suffixes are spotted on cohesive modules.
+- **Review UI grid** — was 5-col bbox-cropped thumbnails, now 3-col triptych grid `[anterior | actual | siguiente]` with full-frame thumbnails. Burst context (typically 2-3 frames per trigger) is now the primary species-disambiguation cue alongside the proposed species label.
+- **`THUMB_SIZE`** 280 → 1280, **`JPEG_QUALITY`** 75 → 85 in `phase1_labeling/app.py`. Streamlit's expand-icon lightbox shows the cached JPEG as-is, so the cached resolution determines expand quality. In-grid display is unchanged (`use_container_width=True` clamps the visual width). Memory tradeoff acceptable for local desktop review (~10-18MB cache per page).
+- **`camera-traps/README.md`** — project tree (`cropping.py`), Step 4 review-UI section rewritten to describe the burst triptych + full-frame display, species table now includes Vaca and the missing Invasive cells for Caballo / Gato doméstico.
+
+### Fixed
+- **Sibling import error when launching Streamlit** — `streamlit run phase1_labeling/app.py` was failing with `ModuleNotFoundError: No module named 'classify_campaign'` because Streamlit puts the script's directory on `sys.path`, not the project root. Added a 2-line `sys.path.insert(...)` at the top of `app.py`. This was a latent issue that newer Streamlit versions surfaced (older versions added CWD to sys.path more aggressively).
+
+### Notes
+- **Habit to keep**: hit "Exportar CSV revisado" periodically during long sessions — it's now the durable checkpoint and the resume loader will pick it up on next launch.
+- **CLIP horse/cow confusion** may persist on side/rear shots even with the new Vaca prompt. If false-positive rate is high after re-classification, consider tightening `clip_confidence_threshold` (currently 0.28) — but only after seeing the data.
+
+Session log: `SecondBrain/Sessions/2026-06-16-camera-traps-review-ui-context-strip-and-resume.md`.
+
+---
+
 ## [2026-06-02] — Observatorio: piso vegetacional layer (plataforma-territorial)
 
 New toggleable Leaflet layer on the Observatorio page: photointerpretation of Bosque Pehuén's vegetational floor (48 polygons). Off by default; click a polygon for `BIOTOPO / Distrito / Superficie (ha)`.

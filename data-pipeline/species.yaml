@@ -69,6 +69,13 @@ species:
     taxonomic_group: mamifero
     is_invasive: true
 
+  - latin: Bos taurus
+    spanish: Vaca
+    spanish_aliases: [vaca, vacuno, ganado vacuno, bovino]
+    english: domestic cow cattle bovine
+    taxonomic_group: mamifero
+    is_invasive: true
+
   - latin: Felis catus
     spanish: Gato doméstico
     spanish_aliases: [gato domestico]

@@ -14,6 +14,7 @@ Output:
 import csv
 import io
 import json
+import sys
 import unicodedata
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -23,14 +24,17 @@ import streamlit as st
 import yaml
 from PIL import Image
 
-from classify_campaign.crop_utils import crop_to_bbox
+# Make the project root importable when launched as `streamlit run phase1_labeling/app.py`
+# (Streamlit puts the script's directory on sys.path, not the project root).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from classify_campaign.species import clip_species
 
 # ── Config ────────────────────────────────────────────────────────────────────
 CONFIG_PATH   = Path(__file__).parent.parent / "config.yaml"
-COLS_PER_ROW    = 5      # thumbnails per row
-THUMB_SIZE      = 280    # max px for thumbnail (width or height)
-JPEG_QUALITY    = 75
+COLS_PER_ROW    = 3      # triptychs per row (each cell holds prev/current/next)
+THUMB_SIZE      = 1280   # max px on long edge — high enough to stay sharp in Streamlit's expand view
+JPEG_QUALITY    = 85
 SPECIAL_OPTIONS = ["No es un animal", "No reconocible", "Otro (especificar)"]
 
 
@@ -61,33 +65,49 @@ def _load_classified_csv_cached(path: str, _mtime: float) -> tuple[list[str], li
     return fieldnames, rows
 
 
-def load_bboxes(json_path: str, threshold: float) -> dict[str, tuple]:
-    """Returns {normalised_file_path: (x, y, w, h) or None}."""
-    return _load_bboxes_cached(json_path, threshold, Path(json_path).stat().st_mtime)
+def load_station_index(json_path: str) -> dict[str, list[str]]:
+    """Returns {station_relpath_lower: [files sorted alphabetically]}.
+
+    Built from every image in the MD JSON regardless of detections — so the
+    chronology includes empty triggers, giving full burst context in the UI.
+    Filenames within a deployment sort chronologically (cameras encode the
+    capture sequence into the filename).
+    """
+    return _load_station_index_cached(json_path, Path(json_path).stat().st_mtime)
 
 
 @st.cache_data
-def _load_bboxes_cached(json_path: str, threshold: float, _mtime: float) -> dict[str, tuple]:
+def _load_station_index_cached(json_path: str, _mtime: float) -> dict[str, list[str]]:
     with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
-    result: dict[str, tuple | None] = {}
+    index: dict[str, list[str]] = defaultdict(list)
     for img in data["images"]:
-        key = img["file"].replace("\\", "/").lower()
-        best = None
-        for det in img.get("detections", []):
-            if det.get("category") == "1" and det.get("conf", 0) >= threshold:
-                if best is None or det["conf"] > best["conf"]:
-                    best = det
-        result[key] = tuple(best["bbox"]) if best else None
-    return result
+        fp = img["file"].replace("\\", "/").lower()
+        station = fp.rsplit("/", 1)[0] if "/" in fp else ""
+        index[station].append(fp)
+    for station in index:
+        index[station].sort()
+    return dict(index)
+
+
+def neighbors(fp_norm: str, station_index: dict[str, list[str]]) -> tuple[str | None, str | None]:
+    """Return (prev, next) relative paths within the same station; None at boundaries."""
+    station = fp_norm.rsplit("/", 1)[0] if "/" in fp_norm else ""
+    files = station_index.get(station, [])
+    try:
+        i = files.index(fp_norm)
+    except ValueError:
+        return None, None
+    prev = files[i - 1] if i > 0 else None
+    nxt  = files[i + 1] if i < len(files) - 1 else None
+    return prev, nxt
 
 
 @st.cache_data
-def load_thumbnail(image_path: str, bbox: tuple | None) -> bytes | None:
-    """Crop image to bbox and return JPEG bytes. Result is cached."""
+def load_thumbnail(image_path: str) -> bytes | None:
+    """Load full-frame image, resize to THUMB_SIZE and return JPEG bytes. Cached."""
     try:
         img = Image.open(image_path).convert("RGB")
-        img = crop_to_bbox(img, list(bbox) if bbox is not None else None)
         img.thumbnail((THUMB_SIZE, THUMB_SIZE))
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=JPEG_QUALITY)
@@ -208,7 +228,6 @@ def main() -> None:
     campaign_dir    = Path(config["campaign_dir"])
     input_csv_path  = str(campaign_dir / config["output_csv"])   # classified output
     json_path       = str(campaign_dir / config["megadetector_json"])
-    threshold       = float(config["animal_confidence_threshold"])
 
     species_list     = clip_species()
     species_options  = sorted([s["spanish"] for s in species_list]) + SPECIAL_OPTIONS
@@ -216,7 +235,7 @@ def main() -> None:
 
     # ── Load data ─────────────────────────────────────────────────────────────
     fieldnames, all_rows = load_classified_csv(input_csv_path)
-    bboxes = load_bboxes(json_path, threshold)
+    station_index = load_station_index(json_path)
 
     animal_rows = [r for r in all_rows if r["observationType"] == "animal"]
     if not animal_rows:
@@ -237,6 +256,29 @@ def main() -> None:
         st.session_state.confirmed = {}
     if "outcomes" not in st.session_state:
         st.session_state.outcomes = {}
+
+    # ── Resume from previously-exported reviewed CSV ──────────────────────────
+    # Streamlit session state is in-memory only; if the server restarts or the
+    # cache is cleared in a way that drops the session, the review progress is
+    # lost. The exported CSV is the durable record — rehydrate from it on a
+    # fresh session so the reviewer doesn't lose work.
+    reviewed_csv = campaign_dir / "new_labeled_data_reviewed.csv"
+    if reviewed_csv.exists() and not st.session_state.confirmed:
+        with open(reviewed_csv, encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                outcome = (row.get("reviewOutcome") or "").strip()
+                if not outcome:
+                    continue
+                fp = row_fp(row)
+                if not fp:
+                    continue
+                st.session_state.confirmed[fp] = (row.get("observationComments") or "").strip()
+                st.session_state.outcomes[fp]  = outcome
+        # Jump to the first species batch that still has unconfirmed images
+        for i, sp in enumerate(sorted_species):
+            if any(row_fp(r) not in st.session_state.confirmed for r in groups[sp]):
+                st.session_state.current_group = i
+                break
 
     confirmed      = st.session_state.confirmed
     n_confirmed    = len(confirmed)
@@ -337,7 +379,20 @@ def main() -> None:
     )
     st.divider()
 
-    # ── Image grid ────────────────────────────────────────────────────────────
+    # ── Image grid (triptych per cell: prev / current / next) ────────────────
+    def render_thumb(rel_path: str | None, label: str) -> None:
+        """Render one slot of the triptych. rel_path=None means no neighbour."""
+        if rel_path is None:
+            st.caption(f"_{label}: —_")
+            return
+        full_path = str(campaign_dir / rel_path.replace("\\", "/"))
+        thumb = load_thumbnail(full_path)
+        if thumb:
+            st.image(thumb, use_container_width=True)
+        else:
+            st.warning("imagen no encontrada")
+        st.caption(label)
+
     for chunk_start in range(0, len(current_rows), COLS_PER_ROW):
         chunk = current_rows[chunk_start : chunk_start + COLS_PER_ROW]
         cols  = st.columns(COLS_PER_ROW)
@@ -345,20 +400,21 @@ def main() -> None:
         for col, row in zip(cols, chunk):
             fp            = row_fp(row)
             norm_fp       = fp.replace("\\", "/").lower()
-            bbox          = bboxes.get(norm_fp)
-            full_path     = str(campaign_dir / fp.replace("\\", "/"))
+            prev_fp, next_fp = neighbors(norm_fp, station_index)
             clip_proposed = per_image_proposed[fp]
 
             with col:
-                thumb = load_thumbnail(full_path, bbox)
-                if thumb:
-                    st.image(thumb, use_container_width=True)
-                else:
-                    st.warning("imagen no encontrada")
+                tri = st.columns(3)
+                with tri[0]:
+                    render_thumb(prev_fp, "anterior")
+                with tri[1]:
+                    render_thumb(fp, "actual")
+                with tri[2]:
+                    render_thumb(next_fp, "siguiente")
 
                 st.caption(fp.replace("\\", "/"))
 
-                # Per-image override dropdown
+                # Per-image override dropdown (attached to centre image)
                 default_idx = find_default_idx(clip_proposed, species_options)
                 st.selectbox(
                     "species",
