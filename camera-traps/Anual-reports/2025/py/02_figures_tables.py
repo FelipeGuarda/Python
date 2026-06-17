@@ -773,7 +773,7 @@ def fig_zone_distribution(events: pd.DataFrame, stations: pd.DataFrame) -> None:
         Patch(facecolor=COL_FAR_HIGH, label="Zona alta / lejos"),
     ]
     fig.legend(handles=handles, loc="lower center", ncol=2, frameon=False,
-               bbox_to_anchor=(0.5, 0.075), fontsize=9)
+               bbox_to_anchor=(0.5, 0.052), fontsize=9)
 
     # Footnote about excluded species — placed below the legend
     if not dropped.empty:
