@@ -34,3 +34,9 @@ camera_traps:
       name: "Primavera 2025"
     - csv: ../camera-traps/data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv
       name: "Primavera-verano 2025-2026"
+    # CT_18 camera clock reverted to factory (2017-01-01) for 135 rows; real
+    # deployment-start anchor pending from field notebook. Do NOT run --ct
+    # until those timestamps are corrected, otherwise the DB lands 135 rows
+    # in 2017 and a re-ingest requires DELETE-then-re-upsert.
+    - csv: ../camera-traps/data/campaigns/otono_2026/new_labeled_data_reviewed.csv
+      name: "Otoño 2026"

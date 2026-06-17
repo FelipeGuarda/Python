@@ -6,10 +6,10 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ## Status
 
-**Last Updated:** 2026-06-16 — Phase-1 review UI overhaul + Vaca added + resume loader
-**What Changed:** Streamlit review now shows a 3-col triptych per cell (`[anterior | actual | siguiente]`, sourced from the MD JSON so empty triggers are visible) and full-frame thumbnails at higher resolution (1280px / Q85) so the expand view stays sharp. CLIP classifier untouched — it still uses the bbox crop, only the human-review UI changed. New resume loader rehydrates review progress from `new_labeled_data_reviewed.csv` on session start; the exported CSV is now the durable checkpoint. Added Vaca (*Bos taurus*) to the shared species catalog (28 CLIP species now; was 27) — cows on BP Mayo 2026 were being misclassified as Caballo. Renamed `crop_utils.py` → `cropping.py` (file was cohesive, `_utils` suffix unjustified). Fixed a latent `ModuleNotFoundError` when launching Streamlit from the project root via a 2-line sys.path injection at the top of `app.py`.
-**Integration Status:** Ready. CLIP classifier output format is unchanged (only the species set grew by one). Annual report sub-project (`Anual-reports/2025/`) is untouched.
-**Blockers/Notes:** None blocking. CLIP horse/cow confusion may persist on side/rear shots even with the Vaca prompt — revisit `clip_confidence_threshold` (0.28) only after seeing the new run. Pandoc still required for `Anual-reports/2025/render.sh`. Annual report uses the canonical `plataforma-territorial/data/{boundary,camera_trap_stations}.geojson` files directly; legacy GIS files in `camera-traps/GIS/` are deprecated.
+**Last Updated:** 2026-06-17 — Otoño 2026 campaign integrated + Quique added
+**What Changed:** Reviewed CSV for the May 2026 SD pull (campaign name **Otoño 2026**) staged at `data/campaigns/otono_2026/` and registered in `data-pipeline/config.yaml`. 1785 observations across 25 deployments (CT_02 and CT_12 produced no animal triggers; the timelapse parser is observation-centric so they're correctly absent from `ct_deployments`). Vaca payoff confirmed: 579 rows tagged Vaca (top species in this campaign) that would have been Caballo without the species addition. Added Quique (*Galictis cuja*) to the shared species catalog with a CLIP English prompt — 5 observations in this campaign, native mustelid, first record in the project. CSV-vs-CSV overlap check against otono_2025 / primavera_2025 / pv_2025_2026 returned zero hits, so no dedup script needed.
+**Integration Status:** Pending CT_18 timestamp fix. 135 rows on CT_18 carry a 2017-01-01 DateTime (camera clock reverted to factory default); real deployment-start anchor pending from field notebook. Linux ingestion (`python run_fetch.py --ct`) is held until those timestamps are corrected.
+**Blockers/Notes:** Do **not** run `--ct` on the Linux box until CT_18 is fixed — see the comment block on the new Otoño 2026 entry in `data-pipeline/config.yaml`. Once fixed, ingestion is one command. CLIP horse/cow confusion may still appear on side/rear shots; revisit `clip_confidence_threshold` (0.28) only after the new run lands. Pandoc still required for `Anual-reports/2025/render.sh`. Annual report uses the canonical `plataforma-territorial/data/{boundary,camera_trap_stations}.geojson` files directly; legacy GIS files in `camera-traps/GIS/` are deprecated.
 
 ---
 
@@ -143,7 +143,7 @@ python run_classification.py
 - For each image, looks up its bounding box in `timelapse_recognition_file.json` (MegaDetector output)
 - Images not found in the JSON (confirmed by reviewer but missed by MegaDetector) are classified on the full frame
 - Crops each image to the MegaDetector bounding box (5% padding)
-- Classifies with CLIP (`openai/clip-vit-base-patch32`) against the 26-species English prompts
+- Classifies with CLIP (`openai/clip-vit-base-patch32`) against the 29-species English prompts
 - Scores < `clip_confidence_threshold` (0.28) → marked `"No reconocible"` instead of a forced guess
 - Writes `ImageData_animals_classified.csv` to the campaign folder
 
@@ -236,19 +236,20 @@ This is already done in the working environment. Only redo if rebuilding the con
 
 ## Species List
 
-27 species configured in `config.yaml`. Each entry has a Spanish name (written to `observationComments`), Latin binomial (`scientificName`), and English CLIP prompt.
+Canonical species catalog lives at `data-pipeline/species.yaml` (shared by `data-pipeline`, `camera-traps`, and `plataforma-territorial`). 29 species carry an `english:` CLIP prompt; a few reviewer-discovered species (Chingue, Cachaña, Fío-fío, Libélula) are catalogued but not passed to the classifier.
 
 | Spanish | Latin | Notes |
 |---|---|---|
 | Zorro culpeo | *Lycalopex culpaeus* | |
-| Puma | *Puma concolor* | |
-| Guiña | *Leopardus guigna* | |
-| Jabali | *Sus scrofa* | Invasive |
+| Puma | *Puma concolor* | Priority |
+| Guiña | *Leopardus guigna* | Priority |
+| Jabalí | *Sus scrofa* | Invasive |
 | Liebre | *Lepus europaeus* | Invasive |
 | Visón | *Neogale vison* | Invasive |
-| Perro | *Canis lupus familiaris* | |
+| Perro | *Canis lupus familiaris* | Invasive |
 | Caballo | *Equus caballus* | Invasive |
 | Vaca | *Bos taurus* | Invasive |
+| Quique | *Galictis cuja* | Native mustelid (added 2026-06-17) |
 | Gato doméstico | *Felis catus* | Invasive |
 | Monito del monte | *Dromiciops gliroides* | |
 | Ratón cola larga | *Abrothrix longipilis* | |
@@ -267,7 +268,7 @@ This is already done in the working environment. Only redo if rebuilding the con
 | Diucón | *Xolmis pyrope* | |
 | Traro | *Caracara plancus* | |
 | Ciervo rojo | *Cervus elaphus* | Invasive |
-| Pudú | *Pudu puda* | |
+| Pudú | *Pudu puda* | Priority |
 
 ---
 
@@ -283,6 +284,7 @@ This is already done in the working environment. Only redo if rebuilding the con
 
 | Campaign | Status | Reviewed CSV |
 |---|---|---|
-| Primavera 2025 | Complete | `data/campaigns/primavera_2025/new_labeled_data_reviewed.csv` |
-| Otoño 2025 | Complete (694 obs) | `<Synology>/Otoño 2025/Fotos/new_labeled_data_reviewed.csv` |
-| Primavera-verano 2025-2026 | In progress | `data/campaigns/primavera_verano_2025_2026/` |
+| Primavera 2025 | Complete | `data/campaigns/primavera_2025/new_labeled_data_reviewed.dedup.csv` |
+| Otoño 2025 | Complete | `data/campaigns/otono_2025/new_labeled_data_reviewed.csv` |
+| Primavera-verano 2025-2026 | Complete | `data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv` |
+| Otoño 2026 | Reviewed; ingestion pending CT_18 timestamp fix | `data/campaigns/otono_2026/new_labeled_data_reviewed.csv` |

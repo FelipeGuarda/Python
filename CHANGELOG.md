@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## [2026-06-17] — Camera-traps: Otoño 2026 campaign integrated, +Quique
+
+May 2026 SD pull (campaign name **Otoño 2026**, slug `otono_2026`) reviewed end-to-end and staged for ingestion. CSV registered in `data-pipeline/config.yaml`. New species — Quique (*Galictis cuja*) — added to the canonical catalog with a CLIP English prompt; first project record (5 obs in this campaign). Yesterday's Vaca addition validated: 579 rows tagged Vaca in this campaign, all of which would have been mislabeled Caballo. Ingestion itself is held until CT_18's clock-reset timestamps are corrected.
+
+### Added
+- **`data-pipeline/species.yaml`** — Quique (*Galictis cuja*). CLIP prompt: `"lesser grison small mustelid weasel"`. Native, no `is_invasive` / `is_priority` flag. 29 CLIP species + 4 reviewer-discovered non-CLIP entries = 33 total (was 28+4=32).
+- **`camera-traps/data/campaigns/otono_2026/new_labeled_data_reviewed.csv`** — 1785 rows, 25 deployments (CT_02 and CT_12 produced no animal triggers; timelapse parser is observation-centric so they're correctly absent from `ct_deployments`). Date range covers 2025-? through 2026-05-15, except CT_18 which has 135 rows stuck at 2017-01-01 (see below).
+- **`data-pipeline/config.yaml`** — 4th `camera_traps.campaigns` entry: `name: "Otoño 2026"`. Comment block immediately above the entry flags the CT_18 timestamp issue and instructs not to run `--ct` until corrected.
+
+### Changed
+- **`camera-traps/README.md`** — Status header rewritten for 2026-06-17; species table +Quique row + filled-in Invasive/Priority cells; CLIP species count 26 → 29 in Step 3; Campaign History table now includes Otoño 2026 and corrected paths for the prior three campaigns.
+- **`PROJECT_STATUS.md`** — top "Last updated" line rewritten; section 1 species.yaml count 31 → 33; section 3 Last Updated/What Changed/Integration/Blockers refreshed; component table +Otoño 2026 row; Open Items: new CT_18 timestamp-fix entry.
+
+### Notes
+- **CT_18 clock reset**: 135 rows on CT_18 carry `DateTime` 2017-01-01 (camera clock reverted to factory default at some point during the deployment). Felipe has the real deployment-start date in his field notebook; until it's transcribed, `python run_fetch.py --ct` is held on the Linux box. Once the anchor is in hand, one re-stamp + re-ingest finishes the integration. Until then the `otono_2026` entry sits dormant in config.yaml behind a comment.
+- **Zero cross-campaign overlap** verified via stdlib CSV-vs-CSV check against otono_2025 / primavera_2025 / pv_2025_2026. No dedup script needed (unlike the primavera_2025 case, this is a fresh pull, not a partial re-pull).
+- **CLIP horse/cow confusion** that motivated yesterday's Vaca prompt is now quantifiable: 579 Vaca rows (#1 species in this campaign) vs 70 Caballo rows — strong evidence the prompt distinguishes correctly. Revisit `clip_confidence_threshold` (0.28) only if the false-positive rate on tightly-similar pairs (Vaca↔Caballo, side/rear shots) looks bad after ingestion.
+
+Session log: `SecondBrain/Sessions/2026-06-17-camera-traps-otono-2026-ingest-prep-and-quique.md`.
+
+---
+
 ## [2026-06-16] — Camera-traps: review UI burst context, full-frame display, resume loader, +Vaca
 
 Reworked Phase-1 review UI to better support species disambiguation. Reviewers now see burst context (prev/current/next thumbnails sourced from the MD JSON, including empty triggers) and full frames instead of bbox crops. CLIP classifier untouched — it still receives the bbox crop, keeping its subject-isolation accuracy. Added a startup loader that rehydrates review progress from the previously-exported CSV, eliminating the in-memory-only footgun that bit during this session.

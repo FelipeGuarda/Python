@@ -107,6 +107,11 @@ species:
     taxonomic_group: mamifero
     is_priority: true
 
+  - latin: Galictis cuja
+    spanish: Quique
+    english: lesser grison small mustelid weasel
+    taxonomic_group: mamifero
+
   - latin: Conepatus chinga
     spanish: Chingue
     taxonomic_group: mamifero

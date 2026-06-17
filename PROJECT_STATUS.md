@@ -1,6 +1,6 @@
 # FMA Project Status
 
-**Last updated:** 2026-06-16 (camera-traps: Phase-1 review UI overhauled. Streamlit review now shows a 3-col triptych per cell — `[anterior | actual | siguiente]` — sourced from the MD JSON so burst context (incl. empty triggers) is visible. Thumbnails switched from bbox crops to full frames at higher resolution (1280px / Q85) so habitat/scale context survives the expand-view. **CLIP classifier still uses the bbox crop** — only the human review UI changed. New resume loader rehydrates `confirmed` / `outcomes` from `new_labeled_data_reviewed.csv` on a fresh session and auto-jumps to the first incomplete species batch — the exported CSV is now the durable checkpoint. Added Vaca (*Bos taurus*) to `data-pipeline/species.yaml` (28 CLIP species now; was 27) — cows were being misclassified as Caballo on BP Mayo 2026. Renamed `crop_utils.py` → `cropping.py` (file was cohesive, `_utils` suffix unjustified). Fixed a latent `ModuleNotFoundError` when launching Streamlit from the project root via 2-line sys.path injection. Pending commit + push.)
+**Last updated:** 2026-06-17 (camera-traps: **Otoño 2026 campaign integrated** — May 2026 SD pull reviewed, 1785 observations, 25 deployments (CT_02 and CT_12 produced no animal triggers; timelapse parser is observation-centric so they're correctly absent from `ct_deployments`). Vaca payoff confirmed: 579 rows tagged Vaca (top species in campaign) that would have been mislabeled Caballo without yesterday's species addition. Added Quique (*Galictis cuja*) to `data-pipeline/species.yaml` with CLIP English prompt — 5 obs in this campaign, native mustelid, first project record. CSV staged at `camera-traps/data/campaigns/otono_2026/` and registered in `data-pipeline/config.yaml`. Zero overlap with otono_2025 / primavera_2025 / pv_2025_2026 — no dedup script needed. **Pending:** CT_18 timestamps — 135 rows currently dated 2017-01-01 (camera clock reverted to factory). Real deployment-start anchor pending from field notebook; do **not** run `--ct` on the Linux box until those are corrected (see comment in `config.yaml`). Pending commit + push.)
 **Owner:** Felipe Guarda — Fundación Mar Adentro
 **Field site:** Bosque Pehuén, La Araucanía, Chile — reserve center -39.4417°, -71.7420° (canonical: `plataforma-territorial/data/stations.yaml` → `reserve.center`)
 
@@ -78,7 +78,7 @@ visualizaciones-artisticas (reads DuckDB for art generation)
 
 Running as systemd service (`fma-pipeline.service`). Full pipeline with real data flowing.
 
-**Canonical catalogs (2026-04-27):** `species.yaml` (31 entries — 27 CLIP + invasive/priority flags) is the single source of truth across the ecosystem. Sibling loaders in camera-traps and plataforma-territorial/backend read this same file. Pairs with `plataforma-territorial/data/stations.yaml` (also now consumed end-to-end after Track B).
+**Canonical catalogs (2026-04-27, updated 2026-06-17):** `species.yaml` (33 entries — 29 CLIP + 4 reviewer-discovered non-CLIP + invasive/priority flags) is the single source of truth across the ecosystem. Sibling loaders in camera-traps and plataforma-territorial/backend read this same file. Pairs with `plataforma-territorial/data/stations.yaml` (also now consumed end-to-end after Track B).
 
 **Code review Batch A+B (2026-04-27):** 9 warnings resolved — dead deps removed (W9), `_STATE_PATH` centralised to `src/paths.py` (W15), `cr800_session()` context manager (W18), Open-Meteo/CR800 fault isolation in `run_once()` (W19), `open_meteo.py` DST-safe `tz_localize` (W16), `_process_raw` made public (W12), algorithmic DST dates in `recover_dst_gaps.py` (W13), silent `count=1` default fixed (W14), `toa5.py` column-drop now logged (W17). **2026-05-06:** S12 (`recover_dst_gaps.py` moved to `scripts/`, path resolution updated), S13 (`run_watcher.py` connection cleanup in `finally` block). Remaining: C1 + W8 (Batch E, needs Opus).
 
@@ -163,12 +163,12 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 
 ### 3. Camera Traps (`camera-traps/`) — FASE 1 OPERATIVA · Informe Anual 2025 publicado y corregido
 
-CLIP classification pipeline and Streamlit review UI are production-quality. Both campaigns (Otoño 2025 + Primavera-verano 2025-2026) classified and reviewed. Species list now sourced from canonical `data-pipeline/species.yaml` via sibling loader (Track B, 2026-04-27) — 27 CLIP species + 4 non-CLIP entries (31 total).
+CLIP classification pipeline and Streamlit review UI are production-quality. Four campaigns reviewed: Otoño 2025, Primavera 2025, Primavera-verano 2025-2026, and Otoño 2026 (latest). Species list sourced from canonical `data-pipeline/species.yaml` via sibling loader (Track B, 2026-04-27) — 29 CLIP species + 4 non-CLIP entries (33 total).
 
-**Last Updated:** 2026-06-03
-**What Changed:** Creado `Anual-reports/source_code_CT_2025/` — bundle autocontenido (2.7 MB, 33 archivos) para que un colega de FMA replique el informe desde Drive sin clonar el superrepo `Python/`. Incluye `inputs/` con copia inmutable de los 7 archivos de entrada externos, scripts con paths relativos al bundle, `requirements.txt` pinneado, `render.ps1` para Windows, y `GUIA_REPLICACION.md` exhaustiva en español. Durante el smoke-test se descubrió y corrigió bug latente UTF-8 en `2025/py/*.py` (Windows cp1252 crashea con `→` y `ñ` en stdout); fix backporteado a los 4 scripts originales.
-**Integration Status:** Ready — bundle smoke-testeado end-to-end (419 eventos, 6 figuras regeneradas). Pendiente subir a Drive de FMA.
-**Blockers/Notes:** Pendiente decidir si re-mapear despliegue `100EK113` a CT5 (sospecha confirmada por foto pero no re-ingestado). Pendiente correr `render.sh` en Linux para regenerar el `.docx` con las cifras nuevas para el jefe. Bundle untracked en git — decidir si commit + Drive o sólo Drive (el usuario indicó borrar local tras subir).
+**Last Updated:** 2026-06-17
+**What Changed:** Otoño 2026 campaign reviewed and staged. 1785 obs / 25 deployments at `data/campaigns/otono_2026/`; registered in `data-pipeline/config.yaml`. Quique (*Galictis cuja*) added to species.yaml with CLIP English prompt (5 obs in this campaign, first project record). Vaca prompt (added 2026-06-16) validated: 579 rows in Otoño 2026 — would have been mislabeled Caballo without it. Zero cross-campaign overlap (verified via stdlib CSV-vs-CSV check).
+**Integration Status:** Pending CT_18 timestamp fix. 135 rows show DateTime 2017-01-01 (camera clock reverted to factory). Real deployment-start anchor pending from field notebook. Linux ingestion (`python run_fetch.py --ct`) held until those rows are corrected to avoid landing wrong-year data in DuckDB.
+**Blockers/Notes:** Pendiente CT_18 timestamp anchor — see config.yaml comment block. Pendiente decidir si re-mapear despliegue `100EK113` a CT5 (sospecha confirmada por foto pero no re-ingestado). Pendiente correr `render.sh` en Linux para regenerar el `.docx` del Informe Anual 2025. Bundle `source_code_CT_2025/` untracked en git — decidir si commit + Drive o sólo Drive.
 
 | Component | Status | Notes |
 |---|---|---|
@@ -178,6 +178,7 @@ CLIP classification pipeline and Streamlit review UI are production-quality. Bot
 | GIS data (KML → GeoJSON) | Done | Boundary + 26 station coordinates (TC-26 fixed 2026-03-30) |
 | Otoño 2025 classification | Done | 697 animal obs reviewed |
 | Primavera-verano 2025-2026 | Done | 500 animal obs reviewed |
+| Otoño 2026 (May 2026 pull) | Reviewed; ingest pending | 1785 obs / 25 deployments; staged at `data/campaigns/otono_2026/`. CT_18 timestamp fix pending. |
 | Species image export | Done | `export_best_images.py`: auto-discovers campaigns; 155 species images + 103 station images in `exports/` (gitignored); filenames traceable to source |
 | **Informe Anual 2025** | **Done (v2)** | `Anual-reports/2025/` — markdown source, 6 figuras, pipeline reproducible, revisión visual aplicada (2026-06-02). 419 eventos, 11 especies, 22/26 CTs con detecciones. |
 | EfficientNetV2 fine-tuning | Planned | Needs ≥50 reviewed images/species — now viable for common species |
@@ -250,6 +251,7 @@ Note: `visualizaciones-artisticas/` has the "Río de Sonidos" concept already de
 - [x] **Otoño 2025 camera trap processing** — done. Both campaigns reviewed, backed up, species images exported.
 - [x] **Informe Anual 2025 — revisión visual ciervo/güiña aplicada (2026-06-02).** Ciervo rojo 7 → 1 cámara, Güiña 7 → 6 cámaras. Pipeline ampliado (`apply_verdicts.py`), informe re-escrito con sec. 1.6 documentando el protocolo. Ver `camera-traps/Anual-reports/2025/data/correction_log.txt`.
 - [ ] **100EK113 → CT5 re-mapping.** Sospecha confirmada visualmente (sesión 2026-05-27 + verdicts 2026-06-02) pero aún no re-ingestado en DuckDB ni en los CSVs de campaña.
+- [ ] **Otoño 2026 — CT_18 timestamp fix (2026-06-17).** 135 rows con DateTime 2017-01-01 (reloj de la cámara reseteado a fábrica). Cuaderno de campo tiene la fecha real de despliegue; cuando esté a mano, re-timestampear y correr `python run_fetch.py --ct` en Linux. Mientras tanto, **no ingestar** Otoño 2026 (config.yaml ya lo deja anotado).
 - [ ] **Render del DOCX del Informe Anual 2025 v2.** Requiere `pandoc` en Linux; correr `bash camera-traps/Anual-reports/2025/render.sh`.
 - [ ] **Subir bundle `source_code_CT_2025/` a Drive de FMA** (2026-06-03). Zip de 2.7 MB autocontenido, listo para entregar al colega. Decidir antes si se commitea o sólo Drive + borrar local.
 - [ ] **Flora plot coordinates** — not yet available.
