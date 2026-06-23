@@ -1,0 +1,24 @@
+# Annual report 2025 — Python deps
+#
+# Installed in the `camera-traps` conda env on Windows:
+#   conda activate camera-traps
+#   pip install -r Anual-reports/2025/requirements.txt
+#
+# Sufficient to run every script under py/:
+#   01_data_prep.py            pandas + openpyxl + pyyaml + pyarrow
+#   apply_verdicts.py          pandas + pyarrow
+#   02_figures_tables.py       matplotlib + shapely + pyproj + pandas + numpy
+#   03_compute_proximity.py    shapely + pyproj
+#   00_prepare_basemap.py      pyshp + shapely + pyproj   (one-shot)
+#
+# Versions are floors known to work — never pin upper bounds here.
+
+matplotlib>=3.9
+numpy>=1.26
+openpyxl>=3.1
+pandas>=2.2
+pyarrow>=15.0
+pyproj>=3.6
+pyshp>=2.3
+pyyaml>=6.0
+shapely>=2.0

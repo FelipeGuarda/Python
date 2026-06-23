@@ -62,20 +62,24 @@ bash render.sh pdf
 
 ## Cómo regenerar los datos y figuras
 
-Si llega más data o se ajusta el código:
+Todos los scripts del informe corren en un único entorno conda: **`camera-traps`**. Las dependencias están listadas en `requirements.txt` (carpeta actual) — el entorno ya las tiene instaladas. Si llegara a hacer falta reinstalar:
 
 ```bash
-# Activar un entorno con pandas, openpyxl, pyarrow, yaml
-conda activate data-pipeline
-python py/01_data_prep.py        # escribe records_baseline.parquet + events_baseline.parquet
-python py/apply_verdicts.py      # aplica los veredictos manuales → records_clean.parquet + events_clean.parquet canónicos
-
-# Cambiar al entorno con matplotlib
-conda activate fire_risk_dashboard
-python py/02_figures_tables.py   # actualiza figures/*.png + imprime la Tabla 3 (zonas) en stdout
+conda activate camera-traps
+pip install -r Anual-reports/2025/requirements.txt
 ```
 
-> **Capas de contexto (one-shot).** El script `py/00_prepare_basemap.py` se corre **una sola vez** para generar `plataforma-territorial/data/basemap/*.geojson` a partir de los ZIPs de origen (`Anual-reports/Curvas de nivel_BP-*.zip`, `Anual-reports/Figura 5_Sistema hídrico SN BP-*.zip` y `Anual-reports/Red senderos y Caminos-*.zip`). Requiere `shapely`, `pyproj` y `pyshp` en el entorno. No es necesario volver a correrlo a menos que cambien los shapefiles de origen.
+Para regenerar datos y figuras:
+
+```bash
+conda activate camera-traps
+python py/01_data_prep.py        # escribe records_baseline.parquet + events_baseline.parquet
+python py/apply_verdicts.py      # aplica los veredictos manuales → records_clean.parquet + events_clean.parquet canónicos
+python py/02_figures_tables.py   # actualiza figures/*.png + imprime la Tabla 3 (zonas) en stdout
+python py/03_compute_proximity.py  # (diagnóstico) imprime distancias CT→camino/agua + splits candidatos
+```
+
+> **Capas de contexto (one-shot).** El script `py/00_prepare_basemap.py` se corre **una sola vez** para generar `plataforma-territorial/data/basemap/*.geojson` a partir de los ZIPs de origen (`Anual-reports/Curvas de nivel_BP-*.zip`, `Anual-reports/Figura 5_Sistema hídrico SN BP-*.zip` y `Anual-reports/Red senderos y Caminos-*.zip`). El entorno `camera-traps` ya incluye `shapely`, `pyproj` y `pyshp`. No es necesario volver a correrlo a menos que cambien los shapefiles de origen.
 
 > **Nota.** Tras la primera publicación se incorporó una revisión visual de las detecciones de Ciervo rojo y Güiña (sec. 1.6 del informe). El flujo canónico ahora es: `01_data_prep` produce el snapshot pre-revisión, `apply_verdicts` aplica los veredictos del archivo `data/manual_review_verdicts_2026-06-02.csv` para escribir los parquets canónicos, y `02_figures_tables` los lee. Si en el futuro se etiqueta correctamente al nivel de la revisión humana (etapa 3 del pipeline) y se confirma que los veredictos del archivo ya están reflejados en los CSV de campaña, el paso `apply_verdicts` puede eliminarse del flujo.
 
