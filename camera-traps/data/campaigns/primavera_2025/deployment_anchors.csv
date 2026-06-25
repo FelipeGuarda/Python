@@ -1,0 +1,2 @@
+station_id,anchor_type,real_datetime,camera_datetime,source,notes
+TC16_M13.2,unrepairable_pending,,,pending_field_info,TC-16 chronic clock-reset offender; 68 bogus rows 2017-01-01 to 2017-05-10; all have empty scientificName so downstream species filters will exclude them

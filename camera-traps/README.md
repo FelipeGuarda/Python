@@ -6,10 +6,10 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ## Status
 
-**Last Updated:** 2026-06-17 — Otoño 2026 campaign integrated + Quique added
-**What Changed:** Reviewed CSV for the May 2026 SD pull (campaign name **Otoño 2026**) staged at `data/campaigns/otono_2026/` and registered in `data-pipeline/config.yaml`. 1785 observations across 25 deployments (CT_02 and CT_12 produced no animal triggers; the timelapse parser is observation-centric so they're correctly absent from `ct_deployments`). Vaca payoff confirmed: 579 rows tagged Vaca (top species in this campaign) that would have been Caballo without the species addition. Added Quique (*Galictis cuja*) to the shared species catalog with a CLIP English prompt — 5 observations in this campaign, native mustelid, first record in the project. CSV-vs-CSV overlap check against otono_2025 / primavera_2025 / pv_2025_2026 returned zero hits, so no dedup script needed.
-**Integration Status:** Pending CT_18 timestamp fix. 135 rows on CT_18 carry a 2017-01-01 DateTime (camera clock reverted to factory default); real deployment-start anchor pending from field notebook. Linux ingestion (`python run_fetch.py --ct`) is held until those timestamps are corrected.
-**Blockers/Notes:** Do **not** run `--ct` on the Linux box until CT_18 is fixed — see the comment block on the new Otoño 2026 entry in `data-pipeline/config.yaml`. Once fixed, ingestion is one command. CLIP horse/cow confusion may still appear on side/rear shots; revisit `clip_confidence_threshold` (0.28) only after the new run lands. Pandoc still required for `Anual-reports/2025/render.sh`. Annual report uses the canonical `plataforma-territorial/data/{boundary,camera_trap_stations}.geojson` files directly; legacy GIS files in `camera-traps/GIS/` are deprecated.
+**Last Updated:** 2026-06-25 — Timestamp quality module (`timestamps.py`) added; CT_18 Otoño 2026 repaired
+**What Changed:** New module `timestamps.py` detects camera-clock-reset issues (EXIF reverts to 2017 epoch) and repairs them at the source using field-provided anchors. Each campaign now carries a `deployment_anchors.csv` and produces a `new_labeled_data_corrected.csv` that downstream projects consume in place of the raw reviewed CSV. CT_18 Otoño 2026 (135 bogus rows) repaired via `last_real_proxy` anchor — dates approximate, time-of-day flagged unreliable. CT-15/CT-16/CT-19 Otoño 2025 and TC-16 Primavera/PV (159 + 68 + 3 rows) marked `unrepairable_pending` until field anchors are recovered. See [Step 4b — Timestamp quality](#step-4b--timestamp-quality-check--repair).
+**Integration Status:** Ready. CT_18 Otoño 2026 fix is now data-side, not config-side. `data-pipeline/config.yaml` should be pointed at `_corrected.csv` paths in the next Linux session before running `python run_fetch.py --ct`.
+**Blockers/Notes:** Outstanding anchor data needed from Felipe's field notebook for CT-15 / CT-16 / CT-19 (Otoño 2025) and chronic TC-16 issue across campaigns — until then those rows pass through with `valid_date=FALSE, valid_time_of_day=FALSE` (counted as station presence but excluded from any time analysis). CLIP horse/cow confusion may still appear on side/rear shots; revisit `clip_confidence_threshold` (0.28) only after the new run lands. Pandoc still required for `Anual-reports/2025/render.sh`. Annual report uses the canonical `plataforma-territorial/data/{boundary,camera_trap_stations}.geojson` files directly; legacy GIS files in `camera-traps/GIS/` are deprecated.
 
 ---
 
@@ -162,6 +162,69 @@ The UI:
   - *Confirmar todo como X* — bulk confirm all images as the proposed species
   - *Confirmar con cambios* — apply any per-image dropdown edits before confirming
 - Exports `new_labeled_data_reviewed.csv` — CamtrapDP format + `reviewOutcome` column (`"confirmed"` / `"corrected"`)
+
+### Step 4b — Timestamp quality check & repair
+
+After review, every campaign **must** be processed through `timestamps.py`
+before downstream consumers (data-pipeline, pehuen-species-interactions,
+annual report) read the data. This step detects camera-clock-reset issues
+(EXIF reverts to factory epoch, typically 2017-01-01) and applies field-
+provided anchors to repair what can be repaired.
+
+```bash
+conda activate species-classifier
+cd C:\Users\USUARIO\Dev\Python\camera-traps
+
+# Audit only (no files written)
+python timestamps.py --campaign <name> --dry-run
+
+# Apply repair + write new_labeled_data_corrected.csv
+python timestamps.py --campaign <name>
+```
+
+**Field protocol** (recommended for every maintenance visit): note the
+wall-clock time to the minute AND deliberately trigger the camera (wave
+hand in front of PIR, open the case). The trigger photo's EXIF stamp paired
+with the wall-clock time becomes a row in `data/campaigns/<name>/deployment_anchors.csv`.
+Even when the clock is correct, this gives a calibration row that catches
+future resets — cheap insurance.
+
+**Anchor CSV schema** (one row per anchor event):
+
+| column | meaning |
+|---|---|
+| `station_id` | station label matching the Deployments column in the reviewed CSV |
+| `anchor_type` | `install` / `mid_visit` / `retrieval` / `last_real_proxy` / `unrepairable_pending` |
+| `real_datetime` | wall-clock time at the anchor moment (YYYY-MM-DD HH:MM:SS) |
+| `camera_datetime` | what the camera's clock said at that moment (= trigger photo's EXIF stamp) |
+| `source` | provenance: `field_notebook`, `trigger_photo`, etc. |
+| `notes` | free text |
+
+When `anchor_type ∈ {install, mid_visit, retrieval}` AND a trigger photo was
+captured at the visit, `camera_datetime` IS that photo's EXIF stamp — the
+offset `real_datetime − camera_datetime` is exact, and repaired rows get
+both `valid_date=TRUE` and `valid_time_of_day=TRUE`.
+
+When the camera was not firing at the visit, use `anchor_type=last_real_proxy`
+with `camera_datetime` = last bogus photo's stamp — repaired rows get
+`valid_date=TRUE` but `valid_time_of_day=FALSE` (rotation uncertainty
+unbounded). For pehuén this excludes them from activity/overlap analyses but
+keeps them for occupancy/spatial.
+
+When no field anchor exists yet, use `anchor_type=unrepairable_pending` with
+empty `real_datetime` and `camera_datetime` — the row documents that the
+clock issue is known and awaiting field info; bogus photos at that station
+get `valid_date=FALSE, valid_time_of_day=FALSE`.
+
+**Output:** `data/campaigns/<name>/new_labeled_data_corrected.csv` (reviewed
+CSV plus five columns: `datetime_corrected`, `valid_date`, `valid_time_of_day`,
+`repair_method`, `repair_anchor_source`) and `timestamps_audit.log`.
+
+**Important:** Downstream projects read `_corrected.csv`, **not** `_reviewed.csv`.
+The reviewed CSV is the immutable reviewer output; the corrected CSV is the
+derived file that fixes the clock issues at the source.
+
+See `timestamps.py` module docstring for the full algorithm.
 
 ### Step 5 — Export best images
 

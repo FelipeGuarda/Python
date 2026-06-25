@@ -1,0 +1,19 @@
+=== Timestamp audit: campaign otono_2025 ===
+Total photos:                       830
+  Clean (no repair needed):         671
+  Repaired (exact anchor):          0
+  Repaired (approximate anchor):    0
+  Unrepairable:                     159
+  Unparseable datetime:             0
+
+Stations with issues:
+  CT15: clusters={'real': 2, 'bogus': 49}, methods=['unrepairable_pending_anchor']
+  CT16: clusters={'bogus': 9}, methods=['unrepairable_pending_anchor']
+  CT19: clusters={'bogus': 101}, methods=['unrepairable_pending_anchor']
+
+Stations with clean clocks (17): CT01, CT02, CT03, CT04, CT05, CT06, CT07, CT08, CT09, CT10, CT11, CT12, CT13, CT14, CT17, CT18, CT20
+
+Warnings:
+  ! CT15: 49 bogus photos marked unrepairable_pending (awaiting field info — notes: "awaiting Felipe's field notebook for install date and retrieval clock reading; 49 bogus rows starting at 2017-01-01 08:40:24")
+  ! CT16: 9 bogus photos marked unrepairable_pending (awaiting field info — notes: "awaiting Felipe's field notebook; 9 bogus rows starting at 2017-01-01 00:00:01")
+  ! CT19: 101 bogus photos marked unrepairable_pending (awaiting field info — notes: "awaiting Felipe's field notebook; 101 bogus rows all at 2017-01-01 00:00:00 — entire deployment may be affected")

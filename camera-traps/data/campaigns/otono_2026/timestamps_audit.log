@@ -1,0 +1,14 @@
+=== Timestamp audit: campaign otono_2026 ===
+Total photos:                       1785
+  Clean (no repair needed):         1650
+  Repaired (exact anchor):          0
+  Repaired (approximate anchor):    135
+  Unrepairable:                     0
+  Unparseable datetime:             0
+
+Stations with issues:
+  CT_18: clusters={'real': 2, 'bogus': 135}, methods=['offset_from_last_real_proxy']
+    applied offset: 3329 days, 16:21:30
+    anchor source: field_notebook + last_bogus_exif
+
+Stations with clean clocks (24): CT_01, CT_03, CT_04, CT_05, CT_06, CT_07, CT_08, CT_09, CT_10, CT_11, CT_13, CT_14, CT_15, CT_16, CT_17, CT_19, CT_20, CT_21, CT_22, CT_23, CT_24, CT_25, CT_26, CT_27

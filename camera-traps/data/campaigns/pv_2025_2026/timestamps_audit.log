@@ -1,0 +1,15 @@
+=== Timestamp audit: campaign pv_2025_2026 ===
+Total photos:                       792
+  Clean (no repair needed):         789
+  Repaired (exact anchor):          0
+  Repaired (approximate anchor):    0
+  Unrepairable:                     3
+  Unparseable datetime:             0
+
+Stations with issues:
+  TC16_M13.2: clusters={'bogus': 3}, methods=['unrepairable_pending_anchor']
+
+Stations with clean clocks (20): TC10_M3.2, TC11_M15.2, TC13_M16.2, TC14_M11.2, TC15_M12.2, TC18_M15.2, TC19_M16.2, TC20_M17.2, TC21_M18.2, TC23_M20.2, TC24_M21.2, TC25_M22.2, TC26_M23.2, TC2_M8.2, TC3_M6.2, TC4_M5.2, TC5_M9.2, TC7_M10.2, TC8_M4.2, TC9_M2.2
+
+Warnings:
+  ! TC16_M13.2: 3 bogus photos marked unrepairable_pending (awaiting field info — notes: 'TC-16 chronic clock-reset offender; 3 bogus rows 2017-01-01; all have empty scientificName so downstream species filters will exclude them')

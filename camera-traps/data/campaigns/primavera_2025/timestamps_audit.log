@@ -1,0 +1,15 @@
+=== Timestamp audit: campaign primavera_2025 ===
+Total photos:                       1960
+  Clean (no repair needed):         1892
+  Repaired (exact anchor):          0
+  Repaired (approximate anchor):    0
+  Unrepairable:                     68
+  Unparseable datetime:             0
+
+Stations with issues:
+  TC16_M13.2: clusters={'real': 8, 'bogus': 68}, methods=['unrepairable_pending_anchor']
+
+Stations with clean clocks (13): 100EK113, TC10_M3.2, TC11_M15.2, TC12_M17.2, TC13_M16.2, TC15_M12.2, TC18_M15.2, TC19_M16.2, TC1_M7.2, TC20_M17.2, TC4_M5.2, TC6_M1.2, TC9_M2.2
+
+Warnings:
+  ! TC16_M13.2: 68 bogus photos marked unrepairable_pending (awaiting field info — notes: 'TC-16 chronic clock-reset offender; 68 bogus rows 2017-01-01 to 2017-05-10; all have empty scientificName so downstream species filters will exclude them')

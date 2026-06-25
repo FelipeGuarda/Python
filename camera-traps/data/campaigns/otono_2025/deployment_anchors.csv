@@ -1,0 +1,4 @@
+station_id,anchor_type,real_datetime,camera_datetime,source,notes
+CT15,unrepairable_pending,,,pending_field_info,awaiting Felipe's field notebook for install date and retrieval clock reading; 49 bogus rows starting at 2017-01-01 08:40:24
+CT16,unrepairable_pending,,,pending_field_info,awaiting Felipe's field notebook; 9 bogus rows starting at 2017-01-01 00:00:01
+CT19,unrepairable_pending,,,pending_field_info,awaiting Felipe's field notebook; 101 bogus rows all at 2017-01-01 00:00:00 — entire deployment may be affected

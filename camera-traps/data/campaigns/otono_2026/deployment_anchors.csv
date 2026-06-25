@@ -1,0 +1,3 @@
+station_id,anchor_type,real_datetime,camera_datetime,source,notes
+CT_18,install,2025-11-14 14:00:00,2025-11-14 14:00:00,field_notebook,clock OK at install per Felipe; 2 real-time photos captured before reset
+CT_18,last_real_proxy,2026-05-15 12:10:00,2017-04-02 19:48:30,field_notebook + last_bogus_exif,retrieval 2026-05-15 12:10; camera not firing at retrieval; bogus block anchored to last-bogus stamp; biases dates LATE by unknown time-since-camera-died gap; valid_time_of_day=FALSE for repaired rows
