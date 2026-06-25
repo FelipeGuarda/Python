@@ -494,6 +494,25 @@
           -39.42908
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "TC-27",
+        "tc": 27,
+        "grid_id": null,
+        "sd_card": null,
+        "name": "Cámara Trampa 27",
+        "type": "camera_trap",
+        "altitude_m": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.72243,
+          -39.45689
+        ]
+      }
     }
   ]
 }
