@@ -43,9 +43,15 @@ here::i_am("R/01_load_data.R")
 
 # ── 1. Paths — update these when adding campaigns ────────────────────────────
 
-PATH_OTONO <- "C:/Users/USUARIO/SynologyDrive/2. Camaras trampa (SC)/SynologyDrive/DATOS_GRILLA CÁMARAS TRAMPA/2. CAMPAÑAS DE RECOLECCION DE IMAGENES/Otoño 2025/Fotos/new_labeled_data_reviewed.csv"
+# IMPORTANT — these paths point to the CORRECTED CSVs produced by
+# `camera-traps/timestamps.py` (camera-clock-reset repair pipeline), NOT to
+# the raw `_reviewed.csv` files. If a corrected CSV is missing, regenerate it
+# with:  cd ../../../camera-traps && python timestamps.py --campaign <name>
+PATH_OTONO <- "C:/Users/USUARIO/Dev/Python/camera-traps/data/campaigns/otono_2025/new_labeled_data_corrected.csv"
 
-PATH_PV <- "C:/Users/USUARIO/Dev/Python/camera-traps/data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv"
+PATH_PV <- "C:/Users/USUARIO/Dev/Python/camera-traps/data/campaigns/pv_2025_2026/new_labeled_data_corrected.csv"
+
+PATH_OT26 <- "C:/Users/USUARIO/Dev/Python/camera-traps/data/campaigns/otono_2026/new_labeled_data_corrected.csv"
 
 PATH_GEOJSON <- "C:/Users/USUARIO/Dev/Python/plataforma-territorial/data/camera_trap_stations.geojson"
 
@@ -105,45 +111,49 @@ message(sprintf("Loaded %d camera stations from GeoJSON.", nrow(stations_sf)))
 
 read_campaign_csv <- function(path, campaign_label) {
 
-  # Force datetime-like columns to character so we control parsing below.
+  # We read the CORRECTED CSV produced by camera-traps/timestamps.py.
+  # That file already has:
+  #   - datetime_corrected   (offset-repaired datetime, or NA for unrepairable rows)
+  #   - valid_date           (bool: is the date trustworthy?)
+  #   - valid_time_of_day    (bool: is the time-of-day trustworthy?)
+  #   - repair_method        (provenance string)
+  # We carry valid_* through to records_all.rds so downstream scripts can
+  # filter according to their own needs (e.g. activity / overlap analyses
+  # must filter on valid_time_of_day == TRUE).
   raw <- read_csv(path, show_col_types = FALSE,
-                  col_types = cols(timestamp = col_character(),
-                                   DateTime  = col_character()))
+                  col_types = cols(timestamp          = col_character(),
+                                   DateTime           = col_character(),
+                                   datetime_corrected = col_character(),
+                                   valid_date         = col_logical(),
+                                   valid_time_of_day  = col_logical(),
+                                   repair_method      = col_character()))
 
   clean <- raw %>%
     # (a) Keep only rows where a real animal species was identified.
-    #     observationType == "animal" excludes setup/blank images.
-    #     scientificName not empty or "No reconocible" excludes unidentified obs.
     filter(
       observationType == "animal",
       !is.na(scientificName),
       scientificName != "",
       scientificName != "No reconocible"
     ) %>%
-    # (b) Parse the datetime.
-    #     Older campaigns populate `timestamp`; newer campaigns (pv_2025_2026)
-    #     leave it empty and put the value in `DateTime` instead.
-    #     We coalesce the two, falling back to DateTime when timestamp is blank.
-    #     We do NOT specify tz here: camera clocks are set to Chile local time,
-    #     so the numeric hour values are already correct for activity analysis
-    #     on any platform without timezone database lookups.
+    # (b) Parse datetime_corrected (already offset-repaired upstream).
+    #     We do NOT specify tz: camera clocks are set to Chile local time,
+    #     so the numeric hour values are already correct for activity analysis.
     mutate(
-      datetime_str = coalesce(
-        na_if(str_trim(as.character(timestamp)), ""),
-        na_if(str_trim(as.character(DateTime)),  "")
-      ),
-      datetime = ymd_hms(datetime_str, quiet = TRUE)
+      datetime = ymd_hms(datetime_corrected, quiet = TRUE),
+      campaign = campaign_label
     ) %>%
-    # (c) Add a campaign tag for grouping in multi-season analyses.
-    mutate(campaign = campaign_label) %>%
-    # (d) Select and rename to the columns used throughout the analysis.
+    # (c) Select and rename. We carry valid_* and repair_method through.
     select(
       campaign,
-      station_raw  = Deployments,   # original station ID string (kept for traceability)
+      station_raw       = Deployments,
       datetime,
-      species_latin = scientificName,
+      valid_date,
+      valid_time_of_day,
+      repair_method,
+      species_latin     = scientificName,
       count,
-      review_outcome = reviewOutcome
+      review_outcome    = reviewOutcome
     )
 
   message(sprintf(
@@ -192,6 +202,27 @@ pv_raw <- pv_raw %>%
     # Step 2: Parse the SD card code embedded in the label (e.g. "M3" from "TC10_M3.2").
     sd_parsed = str_match(station_raw, "_(M[^.]+)\\.")[, 2]
   )
+
+
+# ── 6b. Read Otoño 2026 ──────────────────────────────────────────────────────
+
+message("Reading Otono 2026...")
+ot26_raw <- read_campaign_csv(PATH_OT26, campaign_label = "Otono_2026")
+
+# STATION ID PARSING — Otoño 2026
+# Format: "CT_01", "CT_02", ..., "CT_27"  (CT prefix + underscore + digits)
+# Rule: strip the literal prefix "CT_" and parse the remaining digits as integer.
+# Example: "CT_18" → 18 → matches tc_num = 18 → GeoJSON station TC-18.
+
+ot26_raw <- ot26_raw %>%
+  mutate(
+    tc_num = as.integer(str_replace(station_raw, "^CT_", ""))
+  )
+
+# NOTE: The CT_18 clock-reset issue is now handled UPSTREAM by
+# camera-traps/timestamps.py. The corrected CSV carries the offset-repaired
+# datetime in `datetime_corrected` and the validity flags in `valid_date` /
+# `valid_time_of_day`. No inline anchor filter is needed here.
 
 
 # ── 7. Validate Primavera-verano station IDs against the GeoJSON ──────────────
@@ -246,9 +277,10 @@ stations_lookup_full <- st_drop_geometry(stations_sf) %>%
 
 otono <- join_to_stations(otono_raw, stations_lookup_full)
 pv    <- join_to_stations(pv_raw,   stations_lookup_full)
+ot26  <- join_to_stations(ot26_raw, stations_lookup_full)
 
 # Verify: no unmatched tc_nums (would produce NA station_id)
-for (df_name in c("otono", "pv")) {
+for (df_name in c("otono", "pv", "ot26")) {
   df <- get(df_name)
   unmatched <- filter(df, is.na(station_id))
   if (nrow(unmatched) > 0) {
@@ -265,7 +297,7 @@ for (df_name in c("otono", "pv")) {
 # When SPECIES_FILTER is a character vector, only those Latin names are kept.
 # When SPECIES_FILTER is NULL, all identified species are retained.
 
-records_all <- bind_rows(otono, pv) %>%
+records_all <- bind_rows(otono, pv, ot26) %>%
   # Apply species filter (or keep all if NULL)
   { if (!is.null(SPECIES_FILTER)) filter(., species_latin %in% SPECIES_FILTER) else . } %>%
   # Add human-readable species label (NA for species outside FOCAL_SPECIES)
@@ -330,7 +362,13 @@ message("\nSaved: data/records_all.rds, data/stations_sf.rds, data/boundary_sf.r
 #     Longitude — decimal degrees, WGS-84
 #     Latitude  — decimal degrees, WGS-84
 
+# IMPORTANT: record_table is consumed by camtrapR's activityDensity() and
+# activityOverlap(), both of which use time-of-day to compute kernel density
+# estimates. Rows with valid_time_of_day == FALSE (e.g. CT-18 Otoño 2026,
+# repaired via last_real_proxy anchor) carry approximate dates but rotated
+# time-of-day — they MUST be excluded from time-of-day analyses.
 record_table <- records_all %>%
+  filter(valid_time_of_day == TRUE) %>%
   transmute(
     Station          = station_id,
     Species          = species_label,
@@ -339,6 +377,11 @@ record_table <- records_all %>%
     Time             = format(datetime, "%H:%M:%S"),
     Campaign         = campaign
   )
+
+message(sprintf(
+  "record_table: %d rows after filtering to valid_time_of_day == TRUE (vs %d in records_all).",
+  nrow(record_table), nrow(records_all)
+))
 
 # Extract WGS-84 coordinates from the sf geometry column.
 # st_coordinates() returns a matrix with columns X (longitude) and Y (latitude).

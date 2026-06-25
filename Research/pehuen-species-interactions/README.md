@@ -24,9 +24,21 @@ Rscript setup_packages.R
 
 ### 2. Verify data paths
 
-Open `R/01_load_data.R` and confirm `PATH_OTONO`, `PATH_PRIMAVERA`,
+Open `R/01_load_data.R` and confirm `PATH_OTONO`, `PATH_PV`, `PATH_OT26`,
 `PATH_GEOJSON`, and `PATH_BOUNDARY` point to the correct locations on this
 machine.
+
+> **Important — corrected vs. reviewed CSVs.** The R loader reads
+> `new_labeled_data_corrected.csv`, **not** `new_labeled_data_reviewed.csv`.
+> The corrected CSV is produced upstream by `camera-traps/timestamps.py`
+> (camera-clock-reset detection + repair). If `_corrected.csv` is missing
+> for a campaign, regenerate it before running any analysis:
+> ```bash
+> cd C:/Users/USUARIO/Dev/Python/camera-traps
+> python timestamps.py --campaign <name>
+> ```
+> See `camera-traps/README.md` → "Step 4b — Timestamp quality" for the
+> upstream protocol and anchor-file schema.
 
 ---
 
@@ -48,14 +60,42 @@ All figures are written to `figures/`.
 
 ---
 
-## Adding the Primavera-Verano (or future) campaign
+## Adding a future campaign
 
-1. In `R/01_load_data.R`, add `PATH_NEW_CAMPAIGN <- "..."` in the Paths block.
-2. Call `read_campaign_csv(PATH_NEW_CAMPAIGN, "PrimaveraVerano_2025")`.
-3. Apply the appropriate station ID standardisation block (copy the Otoño or
-   Primavera block and adapt the regex for the new format).
-4. Add the new dataframe to the `bind_rows()` call.
-5. Re-run all scripts.
+1. **Upstream first** — ensure the new campaign exists in `camera-traps/data/campaigns/<name>/`
+   with both `new_labeled_data_reviewed.csv` and `deployment_anchors.csv`, and
+   has been processed through `python timestamps.py --campaign <name>` to
+   produce `new_labeled_data_corrected.csv`.
+2. In `R/01_load_data.R`, add `PATH_NEW_CAMPAIGN <- ".../new_labeled_data_corrected.csv"`
+   in the Paths block.
+3. Call `read_campaign_csv(PATH_NEW_CAMPAIGN, "<Campaign_Label>")`.
+4. Apply the appropriate station ID standardisation block (copy an existing
+   block and adapt the regex for the new format).
+5. Add the new dataframe to the `bind_rows()` call.
+6. Re-run all scripts.
+
+## Timestamp validity flags
+
+`records_all.rds` carries three columns originating in the upstream
+`timestamps.py` pipeline:
+
+- `valid_date` — TRUE if the date is trustworthy. FALSE for rows whose
+  station had a clock reset with no field anchor (currently CT-15 / CT-16 /
+  CT-19 Otoño 2025, TC-16 Primavera and PV). Such rows have `datetime = NA`
+  and are dropped by the existing `filter(!is.na(datetime))`.
+- `valid_time_of_day` — TRUE if the time-of-day is trustworthy. FALSE for
+  rows repaired via `last_real_proxy` anchor (currently CT_18 Otoño 2026:
+  ~65 focal-species rows — dates approximate, time-of-day rotated by an
+  unknown constant).
+- `repair_method` — provenance string (`none`, `offset_from_last_real_proxy`,
+  `unrepairable_pending_anchor`, etc.).
+
+`record_table.rds` (used by camtrapR for activity / overlap analyses) is
+pre-filtered to `valid_time_of_day == TRUE` in `01_load_data.R`. Custom
+analyses that bypass `record_table` and read `records_all.rds` directly
+must add their own `filter(valid_time_of_day)` if they depend on
+time-of-day. Date-based analyses (detection rate, occupancy, spatial maps)
+should use `filter(valid_date)` instead.
 
 ---
 
