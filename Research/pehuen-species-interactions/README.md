@@ -52,11 +52,27 @@ conda activate pehuen-analysis
 Rscript R/01_load_data.R          # reads CSVs + GeoJSON, saves data/*.rds
 Rscript R/02_detection_summary.R  # bar charts: counts, rates, occupancy
 Rscript R/03_activity_patterns.R  # 24h kernel density activity curves
-Rscript R/04_temporal_overlap.R   # Dhat4 pairwise overlap + CI
+Rscript R/04_temporal_overlap.R   # Dhat4 pairwise overlap + CI + Monterroso 2014 category
 Rscript R/05_spatial_distribution.R  # detection bubble maps
 ```
 
-All figures are written to `figures/`.
+All figures are written to `figures/`. Script 04 also persists a numeric
+results table to `data/overlap_stats.csv` (Dhat4, 95% bootstrap CI,
+Monterroso category per pair).
+
+**Overlap classification (Monterroso et al. 2014).** Script 04 assigns each
+pair a Low / Moderate / High label from its 95% bootstrap CI:
+
+- **Low**: Dhat4 < 0.50
+- **Moderate**: 0.50 ≤ Dhat4 < 0.75
+- **High**: Dhat4 ≥ 0.75
+
+A pair earns a clean single-band label only when its entire CI sits inside
+one band. When the CI straddles a threshold, the pair gets a compound
+label (e.g. `Moderate–High`) so the report doesn't overstate confidence.
+Both the per-pair PNGs (`figures/overlap_pairs/`) and the summary figure
+(`figures/04_overlap_summary.png`) show the category alongside Dhat4 and
+the CI.
 
 ---
 

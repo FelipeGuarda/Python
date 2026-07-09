@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## [2026-07-09] — Pehuen research: Monterroso overlap categorisation on Dhat4 CI
+
+Reframed `Research/pehuen-species-interactions/R/04_temporal_overlap.R` around the Monterroso et al. (2014) classification — the ecological standard for interpreting Dhat4. Explored Watson's U² and a Dhat4 randomisation test first; both were dropped after user pushback identified a conceptual mismatch: those tests answer "**are the two activity curves different?**", not the actual biological question **"is the observed 0.79 overlap meaningful?"**. Dhat4 has no natural null value (two nocturnal species can share Dhat4 ≈ 0.8 just from both being nocturnal), so a "significance of Dhat4" test isn't well-posed. The Monterroso threshold interpretation — applied to the *whole CI*, not the point estimate — sidesteps that trap by classifying the pair rather than testing it.
+
+### Changed
+- **`R/04_temporal_overlap.R`** — single-loop stats computation (Dhat4 + 1000-boot 95% CI + Monterroso category). Category assigned from the CI: clean `Low/Moderate/High` when the whole CI sits in one band; compound labels (`Low–Moderate`, `Moderate–High`, `Low–High`) when the CI straddles a threshold, to avoid overstating confidence. Per-pair PNGs now carry an annotation strip `Overlap: <category>   (Dhat4=x, 95% CI [l, h])`. Summary figure has two vertical cutoffs (0.50, 0.75), subtle background band shading, and category appended to each pair label. Override camtrapR's default title so it uses species names, not argument identifiers (`sp1`/`sp2`).
+- **`data/overlap_stats.csv`** — new output. `sp1, sp2, guild_type, n1, n2, dhat4, ci_low, ci_high, category, small_sample`. Suitable for direct inclusion in the annual report.
+- **`README.md`** (pehuen) — Monterroso classification documented in the "Running the analysis" section.
+
+### Removed
+- **10 stale `2026-06-25` PNGs** in `figures/overlap_pairs/` — regenerated with today's annotations, so the old copies were duplicates without categories.
+
+### Results at a glance (10 pairs)
+- **1 pair clean High**: Guiña × Zorro culpeo — CI [0.77, 0.85] entirely above 0.75. Statistically defensible statement that these two native carnivores share a diel niche.
+- **5 pairs Moderate–High** (CI straddles 0.75): Guina × Liebre, Zorro × Liebre, Puma × Guiña, Puma × Liebre, Puma × Jabalí.
+- **4 pairs clean Moderate**: Guina × Perro, Zorro × Perro, Zorro × Jabalí, Puma × Zorro culpeo.
+- **No pair in the Low band** — nothing at Bosque Pehuén shows unambiguous temporal avoidance under the Monterroso cutoffs.
+
+Session log: `SecondBrain/Sessions/2026-07-09-pehuen-overlap-monterroso-categorisation.md`.
+
+---
+
 ## [2026-06-17] — Camera-traps: Otoño 2026 campaign integrated, +Quique
 
 May 2026 SD pull (campaign name **Otoño 2026**, slug `otono_2026`) reviewed end-to-end and staged for ingestion. CSV registered in `data-pipeline/config.yaml`. New species — Quique (*Galictis cuja*) — added to the canonical catalog with a CLIP English prompt; first project record (5 obs in this campaign). Yesterday's Vaca addition validated: 579 rows tagged Vaca in this campaign, all of which would have been mislabeled Caballo. Ingestion itself is held until CT_18's clock-reset timestamps are corrected.
