@@ -76,6 +76,17 @@ the CI.
 
 ---
 
+## Planned / candidate analyses
+
+`docs/methods-menu-interactions.md` is a critical, sourced menu of alternative
+spatial and temporal interaction methods (activity-level estimation, occupancy
+with altitude covariates, the Niedballa spatiotemporal-avoidance framework,
+güiña SECR, and methods deliberately excluded with citations), each triaged
+against this array's sample-size constraints. Its "Open items" list is the
+current analysis backlog — start there before adding new analysis code.
+
+---
+
 ## Adding a future campaign
 
 1. **Upstream first** — ensure the new campaign exists in `camera-traps/data/campaigns/<name>/`
@@ -155,3 +166,18 @@ should use `filter(valid_date)` instead.
 | Jabalí        | Sus scrofa              | Invasive |
 | Liebre        | Lepus europaeus         | Invasive |
 | Perro         | Canis lupus familiaris  | Invasive |
+
+---
+
+## Project status
+
+- **Last Updated:** 2026-07-23
+- **What Changed:** Added `docs/methods-menu-interactions.md` — a sourced,
+  feasibility-triaged menu of alternative spatial/temporal interaction methods
+  and the current analysis backlog. No code changes.
+- **Integration Status:** `In Progress` — analysis code (scripts 01–06) is
+  functional; next analytical steps are the "Open items" in the methods menu.
+  [REMAINING: effort matrix + independence filter gate most new analyses.]
+- **Blockers/Notes:** True per-station deployment start/end dates are not yet
+  compiled; without them formal occupancy/detection-rate models are blocked and
+  detection rates remain approximations.
