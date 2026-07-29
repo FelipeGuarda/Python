@@ -589,11 +589,31 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
 
 ## I. Open items
 
-- [ ] Compile true per-station deployment start/end dates → build effort matrix
-- [ ] Apply 30-minute independence filter and document the choice
-- [ ] Re-run sparse-pair overlap with Δ1; compare against existing Δ4 results
+- [ ] Compile true per-station deployment start/end dates → build effort matrix.
+      **Deferred 2026-07-28**: raw installation/maintenance file exists but needs
+      cleanup with a field collaborator. Design decisions locked in (see
+      Changelog): upstream Python script `camera-traps/build_camera_operation.py`
+      writes per-campaign `camera_operation.csv` at
+      `camera-traps/data/campaigns/<name>/camera_operation.csv`; malfunction
+      verification uses a hybrid threshold rule (`gap > max(3 × p95_of_intervals, 7 days)`)
+      applied to both end-of-deployment and mid-deployment gaps; flagged
+      candidates written to `camera_operation_flags.csv` for human review;
+      downstream `R/00_camera_operation.R` consumes the reviewed CSV. Awaits
+      clean input file.
+- [x] Apply 30-minute independence filter and document the choice
+      **(2026-07-28: applied in `R/01_load_data.R` via `MIN_DELTA_TIME_MIN <- 30`
+      and `filter_independent_events()`; `record_table.rds` is now event-filtered
+      per (station × species × campaign); `records_all.rds` untouched for
+      date-based analyses.)**
+- [x] Re-run sparse-pair overlap with Δ1; compare against existing Δ4 results
+      **(2026-07-28: `R/04_temporal_overlap.R` now dispatches per pair via
+      `estimate_overlap()` — Δ4 when smaller sample ≥ 50, Δ1 otherwise; 1000
+      bootstrap resamples; `data/overlap_stats.csv` carries new `estimator`
+      column; comparison against previous Δ4-only results implicit in the
+      regenerated table.)**
 - [ ] Compute per-species-per-campaign n table against the A2 thresholds (100 / 20 / 10)
 - [ ] Fit single-season occupancy for common species with altitude covariate
+      (blocked on effort matrix above)
 - [ ] Obtain and read Niedballa et al. (2019) supplementary R function
 - [ ] Decide whether zenith güiña redeployment enters the next campaign design
 - [ ] Consider contacting Gálvez (PUC Villarrica) — nearest comparable dataset and methods group
@@ -602,6 +622,12 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
 
 ## Changelog
 
+- **2026-07-28** — Applied the two § 0 prerequisites in code: 30-min
+  independence filter on `record_table.rds`, and per-pair Δ1/Δ4 estimator
+  dispatch in `04_temporal_overlap.R` (crossover at min-sample < 50, Ridout
+  & Linkie 2009). Camera-operation matrix designed but deferred pending
+  cleanup of the raw installation file (upstream location and hybrid
+  malfunction check rule decided; see Open items).
 - **2026-07-23** — Initial compilation. **B5 corrected**: güiña SECR reclassified from
   "feasible, high priority" to "blocked pending zenith redeployment", on the basis of
   Gálvez et al. (2026, *Oryx*), which establishes that güiña flanks lack sufficient individual

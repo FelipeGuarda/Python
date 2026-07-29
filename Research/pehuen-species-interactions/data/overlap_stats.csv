@@ -1,11 +1,11 @@
-"sp1","sp2","guild_type","n1","n2","dhat4","ci_low","ci_high","category","small_sample"
-"Guina","Liebre","Native vs. Invasive",27,384,0.777279503180577,0.73523508923667,0.819323917124484,"Moderate–High",TRUE
-"Zorro culpeo","Liebre","Native vs. Invasive",308,384,0.769260990663338,0.728693456641053,0.809828524685623,"Moderate–High",FALSE
-"Puma","Liebre","Native vs. Invasive",43,384,0.732817140797903,0.689816904978019,0.775817376617787,"Moderate–High",TRUE
-"Puma","Jabali","Native vs. Invasive",43,148,0.726337233953105,0.685948257475203,0.766726210431007,"Moderate–High",TRUE
-"Guina","Perro","Native vs. Invasive",27,170,0.696080849640574,0.652112508854046,0.740049190427101,"Moderate",TRUE
-"Zorro culpeo","Perro","Native vs. Invasive",308,170,0.650973447619696,0.614265720412076,0.687681174827315,"Moderate",FALSE
-"Zorro culpeo","Jabali","Native vs. Invasive",308,148,0.545056449661541,0.509982953037325,0.580129946285756,"Moderate",FALSE
-"Guina","Zorro culpeo","Native vs. Native",27,308,0.810274622547097,0.76932646019715,0.851222784897045,"High",TRUE
-"Puma","Guina","Native vs. Native",43,27,0.74986757589494,0.710732094195012,0.789003057594868,"Moderate–High",TRUE
-"Puma","Zorro culpeo","Native vs. Native",43,308,0.635955601769133,0.602152432814481,0.669758770723785,"Moderate",TRUE
+"sp1","sp2","guild_type","n1","n2","estimator","estimate","ci_low","ci_high","category"
+"Zorro culpeo","Liebre","Native vs. Invasive",166,170,"Dhat4",0.879927753189399,0.840751932358442,0.919103574020356,"High"
+"Zorro culpeo","Perro","Native vs. Invasive",166,51,"Dhat4",0.860438686340124,0.827437865483264,0.893439507196984,"High"
+"Puma","Jabali","Native vs. Invasive",16,18,"Dhat1",0.762181789848372,0.717452355897966,0.806911223798778,"Moderate–High"
+"Guina","Liebre","Native vs. Invasive",17,170,"Dhat1",0.752484986524515,0.711926558855004,0.793043414194026,"Moderate–High"
+"Guina","Perro","Native vs. Invasive",17,51,"Dhat1",0.713823970245618,0.670272506764728,0.757375433726509,"Moderate–High"
+"Puma","Liebre","Native vs. Invasive",16,170,"Dhat1",0.670610991213241,0.634550398566798,0.706671583859683,"Moderate"
+"Zorro culpeo","Jabali","Native vs. Invasive",166,18,"Dhat1",0.666087355450619,0.629777408890267,0.702397302010972,"Moderate"
+"Guina","Zorro culpeo","Native vs. Native",17,166,"Dhat1",0.817268257287269,0.774013145036451,0.860523369538086,"High"
+"Puma","Zorro culpeo","Native vs. Native",16,166,"Dhat1",0.738117018045822,0.70341669475271,0.772817341338934,"Moderate–High"
+"Puma","Guina","Native vs. Native",16,17,"Dhat1",0.690530984697227,0.650457462522826,0.730604506871629,"Moderate"

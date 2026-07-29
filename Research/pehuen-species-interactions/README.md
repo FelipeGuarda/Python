@@ -52,27 +52,40 @@ conda activate pehuen-analysis
 Rscript R/01_load_data.R          # reads CSVs + GeoJSON, saves data/*.rds
 Rscript R/02_detection_summary.R  # bar charts: counts, rates, occupancy
 Rscript R/03_activity_patterns.R  # 24h kernel density activity curves
-Rscript R/04_temporal_overlap.R   # Dhat4 pairwise overlap + CI + Monterroso 2014 category
+Rscript R/04_temporal_overlap.R   # Δ1/Δ4 pairwise overlap + CI + Monterroso 2014 category
 Rscript R/05_spatial_distribution.R  # detection bubble maps
 ```
 
 All figures are written to `figures/`. Script 04 also persists a numeric
-results table to `data/overlap_stats.csv` (Dhat4, 95% bootstrap CI,
-Monterroso category per pair).
+results table to `data/overlap_stats.csv` (estimator, overlap estimate,
+95% bootstrap CI, Monterroso category per pair).
+
+**Overlap estimator (Ridout & Linkie 2009).** Script 04 selects the estimator
+per pair from the smaller sample: `Δ4` when `min(n_A, n_B) ≥ 50`, `Δ1`
+otherwise (crossover threshold from the `overlap` package documentation).
+The estimator applied to each pair is written to `data/overlap_stats.csv`
+(column `estimator`), to the per-pair PNG footnote, and encoded by point
+shape in the summary figure (Δ4 filled / Δ1 open).
 
 **Overlap classification (Monterroso et al. 2014).** Script 04 assigns each
 pair a Low / Moderate / High label from its 95% bootstrap CI:
 
-- **Low**: Dhat4 < 0.50
-- **Moderate**: 0.50 ≤ Dhat4 < 0.75
-- **High**: Dhat4 ≥ 0.75
+- **Low**: overlap < 0.50
+- **Moderate**: 0.50 ≤ overlap < 0.75
+- **High**: overlap ≥ 0.75
 
 A pair earns a clean single-band label only when its entire CI sits inside
 one band. When the CI straddles a threshold, the pair gets a compound
 label (e.g. `Moderate–High`) so the report doesn't overstate confidence.
 Both the per-pair PNGs (`figures/overlap_pairs/`) and the summary figure
-(`figures/04_overlap_summary.png`) show the category alongside Dhat4 and
-the CI.
+(`figures/04_overlap_summary.png`) show the category alongside the overlap
+estimate and the CI.
+
+**Event independence.** `record_table.rds` (consumed by activity / overlap
+analyses) is pre-filtered to independent events with a 30-minute minimum
+inter-detection interval per (station × species × campaign), following
+O'Brien et al. (2003). See `MIN_DELTA_TIME_MIN` in `R/01_load_data.R`.
+Date-based analyses that use `records_all.rds` still see raw triggers.
 
 ---
 
@@ -171,13 +184,20 @@ should use `filter(valid_date)` instead.
 
 ## Project status
 
-- **Last Updated:** 2026-07-23
-- **What Changed:** Added `docs/methods-menu-interactions.md` — a sourced,
-  feasibility-triaged menu of alternative spatial/temporal interaction methods
-  and the current analysis backlog. No code changes.
-- **Integration Status:** `In Progress` — analysis code (scripts 01–06) is
-  functional; next analytical steps are the "Open items" in the methods menu.
-  [REMAINING: effort matrix + independence filter gate most new analyses.]
-- **Blockers/Notes:** True per-station deployment start/end dates are not yet
-  compiled; without them formal occupancy/detection-rate models are blocked and
-  detection rates remain approximations.
+- **Last Updated:** 2026-07-28
+- **What Changed:** Applied the 30-minute independence filter to
+  `record_table.rds` (O'Brien et al. 2003); switched pairwise-overlap
+  estimator dispatch to Δ1 vs Δ4 per Ridout & Linkie 2009 (crossover at
+  `min(n_A, n_B) < 50`) with 1000 bootstrap resamples for the 95% CI;
+  `data/overlap_stats.csv` gains an `estimator` column and drops
+  `small_sample` (now encoded by estimator directly).
+- **Integration Status:** `In Progress` — scripts 01–06 functional with the
+  above corrections applied. [REMAINING: effort matrix (deployment
+  start/end dates) needed to unblock formal occupancy models and honest
+  detection rates; raw camera-installation file exists but needs cleanup
+  with field collaborator before use.]
+- **Blockers/Notes:** True per-station deployment start/end dates still not
+  compiled — `camera-traps/build_camera_operation.py` and downstream
+  `R/00_camera_operation.R` are designed but deferred pending cleanup of
+  the source installation file with Felipe's colleague. See
+  `docs/methods-menu-interactions.md` § I "Open items".

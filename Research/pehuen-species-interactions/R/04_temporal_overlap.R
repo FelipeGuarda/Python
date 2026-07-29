@@ -1,13 +1,20 @@
 # 04_temporal_overlap.R
 # ─────────────────────────────────────────────────────────────────────────────
 # PURPOSE
-#   Estimate pairwise temporal overlap between focal species pairs using the
-#   Dhat4 estimator (Ridout & Linkie 2009), and classify each pair as
-#   Low / Moderate / High overlap following Monterroso et al. (2014):
+#   Estimate pairwise temporal overlap between focal species pairs and
+#   classify each pair as Low / Moderate / High overlap following
+#   Monterroso et al. (2014):
 #
-#       Low       Dhat4 <  0.50
-#       Moderate  0.50 ≤ Dhat4 < 0.75
-#       High      Dhat4 ≥  0.75
+#       Low       overlap <  0.50
+#       Moderate  0.50 ≤ overlap < 0.75
+#       High      overlap ≥  0.75
+#
+#   The estimator (Δ1 vs Δ4) is chosen per pair from the smaller sample
+#   size, per Ridout & Linkie (2009): Δ4 when min(n_A, n_B) ≥ 50, Δ1
+#   otherwise. See `estimate_overlap()` in section "Overlap estimator"
+#   below. The estimator applied to each pair is written to
+#   `data/overlap_stats.csv` and to the per-pair PNG footnote so results
+#   are always self-describing.
 #
 #   The classification is applied to the 95% bootstrap CI, not just the
 #   point estimate: a pair is "significantly" in a given band only when its
@@ -16,12 +23,15 @@
 #
 #   Two complementary outputs:
 #     A) Per-pair overlay plots — one PNG per species pair with the
-#        overlapping kernel density curves, Dhat4 on the title, and the
-#        overlap category + CI annotated in an outer strip below the plot.
+#        overlapping kernel density curves, the estimator + point estimate
+#        on the title, and the overlap category + CI annotated in an outer
+#        strip below the plot.
 #
-#     B) Summary dot-plot — Dhat4 + 95% CI for all pairs, with dashed lines
-#        at 0.50 and 0.75, subtle band shading (Low / Moderate / High), and
-#        the overlap category appended to each pair label.
+#     B) Summary dot-plot — overlap estimate + 95% CI for all pairs, with
+#        dashed lines at 0.50 and 0.75, subtle band shading
+#        (Low / Moderate / High), point shape encoding the estimator
+#        (Δ4 filled / Δ1 open), and the overlap category appended to each
+#        pair label.
 #
 #   Species pairs analysed:
 #     Native predators vs. invasive species:
@@ -32,10 +42,11 @@
 #       Puma × Guina,  Puma × Zorro,  Guina × Zorro
 #
 # INPUT   data/records_all.rds   (produced by 01_load_data.R)
-#         data/record_table.rds  (camtrapR format, produced by 01_load_data.R)
+#         data/record_table.rds  (camtrapR format, produced by 01_load_data.R;
+#                                 already 30-min-independence-filtered)
 # OUTPUT  figures/overlap_pairs/activity_overlap_<sp1>-<sp2>_<date>.png
-#         figures/04_overlap_summary.png           (Dhat4 dot-plot with CI)
-#         data/overlap_stats.csv                    (numeric results table)
+#         figures/04_overlap_summary.png            (overlap dot-plot with CI)
+#         data/overlap_stats.csv                     (numeric results table)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -55,9 +66,17 @@ set.seed(42)  # reproducible bootstrap
 
 
 # ── Constants + Monterroso classification ────────────────────────────────────
-N_BOOT <- 1000        # bootstrap resamples for Dhat4 CI
+N_BOOT <- 1000        # bootstrap resamples for the overlap-estimate CI
 N_GRID <- 512         # grid resolution for kernel density fitting
 GRID   <- seq(0, 2 * pi, length.out = N_GRID)
+
+# Estimator dispatch (Ridout & Linkie 2009). Δ4 is appropriate when the
+# smaller sample has ≥ SMALLER_N_DHAT4_MIN observations; below that we
+# switch to Δ1, which has better small-sample behaviour. The `overlap`
+# package documentation places the crossover at 50; the vignette places it
+# nearer 75 with a grey zone in between — we take the conservative
+# published-doc threshold. Δ5 is never used (unstable, can exceed 1).
+SMALLER_N_DHAT4_MIN <- 50
 
 # Monterroso et al. (2014) overlap categories. A pair earns a clean single-
 # band label only when its entire 95% CI is inside one band; a CI that
@@ -78,15 +97,47 @@ classify_overlap <- function(ci_low, ci_high) {
 CATEGORY_LEVELS <- c("Low", "Low–Moderate", "Moderate", "Moderate–High", "High", "Low–High")
 
 
+# ── Overlap estimator (picks Δ1 vs Δ4 from the smaller sample) ───────────────
+# One helper owns the estimator-selection decision. Callers pass two vectors
+# of detection times (radians) and receive the point estimate, 95% bootstrap
+# CI, the sample sizes, and — critically — the estimator that was applied.
+# Downstream code reads `estimator` from the result; nothing else re-derives
+# the rule.
+estimate_overlap <- function(times_A, times_B, n_boot = N_BOOT) {
+  n_A <- length(times_A)
+  n_B <- length(times_B)
+  estimator <- if (min(n_A, n_B) < SMALLER_N_DHAT4_MIN) "Dhat1" else "Dhat4"
+
+  bw_A <- getBandWidth(times_A)
+  bw_B <- getBandWidth(times_B)
+  f_A  <- densityFit(times_A, grid = GRID, bw = bw_A)
+  f_B  <- densityFit(times_B, grid = GRID, bw = bw_B)
+
+  point <- overlapEst(f_A, f_B, type = estimator)
+  boot  <- bootstrap(f_A, f_B, nb = n_boot, type = estimator)
+  ci    <- bootCI(point, boot, conf = 0.95)
+
+  list(
+    estimate  = unname(point),
+    estimator = estimator,
+    ci_low    = unname(ci["norm0", "lower"]),
+    ci_high   = unname(ci["norm0", "upper"]),
+    n_A       = n_A,
+    n_B       = n_B
+  )
+}
+
+
 # ── 1. Load data ─────────────────────────────────────────────────────────────
+# Both the numeric layer (estimate_overlap) and the visual layer
+# (activityOverlap) source from record_table so n and shape agree. record_table
+# is already independence-filtered upstream (01_load_data.R, 30-min minimum
+# gap per station × species × campaign).
 
 record_table <- readRDS(here("data", "record_table.rds"))  # camtrapR format
-records      <- readRDS(here("data", "records_all.rds"))   # for bootstrap computation
 
-# Build a named list of time_rad vectors — used by the overlap package directly.
-times_by_species <- records %>%
-  split(.$species_label) %>%
-  lapply(function(df) df$time_rad)
+# Named list of time-of-day (radians) vectors — direct input to the overlap package.
+times_by_species <- split(record_table$time_rad, record_table$Species)
 
 
 # ── 2. Define species pairs ───────────────────────────────────────────────────
@@ -107,17 +158,11 @@ PAIRS <- list(
 )
 
 
-# ── 3. Compute stats for each pair — Dhat4 + CI + Monterroso category ───────
-# All numeric work is done in one loop so the per-pair plots (step 4) can be
-# annotated from the same source of truth.
-#
-#   (a) Kernel densities (densityFit + getBandWidth from `overlap`).
-#   (b) Point estimate + 95% bootstrap CI on Dhat4 (overlapEst + bootstrap + bootCI).
-#   (c) Monterroso classification derived from the CI (not just the point).
-#
-# We flag pairs where either sample is < 75 records: for small samples, Dhat1
-# is the more conservative estimator (Ridout & Linkie 2009), but we report
-# Dhat4 to stay consistent with the reference paper.
+# ── 3. Compute stats for each pair — overlap + CI + Monterroso category ─────
+# All numeric work delegates to `estimate_overlap()`, which owns the Δ1 vs Δ4
+# decision (see § "Overlap estimator" above). Per-pair plots (§4) and the
+# summary figure (§5) read the `estimator` column instead of hardcoding a
+# type — no downstream code re-derives the rule.
 
 message("Computing overlap statistics + Monterroso classification...")
 
@@ -127,43 +172,26 @@ overlap_results <- lapply(PAIRS, function(pair) {
   t1  <- times_by_species[[sp1]]
   t2  <- times_by_species[[sp2]]
 
-  n1 <- length(t1)
-  n2 <- length(t2)
+  if (length(t1) == 0 || length(t2) == 0) return(NULL)
 
-  if (n1 == 0 || n2 == 0) return(NULL)
-
-  # (a) Kernel densities
-  bw1 <- getBandWidth(t1)
-  bw2 <- getBandWidth(t2)
-  f1  <- densityFit(t1, grid = GRID, bw = bw1)
-  f2  <- densityFit(t2, grid = GRID, bw = bw2)
-
-  # (b) Point estimate + bootstrap CI on Dhat4
-  dhat4 <- overlapEst(f1, f2, type = "Dhat4")
-  boot  <- bootstrap(f1, f2, nb = N_BOOT, type = "Dhat4")
-  ci    <- bootCI(dhat4, boot, conf = 0.95)
-  ci_low  <- ci["norm0", "lower"]
-  ci_high <- ci["norm0", "upper"]
-
-  # (c) Monterroso classification from the CI
-  category <- classify_overlap(ci_low, ci_high)
+  fit <- estimate_overlap(t1, t2)
 
   data.frame(
-    sp1          = sp1,
-    sp2          = sp2,
-    n1           = n1,
-    n2           = n2,
-    dhat4        = dhat4,
-    ci_low       = ci_low,
-    ci_high      = ci_high,
-    category     = category,
-    pair_label   = paste(sp1, "×", sp2),
-    guild_type   = ifelse(
+    sp1        = sp1,
+    sp2        = sp2,
+    n1         = fit$n_A,
+    n2         = fit$n_B,
+    estimator  = fit$estimator,
+    estimate   = fit$estimate,
+    ci_low     = fit$ci_low,
+    ci_high    = fit$ci_high,
+    category   = classify_overlap(fit$ci_low, fit$ci_high),
+    pair_label = paste(sp1, "×", sp2),
+    guild_type = ifelse(
       sp1 %in% c("Puma", "Guina", "Zorro culpeo") &
       sp2 %in% c("Puma", "Guina", "Zorro culpeo"),
       "Native vs. Native", "Native vs. Invasive"
     ),
-    small_sample = (n1 < 75 || n2 < 75),
     stringsAsFactors = FALSE
   )
 })
@@ -172,16 +200,19 @@ overlap_df <- bind_rows(overlap_results)
 
 message("\nOverlap coefficients + Monterroso category:")
 print(overlap_df %>%
-      select(pair_label, n1, n2, dhat4, ci_low, ci_high, category, small_sample))
+      select(pair_label, n1, n2, estimator, estimate, ci_low, ci_high, category))
 
 
 # ── 4. Per-pair overlay plots — activityOverlap + category annotation ────────
 # activityOverlap() draws two kernel density curves on a shared 24-hour axis,
-# shades the overlapping area, and prints the Dhat4 coefficient on the title.
-# We open the PNG device manually so we can add the Monterroso category and
-# CI in the outer bottom margin (activityOverlap does not expose an
-# annotation slot). We also override `main` because camtrapR builds the
-# default title from the argument NAMES (sp1/sp2) rather than their values.
+# shades the overlapping area, and prints the overlap coefficient on the
+# title. We open the PNG device manually so we can add the Monterroso
+# category and CI in the outer bottom margin (activityOverlap does not
+# expose an annotation slot). We also override `main` because camtrapR
+# builds the default title from the argument NAMES (sp1/sp2) rather than
+# their values. The estimator (Δ1 or Δ4) is read from `row$estimator` and
+# passed both to activityOverlap()'s `overlapEstimator=` and to the
+# footnote — no local re-derivation of the threshold rule.
 #
 # Filename convention: activity_overlap_<sp1>-<sp2>_<YYYY-MM-DD>.png
 
@@ -197,6 +228,8 @@ for (pair in PAIRS) {
     next
   }
 
+  estimator_label <- if (row$estimator == "Dhat4") "Δ4" else "Δ1"
+
   png_path <- here("figures", "overlap_pairs",
                    sprintf("activity_overlap_%s-%s_%s.png",
                            sp1, sp2, Sys.Date()))
@@ -209,36 +242,42 @@ for (pair in PAIRS) {
     speciesB          = sp2,
     writePNG          = FALSE,
     plotR             = TRUE,
-    overlapEstimator  = "Dhat4",
+    overlapEstimator  = row$estimator,
     speciesCol        = "Species",
     recordDateTimeCol = "DateTimeOriginal",
     main              = paste("Activity overlap:", sp1, "and", sp2)
   )
   mtext(
-    sprintf("Overlap: %s   (Dhat4 = %.3f, 95%% CI [%.2f, %.2f]) — Monterroso et al. 2014",
-            row$category, row$dhat4, row$ci_low, row$ci_high),
+    sprintf("Overlap: %s   (%s = %.3f, 95%% CI [%.2f, %.2f]) — Monterroso et al. 2014; estimator per Ridout & Linkie 2009",
+            row$category, estimator_label, row$estimate, row$ci_low, row$ci_high),
     side = 1, line = 1, outer = TRUE, cex = 0.9, col = "grey20"
   )
   dev.off()
 
-  message(sprintf("  %s × %s  Dhat4 = %.3f  CI [%.2f, %.2f]  → %s",
-                  sp1, sp2, row$dhat4, row$ci_low, row$ci_high, row$category))
+  message(sprintf("  %s x %s  %s = %.3f  CI [%.2f, %.2f]  -> %s",
+                  sp1, sp2, row$estimator, row$estimate,
+                  row$ci_low, row$ci_high, row$category))
 }
 
 message("Saved per-pair overlap plots to figures/overlap_pairs/")
 
 
-# ── 5. Figure: Dhat4 summary dot-plot with Monterroso bands ─────────────────
-# One row per species pair, ordered by Dhat4 descending within each guild.
-# Design elements:
+# ── 5. Figure: overlap summary dot-plot with Monterroso bands ────────────────
+# One row per species pair, ordered by overlap estimate (descending) within
+# each guild. Design elements:
 #   • Two vertical dashed lines at 0.50 and 0.75 mark the Monterroso cutoffs.
 #   • Subtle background band shading distinguishes Low / Moderate / High.
-#   • Point shape encodes sample-size flag (open = n < 75 for at least one sp).
-#   • The Monterroso category is appended in square brackets to each pair label.
+#   • Point shape encodes the estimator used (Δ4 filled; Δ1 open, i.e. the
+#     pair had a smaller-sample count below SMALLER_N_DHAT4_MIN and was
+#     switched per Ridout & Linkie 2009). This is the same information the
+#     old n<75 open-circle flag carried, but read directly off the
+#     estimator-selection decision rather than a parallel derived flag.
+#   • The Monterroso category is appended in square brackets to each pair
+#     label.
 
 overlap_df <- overlap_df %>%
   mutate(pair_label_cat = sprintf("%s   [%s]", pair_label, category)) %>%
-  arrange(guild_type, desc(dhat4)) %>%
+  arrange(guild_type, desc(estimate)) %>%
   mutate(pair_label_cat = factor(pair_label_cat,
                                  levels = rev(unique(pair_label_cat))))
 
@@ -250,7 +289,7 @@ bands <- data.frame(
 )
 
 fig_summary <- ggplot(overlap_df,
-                      aes(x = dhat4, y = pair_label_cat, colour = guild_type)) +
+                      aes(x = estimate, y = pair_label_cat, colour = guild_type)) +
   geom_rect(data = bands, inherit.aes = FALSE,
             aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf, fill = fill),
             alpha = 0.35) +
@@ -259,11 +298,11 @@ fig_summary <- ggplot(overlap_df,
              linetype = "dashed", colour = "grey40") +
   geom_errorbarh(aes(xmin = ci_low, xmax = ci_high),
                  height = 0.3, linewidth = 0.8) +
-  geom_point(aes(shape = small_sample), size = 3.5) +
+  geom_point(aes(shape = estimator), size = 3.5) +
   scale_shape_manual(
-    values = c(`FALSE` = 16, `TRUE` = 1),
-    labels = c(`FALSE` = "n ≥ 75 (both)", `TRUE` = "n < 75 (one or both)"),
-    name   = "Sample size"
+    values = c(Dhat4 = 16, Dhat1 = 1),
+    labels = c(Dhat4 = "Δ4 (min n ≥ 50)", Dhat1 = "Δ1 (min n < 50)"),
+    name   = "Estimator"
   ) +
   scale_colour_manual(
     values = c("Native vs. Native" = "#2c7bb6", "Native vs. Invasive" = "#d73027"),
@@ -273,10 +312,11 @@ fig_summary <- ggplot(overlap_df,
                      expand = c(0, 0)) +
   labs(
     title    = "Temporal overlap between focal species pairs",
-    subtitle = paste0("Dhat4 with 95% bootstrap CI (", N_BOOT,
-                      " resamples). Categories from Monterroso et al. (2014)."),
-    caption  = "Bands: Low (Dhat4 < 0.50) · Moderate (0.50–0.75) · High (≥ 0.75). Category assigned only when entire CI sits in one band.",
-    x        = expression(Delta[4] ~ "(temporal overlap coefficient)"),
+    subtitle = paste0("Δ1/Δ4 selected per pair from the smaller sample (Ridout & Linkie 2009); ",
+                      N_BOOT, " bootstrap resamples for 95% CI. ",
+                      "Categories from Monterroso et al. (2014)."),
+    caption  = "Bands: Low (< 0.50) · Moderate (0.50–0.75) · High (≥ 0.75). Category assigned only when entire CI sits in one band.",
+    x        = "Temporal overlap coefficient (Δ1 or Δ4)",
     y        = NULL
   ) +
   facet_wrap(~guild_type, ncol = 1, scales = "free_y") +
@@ -300,7 +340,7 @@ message("Saved figures/04_overlap_summary.png")
 
 stats_out <- overlap_df %>%
   select(sp1, sp2, guild_type, n1, n2,
-         dhat4, ci_low, ci_high, category, small_sample)
+         estimator, estimate, ci_low, ci_high, category)
 
 write.csv(stats_out,
           here("data", "overlap_stats.csv"),

@@ -85,6 +85,14 @@ INVASIVE_SPECIES  <- c("Sus scrofa", "Lepus europaeus", "Canis lupus familiaris"
 SPECIES_FILTER <- names(FOCAL_SPECIES)
 
 
+# ── 2b. Independence threshold for record_table ───────────────────────────────
+# O'Brien et al. (2003) 30-minute convention: consecutive triggers of the same
+# species at the same station within this window are collapsed to one event.
+# Applied to record_table (activity / overlap analyses); records_all keeps raw
+# triggers for date-based analyses that do not depend on event independence.
+MIN_DELTA_TIME_MIN <- 30
+
+
 # ── 3. Load and parse the station coordinates (GeoJSON) ───────────────────────
 # The GeoJSON holds the canonical information for each physical camera trap:
 #   id       → canonical station label "TC-01", "TC-02", …
@@ -367,20 +375,64 @@ message("\nSaved: data/records_all.rds, data/stations_sf.rds, data/boundary_sf.r
 # estimates. Rows with valid_time_of_day == FALSE (e.g. CT-18 Otoño 2026,
 # repaired via last_real_proxy anchor) carry approximate dates but rotated
 # time-of-day — they MUST be excluded from time-of-day analyses.
+#
+# We also apply the 30-minute independence filter here (see
+# MIN_DELTA_TIME_MIN in section 2b): consecutive triggers of the same species
+# at the same station within that window collapse to one event.
+# `filter_independent_events` walks each (station, species, campaign) group in
+# datetime order and keeps a trigger only if it is at least
+# `min_delta_min` past the previous *kept* trigger (O'Brien et al. 2003
+# "against last independent record" convention).
+filter_independent_events <- function(df, min_delta_min) {
+  df %>%
+    dplyr::arrange(station_id, species_label, campaign, datetime) %>%
+    dplyr::group_by(station_id, species_label, campaign) %>%
+    dplyr::mutate(.keep_event = keep_after_min_gap(datetime, min_delta_min)) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(.keep_event) %>%
+    dplyr::select(-.keep_event)
+}
+
+keep_after_min_gap <- function(datetimes, min_delta_min) {
+  n <- length(datetimes)
+  if (n == 0) return(logical(0))
+  keep <- logical(n)
+  keep[1] <- TRUE
+  last_kept <- datetimes[1]
+  if (n >= 2) {
+    for (i in seq(2, n)) {
+      gap_min <- as.numeric(difftime(datetimes[i], last_kept, units = "mins"))
+      if (gap_min >= min_delta_min) {
+        keep[i] <- TRUE
+        last_kept <- datetimes[i]
+      }
+    }
+  }
+  keep
+}
+
 record_table <- records_all %>%
   filter(valid_time_of_day == TRUE) %>%
+  filter_independent_events(min_delta_min = MIN_DELTA_TIME_MIN) %>%
   transmute(
     Station          = station_id,
     Species          = species_label,
     DateTimeOriginal = datetime,
     Date             = date,
     Time             = format(datetime, "%H:%M:%S"),
+    # Time of day in radians — precomputed here so overlap analyses
+    # (04_temporal_overlap.R) source their numeric AND visual layers from the
+    # same independence-filtered rows. If we recomputed time_rad from
+    # records_all downstream, the numeric n would silently reflect raw
+    # triggers while the plot reflected independent events — the bug the
+    # single-source pattern here prevents.
+    time_rad         = time_rad,
     Campaign         = campaign
   )
 
 message(sprintf(
-  "record_table: %d rows after filtering to valid_time_of_day == TRUE (vs %d in records_all).",
-  nrow(record_table), nrow(records_all)
+  "record_table: %d rows after filtering to valid_time_of_day == TRUE and to independent events (%d-min minimum gap; vs %d in records_all).",
+  nrow(record_table), MIN_DELTA_TIME_MIN, nrow(records_all)
 ))
 
 # Extract WGS-84 coordinates from the sf geometry column.
