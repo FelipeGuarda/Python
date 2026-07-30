@@ -21,8 +21,9 @@ OUTPUT
 ANCHOR CSV SCHEMA
     station_id, anchor_type, real_datetime, camera_datetime, source, notes
 
-    station_id        — matches the Deployments column in the reviewed CSV verbatim
-                        (e.g. "CT_18" for otono_2026, "CT18" for otono_2025).
+    station_id        — canonical station ID (CT01..CT27). Matched to photos by
+                        resolved camera number via `camtrap.stations`, so it does NOT
+                        need to match the campaign's raw Deployments spelling.
     anchor_type       — one of:
         install            EXACT anchor at install. Use a trigger photo + wall clock.
         mid_visit          EXACT anchor at a mid-deployment maintenance visit.
@@ -75,6 +76,9 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+
+from camtrap import stations
+from camtrap.observations import CANONICAL_FILENAME, write_canonical
 
 
 # =============================================================================
@@ -230,13 +234,20 @@ def repair_campaign(
     photos['repair_method']        = ''
     photos['repair_anchor_source'] = ''
 
-    anchors_by_station: dict[str, list[Anchor]] = {}
+    # Anchors and photos are matched on resolved camera number, not on the raw station
+    # string, so an anchor file can use the canonical ID (CT16) regardless of how the
+    # campaign's Timelapse2 export spelled it (CT16 / TC16_M13.2 / CT_16).
+    anchors_by_camera: dict[int, list[Anchor]] = {}
     for a in anchors:
-        anchors_by_station.setdefault(a.station_id, []).append(a)
+        anchors_by_camera.setdefault(
+            stations.resolve(a.station_id, campaign), []
+        ).append(a)
 
     for station in photos['Deployments'].unique():
         mask_station = photos['Deployments'] == station
-        station_anchors = anchors_by_station.get(station, [])
+        station_anchors = anchors_by_camera.get(
+            stations.resolve(str(station), campaign), []
+        )
 
         per_st = {'clusters': {}, 'methods': set()}
 
@@ -417,6 +428,7 @@ def main(argv=None) -> int:
     reviewed_csv  = campaign_dir / 'new_labeled_data_reviewed.csv'
     anchor_csv    = campaign_dir / 'deployment_anchors.csv'
     corrected_csv = campaign_dir / 'new_labeled_data_corrected.csv'
+    canonical_pq  = campaign_dir / CANONICAL_FILENAME
     audit_log     = campaign_dir / 'timestamps_audit.log'
 
     if not reviewed_csv.exists():
@@ -446,6 +458,11 @@ def main(argv=None) -> int:
 
     corrected.to_csv(corrected_csv, index=False, date_format='%Y-%m-%d %H:%M:%S')
     print(f'Wrote: {corrected_csv}  ({len(corrected)} rows, +5 columns)')
+
+    # Canonical observation table — the shape every downstream consumer reads.
+    # The _corrected.csv above stays for consumers not yet migrated (pehuen).
+    n_canonical = write_canonical(corrected, args.campaign, canonical_pq)
+    print(f'Wrote: {canonical_pq}  ({n_canonical} rows, canonical schema)')
 
     audit_log.write_text(audit_text, encoding='utf-8')
     print(f'Wrote: {audit_log}')

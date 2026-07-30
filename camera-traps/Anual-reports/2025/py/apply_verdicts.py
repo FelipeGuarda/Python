@@ -36,6 +36,11 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
+# camera-traps repo root — so `camtrap` is importable when this runs from py/
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from camtrap import stations
+
 # Force UTF-8 on stdout/stderr so this script prints arrows (→) and accented
 # species names on a default Windows console (cp1252) without crashing.
 if hasattr(sys.stdout, "reconfigure"):
@@ -133,21 +138,48 @@ def main() -> None:
     print(f"\nLoaded records_clean.parquet: {len(records):,} rows")
     print(f"Loaded verdicts file        : {len(verdicts):,} verdicts")
 
-    # ── Join verdicts to records on (campaign, deployment_raw, File)
-    records["_key"] = (
-        records["campaign"].astype(str)
-        + "|"
-        + records["deployment_raw"].astype(str)
-        + "|"
-        + records["File"].astype(str)
+    # ── Join verdicts to records on (camera_num, File).
+    #    Campaign is deliberately NOT part of the key: cross-campaign dedup means a
+    #    record reviewed under primavera_2025 may now survive under pv_2025_2026, and
+    #    a verdict on that image applies to it either way. `camera_num` replaces the
+    #    old `deployment_raw` so verdicts written against any historical station
+    #    spelling (including the unrenamed `100EK113`) still match.
+    def _key(camera_num, file_name) -> pd.Series:
+        return camera_num.astype("Int64").astype(str) + "|" + file_name.astype(str)
+
+    # Verdicts written before the station convention have a blank camera_num (the
+    # 100EK113 rows). Resolve them from the station name via the alias table.
+    missing_cam = verdicts["camera_num"].isna()
+    if missing_cam.any():
+        verdicts.loc[missing_cam, "camera_num"] = [
+            stations.resolve(str(row.Deployments), str(row.campaign))
+            for row in verdicts[missing_cam].itertuples()
+        ]
+        print(f"Resolved camera_num for {int(missing_cam.sum())} verdict(s) "
+              f"from station name via station_aliases.csv")
+
+    records["_key"] = _key(records["camera_num"], records["File"])
+    verdicts["_key"] = _key(verdicts["camera_num"], verdicts["File"])
+
+    # The same image can carry two verdict rows (it was reviewed under two campaigns).
+    # Identical verdicts collapse harmlessly; conflicting ones must not be applied in
+    # arbitrary row order.
+    verdict_cols = ["verdict", "corrected_species_latin"]
+    conflicting = (
+        verdicts.groupby("_key")[verdict_cols]
+        .nunique(dropna=False)
+        .max(axis=1)
+        .pipe(lambda s: s[s > 1])
     )
-    verdicts["_key"] = (
-        verdicts["campaign"].astype(str)
-        + "|"
-        + verdicts["Deployments"].astype(str)
-        + "|"
-        + verdicts["File"].astype(str)
-    )
+    if len(conflicting):
+        raise SystemExit(
+            f"ERROR: {len(conflicting)} image(s) have conflicting verdict rows: "
+            f"{list(conflicting.index)}. Resolve them in the verdicts CSV."
+        )
+    n_dupes = int(verdicts.duplicated("_key").sum())
+    if n_dupes:
+        verdicts = verdicts.drop_duplicates("_key").copy()
+        print(f"Collapsed {n_dupes} duplicate verdict row(s) (same image, two campaigns)")
 
     matched = verdicts[verdicts["_key"].isin(records["_key"])].copy()
     unmatched = verdicts[~verdicts["_key"].isin(records["_key"])].copy()

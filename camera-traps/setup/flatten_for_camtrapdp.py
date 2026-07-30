@@ -19,6 +19,11 @@ from pathlib import Path
 
 from _fileops import cleanup_empty_dirs, is_target, move_file
 
+# camera-traps repo root — so `camtrap` is importable when run from setup/
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from camtrap import stations
+
 
 # ── File helpers ──────────────────────────────────────────────────────────────
 
@@ -182,6 +187,15 @@ def main() -> None:
         '--dry-run', action='store_true',
         help='Preview actions without moving or deleting anything',
     )
+    parser.add_argument(
+        '--check-stations', action='store_true',
+        help=(
+            'Refuse to proceed unless every deployment folder follows the canonical '
+            'station convention (CT01..CT27). Timelapse2 derives its Deployments '
+            'column from these folder names, so enforcing it here is what keeps '
+            'station names clean for every downstream consumer.'
+        ),
+    )
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -195,6 +209,23 @@ def main() -> None:
     )
     if not deployments:
         sys.exit("No deployment folders found in the specified root.")
+
+    # ── Station-name convention ───────────────────────────────────────────────
+    # A folder like `100EK113` (an unrenamed SD-card directory) silently became an
+    # unmappable deployment and cost 252 rows of camera 5 in the 2025 annual report.
+    # Catching it here — before Timelapse2 ever sees it — is the cheap fix.
+    offenders = [d.name for d in deployments if not stations.is_canonical(d.name)]
+    if offenders:
+        msg = (
+            f"\n{len(offenders)} folder(s) do not follow the station convention "
+            f"({stations.CANONICAL_PATTERN}):\n"
+            + "\n".join(f"    {name}" for name in offenders)
+            + "\n  Rename them to CT01..CT27 before flattening — Timelapse2 takes its "
+              "Deployments\n  column straight from these folder names."
+        )
+        if args.check_stations:
+            sys.exit(f"ERROR:{msg}")
+        print(f"WARNING:{msg}\n  (run with --check-stations to make this fatal)")
 
     # ── Count files per deployment ────────────────────────────────────────────
     deploy_files: dict = {}

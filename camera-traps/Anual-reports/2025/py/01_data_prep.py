@@ -3,8 +3,8 @@
 
 Inputs
 ------
-- camera-traps/data/campaigns/{otono_2025, primavera_2025, pv_2025_2026}/new_labeled_data_reviewed.csv
-- camera-traps/Anual-reports/Registro de monitoreo CT.xlsx  (sheet: Registro de instalacion)
+- camera-traps/data/campaigns/{otono_2025, primavera_2025, pv_2025_2026}/observations.parquet
+  (canonical observation tables — produced by `python timestamps.py --campaign <name>`)
 - data-pipeline/species.yaml                                 (canonical species catalog)
 
 Output
@@ -18,16 +18,12 @@ These are the inputs to `apply_verdicts.py`, which writes the canonical
 
 Rules applied
 -------------
-1. Date correction
-   - Otoño 2025 CT15 / CT16 / CT19: timestamps recorded as 2017 are clock-bug records.
-     Offset = (install_year - 2017) computed from `Registro de instalacion`.
-     Records flagged "stuck" (>=80% identical timestamps) are dropped.
-   - Primavera 2025 TC16_M13.2 and PV 2025-2026 TC16_M13.2: 2017-dated records belong
-     to a pre-redeployment period (per user). We cannot derive a clean offset without
-     knowing the original installation date — so these records are DROPPED for this
-     report, with the count printed for the user to confirm.
+1. Timestamp validity: rows arrive already clock-repaired by `timestamps.py`, which
+   owns that decision (anchors in each campaign's `deployment_anchors.csv`). This
+   script only *filters* on the resulting flags — it does not repair. Rows with
+   valid_date=FALSE cannot be placed in time and are excluded from the report.
 2. Conaf-era cutoff: keep only records with corrected timestamp >= 2024-10-01.
-3. Animal filter: keep observationType == "animal" with non-empty scientificName.
+3. Animal filter: keep observation_type == "animal" with non-empty species_latin.
 4. Small-species filter: drop all taxonomic_group == "ave" or "invertebrado", plus the
    small mammals {Monito del monte, Ratón cola larga} and the legacy "Rata Negra".
 5. 30-min independent-event filter: per (camera, species), consecutive detections
@@ -35,19 +31,24 @@ Rules applied
 
 Conventions
 -----------
-- camera_num: integer 1..26 extracted from the deployment ID (CT01 / TC1_M7.2 → 1).
-- "100EK113" and any deployment that cannot be mapped to a CT number is dropped
-  with a count printed.
+- camera_num is resolved upstream by `camtrap.stations`; station-name grammars and the
+  `100EK113` unrenamed-folder case are no longer this script's concern.
+- Records shared by two campaigns are collapsed upstream by `read_campaigns()`, with
+  the later campaign's label winning. Any species disagreement is printed.
 """
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
 import pandas as pd
 import yaml
+
+# camera-traps repo root — so `camtrap` is importable when this runs from py/
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from camtrap.observations import read_campaigns
 
 # Force UTF-8 on stdout/stderr so this script prints arrows (→) and accented
 # species names on a default Windows console (cp1252) without crashing.
@@ -61,18 +62,13 @@ if hasattr(sys.stdout, "reconfigure"):
 HERE = Path(__file__).resolve()
 REPORT_ROOT = HERE.parents[1]               # .../camera-traps/Anual-reports/2025
 REPO = HERE.parents[4]                      # .../Python
-CAMPAIGNS = REPO / "camera-traps" / "data" / "campaigns"
-REGISTRY_XLSX = REPO / "camera-traps" / "Anual-reports" / "Registro de monitoreo CT.xlsx"
 SPECIES_YAML = REPO / "data-pipeline" / "species.yaml"
 
 OUT_DIR = REPORT_ROOT / "data"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-CAMPAIGN_FILES = {
-    "otono_2025": CAMPAIGNS / "otono_2025" / "new_labeled_data_reviewed.csv",
-    "primavera_2025": CAMPAIGNS / "primavera_2025" / "new_labeled_data_reviewed.csv",
-    "pv_2025_2026": CAMPAIGNS / "pv_2025_2026" / "new_labeled_data_reviewed.csv",
-}
+# Otoño 2026 is deliberately excluded — this report covers oct 2024 – mar 2026.
+REPORT_CAMPAIGNS = ("otono_2025", "primavera_2025", "pv_2025_2026")
 
 CONAF_CUTOFF = pd.Timestamp("2024-10-01")
 EPISODE_GAP = pd.Timedelta(minutes=30)
@@ -85,236 +81,26 @@ SMALL_MAMMALS_DROP = {"Monito del monte", "Ratón cola larga", "Rata negra"}
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 
-CT_RE = re.compile(r"^(?:CT|TC)0*(\d+)(?:_M.*)?$", re.IGNORECASE)
+def load_species_catalog() -> pd.DataFrame:
+    """Species attributes, joined onto records by scientificName.
 
-
-def extract_camera_num(deployment: str) -> int | None:
-    """CT01 → 1, TC10_M3.2 → 10. Returns None for un-mappable IDs (e.g. 100EK113)."""
-    if not isinstance(deployment, str):
-        return None
-    m = CT_RE.match(deployment.strip())
-    return int(m.group(1)) if m else None
-
-
-def load_species_catalog() -> tuple[pd.DataFrame, dict[str, str]]:
-    """Return (catalog_df, spanish_to_latin lookup).
-
-    The lookup includes both the canonical Spanish name and any
-    `spanish_aliases`, all lowercased — used to recover records where the
-    reviewer wrote a Spanish common name in `observationComments` but left
-    `scientificName` empty (e.g. "chingue", "pudu").
+    The canonical table stores only the species *key*; these attributes live here so
+    a species.yaml correction propagates without re-ingesting every campaign. The
+    Spanish-name recovery that used to live alongside this lookup now happens once,
+    upstream, in `camtrap.observations`.
     """
     with open(SPECIES_YAML, encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    rows = []
-    sp_to_latin: dict[str, str] = {}
-    for s in data["species"]:
-        rows.append(
-            {
-                "scientificName": s["latin"],
-                "spanish": s["spanish"],
-                "taxonomic_group": s["taxonomic_group"],
-                "is_invasive": bool(s.get("is_invasive", False)),
-                "is_priority": bool(s.get("is_priority", False)),
-            }
-        )
-        sp_to_latin[s["spanish"].lower()] = s["latin"]
-        for alias in s.get("spanish_aliases") or []:
-            sp_to_latin[alias.lower()] = s["latin"]
-    return pd.DataFrame(rows), sp_to_latin
-
-
-def load_install_registry() -> pd.DataFrame:
-    df = pd.read_excel(
-        REGISTRY_XLSX,
-        sheet_name="Registro de instalacion",
-        engine="openpyxl",
-    )
-    df = df.rename(
-        columns={
-            "Fecha": "install_date_raw",
-            "Hora": "install_time_raw",
-            "N° de Cámara Trampa": "camera_num_raw",
-            "N° de grilla de monitoreo": "grid_id",
-            "N° de tarjeta de memoria": "sd_card",
-            "Observadores": "observers",
-            "Notas": "notes",
+    return pd.DataFrame(
+        {
+            "scientificName": s["latin"],
+            "spanish": s["spanish"],
+            "taxonomic_group": s["taxonomic_group"],
+            "is_invasive": bool(s.get("is_invasive", False)),
+            "is_priority": bool(s.get("is_priority", False)),
         }
+        for s in data["species"]
     )
-    df = df.dropna(subset=["install_date_raw", "camera_num_raw"]).copy()
-
-    # camera_num may be "22*" etc. — strip non-digits
-    df["camera_num"] = (
-        df["camera_num_raw"].astype(str).str.extract(r"(\d+)", expand=False).astype("Int64")
-    )
-    df = df.dropna(subset=["camera_num"]).copy()
-    df["camera_num"] = df["camera_num"].astype(int)
-
-    # Combine date + time into a single install timestamp.  Time may be missing
-    # for some rows; default to midnight in that case.
-    def _combine(row) -> pd.Timestamp:
-        d = pd.Timestamp(row["install_date_raw"]).normalize()
-        t = row["install_time_raw"]
-        if pd.isna(t):
-            return d
-        # openpyxl returns datetime.time for time-typed cells
-        return d + pd.Timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
-
-    df["install_date"] = df.apply(_combine, axis=1)
-
-    return df[["camera_num", "install_date", "grid_id", "sd_card", "notes"]].reset_index(
-        drop=True
-    )
-
-
-def load_campaign(campaign: str, path: Path) -> pd.DataFrame:
-    """Load one campaign CSV, normalize types."""
-    df = pd.read_csv(path, low_memory=False, encoding="utf-8")
-    # Strip column whitespace and BOM artifacts
-    df.columns = [c.strip().lstrip("﻿") for c in df.columns]
-    df["timestamp"] = pd.to_datetime(df["DateTime"].astype(str).str.strip(), errors="coerce")
-    df["camera_num"] = df["Deployments"].apply(extract_camera_num)
-    # pandas 3.x preserves NaN through astype(str); fillna explicitly so the
-    # downstream `scientificName != ""` filter actually drops missing values.
-    df["scientificName"] = df["scientificName"].fillna("").astype(str).str.strip()
-    df["observationType"] = df["observationType"].fillna("").astype(str).str.strip()
-    df["observationComments"] = df.get("observationComments", "").fillna("").astype(str).str.strip()
-    df["reviewOutcome"] = df.get("reviewOutcome", "").fillna("").astype(str).str.strip()
-    df["campaign"] = campaign
-    df["deployment_raw"] = df["Deployments"].astype(str)
-    return df
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Date correction
-
-def stuck_camera_check(group: pd.DataFrame, threshold: float = 0.8) -> bool:
-    """True if >=`threshold` fraction of timestamps are identical (clock frozen)."""
-    if len(group) < 3:
-        return False
-    counts = group["timestamp"].value_counts(normalize=True)
-    return float(counts.iloc[0]) >= threshold
-
-
-def correct_dates(
-    df: pd.DataFrame, registry: pd.DataFrame
-) -> tuple[pd.DataFrame, list[dict]]:
-    """Apply per-camera date corrections.  Returns (corrected_df, audit_rows)."""
-    audit: list[dict] = []
-    df = df.copy()
-    df["timestamp_corrected"] = df["timestamp"]
-    df["date_fix"] = "none"
-
-    install_lookup = registry.set_index("camera_num")["install_date"].to_dict()
-
-    # Otoño 2025 cameras with 2017 clock bug.
-    #
-    # CT15 and CT16: clean +8yr offset (year-only).  Their 2017 month/day spans
-    # are consistent with their installation dates.
-    #
-    # CT19: a clean +8yr would place all 101 records in 2025-01-01..01-05, i.e.
-    # ~25 days *before* the 2025-01-30 installation.  Per user instruction,
-    # anchor the first record to the install date instead — preserves the
-    # relative spacing of records while pinning the start to a known truth.
-    otono_year_offset_cams = {15, 16}
-    otono_anchor_cams = {19}
-    otono_2017_cams = otono_year_offset_cams | otono_anchor_cams
-
-    for cam in otono_2017_cams:
-        mask = (
-            (df["campaign"] == "otono_2025")
-            & (df["camera_num"] == cam)
-            & (df["timestamp"].dt.year == 2017)
-        )
-        sub = df.loc[mask]
-        if sub.empty:
-            continue
-
-        install = install_lookup.get(cam)
-        if install is None:
-            audit.append(
-                {
-                    "camera_num": cam,
-                    "campaign": "otono_2025",
-                    "issue": "no_install_date",
-                    "n_records": len(sub),
-                }
-            )
-            continue
-
-        if stuck_camera_check(sub):
-            audit.append(
-                {
-                    "camera_num": cam,
-                    "campaign": "otono_2025",
-                    "issue": "clock_frozen",
-                    "n_records": len(sub),
-                    "action": "dropped",
-                }
-            )
-            df.loc[mask, "date_fix"] = "dropped_clock_frozen"
-            continue
-
-        if cam in otono_year_offset_cams:
-            offset = install.year - 2017
-            corrected = sub["timestamp"] + pd.DateOffset(years=offset)
-            df.loc[mask, "timestamp_corrected"] = corrected
-            df.loc[mask, "date_fix"] = f"+{offset}yr"
-            audit.append(
-                {
-                    "camera_num": cam,
-                    "campaign": "otono_2025",
-                    "issue": "year_2017_offset",
-                    "n_records": len(sub),
-                    "action": f"+{offset}yr",
-                    "install_date": install.date().isoformat(),
-                    "corrected_range": (
-                        f"{corrected.min().date()} .. {corrected.max().date()}"
-                    ),
-                }
-            )
-        else:  # anchor-to-install mode
-            delta = install - sub["timestamp"].min()
-            corrected = sub["timestamp"] + delta
-            df.loc[mask, "timestamp_corrected"] = corrected
-            df.loc[mask, "date_fix"] = "anchored_to_install"
-            audit.append(
-                {
-                    "camera_num": cam,
-                    "campaign": "otono_2025",
-                    "issue": "year_2017_anchored",
-                    "n_records": len(sub),
-                    "action": f"shift by {delta}",
-                    "install_date": install.date().isoformat(),
-                    "corrected_range": (
-                        f"{corrected.min().date()} .. {corrected.max().date()}"
-                    ),
-                }
-            )
-
-    # TC16_M13.2 in Primavera 2025 and PV 2025-26: 2017 records = pre-redeployment.
-    # No reliable offset → drop these records (user confirmed in conversation).
-    for camp in ("primavera_2025", "pv_2025_2026"):
-        mask = (
-            (df["campaign"] == camp)
-            & (df["camera_num"] == 16)
-            & (df["timestamp"].dt.year == 2017)
-        )
-        n = int(mask.sum())
-        if n == 0:
-            continue
-        df.loc[mask, "date_fix"] = "dropped_predeploy"
-        audit.append(
-            {
-                "camera_num": 16,
-                "campaign": camp,
-                "issue": "predeploy_2017_dropped",
-                "n_records": n,
-                "action": "dropped",
-            }
-        )
-
-    return df, audit
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -357,41 +143,46 @@ def main() -> None:
     print("01_data_prep.py — Informe Anual 2025 (Bosque Pehuén)")
     print("=" * 78)
 
-    species_cat, sp_to_latin = load_species_catalog()
-    registry = load_install_registry()
+    species_cat = load_species_catalog()
     print(f"Species catalog rows : {len(species_cat)}")
-    print(f"Install registry rows: {len(registry)}  "
-          f"(unique cameras: {registry['camera_num'].nunique()})")
 
-    raw = pd.concat(
-        [load_campaign(c, p) for c, p in CAMPAIGN_FILES.items()],
-        ignore_index=True,
+    # ── Load the canonical observation tables (clock repair, station resolution and
+    #    cross-campaign dedup already applied — see camtrap/observations.py)
+    print()
+    canonical = read_campaigns(*REPORT_CAMPAIGNS)
+    print(f"\nCanonical records    : {len(canonical):,}")
+    print(canonical.groupby("campaign").size().to_string())
+
+    # Report-side column names. The canonical table is the contract; this rename is
+    # the only place the report's legacy vocabulary is spoken.
+    df = canonical.rename(
+        columns={
+            "datetime": "timestamp_corrected",
+            "species_latin": "scientificName",
+            "observation_type": "observationType",
+            "file_name": "File",
+            "review_outcome": "reviewOutcome",
+        }
     )
-    print(f"\nRaw records loaded   : {len(raw):,}")
-    print(raw.groupby("campaign").size().to_string())
-
-    # ── Drop deployments that don't map to a CT number (e.g., 100EK113)
-    unmapped = raw[raw["camera_num"].isna()]
-    if not unmapped.empty:
-        print(
-            f"\n[FLAG] Deployments without CT mapping → dropping {len(unmapped):,} rows"
-        )
-        print(unmapped.groupby(["campaign", "deployment_raw"]).size().to_string())
-    df = raw.dropna(subset=["camera_num"]).copy()
     df["camera_num"] = df["camera_num"].astype(int)
 
-    # ── Date corrections
-    df, audit = correct_dates(df, registry)
-    print("\n" + "-" * 78)
-    print("DATE-FIX AUDIT")
-    print("-" * 78)
-    for a in audit:
-        print(a)
+    # ── Timestamp validity. `timestamps.py` owns the repair; this script only
+    #    filters. valid_date=FALSE means the record cannot be placed in time at all,
+    #    so it cannot be assigned to a campaign year or tested against the cutoff.
+    invalid = df[~df["valid_date"]]
+    if not invalid.empty:
+        print(f"\n[FLAG] Excluding {len(invalid):,} rows with valid_date=FALSE "
+              f"(unrepaired camera-clock resets):")
+        print(invalid.groupby(["campaign", "camera_num"]).size().to_string())
+    df = df[df["valid_date"]].copy()
 
-    # Drop records flagged as dropped_*
-    drop_mask = df["date_fix"].str.startswith("dropped")
-    print(f"\nDropped by date audit: {int(drop_mask.sum()):,}")
-    df = df.loc[~drop_mask].copy()
+    # Time-of-day is unreliable for some repaired rows. No figure in this report is
+    # diel, so they are kept — but the count is surfaced so that stays a conscious
+    # choice if a time-of-day figure is ever added.
+    n_no_tod = int((~df["valid_time_of_day"]).sum())
+    if n_no_tod:
+        print(f"\nNote: {n_no_tod:,} kept rows have valid_time_of_day=FALSE — fine for "
+              f"counts/occupancy, NOT usable for any activity-pattern figure.")
 
     # ── Conaf-era cutoff
     pre_cutoff = df[df["timestamp_corrected"] < CONAF_CUTOFF]
@@ -400,29 +191,8 @@ def main() -> None:
     )
     df = df[df["timestamp_corrected"] >= CONAF_CUTOFF].copy()
 
-    # ── Recover Spanish-only labels.  Some animal records have empty
-    # `scientificName` but a Spanish common name in `observationComments`
-    # (e.g. "chingue", "pudu") — recover those by mapping through species.yaml.
-    recover_mask = (
-        (df["observationType"] == "animal")
-        & (df["scientificName"] == "")
-        & (df["observationComments"] != "")
-    )
-    recoverable = df.loc[recover_mask].copy()
-    recoverable["__recovered_latin"] = (
-        recoverable["observationComments"].str.lower().map(sp_to_latin)
-    )
-    recovered = recoverable.dropna(subset=["__recovered_latin"])
-    if not recovered.empty:
-        print("\nRecovered records via Spanish-name fallback (species.yaml):")
-        print(
-            recovered.groupby(["observationComments", "__recovered_latin"])
-            .size()
-            .to_string()
-        )
-        df.loc[recovered.index, "scientificName"] = recovered["__recovered_latin"]
-
     # ── Animal filter
+    #    (Spanish-only labels were already recovered upstream in camtrap.observations)
     before = len(df)
     df = df[(df["observationType"] == "animal") & (df["scientificName"] != "")].copy()
     print(f"\nAnimal filter        : {before:,} → {len(df):,} (kept rows with scientificName)")
