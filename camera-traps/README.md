@@ -6,11 +6,11 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ## Status
 
-**Last Updated:** 2026-07-29 — Architecture review; `## DESIGN_NOTES` added; canonical observation schema agreed (implementation pending)
-**What Changed (2026-07-29, docs only — no code):** Scoped architecture review identified external file-format leakage as this project's dominant decay risk, recorded in [DESIGN_NOTES](#design_notes) for the `design-first` skill. Agreed to replace the ad-hoc per-consumer normalisation with a **canonical observation table** (`camtrap/observations.py` → `observations.parquet`, keyed on `campaign, camera_num, file_name`) plus a strict canonical station convention `CT01`–`CT27`, validated at the Synology folder level. **Not yet implemented.**
+**Last Updated:** 2026-07-30 — Canonical observation table implemented; annual report now honours the `_corrected` contract
+**What Changed:** New `camtrap/` boundary package. `camtrap/stations.py` owns the canonical station convention (`CT01`–`CT27`) with historical spellings resolved through `data/campaigns/station_aliases.csv` (data, not code); `camtrap/observations.py` owns the canonical observation table, written by `timestamps.py` as `observations.parquet` alongside the existing `_corrected.csv`. `Anual-reports/2025/py/01_data_prep.py` now reads it via `read_campaigns()` — ~190 lines of duplicated clock repair, station parsing and species recovery deleted. **The report's numbers changed: 419 → 369 events.** Two causes, both corrections: cross-campaign dedup removed 325 double-counted images (primavera_2025 is almost entirely superseded by pv_2025_2026), and 143 records from otoño 2025 CT15/CT16/CT19 are now excluded because `timestamps.py` refuses to guess an offset the old code guessed. Previous figures preserved in `figures_pre_canonical/`.
 **Prior (2026-06-25):** New module `timestamps.py` detects camera-clock-reset issues (EXIF reverts to 2017 epoch) and repairs them at the source using field-provided anchors. Each campaign now carries a `deployment_anchors.csv` and produces a `new_labeled_data_corrected.csv` that downstream projects consume in place of the raw reviewed CSV. CT_18 Otoño 2026 (135 bogus rows) repaired via `last_real_proxy` anchor — dates approximate, time-of-day flagged unreliable. CT-15/CT-16/CT-19 Otoño 2025 and TC-16 Primavera/PV (159 + 68 + 3 rows) marked `unrepairable_pending` until field anchors are recovered. See [Step 4b — Timestamp quality](#step-4b--timestamp-quality-check--repair).
 **Integration Status:** Ready. CT_18 Otoño 2026 fix is now data-side, not config-side. `data-pipeline/config.yaml` should be pointed at `_corrected.csv` paths in the next Linux session before running `python run_fetch.py --ct`.
-**Blockers/Notes (2026-07-29):** **The annual report does not honour the `_corrected.csv` contract** — `Anual-reports/2025/py/01_data_prep.py` still reads `_reviewed.csv` and re-implements clock repair with different rules than `timestamps.py`, so the report and pehuen can derive different timestamps from the same raw data. Scheduled for the next session; **report figures will change** when fixed. Also: `primavera_2025/new_labeled_data_reviewed.dedup.csv` is a broken artifact (2 animal rows vs 400 in `_reviewed.csv`) yet is named as canonical in the Campaign History table below — delete it and fix that row. `100EK113` (Primavera 2025, 252 rows currently dropped as unmappable) is confirmed to be **camera 5** — an unrenamed SD-card folder duplicating `pv_2025_2026 / TC5_M9.2` (14 files, timestamps identical to the second); no detections are lost today, but only because the same images arrive via the pv campaign.
+**Blockers/Notes (2026-07-30):** **143 records recoverable with field anchors.** Otoño 2025 CT15/CT16/CT19 are `unrepairable_pending`, so 143 animal records — including 6 puma, 3 guiña, 2 pudú — are excluded from the report. The old code recovered them by guessing `install_year - 2017`; `timestamps.py` will not guess. Two routes to recover them: Felipe's field notebook, **or** the camera filenames, which encode `MMDD` (`01230193.JPG` = Jan 23) and so pin the true date against the bogus 2017 EXIF stamp without any field data. The verdict notes in `manual_review_verdicts_2026-06-02.csv` already record the `+8yr` offset. Adding proper anchor rows is the single highest-value data task outstanding. Also: **`pehuen` and `data-pipeline` still read `_corrected.csv`** — both are still emitted, so nothing is broken, but migrating them to `observations.parquet` and retiring the CSV is the remaining half of this refactor. `export_best_images.py`, `run_classification.py` and the review UI still decode the Timelapse2 CSV / MegaDetector JSON directly (findings F002–F009 in the 2026-07-29 review).
 **Blockers/Notes:** Outstanding anchor data needed from Felipe's field notebook for CT-15 / CT-16 / CT-19 (Otoño 2025) and chronic TC-16 issue across campaigns — until then those rows pass through with `valid_date=FALSE, valid_time_of_day=FALSE` (counted as station presence but excluded from any time analysis). CLIP horse/cow confusion may still appear on side/rear shots; revisit `clip_confidence_threshold` (0.28) only after the new run lands. Pandoc still required for `Anual-reports/2025/render.sh`. Annual report uses the canonical `plataforma-territorial/data/{boundary,camera_trap_stations}.geojson` files directly; legacy GIS files in `camera-traps/GIS/` are deprecated.
 
 ---
@@ -23,6 +23,10 @@ camera-traps/
 ├── config.yaml                  ← per-campaign configuration (edit before each run)
 ├── environment.yml              ← conda environment definition
 ├── run_classification.py        ← Step 2: CLIP classification entry point
+│
+├── camtrap/                     ← boundary layer (one module per external format)
+│   ├── stations.py              ← canonical station convention CT01..CT27 + aliases
+│   └── observations.py          ← canonical observation table (the data contract)
 │
 ├── classify_campaign/           ← CLIP classification package
 │   ├── clip_classifier.py       ← zero-shot CLIP classifier (cosine similarity)
@@ -127,6 +131,22 @@ Before running CLIP classification, export the animal observations from Timelaps
 This CSV is the input to the classifier. It should contain one row per animal image with at minimum `RelativePath`, `File`, `observationType`, and `fileMediatype` columns (standard Timelapse2 CamtrapDP export).
 
 > **Note:** The `filePath` column may be empty depending on how the Timelapse2 project was set up — the pipeline handles both cases automatically using `RelativePath + File` as a fallback.
+
+> ### ⚠️ KNOWN DEFECT (2026-07-30) — this step is about to change
+>
+> The `observationType = animal` filter above is **adequate for the classifier but must
+> never be the input to clock-reset diagnosis.** Diagnosing a camera's clock from
+> animal-only rows hides every reset that happens between two animal photos. This
+> caused CT18 (otoño 2026) to be recorded as one clock reset when it actually had
+> **four**, producing fabricated dates that reached the pehuen analysis.
+>
+> A **second, mandatory export** is being added: all images, with **every** detection
+> category labelled (`empty` / `animal` / `person` / `vehicle`). The person label is
+> not optional — install and retrieval photos of the technician are the anchors that
+> make repair possible, and they are currently invisible.
+>
+> Do not re-run ingest for any campaign until this is in place. Full context and plan:
+> **`docs/HANDOFF-clock-repair.md`**.
 
 ### Step 3 — CLIP zero-shot classification
 
@@ -349,10 +369,10 @@ Canonical species catalog lives at `data-pipeline/species.yaml` (shared by `data
 
 | Campaign | Status | Reviewed CSV |
 |---|---|---|
-| Primavera 2025 | Complete | `data/campaigns/primavera_2025/new_labeled_data_reviewed.dedup.csv` |
+| Primavera 2025 | Complete — largely superseded by PV 2025-2026 (see note) | `data/campaigns/primavera_2025/new_labeled_data_reviewed.csv` |
 | Otoño 2025 | Complete | `data/campaigns/otono_2025/new_labeled_data_reviewed.csv` |
 | Primavera-verano 2025-2026 | Complete | `data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv` |
-| Otoño 2026 | Reviewed; ingestion pending CT_18 timestamp fix | `data/campaigns/otono_2026/new_labeled_data_reviewed.csv` |
+| Otoño 2026 | Reviewed; **CT_18 clock unrepairable — 4 resets, not 1. Dates fabricated by the current repair; see `docs/HANDOFF-clock-repair.md`** | `data/campaigns/otono_2026/new_labeled_data_reviewed.csv` |
 
 ---
 
