@@ -8,6 +8,28 @@ up into the deployment folder itself, then removes the now-empty subdirectories.
 Usage:
     python flatten_for_camtrapdp.py /path/to/DataPackage
     python flatten_for_camtrapdp.py /path/to/DataPackage --dry-run
+
+WHY THIS SCRIPT WRITES A MANIFEST
+    An SD card stores roughly 999 images per auto-created DCIM folder
+    (`100EK113`, `101EK113`, …) and the 4-digit counter in the filename restarts
+    inside each one. Flattening therefore pools many `xxxx0001.JPG` frames into a
+    single directory, and Timelapse2's `RelativePath` column retains only the
+    deployment name — so after this script runs, `(folder, counter)` is gone and
+    capture order can no longer be reconstructed from the flat filenames alone.
+
+    That matters because capture order is the only way to detect a camera-clock
+    reset: a reset is a datetime that moves backwards relative to the order the
+    frames were actually taken. Otoño 2026 was flattened before anyone realised
+    this and has no manifest; its five cameras with >999 images
+    (CT_14, CT_20, CT_15, CT_08, CT_23) can never satisfy that precondition.
+
+    So every run now writes `dcim_manifest.csv` (schema owned by
+    `camtrap/clocks.py`) recording, per file, which DCIM folder it came from and
+    what it was renamed to. Nothing is renamed that was not renamed before — the
+    manifest is a sidecar, so existing joins on `file_name` keep working.
+
+    Copy the manifest into `data/campaigns/<campaign>/` alongside the Timelapse2
+    export.
 """
 
 import argparse
@@ -23,6 +45,7 @@ from _fileops import cleanup_empty_dirs, is_target, move_file
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from camtrap import stations
+from camtrap.clocks import DCIM_MANIFEST_COLUMNS, DCIM_MANIFEST_FILENAME
 
 
 # ── File helpers ──────────────────────────────────────────────────────────────
@@ -61,54 +84,73 @@ def resolve_dest(
     deployment_dir: Path,
     rel_parts: list,
     filename: str,
-    src: Path,
+    claimed: set = None,
 ) -> tuple:
     """
     Determine where src should land inside deployment_dir.
 
     Strategy:
       1. Try the simple flat name (deployment_dir / filename).
-      2. If that name exists and has the same size → duplicate, skip.
-      3. If that name exists with a different size → prepend the subfolder
-         path as a prefix: "part1_part2_filename.ext".
-      4. If the prefixed name also conflicts, check for duplicate again;
-         otherwise append a numeric counter until a free name is found.
+      2. If that name is taken, prefix the subfolder path:
+         "100EK113_01190313.JPG".
+      3. If the prefixed name is also taken, append a numeric counter until a
+         free name is found.
 
-    Returns (dest: Path, action: str) where action ∈
-        {'moved', 'renamed', 'skipped_duplicate'}.
+    Returns (dest: Path, action: str) where action ∈ {'moved', 'renamed'}.
+
+    NOTHING IS EVER SKIPPED. An earlier version treated same-name + same-size as
+    a duplicate and dropped the file. That is exactly the signature a
+    reset-clock camera produces: once its RTC reverts to 2017-01-01 it re-emits
+    `0101xxxx` filenames in every subsequent DCIM folder, and two such frames can
+    easily share a byte size. Otoño 2026 CT_14 carries 24 real collisions that
+    survived only because their sizes happened to differ
+    (`102EK113_0119xxxx.JPG`); a same-size sibling would have been deleted
+    leaving nothing but a log line. A duplicated image is a harmless nuisance —
+    `camtrap/observations.py` keys on (campaign, camera_num, file_name), so both
+    rows survive and can be compared later. A discarded image is unrecoverable.
+
+    Re-running flatten cannot reintroduce the old duplicate case: `move_file`
+    removes the source, so a name clash on a later pass is always a genuinely
+    different file.
+
+    `claimed` holds destinations already handed out during this run. Without it a
+    --dry-run sees an untouched disk and reports zero renames for a deployment that
+    would in fact rename dozens — the opposite of what a dry run is for.
     """
-    src_size = src.stat().st_size
-    simple_dest = deployment_dir / filename
+    claimed = claimed if claimed is not None else set()
 
-    if not simple_dest.exists():
+    def taken(p: Path) -> bool:
+        return p.exists() or p in claimed
+
+    simple_dest = deployment_dir / filename
+    if not taken(simple_dest):
         return simple_dest, 'moved'
 
-    # Name clash at simple destination
-    if simple_dest.stat().st_size == src_size:
-        return simple_dest, 'skipped_duplicate'
-
-    # Different file — build a prefixed name from the intermediate folder path
-    prefix = '_'.join(rel_parts)
-    prefixed_name = f"{prefix}_{filename}"
-    prefixed_dest = deployment_dir / prefixed_name
-
-    if not prefixed_dest.exists():
+    # Name taken — disambiguate with the intermediate (DCIM) folder path
+    prefixed_dest = deployment_dir / f"{'_'.join(rel_parts)}_{filename}"
+    if not taken(prefixed_dest):
         return prefixed_dest, 'renamed'
 
-    if prefixed_dest.stat().st_size == src_size:
-        return prefixed_dest, 'skipped_duplicate'
-
-    # Prefixed name also clashes with a different file — add numeric counter
-    stem = Path(prefixed_name).stem
-    ext = Path(prefixed_name).suffix
+    # Prefixed name taken too — append a counter
+    stem, ext = prefixed_dest.stem, prefixed_dest.suffix
     counter = 2
     while True:
         candidate = deployment_dir / f"{stem}_{counter}{ext}"
-        if not candidate.exists():
+        if not taken(candidate):
             return candidate, 'renamed'
-        if candidate.stat().st_size == src_size:
-            return candidate, 'skipped_duplicate'
         counter += 1
+
+
+def count_flat_files(deployment_dir: Path) -> int:
+    """Target files sitting directly in deployment_dir — no recursion.
+
+    Used for the conservation check: after flattening, this must equal what it
+    was before plus every file we moved in. See process_deployment().
+    """
+    return sum(
+        1 for p in deployment_dir.iterdir()
+        if p.is_file() and is_target(p)
+    )
 
 
 # ── Per-deployment processing ─────────────────────────────────────────────────
@@ -117,45 +159,79 @@ def process_deployment(
     deployment_dir: Path,
     files: list,
     dry_run: bool,
-    log_rows: list,
+    manifest_rows: list,
 ) -> dict:
     """
     Move all collected files into deployment_dir, resolve conflicts, clean up.
 
     `files` is the list returned by collect_subdir_files().
-    Appends rows to log_rows in-place.
-    Returns a summary dict.
+    Appends one manifest row per file to manifest_rows in-place — the row is
+    recorded BEFORE the move, because src.stat() is unavailable afterwards.
+    Returns a summary dict; `lost` is non-zero only if the conservation check
+    fails, which means files went missing and the caller must abort.
     """
-    moved = renamed = skipped = 0
+    moved = renamed = 0
+    n_before = count_flat_files(deployment_dir)
 
-    for src, rel_parts in files:
-        dest, action = resolve_dest(deployment_dir, rel_parts, src.name, src)
-
-        log_rows.append({
+    # Files already sitting at deployment level have no DCIM folder to record, but
+    # they must still appear: a manifest that silently omits them looks complete,
+    # and camtrap/clocks.py would then order a partially-described deployment as if
+    # it knew where every frame came from. Recorded with an empty dcim_folder so the
+    # gap is explicit and clocks.py can fail closed on it.
+    for existing in sorted(deployment_dir.iterdir()):
+        if not (existing.is_file() and is_target(existing)):
+            continue
+        stat = existing.stat()
+        manifest_rows.append({
             'deployment': deployment_dir.name,
-            'original_path': str(src),
-            'new_path': str(dest),
+            'dcim_folder': '',
+            'original_name': existing.name,
+            'original_relpath': existing.name,
+            'flat_name': existing.name,
+            'size_bytes': stat.st_size,
+            'mtime': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+            'action': 'already_flat',
+        })
+
+    claimed: set = set()
+    for src, rel_parts in files:
+        dest, action = resolve_dest(deployment_dir, rel_parts, src.name, claimed)
+        claimed.add(dest)
+        stat = src.stat()
+
+        manifest_rows.append({
+            'deployment': deployment_dir.name,
+            # The DCIM folder is the whole point of this file: it is the only
+            # surviving evidence of capture order once the tree is flat, because
+            # the per-folder filename counter wraps at 999 and Timelapse2's
+            # RelativePath keeps nothing but the deployment name.
+            'dcim_folder': '/'.join(rel_parts),
+            'original_name': src.name,
+            'original_relpath': str(src.relative_to(deployment_dir)),
+            'flat_name': dest.name,
+            'size_bytes': stat.st_size,
+            'mtime': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
             'action': action,
         })
 
-        if action == 'skipped_duplicate':
-            skipped += 1
-            print(f"    SKIP  [duplicate]  {src.relative_to(deployment_dir)}")
-        elif action == 'renamed':
-            if not dry_run:
-                move_file(src, dest)
+        if not dry_run:
+            move_file(src, dest)
+
+        if action == 'renamed':
             renamed += 1
             print(f"    {'(dry)' if dry_run else 'MOVE'}"
                   f"  [renamed]  {src.relative_to(deployment_dir)}"
                   f" → {dest.name}")
-        else:  # 'moved'
-            if not dry_run:
-                move_file(src, dest)
+        else:
             moved += 1
 
     # Cleanup subdirectory tree (skip warnings in dry-run: files are still there
     # only because nothing was moved, not because of a real problem)
+    lost = 0
     if not dry_run:
+        n_after = count_flat_files(deployment_dir)
+        lost = (n_before + len(files)) - n_after
+
         problems = cleanup_empty_dirs(deployment_dir, dry_run)
         for path, reason in problems:
             print(f"  WARNING: could not remove '{path.relative_to(deployment_dir)}': {reason}")
@@ -165,13 +241,13 @@ def process_deployment(
         'total': len(files),
         'moved': moved,
         'renamed': renamed,
-        'skipped': skipped,
+        'lost': lost,
     }
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def main() -> None:
+def main() -> int:
     sys.stdout.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(
         description='Flatten camera-trap deployment folders for CamtrapDP.',
@@ -248,7 +324,7 @@ def main() -> None:
 
     if total_files == 0:
         print("\nNothing to do — all files are already at the deployment level.")
-        return
+        return 0
 
     # ── Confirm (skip in dry-run) ─────────────────────────────────────────────
     if args.dry_run:
@@ -266,21 +342,55 @@ def main() -> None:
         print()
 
     # ── Process each deployment ───────────────────────────────────────────────
-    log_rows: list = []
-    summaries: list = []
+    # The manifest is appended after every deployment rather than written once at
+    # the end: if the run dies half-way (or is interrupted), the moves already made
+    # must still be described, or their capture order is lost for good.
+    manifest_path = root / (
+        f'{Path(DCIM_MANIFEST_FILENAME).stem}_dryrun.csv' if args.dry_run
+        else DCIM_MANIFEST_FILENAME
+    )
+    manifest_exists = manifest_path.exists()
+    if manifest_exists:
+        print(f"Manifest already present — appending → {manifest_path}\n")
 
-    for dep in deployments:
-        files = deploy_files[dep]
-        if not files:
-            continue
-        print(f"── {dep.name} ({len(files)} file(s))")
-        summary = process_deployment(dep, files, args.dry_run, log_rows)
-        summaries.append(summary)
-        print(
-            f"   moved={summary['moved']}  "
-            f"renamed={summary['renamed']}  "
-            f"skipped={summary['skipped']}"
-        )
+    summaries: list = []
+    aborted = False
+
+    try:
+        with open(manifest_path, 'a', newline='', encoding='utf-8') as fh:
+            writer = csv.DictWriter(fh, fieldnames=DCIM_MANIFEST_COLUMNS)
+            if not manifest_exists:
+                writer.writeheader()
+
+            for dep in deployments:
+                files = deploy_files[dep]
+                if not files:
+                    continue
+                print(f"── {dep.name} ({len(files)} file(s))")
+
+                manifest_rows: list = []
+                summary = process_deployment(dep, files, args.dry_run, manifest_rows)
+                writer.writerows(manifest_rows)
+                fh.flush()
+
+                summaries.append(summary)
+                print(f"   moved={summary['moved']}  renamed={summary['renamed']}")
+
+                # Conservation check — the whole reason resolve_dest no longer
+                # skips anything. Stop before touching another deployment.
+                if summary['lost']:
+                    print(
+                        f"\nERROR: {dep.name} lost {summary['lost']} file(s): "
+                        f"expected {count_flat_files(dep) + summary['lost']} flat "
+                        f"files, found {count_flat_files(dep)}.\n"
+                        f"  Nothing further will be processed. The manifest up to "
+                        f"this point is at {manifest_path}.",
+                        file=sys.stderr,
+                    )
+                    aborted = True
+                    break
+    except OSError as exc:
+        sys.exit(f"ERROR: could not write manifest {manifest_path}: {exc}")
 
     # ── Print overall summary ─────────────────────────────────────────────────
     if summaries:
@@ -289,7 +399,7 @@ def main() -> None:
         col_w = max(len(s['name']) for s in summaries)
         print(
             f"  {'Deployment':<{col_w}}  "
-            f"{'Total':>6}  {'Moved':>6}  {'Renamed':>8}  {'Skipped':>8}"
+            f"{'Total':>6}  {'Moved':>6}  {'Renamed':>8}  {'Lost':>6}"
         )
         print(f"  {'-' * col_w}  " + "------  " * 4)
         for s in summaries:
@@ -298,34 +408,30 @@ def main() -> None:
                 f"{s['total']:>6}  "
                 f"{s['moved']:>6}  "
                 f"{s['renamed']:>8}  "
-                f"{s['skipped']:>8}"
+                f"{s['lost']:>6}"
             )
         total_moved   = sum(s['moved']   for s in summaries)
         total_renamed = sum(s['renamed'] for s in summaries)
-        total_skipped = sum(s['skipped'] for s in summaries)
+        total_lost    = sum(s['lost']    for s in summaries)
         print(f"  {'TOTAL':<{col_w}}  "
-              f"{total_files:>6}  "
+              f"{sum(s['total'] for s in summaries):>6}  "
               f"{total_moved:>6}  "
               f"{total_renamed:>8}  "
-              f"{total_skipped:>8}")
+              f"{total_lost:>6}")
 
-    # ── Write CSV log ─────────────────────────────────────────────────────────
-    if log_rows:
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        mode_tag = '_dryrun' if args.dry_run else ''
-        log_path = root / f"flatten_log_{ts}{mode_tag}.csv"
-        try:
-            with open(log_path, 'w', newline='', encoding='utf-8') as fh:
-                writer = csv.DictWriter(
-                    fh,
-                    fieldnames=['deployment', 'original_path', 'new_path', 'action'],
-                )
-                writer.writeheader()
-                writer.writerows(log_rows)
-            print(f"\nLog written → {log_path}")
-        except OSError as exc:
-            print(f"\nWARNING: could not write log file: {exc}", file=sys.stderr)
+    print(f"\nManifest → {manifest_path}")
+    if not args.dry_run:
+        print(
+            "  Copy it into the campaign folder beside the Timelapse2 export "
+            "(data/campaigns/<campaign>/) — it is the only record of which DCIM "
+            "folder each frame came from, and camtrap/clocks.py needs it to "
+            "establish capture order."
+        )
+
+    if aborted:
+        return 1
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
