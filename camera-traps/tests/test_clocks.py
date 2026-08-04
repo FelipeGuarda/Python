@@ -471,6 +471,59 @@ class TestAmbiguousAnchor(unittest.TestCase):
         )
 
 
+class TestSegmentForRows(unittest.TestCase):
+    """Which segment each row belongs to — including the rows diagnosis excluded.
+
+    This is what a caller needs to apply a per-segment offset. Getting it wrong is
+    the whole bug: one offset across four resets.
+    """
+
+    def test_stills_keep_the_segment_they_were_split_into(self):
+        rows = (
+            run_of('2025-11-20T10:00:00', 4, 1)
+            + run_of('2017-01-01T00:00:00', 3, 5)
+        )
+        df = pd.DataFrame(rows)
+        d = clocks.diagnose(df, STATION, window=WINDOW)
+        seg = clocks.segment_for_rows(d, df['camera_datetime'])
+        self.assertEqual(list(seg), [0, 0, 0, 0, 1, 1, 1])
+
+    def test_a_video_on_a_healthy_camera_joins_its_only_segment(self):
+        """One segment means the camera never reset, so there is nothing to
+        attribute and a video cannot be placed wrongly."""
+        rows = run_of('2025-11-20T10:00:00', 3, 1)
+        rows.append(frame('2026-05-15T12:00:00', 99, ext='MP4'))   # after every still
+        df = pd.DataFrame(rows)
+        d = clocks.diagnose(df, STATION, window=WINDOW)
+        self.assertEqual(len(d.segments), 1)
+        seg = clocks.segment_for_rows(d, df['camera_datetime'])
+        self.assertEqual(list(seg), [0, 0, 0, 0])
+
+    def test_a_video_on_a_reset_camera_is_placed_by_containment(self):
+        rows = (
+            run_of('2025-11-20T10:00:00', 4, 1)
+            + run_of('2017-01-01T00:00:00', 4, 5)
+        )
+        rows.append(frame('2017-01-01T06:00:00', 99, ext='MOV'))
+        df = pd.DataFrame(rows)
+        d = clocks.diagnose(df, STATION, window=WINDOW)
+        seg = clocks.segment_for_rows(d, df['camera_datetime'])
+        self.assertEqual(seg.iloc[-1], 1)
+
+    def test_an_unplaceable_row_stays_unassigned_rather_than_guessed(self):
+        """Two segments overlapping in camera time cannot claim a video between
+        them; NA is the honest answer and the caller must refuse the row."""
+        rows = (
+            run_of('2017-01-01T00:00:00', 4, 1, step_hours=1)
+            + run_of('2017-01-01T00:00:00', 4, 5, step_hours=1)
+        )
+        rows.append(frame('2020-06-01T00:00:00', 99, ext='MP4'))
+        df = pd.DataFrame(rows)
+        d = clocks.diagnose(df, STATION, window=WINDOW)
+        seg = clocks.segment_for_rows(d, df['camera_datetime'])
+        self.assertTrue(pd.isna(seg.iloc[-1]))
+
+
 class TestUnaccountedDaysIsDiagnosticOnly(unittest.TestCase):
 
     def test_unaccounted_days_reported_but_does_not_change_verdicts(self):

@@ -8,6 +8,10 @@ resolved in one place rather than re-derived per consumer:
       pv_2025_2026 / otono_2026 -> `rel_path` is always resolved here.
     * `timestamp` is populated only in primavera_2025; `DateTime` everywhere -> the
       repaired `datetime_corrected` from timestamps.py is the only time column here.
+    * A camera clock can fail three separable ways -> `valid_date`,
+      `valid_time_of_day` and `valid_effort` travel with every row rather than one
+      usable/not-usable flag. A pure year error preserves time-of-day exactly, so
+      those rows stay valid for activity and overlap analysis.
     * Three station spellings across four campaigns -> `camera_num` only, via
       `camtrap.stations`.
     * Reviewers using "Otro (especificar)" leave `scientificName` empty with the
@@ -47,6 +51,11 @@ CANONICAL_COLUMNS: dict[str, str] = {
     "datetime":          "datetime64[ns]",  # repaired; NaT when unrepairable
     "valid_date":        "boolean",
     "valid_time_of_day": "boolean",
+    # Station-level, not per-row: FALSE means this camera's operating period is
+    # unknown, so its trap-nights are unknowable and it must leave the effort
+    # DENOMINATOR as well as the numerator. Every row of an excluded station carries
+    # FALSE, including rows whose own date is fine — see camtrap/clocks.py.
+    "valid_effort":      "boolean",
     "repair_method":     "string",
     "observation_type":  "string",
     "species_latin":     "string",          # '' when not an identified animal
@@ -113,7 +122,17 @@ def to_canonical(corrected: pd.DataFrame, campaign: str) -> pd.DataFrame:
     out["station_canonical"] = [stations.canonical_id(n) for n in out["camera_num"]]
     out["datetime"] = pd.to_datetime(src["datetime_corrected"], errors="coerce")
 
-    for flag in ("valid_date", "valid_time_of_day"):
+    for flag in ("valid_date", "valid_time_of_day", "valid_effort"):
+        if flag not in src.columns:
+            # Defaulting a missing flag to False would silently drop whole stations
+            # out of every rate denominator; defaulting to True would silently
+            # readmit fabricated dates. Neither is a safe guess.
+            raise ValueError(
+                f"{campaign}: corrected frame has no {flag!r} column. Re-run "
+                f"`python timestamps.py --campaign {campaign}` — this column is "
+                f"written by the segment-aware repair and an older _corrected.csv "
+                f"predates it."
+            )
         out[flag] = src[flag].astype(str).str.strip().str.lower().isin({"true", "1"})
 
     out["repair_method"] = src["repair_method"].astype(str).str.strip()

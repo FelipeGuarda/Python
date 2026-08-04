@@ -190,6 +190,11 @@ class ClockDiagnosis:
     n_stills: int = 0
     n_videos_excluded: int = 0
     n_unparseable: int = 0
+    # Which segment each INPUT row was assigned to, aligned to the index of the frame
+    # passed to diagnose(); NA for rows that took no part (videos, unparseable
+    # stamps). Without it a caller has to re-derive the split to apply a per-segment
+    # offset, and re-deriving it in the caller is the original bug.
+    segment_of: pd.Series | None = None
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -215,6 +220,10 @@ class SegmentRepair:
     valid_time_of_day: bool
     valid_effort: bool
     reason: str
+    # Provenance of the anchor whose offset this is, so the audit can name it
+    # without the caller re-deriving which anchor was chosen. Re-deriving decisions
+    # in the caller is the failure this module exists to prevent.
+    anchor_source: str = ''
 
 
 # =============================================================================
@@ -355,6 +364,7 @@ def diagnose(
         return ClockDiagnosis(
             station=station, ordered=False, order_evidence=ORDER_NONE, segments=[],
             n_stills=0, n_videos_excluded=n_videos, n_unparseable=n_unparseable,
+            segment_of=pd.Series(pd.NA, index=images.index, dtype='Int64'),
             notes=notes,
         )
 
@@ -412,7 +422,9 @@ def diagnose(
             )
 
     segments: list[Segment] = []
+    segment_of = pd.Series(pd.NA, index=images.index, dtype='Int64')
     for pos, (seg_id, grp) in enumerate(df.groupby(seg_ids, sort=True)):
+        segment_of.loc[grp.index] = pos
         seg_mismatch = int(mismatch.loc[grp.index].sum())
         seg_in_window = (
             None if in_window is None else bool(in_window.loc[grp.index].all())
@@ -451,6 +463,7 @@ def diagnose(
         n_stills=n_stills,
         n_videos_excluded=n_videos,
         n_unparseable=n_unparseable,
+        segment_of=segment_of,
         notes=notes,
     )
 
@@ -513,6 +526,58 @@ def assign_anchors(
             )
 
     return by_segment, notes
+
+
+def segment_for_rows(
+    d: ClockDiagnosis,
+    camera_datetimes: pd.Series,
+) -> pd.Series:
+    """Resolve EVERY row of a station to a segment — including the rows diagnosis
+    excluded. Returns an Int64 Series aligned to `camera_datetimes`, NA where the
+    row belongs to no single segment.
+
+    Three rules, in order:
+
+      1. A row that took part in the diagnosis keeps the segment it was split into.
+      2. Otherwise, if the camera has exactly ONE segment, the row joins it. A
+         one-segment camera never reset, so there is no split to attribute a frame
+         to and no way to be wrong. This is what keeps videos and unparseable-stamp
+         frames from being condemned on a healthy camera — and videos are the
+         majority of rows at some stations (≥1,668 .MOV in otoño 2026 alone), so
+         refusing them for want of a chronology they never took part in would throw
+         away most of the campaign.
+      3. Otherwise, containment on the camera stamp, and only if exactly one segment
+         contains it. A video whose stamp lands in the overlap of two 2017 segments
+         is genuinely unattributable and stays NA — which the caller must treat as
+         unrepairable, not as clean.
+    """
+    stamps = pd.to_datetime(camera_datetimes, errors='coerce')
+    out = pd.Series(pd.NA, index=stamps.index, dtype='Int64')
+
+    if d.segment_of is not None:
+        known = d.segment_of.reindex(stamps.index)
+        out = out.where(known.isna(), known)
+
+    if not d.segments:
+        return out
+
+    missing = out.isna()
+    if not missing.any():
+        return out
+
+    if len(d.segments) == 1:
+        out.loc[missing] = d.segments[0].index
+        return out
+
+    for idx in stamps.index[missing]:
+        dt = stamps.loc[idx]
+        if pd.isna(dt):
+            continue
+        matches = [s.index for s in d.segments if s.contains(dt.to_pydatetime())]
+        if len(matches) == 1:
+            out.loc[idx] = matches[0]
+
+    return out
 
 
 def _choose(anchors: list[Anchor]) -> Anchor:
@@ -601,6 +666,7 @@ def repair_plan(
             valid_time_of_day=chosen.exact,
             valid_effort=False,          # replaced below, once every segment is known
             reason=f'offset_from_{chosen.anchor_type}',
+            anchor_source=chosen.source,
         ))
 
     # valid_effort is a property of the STATION, not of a segment: if any segment's
@@ -627,6 +693,7 @@ def repair_plan(
                 segment_index=r.segment_index, offset=r.offset,
                 valid_date=r.valid_date, valid_time_of_day=r.valid_time_of_day,
                 valid_effort=effort_ok, reason=r.reason,
+                anchor_source=r.anchor_source,
             )
             for r in repairs
         ],

@@ -1,5 +1,6 @@
 campaign,station_raw,camera_num,grid_id,notes
 otono_2026,CT_01,1,,
+otono_2026,CT_02,2,,"absent from the animal-only export (16 images, no animal records); surfaced 2026-08-03 by the all-images export"
 otono_2026,CT_03,3,,
 otono_2026,CT_04,4,,
 otono_2026,CT_05,5,,
@@ -9,6 +10,7 @@ otono_2026,CT_08,8,,
 otono_2026,CT_09,9,,
 otono_2026,CT_10,10,,
 otono_2026,CT_11,11,,
+otono_2026,CT_12,12,,"absent from the animal-only export (7 images, no animal records); surfaced 2026-08-03 by the all-images export"
 otono_2026,CT_13,13,,
 otono_2026,CT_14,14,,
 otono_2026,CT_15,15,,

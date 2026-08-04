@@ -44,7 +44,7 @@ from _fileops import cleanup_empty_dirs, is_target, move_file
 # camera-traps repo root — so `camtrap` is importable when run from setup/
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from camtrap import stations
+from camtrap import exports, stations
 from camtrap.clocks import DCIM_MANIFEST_COLUMNS, DCIM_MANIFEST_FILENAME
 
 
@@ -272,6 +272,18 @@ def main() -> int:
             'station names clean for every downstream consumer.'
         ),
     )
+    parser.add_argument(
+        '--check-export', nargs='?', const='auto', default=None, metavar='CSV',
+        help=(
+            'Validate a Timelapse2 export against the full-category rule and refuse '
+            'to proceed if it fails: `person` or `vehicle` must appear, or the '
+            'campaign must carry an export_gate_override.txt. With no value, looks '
+            f'for {exports.TOTAL_EXPORT_FILENAME} in the DataPackage root. Note that '
+            'at first flatten the export does not exist yet — this is for the '
+            're-flatten and re-export pass, and `python -m camtrap.exports <csv>` '
+            'runs the same check standalone the moment an export is made.'
+        ),
+    )
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -302,6 +314,39 @@ def main() -> int:
         if args.check_stations:
             sys.exit(f"ERROR:{msg}")
         print(f"WARNING:{msg}\n  (run with --check-stations to make this fatal)")
+
+    # ── Export gate ───────────────────────────────────────────────────────────
+    # The same rule ingest enforces, available here so a bad export is caught on the
+    # Windows box while Timelapse2 is still open, rather than a week later at
+    # ingest. Advisory when an export merely happens to be lying in the root;
+    # fatal when --check-export asks for it.
+    export_path = (
+        root / exports.TOTAL_EXPORT_FILENAME if args.check_export in (None, 'auto')
+        else Path(args.check_export)
+    )
+    if args.check_export is not None or export_path.exists():
+        fatal = args.check_export is not None
+        if not export_path.exists():
+            msg = f"no export to check at '{export_path}'"
+            if fatal:
+                sys.exit(f'ERROR: {msg}')
+            print(f'  (skipped export check: {msg})')
+        else:
+            import pandas as pd   # local: the flatten path itself needs no pandas
+            df = pd.read_csv(
+                export_path, dtype=str, keep_default_na=False, low_memory=False,
+            )
+            try:
+                audit = exports.require_full_category(
+                    df, source=str(export_path), override_dir=export_path.parent,
+                )
+            except exports.ExportGateError as exc:
+                if fatal:
+                    sys.exit(f'ERROR: {exc}')
+                print(f'WARNING: {exc}\n'
+                      f'  (run with --check-export to make this fatal)\n')
+            else:
+                print(f'Export check OK: {export_path.name} — {audit.verdict}\n')
 
     # ── Count files per deployment ────────────────────────────────────────────
     deploy_files: dict = {}
