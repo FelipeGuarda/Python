@@ -543,5 +543,63 @@ class TestUnaccountedDaysIsDiagnosticOnly(unittest.TestCase):
         self.assertTrue(all(r.valid_date for r in repairs))
 
 
+class TestDcimFolderKey(unittest.TestCase):
+    """Condition 1 of the manifest's ordering claim: the group must be a folder the
+    CAMERA created. A folder a person made says nothing about capture order.
+
+    Otoño 2025 CT04 is the case that forced this: 723 loose frames under `M5`, beside
+    `M5/100EK113` and `M5/101EK113`. Recording the whole path made `M5` sort FIRST,
+    asserting its January frames preceded the October ones — a backwards step in
+    capture order, which reads as a clock reset on 2,097 frames.
+    """
+
+    def test_camera_folders_are_kept(self):
+        for raw in ('100EK113', 'M5/100EK113', 'M 11/101EK113',
+                    'M17 (TC20)/102EK113', '100CANON'):
+            with self.subTest(raw=raw):
+                self.assertRegex(clocks.dcim_folder_key(raw), r'^\d{3}[A-Za-z0-9]{3,}$')
+
+    def test_only_the_last_component_is_used(self):
+        self.assertEqual(clocks.dcim_folder_key('M5/100EK113'), '100EK113')
+
+    def test_windows_separators_are_handled(self):
+        """The manifest is written on Windows; original_relpath uses backslashes."""
+        self.assertEqual(clocks.dcim_folder_key('M5\\100EK113'), '100EK113')
+
+    def test_hand_made_folders_yield_no_key(self):
+        """Every one of these was a real otoño 2025 folder name."""
+        for raw in ('M5', 'M 6', 'M 11', 'M17', 'M17 (TC20)',
+                    'M18 (vacía, TC mala)', '', None):
+            with self.subTest(raw=raw):
+                self.assertEqual(clocks.dcim_folder_key(raw), '')
+
+    def test_loose_group_makes_the_deployment_refuse_to_order(self):
+        """The two conditions composing: a hand-made group gets no key (condition 1),
+        which makes the deployment partially described (condition 2), which
+        establish_order already refuses. CT04 ends up unordered rather than wrong."""
+        rows = run_of('2024-10-11T10:00:00', 4, 1, dcim='100EK113')
+        rows += run_of('2025-01-09T10:00:00', 4, 1,
+                       dcim=clocks.dcim_folder_key('M5'))     # the loose group
+        df = pd.DataFrame(rows)
+        df['_mmdd'] = [f'{d:%m%d}' for d in df.camera_datetime]
+        df['_counter'] = [1, 2, 3, 4, 1, 2, 3, 4]
+        _, ordered, evidence, notes = clocks.establish_order(df)
+        self.assertFalse(ordered)
+        self.assertEqual(evidence, clocks.ORDER_MANIFEST)
+        self.assertTrue(any('only partially' in n for n in notes), notes)
+
+    def test_all_camera_folders_still_order(self):
+        """CT14 and CT20's shape must keep full manifest ordering."""
+        rows = run_of('2025-01-16T10:00:00', 4, 1, dcim='100EK113')
+        rows += run_of('2025-01-16T20:00:00', 4, 1, dcim='101EK113')
+        df = pd.DataFrame(rows)
+        df['_mmdd'] = [f'{d:%m%d}' for d in df.camera_datetime]
+        df['_counter'] = [1, 2, 3, 4, 1, 2, 3, 4]
+        ordered_df, ordered, evidence, _ = clocks.establish_order(df)
+        self.assertTrue(ordered)
+        self.assertEqual(evidence, clocks.ORDER_MANIFEST)
+        self.assertEqual(list(ordered_df.dcim_folder)[:4], ['100EK113'] * 4)
+
+
 if __name__ == '__main__':
     unittest.main()

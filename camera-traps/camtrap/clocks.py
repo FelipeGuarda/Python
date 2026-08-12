@@ -88,6 +88,49 @@ DCIM_MANIFEST_COLUMNS = [
     'flat_name', 'size_bytes', 'mtime', 'action',
 ]
 
+# A directory the CAMERA created, per the DCF convention: three digits and a
+# five-character maker code — `100EK113`, `101EK113`. Deliberately does NOT match a
+# folder a person made: `M5`, `M 11`, `M17 (TC20)` were all real in otoño 2025.
+_DCIM_FOLDER_RE = re.compile(r'^\d{3}[A-Za-z0-9]{3,}$')
+
+
+def dcim_folder_key(rel_path: str) -> str:
+    """The camera-created folder a frame came from, or '' if it came from none.
+
+    THIS IS AN ORDERING KEY, NOT PROVENANCE. Provenance is `original_relpath`, which
+    keeps the full path whatever this returns.
+
+    The claim the manifest lets us make is: *every frame in folder A was captured
+    before every frame in folder B, because the camera fills its folders in name
+    order.* That premise has two preconditions, and both must hold:
+
+      1. every group IS a camera-created folder — if a group is something a person
+         made, the premise says nothing at all about where it belongs;
+      2. every frame belongs to such a group — otherwise a group is left unplaced.
+
+    Condition 2 is enforced by establish_order (a partially-described deployment is
+    refused). Condition 1 is this function, and it was the missing half: otoño 2025
+    CT04 held 723 loose frames under `M5` beside `M5/100EK113` and `M5/101EK113`, so
+    the whole relative path was recorded and `M5` sorted FIRST — asserting that its
+    January frames preceded the October ones. Sorting on that would have read as a
+    backwards step in capture order, i.e. a phantom clock reset on 2,097 frames.
+    (Those loose frames carry their own counter run restarting at 1 and no filename
+    in common with either folder: a third DCIM folder someone flattened by hand.)
+
+    Returning '' for such a group is what makes the deployment fail condition 2, so
+    it is refused rather than mis-ordered. Note this is correct WHETHER OR NOT a
+    camera can leave files beside its own DCIM folders — if it can, we genuinely do
+    not know where they sit and must refuse; if it cannot, the only groups that fail
+    are human-made and refusing them is right too. The rule does not rest on an
+    assumption about firmware.
+
+    Only the last component is used, so two cards whose folders share a name under
+    different parents collapse together — establish_order's (folder, counter)
+    collision check catches that and refuses to order, which is the safe direction.
+    """
+    last = str(rel_path or '').replace('\\', '/').rstrip('/').rpartition('/')[2]
+    return last if _DCIM_FOLDER_RE.match(last) else ''
+
 # ── Order evidence ────────────────────────────────────────────────────────────
 
 ORDER_MANIFEST = 'dcim_manifest+counter'   # strongest: folder then counter

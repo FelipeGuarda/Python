@@ -149,6 +149,34 @@ python setup/flatten_for_camtrapdp.py "C:\path\to\Season YYYY\Fotos" --dry-run
 python setup/flatten_for_camtrapdp.py "C:\path\to\Season YYYY\Fotos"
 ```
 
+**Copy the resulting `dcim_manifest.csv` into `data/campaigns/<campaign>/`.** Once the
+tree is flat it is the only surviving record of which SD-card folder each frame came
+from, and flattening consumes the tree that produced it — it cannot be regenerated.
+
+> **What the manifest lets us claim, and what it does not.** The claim is *every frame
+> in folder A was captured before every frame in folder B, because the camera fills its
+> folders in name order.* That premise holds only when **both** conditions do:
+>
+> 1. **every group is a folder the camera created** — `100EK113`, `101EK113`. A folder
+>    a person made says nothing about capture order (`clocks.dcim_folder_key`).
+> 2. **every frame belongs to such a group** — otherwise a group is left unplaced
+>    (`clocks.establish_order`).
+>
+> Otoño 2025 CT04 is why condition 1 exists: 723 loose frames sat under `M5` beside
+> `M5/100EK113` and `M5/101EK113`. Recording the whole path made `M5` sort *first*,
+> asserting its January frames preceded the October ones — a backwards step in capture
+> order, which the diagnosis reads as a clock reset. On 2,097 frames.
+>
+> A deployment failing either condition is **refused, not guessed**: it drops to
+> counter-only ordering, and per the P1 asymmetry that does not condemn it — a camera
+> whose frames sit in-window and agree with their own filenames demonstrably never
+> reset, ordered or not.
+
+**Keep the deployment folder shallow: `CT04/*.JPG`, with the camera's own
+`100EK113/` subfolders and nothing else.** An intermediate grid folder (`M5`, `M 11`)
+is harmless to ordering but its name can leak into filenames when two frames collide,
+so prefer not to create one.
+
 ### Step 1c — Run MegaDetector via AddaxAI
 
 1. Create a Windows junction so AddaxAI can reach the path without crashing on accented characters:

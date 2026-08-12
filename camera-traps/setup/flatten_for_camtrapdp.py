@@ -35,6 +35,7 @@ WHY THIS SCRIPT WRITES A MANIFEST
 import argparse
 import csv
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -45,7 +46,11 @@ from _fileops import cleanup_empty_dirs, is_target, move_file
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from camtrap import exports, stations
-from camtrap.clocks import DCIM_MANIFEST_COLUMNS, DCIM_MANIFEST_FILENAME
+from camtrap.clocks import (
+    DCIM_MANIFEST_COLUMNS,
+    DCIM_MANIFEST_FILENAME,
+    dcim_folder_key,
+)
 
 
 # ── File helpers ──────────────────────────────────────────────────────────────
@@ -80,6 +85,38 @@ def collect_subdir_files(deployment_dir: Path) -> list:
 
 # ── Destination resolution ────────────────────────────────────────────────────
 
+# Anything outside this becomes '_' in a rename prefix. A prefix is the only way a
+# FOLDER name can reach a FILE name, and folder names are typed by hand in the field:
+# otoño 2025 arrived with `M 11`, `M 6` and `M17 (TC20)` under the station folders.
+# A space or a bracket in a filename survives every later join and has to be quoted by
+# every tool that touches it, so it is stripped once, here, at the only point where
+# one could be introduced.
+_UNSAFE_IN_PREFIX = re.compile(r'[^A-Za-z0-9]+')
+
+
+def prefix_candidates(rel_parts: list) -> list:
+    """Rename prefixes to try, in order, for a file whose flat name is taken.
+
+    The DCIM folder alone comes first. It is the component that actually
+    distinguishes two same-named frames — `100EK113` vs `101EK113` — whereas any
+    folder above it is constant within the deployment and so adds nothing. Otoño 2026
+    had no level above it and produced clean `102EK113_` prefixes; otoño 2025 arrived
+    with a grid folder in between, and joining the whole path would have turned
+    CT14's 28 collisions into `M 11_101EK113_01160002.JPG` — a space imported into 28
+    filenames to disambiguate nothing.
+
+    The full path is kept as a second candidate for the case the first cannot
+    resolve: two DCIM folders of the same name under different parents.
+    """
+    seen, out = set(), []
+    for raw in (rel_parts[-1], '_'.join(rel_parts)):
+        prefix = _UNSAFE_IN_PREFIX.sub('_', raw).strip('_')
+        if prefix and prefix not in seen:
+            seen.add(prefix)
+            out.append(prefix)
+    return out
+
+
 def resolve_dest(
     deployment_dir: Path,
     rel_parts: list,
@@ -91,9 +128,9 @@ def resolve_dest(
 
     Strategy:
       1. Try the simple flat name (deployment_dir / filename).
-      2. If that name is taken, prefix the subfolder path:
-         "100EK113_01190313.JPG".
-      3. If the prefixed name is also taken, append a numeric counter until a
+      2. If that name is taken, prefix the DCIM folder the file came from:
+         "100EK113_01190313.JPG". See prefix_candidates().
+      3. If every prefixed name is also taken, append a numeric counter until a
          free name is found.
 
     Returns (dest: Path, action: str) where action ∈ {'moved', 'renamed'}.
@@ -126,12 +163,14 @@ def resolve_dest(
     if not taken(simple_dest):
         return simple_dest, 'moved'
 
-    # Name taken — disambiguate with the intermediate (DCIM) folder path
-    prefixed_dest = deployment_dir / f"{'_'.join(rel_parts)}_{filename}"
-    if not taken(prefixed_dest):
-        return prefixed_dest, 'renamed'
+    # Name taken — disambiguate with the DCIM folder the file came from
+    prefixed_dest = None
+    for prefix in prefix_candidates(rel_parts):
+        prefixed_dest = deployment_dir / f'{prefix}_{filename}'
+        if not taken(prefixed_dest):
+            return prefixed_dest, 'renamed'
 
-    # Prefixed name taken too — append a counter
+    # Every prefixed name taken too — append a counter
     stem, ext = prefixed_dest.stem, prefixed_dest.suffix
     counter = 2
     while True:
@@ -205,7 +244,12 @@ def process_deployment(
             # surviving evidence of capture order once the tree is flat, because
             # the per-folder filename counter wraps at 999 and Timelapse2's
             # RelativePath keeps nothing but the deployment name.
-            'dcim_folder': '/'.join(rel_parts),
+            #
+            # Only a CAMERA-created folder counts — see clocks.dcim_folder_key. A
+            # folder a person made says nothing about capture order, and recording
+            # it here would let clocks.py sort on it. The full path is not lost: it
+            # is `original_relpath`, one column across.
+            'dcim_folder': dcim_folder_key('/'.join(rel_parts)),
             'original_name': src.name,
             'original_relpath': str(src.relative_to(deployment_dir)),
             'flat_name': dest.name,
@@ -276,8 +320,9 @@ def main() -> int:
         '--check-export', nargs='?', const='auto', default=None, metavar='CSV',
         help=(
             'Validate a Timelapse2 export against the full-category rule and refuse '
-            'to proceed if it fails: `person` or `vehicle` must appear, or the '
-            'campaign must carry an export_gate_override.txt. With no value, looks '
+            'to proceed if it fails: `human` or `vehicle` must appear (Camtrap DP\'s '
+            'vocabulary, not MegaDetector\'s `person`), or the campaign must carry an '
+            'export_gate_override.txt. With no value, looks '
             f'for {exports.TOTAL_EXPORT_FILENAME} in the DataPackage root. Note that '
             'at first flatten the export does not exist yet — this is for the '
             're-flatten and re-export pass, and `python -m camtrap.exports <csv>` '

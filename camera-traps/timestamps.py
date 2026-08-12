@@ -229,6 +229,14 @@ def load_manifest(campaign_dir: Path) -> Optional[pd.DataFrame]:
     missing = set(clocks.DCIM_MANIFEST_COLUMNS) - set(df.columns)
     if missing:
         raise ValueError(f'{path}: missing columns {sorted(missing)}')
+
+    # Normalise the ordering key on the way in as well as on the way out. Manifests
+    # written before `dcim_folder_key` existed recorded the whole relative path, so a
+    # hand-made folder (otoño 2025's `M5`) reads as camera-created evidence and gets
+    # sorted on. Correcting here means such a file is fixed by being READ rather than
+    # by someone remembering to regenerate it — and it cannot be regenerated, because
+    # flattening consumes the tree it describes.
+    df['dcim_folder'] = df['dcim_folder'].map(clocks.dcim_folder_key)
     return df
 
 
