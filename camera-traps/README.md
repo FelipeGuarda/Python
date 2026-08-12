@@ -31,16 +31,20 @@ camera-traps/
 ├── run_classification.py        ← Step 2: CLIP classification entry point
 ├── timestamps.py                ← Step 4b: segment-aware clock repair (ingest gate)
 ├── anchor_candidates.py         ← Step 4a: the short list of possible clock anchors
+├── propose_anchors.py           ← Step 4a-bis: field visits → reviewable anchor rows
 │
 ├── camtrap/                     ← boundary layer (one module per external format)
 │   ├── stations.py              ← canonical station convention CT01..CT27 + aliases
 │   ├── observations.py          ← canonical observation table (the data contract)
 │   ├── clocks.py                ← clock-failure diagnosis + the repairability rule
+│   ├── anchors.py               ← what the FIELD RECORD asserts: deployment windows,
+│   │                              the anchor CSV, and visit→anchor pairing
 │   ├── exports.py               ← the two Timelapse2 exports + full-category gate
 │   └── detections.py            ← the MegaDetector JSON
 │
 ├── tests/                       ← stdlib unittest; python3 -m unittest discover -s tests
 │   ├── test_clocks.py           ← the repair RULE (Felipe's scenarios A–G)
+│   ├── test_anchors.py          ← a visit is not an anchor; witness vs navigational
 │   ├── test_exports.py          ← the export gate + its override
 │   └── test_timestamps.py       ← the PLUMBING (per-segment offsets reach the rows)
 │
@@ -53,6 +57,7 @@ camera-traps/
 │   └── app.py                   ← review UI (batch by species, export reviewed CSV)
 │
 ├── setup/                       ← pre-processing utilities (run once per campaign)
+│   ├── build_field_notes.py     ← ONE-TIME: monitoring workbook → field_notes.csv
 │   ├── flatten_for_camtrapdp.py ← flatten per-camera subfolders to deployment level
 │   ├── fix_unicode_filenames.py ← NFD → NFC filename normalization (Synology sync fix)
 │   ├── create_junction.py       ← Windows junction for accented-path workaround
@@ -88,6 +93,35 @@ C:\Users\USUARIO\SynologyDrive\2. Camaras trampa (SC)\SynologyDrive\
     <deployment-id>\   ← one subfolder per camera station
       *.JPG
 ```
+
+### Step 0-bis — The field visit record
+
+`data/campaigns/field_notes.csv` is the canonical record of who went where and when:
+one row per **visit**, 106 visits across 27 stations. A visit is a physical event, not
+a property of a campaign — at Bosque Pehuén every revision swaps the card, so one
+visit **closes** one campaign and **opens** the next (`campaign_closed` /
+`campaign_opened`).
+
+It was migrated once from `data/campaigns/Registro de monitoreo CT.xlsx` by
+`setup/build_field_notes.py`. **The CSV is canonical; the workbook is legacy** and is
+kept only for provenance. Every inferred or corrected value is recorded in the row's
+`data_flags` column, so a reader can see what was deduced without going back to the
+script — 57 of 106 rows carry a flag.
+
+Two consumers, and they need different things from it:
+
+- **Deployment windows** (`camtrap/anchors.py`) — every station, every campaign. This
+  is what makes a forward clock jump detectable.
+- **Anchor proposals** (Step 4a-bis) — only for stations whose clock actually failed.
+
+Dates in the workbook were a genuine hazard: it held three conventions at once —
+Chilean `d/m/y` typed as text, `m/d/y` read off camera screens, and cells Excel had
+already parsed using the machine locale. The last are the dangerous ones, because a
+wrong reading looks clean. `clock_state` defaults to `unknown`, never `ok`: a visit
+with no remark is not evidence the clock was fine.
+
+If a new campaign's visits are not in this file, its stations get no deployment window
+and their clean verdicts are reported as **unverified**.
 
 ### Step 1a — Fix Unicode filenames (if needed)
 
@@ -268,19 +302,63 @@ python anchor_candidates.py --campaign <name>
 python anchor_candidates.py --campaign <name> --unanchored-only
 ```
 
-It joins the MegaDetector JSON to `ImageData_total.csv` and lists, per station, every
-person/vehicle detection, every counter-`0001` frame (an SD-card folder start, i.e.
-where a card was swapped or the camera rebooted), and every segment boundary — with
-the segment each one sits in and whether that segment still needs an anchor. Writes
-`anchor_candidates.csv` and prints a per-station summary naming what is still
-unrepairable and what could rescue it.
+It lists, per station, every frame worth opening — with the segment each one sits in
+and whether that segment still needs an anchor. Writes `anchor_candidates.csv` and
+prints a per-station summary naming what is still unrepairable and what could
+rescue it.
+
+Candidates come in two kinds, and the difference decides what they can be used for:
+
+| | kind | what it proves |
+|---|---|---|
+| **witness** | `human_labelled`, `vehicle_labelled` | from the swept export — someone looked at the frame and said a person was there, so it can **date a visit** |
+| | `person_detection`, `vehicle_detection` | from MegaDetector — the same claim, unconfirmed |
+| **navigational** | `counter_0001`, `segment_edge` | where a card was swapped or a segment begins — says **where to look**, never when a frame was taken |
+
+Only a witness frame can become an anchor. A counter-`0001` frame sits at the start of
+a card, not at the moment of a visit: CT18's segment 0 opens with `11190001.JPG` five
+days *after* the install, because nothing triggered the camera until then. Pairing
+those two would apply a −5 day offset to ten frames whose clock was correct.
+
+Note the two vocabularies. `human`/`vehicle` are **Camtrap DP** values from the swept
+export; `person`/`vehicle` are **MegaDetector's** own category names. They mean the
+same thing and are deliberately spelled differently, because the modules that own them
+are different (`camtrap/exports.py` and `camtrap/detections.py`).
 
 This report is **not** gated on the full-category export: a campaign that fails the
 gate is exactly the one that needs the list. Run it on whatever export exists.
 
-Open the candidate images for a segment that needs an anchor. If a frame shows a
-person at a moment you can date — a visit in the field notebook, a phone photo with
-its own timestamp — add an anchor row.
+### Step 4a-bis — Propose anchors from the field record
+
+```bash
+python propose_anchors.py --campaign <name>
+python propose_anchors.py --campaign <name> --write   # appends READY rows only
+```
+
+Joins `data/campaigns/field_notes.csv` (the wall clock of every visit) to
+`anchor_candidates.csv` (what the camera's clock said) and writes
+`anchor_proposals.csv`, one row per segment, each `READY`, `NEEDS_REVIEW` or
+`NOT_NEEDED`.
+
+> **A visit is not an anchor.** The notebook records when someone *visited*, not what
+> the clock *read*. For a camera whose clock is fine, forcing the visit date on as an
+> anchor applies the notebook's own imprecision to correct data — CT01's notebook says
+> 2025-11-24 → 2026-05-13 while its frames run 2025-11-26 → 2026-05-14 across one
+> coherent segment. So an anchor is proposed **only** where the segment would
+> otherwise be refused. A clean camera gets `NOT_NEEDED` and no row.
+
+Nothing is promoted automatically. Review the file, open the frames it names, then
+move accepted rows into `deployment_anchors.csv` by hand — that file is the one place
+a human signature still means something. A segment that cannot be paired becomes an
+`unrepairable_pending` row rather than no row at all, so the refusal is **written
+down**: a station missing from the anchor file and a station known to be unanchorable
+look identical downstream, and only one of them is a decision anybody made.
+
+An opening visit recorded with a date but no time (all 27 of otoño 2026's) yields a
+`visit_date_only` anchor, which is APPROXIMATE — the date is recovered and
+`valid_time_of_day` stays FALSE, so activity analysis never sees it. Asserting an hour
+nobody wrote down is how CT18's install anchor came to claim `14:00:00` against a
+notebook that says only `2025-11-14`.
 
 ### Step 4b — Timestamp quality check & repair
 
@@ -323,7 +401,7 @@ to the animal-only export.
 | column | meaning |
 |---|---|
 | `station_id` | canonical station ID (`CT01`..`CT27`); resolved via `camtrap.stations`, so it need not match the campaign's raw `Deployments` spelling |
-| `anchor_type` | `install` / `mid_visit` / `retrieval` / `last_real_proxy` / `unrepairable_pending` |
+| `anchor_type` | `install` / `mid_visit` / `retrieval` / `last_real_proxy` / `visit_date_only` / `unrepairable_pending` |
 | `real_datetime` | wall-clock time at the anchor moment (YYYY-MM-DD HH:MM:SS) |
 | `camera_datetime` | what the camera's clock said at that moment (= trigger photo's EXIF stamp) |
 | `source` | provenance: `field_notebook`, `trigger_photo`, etc. |
@@ -340,6 +418,25 @@ with `camera_datetime` = last bogus photo's stamp — repaired rows get
 `valid_date=TRUE` but `valid_time_of_day=FALSE` (rotation uncertainty
 unbounded). For pehuén this excludes them from activity/overlap analyses but
 keeps them for occupancy/spatial.
+
+When the visit is recorded with a date but **no time**, use
+`anchor_type=visit_date_only`. It is approximate for the same reason and carries the
+same consequence (`valid_date=TRUE`, `valid_time_of_day=FALSE`) — the hour is assumed
+to be noon, which bounds the date error at ±12 h and never reaches an output.
+
+**The deployment window now comes from `data/campaigns/field_notes.csv`**, falling
+back to the anchors only when the field record cannot supply both ends. This matters
+because the window is the *only* way a FORWARD jump is visible — a clock set ahead
+keeps every capture delta positive — and anchors exist only where a clock already
+broke, so before field notes 26 of otoño 2026's 27 stations had no window at all.
+A visit-derived window uses a 3-day tolerance rather than the anchors' 1 h: a notebook
+date has day precision and the visit itself spans several days. The bound is measured,
+not guessed — across the 20 stations provably coherent from capture order alone, the
+largest excursion past a recorded visit date is +1.67 d.
+
+A station for which no window can be built (CT27 — no install record) is reported as
+**unverified clean** rather than clean: the in-window test never ran, so its passing
+verdict is an absence of evidence.
 
 When no field anchor exists yet, use `anchor_type=unrepairable_pending` with
 empty `real_datetime` and `camera_datetime` — the row documents that the

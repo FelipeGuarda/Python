@@ -54,9 +54,13 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from camtrap import stations  # noqa: E402
+from camtrap.anchors import FIELD_NOTES_FILENAME  # noqa: E402
 
-WORKBOOK = Path('data/campaigns/Registro de monitoreo CT.xlsx')
-OUT_CSV  = Path('data/campaigns/field_notes.csv')
+CAMPAIGNS_DIR = Path('data/campaigns')
+WORKBOOK = CAMPAIGNS_DIR / 'Registro de monitoreo CT.xlsx'
+# The consumer names this file; restating it here is how a rename would silently
+# produce a CSV nobody reads.
+OUT_CSV  = CAMPAIGNS_DIR / FIELD_NOTES_FILENAME
 
 COLUMNS = [
     'campaign_closed', 'campaign_opened', 'station_id', 'visit_type',

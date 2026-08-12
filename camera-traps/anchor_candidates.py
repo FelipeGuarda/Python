@@ -50,15 +50,27 @@ from pathlib import Path
 
 import pandas as pd
 
-from camtrap import clocks, detections, exports, stations
-from timestamps import diagnose_campaign, load_anchors, prepare_total
+from camtrap import anchors, clocks, detections, exports, stations
+from camtrap.anchors import ANCHOR_FILENAME, FIELD_NOTES_FILENAME, FieldRecord, load_anchors
+from timestamps import diagnose_campaign, prepare_total
 
 OUTPUT_FILENAME = 'anchor_candidates.csv'
 
-KIND_PERSON       = 'person_detection'
-KIND_VEHICLE      = 'vehicle_detection'
-KIND_COUNTER_0001 = 'counter_0001'
-KIND_SEGMENT_EDGE = 'segment_edge'
+# The evidence vocabulary lives in camtrap/anchors.py, which also ranks it: this
+# report names candidates, the anchor module decides which name outranks which.
+KIND_HUMAN        = anchors.EVIDENCE_HUMAN_LABELLED
+KIND_VEH_LABELLED = anchors.EVIDENCE_VEHICLE_LABELLED
+KIND_PERSON       = anchors.EVIDENCE_PERSON_DETECTION
+KIND_VEHICLE      = anchors.EVIDENCE_VEHICLE_DETECTION
+KIND_COUNTER_0001 = anchors.EVIDENCE_COUNTER_0001
+KIND_SEGMENT_EDGE = anchors.EVIDENCE_SEGMENT_EDGE
+
+# The swept export's proof-of-sweep categories, mapped to the evidence they provide.
+# Keyed on exports' own constants so the Camtrap DP vocabulary is stated once.
+LABELLED_KIND = {
+    exports.TYPE_HUMAN:   KIND_HUMAN,
+    exports.TYPE_VEHICLE: KIND_VEH_LABELLED,
+}
 
 OUTPUT_COLUMNS = [
     'station', 'camera_num', 'deployment', 'file_name', 'camera_datetime',
@@ -106,7 +118,8 @@ def build_candidates(
     det = pd.DataFrame(columns=detections.DETECTION_COLUMNS)
     if md_json is not None and md_json.exists():
         det = detections.read_detections(
-            md_json, min_conf=min_conf, categories={'person', 'vehicle'},
+            md_json, min_conf=min_conf,
+            categories={detections.CATEGORY_PERSON, detections.CATEGORY_VEHICLE},
         )
         # One row per image, keeping the strongest detection: two people in a frame
         # is still one anchor opportunity.
@@ -167,11 +180,23 @@ def build_candidates(
         for _, frame in frames.iterrows():
             name = str(frame['File']).strip()
             hit = det_lookup.get((str(frame['Deployments']).strip(), name))
+            conf = hit[1] if hit is not None else None
+
+            # A `human` label outranks a MegaDetector box on the same frame: someone
+            # opened the image and said so, where MegaDetector only guessed. One row
+            # per frame, carrying the strongest evidence it has — emitting both would
+            # list the same photograph twice as if it were two opportunities.
+            labelled = str(frame.get(exports.OBSERVATION_TYPE_COLUMN, '')).strip()
+            if labelled in LABELLED_KIND:
+                rows.append(_row(frame, LABELLED_KIND[labelled], conf))
+                continue
+
             if hit is not None:
-                category, conf = hit
+                category, _ = hit
                 rows.append(_row(
                     frame,
-                    KIND_PERSON if category == 'person' else KIND_VEHICLE,
+                    (KIND_PERSON if category == detections.CATEGORY_PERSON
+                     else KIND_VEHICLE),
                     conf,
                 ))
                 continue
@@ -217,7 +242,7 @@ def render_summary(candidates: pd.DataFrame, diagnoses: dict) -> str:
             seg = next(s for s in sd.diagnosis.segments if s.index == r.segment_index)
             in_seg = mine[mine['clock_segment'].eq(r.segment_index)]
             people = in_seg[in_seg['candidate_kind'].isin(
-                [KIND_PERSON, KIND_VEHICLE]
+                [KIND_HUMAN, KIND_VEH_LABELLED, KIND_PERSON, KIND_VEHICLE]
             )]
             lines.append(
                 f'    [{r.segment_index}] {seg.n_images:>5} frame(s) '
@@ -288,11 +313,14 @@ def main(argv=None) -> int:
                                      'review aid, not an ingest path)'))
     total = prepare_total(total, campaign_dir)
 
-    anchors = load_anchors(campaign_dir / 'deployment_anchors.csv')
-    print(f'  {len(anchors)} anchor row(s) already on file')
+    on_file = load_anchors(campaign_dir / ANCHOR_FILENAME)
+    print(f'  {len(on_file)} anchor row(s) already on file')
+
+    field = FieldRecord.load(Path(args.data_root) / FIELD_NOTES_FILENAME)
+    print(f'  {len(field)} field visit(s) on file')
 
     try:
-        diagnoses = diagnose_campaign(total, anchors, args.campaign)
+        diagnoses = diagnose_campaign(total, on_file, args.campaign, field)
     except stations.UnknownStation as exc:
         print(f'\nERROR: {exc}', file=sys.stderr)
         return 3

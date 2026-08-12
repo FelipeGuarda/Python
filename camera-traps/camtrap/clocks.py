@@ -97,7 +97,14 @@ ORDER_NONE     = 'none'                    # no usable evidence
 # ── Anchors ───────────────────────────────────────────────────────────────────
 
 ANCHOR_TYPES_EXACT        = {'install', 'mid_visit', 'retrieval'}
-ANCHOR_TYPES_APPROXIMATE  = {'last_real_proxy'}
+# APPROXIMATE means the same thing for both members: the DATE is recoverable but the
+# time-of-day is not, so `valid_time_of_day` is False and activity analysis must not
+# see the repaired rows. They differ only in why the hour is unknown —
+# `last_real_proxy` because the camera died at an unknown moment before retrieval,
+# `visit_date_only` because the field record wrote a date and no time. Every otoño
+# 2026 opening visit is date-only (27 of 27), so this is the ordinary case for a
+# campaign-opening anchor, not an exotic one.
+ANCHOR_TYPES_APPROXIMATE  = {'last_real_proxy', 'visit_date_only'}
 ANCHOR_TYPES_UNREPAIRABLE = {'unrepairable_pending'}
 ALL_ANCHOR_TYPES = (
     ANCHOR_TYPES_EXACT | ANCHOR_TYPES_APPROXIMATE | ANCHOR_TYPES_UNREPAIRABLE
@@ -411,9 +418,18 @@ def diagnose(
         clean = (n_mismatch == 0) and (in_window is None or bool(in_window.all()))
         seg_ids = pd.Series(0, index=df.index)
         if clean:
+            # Say WHICH of the two checks passed. With no window the in-window test
+            # never ran, and a forward jump — a clock set ahead — shows up nowhere
+            # else, so claiming the frames are in-window would report an absence of
+            # evidence as a verdict. CT27 is the live case: it has no install record,
+            # so no window can be built for it.
             notes.append(
                 'capture order not established, but no clock failure is detectable: '
-                'every frame is in-window and agrees with its own filename'
+                + ('every frame is in-window and agrees with its own filename'
+                   if in_window is not None else
+                   'every filename agrees with its own stamp. NOTE: no deployment '
+                   'window was available, so a forward jump would NOT have been '
+                   'detected — this is unverified, not verified clean')
             )
         else:
             notes.append(

@@ -122,12 +122,19 @@ from typing import Optional
 
 import pandas as pd
 
+from camtrap import anchors as anchors_mod
 from camtrap import clocks, exports, stations
+from camtrap.anchors import (
+    ANCHOR_FILENAME,
+    FIELD_NOTES_FILENAME,
+    WINDOW_TOLERANCE,
+    FieldRecord,
+    anchors_by_camera,
+    load_anchors,
+)
 from camtrap.clocks import (
-    ALL_ANCHOR_TYPES,
     ANCHOR_TYPES_APPROXIMATE,
     ANCHOR_TYPES_EXACT,
-    ANCHOR_TYPES_UNREPAIRABLE,
     Anchor,
     ClockDiagnosis,
     SegmentRepair,
@@ -138,19 +145,6 @@ from camtrap.observations import CANONICAL_FILENAME, write_canonical
 # =============================================================================
 # 1. Schema & constants
 # =============================================================================
-
-ANCHOR_REQUIRED_COLS = {
-    'station_id', 'anchor_type', 'real_datetime',
-    'camera_datetime', 'source', 'notes',
-}
-ANCHOR_OPTIONAL_COLS = {'segment_index'}
-
-# The deployment window is taken from the anchors' wall-clock times, and a frame
-# outside it is evidence of a clock jump. Anchors are recorded to the minute by hand
-# while a technician may well trigger the camera before writing the time down, so a
-# little slack keeps that sloppiness from manufacturing a segment boundary. It stays
-# small: a 2017 or a 2030 stamp is still hours away from any tolerance.
-WINDOW_TOLERANCE = timedelta(hours=1)
 
 # Rows that never reached the clock diagnosis at all.
 METHOD_UNPARSEABLE  = 'unparseable_datetime'
@@ -198,115 +192,6 @@ class RepairReport:
     order_evidence: dict = field(default_factory=dict)     # station -> evidence
     per_station: dict = field(default_factory=dict)        # station -> StationDiagnosis
     warnings: list = field(default_factory=list)
-
-
-# =============================================================================
-# 2. Load + validate anchors
-# =============================================================================
-
-def _parse_datetime(s: str) -> Optional[datetime]:
-    """Parse an anchor CSV datetime. Returns None for empty / NA / NaN / NULL."""
-    s = (s or '').strip()
-    if not s or s.upper() in ('NA', 'NAN', 'NULL', 'NONE'):
-        return None
-    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S',
-                '%Y-%m-%d %H:%M', '%Y-%m-%d'):
-        try:
-            return datetime.strptime(s, fmt)
-        except ValueError:
-            pass
-    raise ValueError(f'cannot parse datetime: {s!r}')
-
-
-def _parse_segment_index(s: str, where: str) -> Optional[int]:
-    s = (s or '').strip()
-    if not s or s.upper() in ('NA', 'NAN', 'NULL', 'NONE'):
-        return None
-    try:
-        return int(s)
-    except ValueError:
-        raise ValueError(
-            f'{where}: segment_index must be an integer or empty, got {s!r}'
-        ) from None
-
-
-def load_anchors(anchor_csv: Path) -> list[Anchor]:
-    """Read deployment_anchors.csv; return validated `camtrap.clocks.Anchor` rows.
-    Returns an empty list if the file does not exist."""
-    if not anchor_csv.exists():
-        return []
-
-    df = pd.read_csv(anchor_csv, dtype=str, keep_default_na=False)
-
-    missing = ANCHOR_REQUIRED_COLS - set(df.columns)
-    if missing:
-        raise ValueError(f'{anchor_csv}: missing columns: {sorted(missing)}')
-
-    unexpected = set(df.columns) - ANCHOR_REQUIRED_COLS - ANCHOR_OPTIONAL_COLS
-    if unexpected:
-        # Not fatal, but a misspelled `segment_idx` would be silently ignored, and
-        # silently ignoring an assertion about which segment an anchor belongs to is
-        # exactly the kind of quiet failure this pipeline keeps being bitten by.
-        print(f'  WARNING: {anchor_csv} has unrecognised column(s) '
-              f'{sorted(unexpected)} — ignored')
-
-    out: list[Anchor] = []
-    for i, row in df.iterrows():
-        where = f'{anchor_csv} row {i + 2}'
-        anchor_type = row['anchor_type'].strip()
-        if anchor_type not in ALL_ANCHOR_TYPES:
-            raise ValueError(
-                f'{where}: unknown anchor_type {anchor_type!r}; '
-                f'must be one of {sorted(ALL_ANCHOR_TYPES)}'
-            )
-
-        real_dt = _parse_datetime(row['real_datetime'])
-        cam_dt  = _parse_datetime(row['camera_datetime'])
-
-        if anchor_type in (ANCHOR_TYPES_EXACT | ANCHOR_TYPES_APPROXIMATE):
-            if real_dt is None or cam_dt is None:
-                raise ValueError(
-                    f'{where}: anchor_type={anchor_type} requires both '
-                    f'real_datetime and camera_datetime'
-                )
-
-        out.append(Anchor(
-            station_id=row['station_id'].strip(),
-            anchor_type=anchor_type,
-            real_datetime=real_dt,
-            camera_datetime=cam_dt,
-            source=row['source'].strip(),
-            notes=row['notes'].strip(),
-            segment_index=_parse_segment_index(row.get('segment_index', ''), where),
-        ))
-    return out
-
-
-def anchors_by_camera(anchors: list[Anchor], campaign: str) -> dict[int, list[Anchor]]:
-    """Group anchors by resolved camera number.
-
-    Anchors and photos are matched on the camera number, not on the raw station
-    string, so an anchor file can use the canonical ID (CT16) regardless of how the
-    campaign's Timelapse2 export spelled it (CT16 / TC16_M13.2 / CT_16).
-    """
-    grouped: dict[int, list[Anchor]] = {}
-    for a in anchors:
-        grouped.setdefault(stations.resolve(a.station_id, campaign), []).append(a)
-    return grouped
-
-
-def deployment_window(anchors: list[Anchor]) -> tuple[datetime, datetime] | None:
-    """The real-time window this station was deployed for, from its anchors.
-
-    Supplying a window to `clocks.diagnose` is what lets a FORWARD jump be seen: a
-    clock set to 2030 keeps every delta positive and is invisible to
-    backwards-step detection. Needs two distinct wall-clock times to be a window at
-    all, so a station with a single anchor gets None rather than a zero-width guess.
-    """
-    reals = sorted({a.real_datetime for a in anchors if a.real_datetime is not None})
-    if len(reals) < 2:
-        return None
-    return reals[0] - WINDOW_TOLERANCE, reals[-1] + WINDOW_TOLERANCE
 
 
 # =============================================================================
@@ -406,6 +291,7 @@ def diagnose_campaign(
     total: pd.DataFrame,
     anchors: list[Anchor],
     campaign: str,
+    field: FieldRecord | None = None,
 ) -> dict[int, StationDiagnosis]:
     """Run clocks.diagnose + clocks.repair_plan once per camera.
 
@@ -413,6 +299,11 @@ def diagnose_campaign(
     belong to one card (primavera 2025 has camera 5 under both `CT05` and the
     unrenamed `100EK113`), and they are one chronology, so splitting them would
     invent a reset at the folder boundary.
+
+    `field` supplies the deployment window for stations that have no anchors — which
+    is nearly all of them, since anchors exist only where a clock already broke.
+    Without it a forward jump is undetectable, so passing it turns "we found no
+    problem" into "we looked and there is none".
     """
     stations.validate(total['Deployments'].astype(str), campaign)
     total['_camera_num'] = [
@@ -424,7 +315,9 @@ def diagnose_campaign(
 
     for camera_num, frames in total.groupby('_camera_num', sort=True):
         station_anchors = by_camera.get(camera_num, [])
-        window = deployment_window(station_anchors)
+        window = anchors_mod.deployment_window(
+            stations.canonical_id(camera_num), campaign, station_anchors, field,
+        )
 
         images = pd.DataFrame({
             'file_name': frames['File'].astype(str).str.strip(),
@@ -720,6 +613,17 @@ def render_report(report: RepairReport) -> str:
                 f'failure ({", ".join(sorted(unordered))}) — every frame is in-window '
                 f'and agrees with its own filename, so there is no reset to attribute'
             )
+        # A clean verdict is only as good as the checks that ran. Without a window the
+        # in-window test never happened, so a forward jump would have gone unseen —
+        # worth naming, because it looks identical to a verified pass from here.
+        blind = [sd.station_label for sd in healthy if sd.window is None]
+        if blind:
+            lines.append(
+                f'  ! {len(blind)} of these had NO deployment window '
+                f'({", ".join(sorted(blind))}), so a forward clock jump would not '
+                f'have been detected. Their clean verdict is UNVERIFIED. Record the '
+                f'install and retrieval dates in {FIELD_NOTES_FILENAME} to close it'
+            )
         lines.append('')
 
     if report.warnings:
@@ -761,7 +665,8 @@ def main(argv=None) -> int:
         return 2
 
     reviewed_csv  = campaign_dir / 'new_labeled_data_reviewed.csv'
-    anchor_csv    = campaign_dir / 'deployment_anchors.csv'
+    anchor_csv    = campaign_dir / ANCHOR_FILENAME
+    field_notes   = Path(args.data_root) / FIELD_NOTES_FILENAME
     corrected_csv = campaign_dir / 'new_labeled_data_corrected.csv'
     canonical_pq  = campaign_dir / CANONICAL_FILENAME
     audit_log     = campaign_dir / 'timestamps_audit.log'
@@ -786,9 +691,14 @@ def main(argv=None) -> int:
     anchors = load_anchors(anchor_csv)
     print(f'  {len(anchors)} anchor row(s) loaded')
 
+    print(f'Reading field notes       : {field_notes}')
+    field = FieldRecord.load(field_notes)
+    n_windowed = sum(1 for s in field.stations() if field.window(s, args.campaign))
+    print(f'  {len(field)} visit(s); {n_windowed} station(s) get a deployment window')
+
     print('Diagnosing clocks from the all-images export...')
     try:
-        diagnoses = diagnose_campaign(total, anchors, args.campaign)
+        diagnoses = diagnose_campaign(total, anchors, args.campaign, field)
     except stations.UnknownStation as exc:
         print(f'\nERROR: {exc}', file=sys.stderr)
         return 3

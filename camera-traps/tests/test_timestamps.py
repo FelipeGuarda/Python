@@ -23,9 +23,10 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import timestamps
-from camtrap import exports
+from camtrap import anchors, exports
 
 STATION = 'CT01'          # canonical, so no station alias is needed
+CAMPAIGN = 'unit_test'    # matches the fixture directory name
 
 # The clock is right for the first run, then reverts to the 2017 epoch. The offset
 # that repairs the second run is +8 years and change — and must NOT be applied to
@@ -306,17 +307,19 @@ class TestAnchorSchema(_TmpCampaign):
         self.assertIn('segment_index', str(cm.exception))
 
     def test_window_needs_two_distinct_anchor_times(self):
+        """With no field record, the anchors are the only source of a window."""
         one = [timestamps.Anchor(
             station_id=STATION, anchor_type='install',
             real_datetime=REAL_START, camera_datetime=REAL_START, source='t',
         )]
-        self.assertIsNone(timestamps.deployment_window(one))
+        self.assertIsNone(
+            anchors.deployment_window(STATION, CAMPAIGN, one, None))
         two = one + [timestamps.Anchor(
             station_id=STATION, anchor_type='retrieval',
             real_datetime=datetime(2026, 5, 15, 12, 10),
             camera_datetime=datetime(2026, 5, 15, 12, 10), source='t',
         )]
-        window = timestamps.deployment_window(two)
+        window = anchors.deployment_window(STATION, CAMPAIGN, two, None)
         self.assertIsNotNone(window)
         self.assertLess(window[0], REAL_START)      # tolerance widens it
 

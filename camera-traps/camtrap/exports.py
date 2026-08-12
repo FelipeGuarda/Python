@@ -75,17 +75,29 @@ ANIMAL_EXPORT_FILENAME = 'ImageData_animals.csv'
 
 OBSERVATION_TYPE_COLUMN = 'observationType'
 
-# A full sweep assigns one of these to every image. Camtrap DP's controlled
-# vocabulary — NOT our own spelling. `unknown` is a real Camtrap DP value meaning
-# "looked at, could not tell", so it counts as assigned even though it names nothing.
-FULL_CATEGORY_TYPES = frozenset({'animal', 'human', 'vehicle', 'blank', 'unknown'})
+# Camtrap DP's controlled vocabulary — NOT our own spelling. Named individually
+# because other modules need to ask for one by name: `anchor_candidates.py` looks for
+# TYPE_HUMAN frames, and spelling it `'human'` there would restate a decision this
+# module owns.
+TYPE_ANIMAL  = 'animal'
+TYPE_HUMAN   = 'human'
+TYPE_VEHICLE = 'vehicle'
+TYPE_BLANK   = 'blank'
+# A real Camtrap DP value meaning "looked at, could not tell", so it counts as
+# assigned even though it names nothing.
+TYPE_UNKNOWN = 'unknown'
+
+# A full sweep assigns one of these to every image.
+FULL_CATEGORY_TYPES = frozenset({
+    TYPE_ANIMAL, TYPE_HUMAN, TYPE_VEHICLE, TYPE_BLANK, TYPE_UNKNOWN,
+})
 
 # `unclassified` means "never looked at" — and doubles as `blank` in Felipe's
 # Timelapse2 template, which is why it cannot count as evidence of anything.
 UNASSIGNED_TYPES = frozenset({'unclassified', ''})
 
 # The categories whose presence proves a sweep actually happened.
-PROOF_OF_SWEEP = frozenset({'human', 'vehicle'})
+PROOF_OF_SWEEP = frozenset({TYPE_HUMAN, TYPE_VEHICLE})
 
 OVERRIDE_FILENAME = 'export_gate_override.txt'
 OVERRIDE_REQUIRED_KEYS = ('verified_by', 'date', 'reason')

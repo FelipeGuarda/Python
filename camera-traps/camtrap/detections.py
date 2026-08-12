@@ -37,6 +37,14 @@ DEFAULT_CONFIDENCE = 0.2
 
 DETECTION_COLUMNS = ['rel_path', 'deployment', 'file_name', 'category', 'conf']
 
+# MegaDetector's OWN category names, as its `detection_categories` map spells them.
+# This is not the Camtrap DP vocabulary — that one says `human` where this says
+# `person`, and `camtrap/exports.py` owns it. Named here so callers asking for person
+# detections do not restate a decision this module owns.
+CATEGORY_ANIMAL  = 'animal'
+CATEGORY_PERSON  = 'person'
+CATEGORY_VEHICLE = 'vehicle'
+
 
 def read_detections(
     json_path: Path,
