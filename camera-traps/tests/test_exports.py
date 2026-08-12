@@ -39,9 +39,9 @@ OVERRIDE_TEXT = (
 
 class TestTheRule(unittest.TestCase):
 
-    def test_person_present_passes(self):
+    def test_human_present_passes(self):
         audit = exports.audit_categories(
-            export(['empty', 'animal', 'person'])[exports.OBSERVATION_TYPE_COLUMN]
+            export(['blank', 'animal', 'human'])[exports.OBSERVATION_TYPE_COLUMN]
         )
         self.assertEqual(audit.verdict, exports.PASS)
         self.assertTrue(audit.passed)
@@ -49,7 +49,7 @@ class TestTheRule(unittest.TestCase):
 
     def test_vehicle_alone_also_proves_a_sweep(self):
         audit = exports.audit_categories(
-            export(['empty', 'animal', 'vehicle'])[exports.OBSERVATION_TYPE_COLUMN]
+            export(['blank', 'animal', 'vehicle'])[exports.OBSERVATION_TYPE_COLUMN]
         )
         self.assertEqual(audit.verdict, exports.PASS)
 
@@ -67,10 +67,10 @@ class TestTheRule(unittest.TestCase):
         )
         self.assertEqual(audit.verdict, exports.NEVER_ASSIGNED)
 
-    def test_swept_but_person_free_is_the_overridable_case(self):
-        """`empty` present means the sweep happened; no person is the exception."""
+    def test_swept_but_human_free_is_the_overridable_case(self):
+        """`blank` present means the sweep happened; no human is the exception."""
         audit = exports.audit_categories(
-            export(['empty'] * 8 + ['animal'])[exports.OBSERVATION_TYPE_COLUMN]
+            export(['blank'] * 8 + ['animal'])[exports.OBSERVATION_TYPE_COLUMN]
         )
         self.assertEqual(audit.verdict, exports.NO_PROOF_OF_SWEEP)
         self.assertIn(audit.verdict, exports.OVERRIDABLE_VERDICTS)
@@ -79,7 +79,7 @@ class TestTheRule(unittest.TestCase):
         audit = exports.audit_categories(pd.Series([], dtype=str))
         self.assertEqual(audit.verdict, exports.NO_ROWS)
 
-    def test_blank_counts_as_unassigned_not_as_empty(self):
+    def test_an_empty_string_counts_as_unassigned(self):
         audit = exports.audit_categories(
             export(['', '', 'animal'])[exports.OBSERVATION_TYPE_COLUMN]
         )
@@ -87,16 +87,45 @@ class TestTheRule(unittest.TestCase):
 
     def test_case_and_whitespace_are_normalised(self):
         audit = exports.audit_categories(
-            export([' Person ', 'ANIMAL', 'empty'])[exports.OBSERVATION_TYPE_COLUMN]
+            export([' Human ', 'ANIMAL', 'blank'])[exports.OBSERVATION_TYPE_COLUMN]
         )
         self.assertEqual(audit.verdict, exports.PASS)
 
-    def test_unrecognised_category_is_noted_not_counted_as_proof(self):
+    def test_unknown_is_a_camtrapdp_value_and_counts_as_assigned(self):
+        """`unknown` means "looked at, could not tell" — swept, but proves nothing."""
         audit = exports.audit_categories(
-            export(['empty', 'animal', 'dog'])[exports.OBSERVATION_TYPE_COLUMN]
+            export(['unknown'] * 4 + ['animal'])[exports.OBSERVATION_TYPE_COLUMN]
         )
         self.assertEqual(audit.verdict, exports.NO_PROOF_OF_SWEEP)
+
+    def test_unrecognised_category_is_refused_not_merely_noted(self):
+        audit = exports.audit_categories(
+            export(['blank', 'animal', 'dog'])[exports.OBSERVATION_TYPE_COLUMN]
+        )
+        self.assertEqual(audit.verdict, exports.UNKNOWN_VALUES)
+        self.assertFalse(audit.usable)
+        self.assertNotIn(audit.verdict, exports.OVERRIDABLE_VERDICTS)
         self.assertTrue(any('dog' in n for n in audit.notes))
+
+    def test_our_old_invented_vocabulary_is_now_refused(self):
+        """`empty`/`person` were this module's invention; Camtrap DP says blank/human.
+
+        Regression for the otoño 2026 near-miss: a swept export whose categories the
+        gate did not recognise reported OK while 584 rows counted as nothing.
+        """
+        audit = exports.audit_categories(
+            export(['empty', 'animal', 'person'])[exports.OBSERVATION_TYPE_COLUMN]
+        )
+        self.assertEqual(audit.verdict, exports.UNKNOWN_VALUES)
+
+    def test_the_real_otono_2026_sweep_passes(self):
+        """blank 9710 / animal 1749 / human 584 / vehicle 25, in miniature."""
+        audit = exports.audit_categories(
+            export(['blank'] * 9 + ['animal'] * 2 + ['human', 'vehicle'])
+            [exports.OBSERVATION_TYPE_COLUMN]
+        )
+        self.assertEqual(audit.verdict, exports.PASS)
+        self.assertEqual(audit.notes, [])
 
 
 class TestOverride(unittest.TestCase):
@@ -113,10 +142,10 @@ class TestOverride(unittest.TestCase):
         path.write_text(text, encoding='utf-8')
         return path
 
-    def test_override_admits_a_person_free_sweep(self):
+    def test_override_admits_a_human_free_sweep(self):
         self._write(OVERRIDE_TEXT)
         audit = exports.require_full_category(
-            export(['empty'] * 4 + ['animal']),
+            export(['blank'] * 4 + ['animal']),
             source='test', override_dir=self.dir,
         )
         self.assertFalse(audit.passed)          # the rule still says no
@@ -137,7 +166,7 @@ class TestOverride(unittest.TestCase):
         self._write('verified_by: Felipe Guarda\ndate: 2026-08-03\n')
         with self.assertRaises(exports.ExportGateError) as cm:
             exports.require_full_category(
-                export(['empty', 'animal']), source='test', override_dir=self.dir,
+                export(['blank', 'animal']), source='test', override_dir=self.dir,
             )
         self.assertIn('reason', str(cm.exception))
 
@@ -149,14 +178,14 @@ class TestOverride(unittest.TestCase):
             '    the technician never triggered this camera\n'
         )
         audit = exports.require_full_category(
-            export(['empty', 'animal']), source='test', override_dir=self.dir,
+            export(['blank', 'animal']), source='test', override_dir=self.dir,
         )
         self.assertIn('never triggered', audit.override.reason)
 
     def test_no_override_file_means_rejection(self):
         with self.assertRaises(exports.ExportGateError):
             exports.require_full_category(
-                export(['empty', 'animal']), source='test', override_dir=self.dir,
+                export(['blank', 'animal']), source='test', override_dir=self.dir,
             )
 
     def test_missing_observation_type_column_is_not_an_export(self):

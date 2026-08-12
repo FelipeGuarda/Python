@@ -159,24 +159,36 @@ is invisible in an animal-only export.** That is not hypothetical — it is how 
 2026 CT18 was recorded as one reset when it had **four**, and how a single offset came
 to be applied across all of them, putting fabricated dates into the pehuén analysis.
 
-Why `person` matters: install and retrieval photos of the technician **are** the clock
+Why `human` matters: install and retrieval photos of the technician **are** the clock
 anchors. Each one buys back a whole segment of a broken clock, and without them there
 is nothing to anchor to.
 
-> **The gate.** `timestamps.py` refuses to run unless `person` or `vehicle` appears in
+`observationType` uses **Camtrap DP's controlled vocabulary**, which the Timelapse2
+template emits verbatim — `animal`, `human`, `vehicle`, `blank`, `unknown`,
+`unclassified`. Note `blank` (not `empty`) and `human` (not `person`). MegaDetector's
+own categories are a *different* vocabulary that does say `person`; `camtrap/exports.py`
+owns the Camtrap DP one and `camtrap/detections.py` owns MegaDetector's.
+
+> **The gate.** `timestamps.py` refuses to run unless `human` or `vehicle` appears in
 > `observationType`. Presence of categories cannot be the test on its own, because in
-> our Timelapse2 template `unclassified` doubles as `empty` — so a `{animal,
+> our Timelapse2 template `unclassified` doubles as `blank` — so a `{animal,
 > unclassified}` export *looks* labelled while nothing was ever assigned. That verdict
 > (`categories_never_assigned`) cannot be overridden.
 >
-> For a campaign genuinely swept in full that really contains no person or vehicle,
+> A value outside the vocabulary is also refused outright (`unrecognised_category_values`)
+> rather than merely noted. An uninterpretable category counts as neither assigned nor
+> proof, so a note would let a whole category vanish from the tally — which is exactly
+> what happened on 2026-08-11, when 584 `human` rows went uncounted and otoño 2026's
+> first real sweep passed only because `vehicle` is spelled the same in both vocabularies.
+>
+> For a campaign genuinely swept in full that really contains no human or vehicle,
 > record the exception in `data/campaigns/<name>/export_gate_override.txt`:
 >
 > ```
 > verified_by: Felipe Guarda
 > date: 2026-08-03
 > reason: swept all 12068 images; the technician serviced this camera without
->         triggering it, so no person frame exists on the card
+>         triggering it, so no human frame exists on the card
 > ```
 >
 > A file rather than a flag, so the decision carries a name and a date and travels

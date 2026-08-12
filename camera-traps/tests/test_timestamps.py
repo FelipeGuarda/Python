@@ -60,10 +60,10 @@ def write_campaign(
 
     frames = _rows(REAL_START, 4, 1) + _rows(BOGUS_START, 4, 5)
     total = pd.DataFrame(frames)
-    # Default: a swept export whose person frame proves the sweep happened.
+    # Default: a swept export whose human frame proves the sweep happened.
     total[exports.OBSERVATION_TYPE_COLUMN] = (
         total_types if total_types is not None
-        else ['person'] + ['empty'] * 3 + ['animal'] * 4
+        else ['human'] + ['blank'] * 3 + ['animal'] * 4
     )
     total.to_csv(campaign_dir / exports.TOTAL_EXPORT_FILENAME, index=False)
 

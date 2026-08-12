@@ -14,20 +14,35 @@ when it had FOUR, and how a single offset came to be applied across all of them,
 fabricating dates that reached the pehuen analysis. The README already said to
 export all images; the export that reached ingest did not, and nothing noticed.
 
+THE VOCABULARY IS CAMTRAP DP'S, NOT OURS (corrected 2026-08-11)
+
+    observationType is a Camtrap DP controlled vocabulary and the Timelapse2
+    template emits it verbatim: `animal`, `human`, `vehicle`, `blank`, `unknown`,
+    `unclassified`. An earlier version of this module invented `empty` and `person`
+    instead. The cost was not theoretical: otoño 2026's first properly swept export
+    (blank 9,710 / animal 1,749 / human 584 / vehicle 25) passed the gate ONLY
+    because `vehicle` happens to be spelled the same in both vocabularies. All 584
+    `human` rows counted as neither assigned nor proof, so the same campaign with no
+    vehicle frames would have been rejected as unswept after the sweep was done.
+
+    Hence a value this module does not recognise is now a hard rejection rather than
+    a note. A category the gate cannot interpret is silently counted as nothing,
+    which is the failure above; refusing it names the template mismatch instead.
+
 THE GATE (agreed with Felipe 2026-08-03)
 
-    An export is fit for clock diagnosis only if `person` or `vehicle` appears in
+    An export is fit for clock diagnosis only if `human` or `vehicle` appears in
     observationType.
 
     Presence of categories cannot be the test on its own, because in Timelapse2 as
-    Felipe uses it `unclassified` doubles as `empty` — so an export containing only
+    Felipe uses it `unclassified` doubles as `blank` — so an export containing only
     {animal, unclassified} looks category-labelled while in fact nothing was ever
-    assigned. That is exactly the otoño 2026 file (animal 1,785 / unclassified
-    10,283). `person` is the category that proves a real sweep happened, because
-    under the field protocol every deployment now begins and ends with a photo of
-    the technician: install and retrieval anchors ARE person detections. A campaign
-    with no person frames means either the sweep was not done or the protocol was
-    not followed — both worth stopping for.
+    assigned. That was exactly the otoño 2026 file before the sweep (animal 1,785 /
+    unclassified 10,283). `human` is the category that proves a real sweep happened,
+    because under the field protocol every deployment now begins and ends with a
+    photo of the technician: install and retrieval anchors ARE human detections. A
+    campaign with no human frames means either the sweep was not done or the
+    protocol was not followed — both worth stopping for.
 
     THE OVERRIDE is for the genuine exception only: a campaign swept in full that
     really contains no person or vehicle. It is a file in the campaign directory,
@@ -60,15 +75,17 @@ ANIMAL_EXPORT_FILENAME = 'ImageData_animals.csv'
 
 OBSERVATION_TYPE_COLUMN = 'observationType'
 
-# A full sweep assigns one of these to every image.
-FULL_CATEGORY_TYPES = frozenset({'empty', 'animal', 'person', 'vehicle'})
+# A full sweep assigns one of these to every image. Camtrap DP's controlled
+# vocabulary — NOT our own spelling. `unknown` is a real Camtrap DP value meaning
+# "looked at, could not tell", so it counts as assigned even though it names nothing.
+FULL_CATEGORY_TYPES = frozenset({'animal', 'human', 'vehicle', 'blank', 'unknown'})
 
-# `unclassified` means "never looked at" — and doubles as `empty` in Felipe's
+# `unclassified` means "never looked at" — and doubles as `blank` in Felipe's
 # Timelapse2 template, which is why it cannot count as evidence of anything.
 UNASSIGNED_TYPES = frozenset({'unclassified', ''})
 
 # The categories whose presence proves a sweep actually happened.
-PROOF_OF_SWEEP = frozenset({'person', 'vehicle'})
+PROOF_OF_SWEEP = frozenset({'human', 'vehicle'})
 
 OVERRIDE_FILENAME = 'export_gate_override.txt'
 OVERRIDE_REQUIRED_KEYS = ('verified_by', 'date', 'reason')
@@ -76,9 +93,10 @@ OVERRIDE_REQUIRED_KEYS = ('verified_by', 'date', 'reason')
 # Verdicts. PASS may proceed; NO_PROOF_OF_SWEEP may proceed with an override; the
 # other two may never proceed.
 PASS               = 'full_category_sweep'
-NO_PROOF_OF_SWEEP  = 'no_person_or_vehicle'
+NO_PROOF_OF_SWEEP  = 'no_human_or_vehicle'
 NEVER_ASSIGNED     = 'categories_never_assigned'
 NO_ROWS            = 'empty_export'
+UNKNOWN_VALUES     = 'unrecognised_category_values'
 
 # Only this verdict is an exception a human may sign off on.
 OVERRIDABLE_VERDICTS = frozenset({NO_PROOF_OF_SWEEP})
@@ -146,17 +164,23 @@ def audit_categories(observation_type: pd.Series) -> CategoryAudit:
     notes: list[str] = []
 
     unknown = present - FULL_CATEGORY_TYPES - UNASSIGNED_TYPES
-    if unknown:
-        notes.append(
-            f'unrecognised observationType value(s) {sorted(unknown)} — not one of '
-            f'{sorted(FULL_CATEGORY_TYPES)}; they count as neither assigned nor proof'
-        )
 
     def audit(verdict: str) -> CategoryAudit:
         return CategoryAudit(counts=counts, verdict=verdict, n_rows=n_rows, notes=notes)
 
     if n_rows == 0:
         return audit(NO_ROWS)
+
+    # Checked before every other verdict, and fatal rather than advisory: a value
+    # this module cannot interpret counts as neither assigned nor proof, so leaving
+    # it as a note lets a whole category vanish from the tally silently. That is how
+    # 584 `human` rows went uncounted while the gate reported OK.
+    if unknown:
+        notes.append(
+            f'unrecognised observationType value(s) {sorted(unknown)} — not in the '
+            f'Camtrap DP vocabulary {sorted(FULL_CATEGORY_TYPES | {"unclassified"})}'
+        )
+        return audit(UNKNOWN_VALUES)
 
     n_unassigned = sum(counts.get(t, 0) for t in UNASSIGNED_TYPES)
     if n_unassigned:
@@ -211,7 +235,7 @@ def load_override(path: Path) -> Override:
         raise ExportGateError(
             f'{path}: missing or empty {missing}. An override must record who '
             f'verified the sweep, when, and why the campaign genuinely contains no '
-            f'person or vehicle frame. Required keys: '
+            f'human or vehicle frame. Required keys: '
             f'{list(OVERRIDE_REQUIRED_KEYS)}'
         )
 
@@ -233,17 +257,25 @@ def _gate_message(audit: CategoryAudit, source: str) -> str:
             'Only `animal` and `unclassified` appear, which is the state of a '
             'project whose categories were never assigned — `animal` comes from the '
             'classifier round and `unclassified` is every row\'s default. Sweep the '
-            'campaign in Timelapse2 assigning empty / animal / person / vehicle to '
+            'campaign in Timelapse2 assigning blank / animal / human / vehicle to '
             'every image, then export ALL images (no filter) as '
             f'{TOTAL_EXPORT_FILENAME}. No override can accept this file.'
         ),
         NO_PROOF_OF_SWEEP: (
-            'Neither `person` nor `vehicle` appears. Under the field protocol every '
+            'Neither `human` nor `vehicle` appears. Under the field protocol every '
             'deployment opens and closes with a photo of the technician, so a '
-            'person-free campaign means either the sweep is incomplete or the '
+            'human-free campaign means either the sweep is incomplete or the '
             'protocol was not followed at some station. If the campaign genuinely '
             f'contains neither, record that in {OVERRIDE_FILENAME} beside the '
             f'export with keys {list(OVERRIDE_REQUIRED_KEYS)}.'
+        ),
+        UNKNOWN_VALUES: (
+            'observationType holds a value outside the Camtrap DP vocabulary, so the '
+            'gate cannot tell what was assigned — an uninterpretable category counts '
+            'as neither swept nor proof and would distort every tally below. Check '
+            'the Timelapse2 template\'s choice list against '
+            f'{sorted(FULL_CATEGORY_TYPES | {"unclassified"})} and re-export. No '
+            'override can accept this file.'
         ),
     }.get(audit.verdict, 'Re-export all images with every category assigned.')
 
