@@ -6,6 +6,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## [2026-08-12b] — Camera-traps: otoño 2025 re-downloaded and flattened; ordering evidence tightened
+
+The campaign was re-pulled from the Synology originals **with its SD-card subfolders intact** — the capture-order evidence otoño 2026 lost permanently. Flattening it exposed a defect in what the DCIM manifest is allowed to claim.
+
+### Fixed
+- **Only a camera-created folder counts as ordering evidence.** The manifest's claim is *frames in folder A precede frames in folder B, because the camera fills folders in name order*. That has two preconditions; only one was enforced (`establish_order` refuses a partially-described deployment). The other — that every group actually **is** a camera folder — was missing, so `flatten` recorded the whole intermediate path and any hand-made directory became evidence. Otoño 2025 CT04 held 723 loose frames under `M5` beside `M5/100EK113` and `M5/101EK113`; `M5` sorted **first** and asserted its January frames preceded the October ones. Sorted on, that is a backwards step in capture order — read by the diagnosis as a **clock reset on 2,097 frames**.
+- `clocks.dcim_folder_key()` keeps only a DCF-shaped last component and runs at **both** ends — `flatten` on write, `timestamps.load_manifest` on read — so a manifest already written is corrected **by being read**. Necessary here: flattening consumes the tree it describes, so otoño 2025's manifest cannot be regenerated. The rule holds whether or not a camera can leave files beside its own DCIM folders, so it rests on no assumption about firmware.
+- **Rename prefixes use the DCIM folder alone**, not the whole path. Otoño 2025 would otherwise have produced `M 11_101EK113_01160002.JPG` — a space imported into 28 filenames to disambiguate nothing. Unsafe characters are stripped (`M17 (TC20)`, `M18 (vacía, TC mala)` were real folder names).
+- `--check-export` help still said `person`/`vehicle`; it is `human` now.
+
+### Changed
+- Eighteen otoño 2025 stations with a single constant folder (`M7`) previously reported `ORDER_MANIFEST` while the manifest contributed nothing — sorting by a constant is a counter sort. They now correctly report `ORDER_COUNTER`. CT14 and CT20 keep full `ORDER_MANIFEST`; CT04 is refused, fail-closed. Otoño 2026 unchanged.
+
+### Added
+- **`data/campaigns/otono_2025/dcim_manifest.csv`** — 8,997 files flattened, 8,969 moved, 28 renamed, **0 lost**.
+- `tests/test_flatten.py` (9) and `TestDcimFolderKey` in `test_clocks.py` (6). **96 total, all passing.**
+
+### Notes for the otoño 2025 sweep
+- The download holds **no video at all** (8,997 files, every one `.JPG`); counter gaps run 19–25% at most stations and 0% at three. That is the 3-stills-plus-1-video trigger pattern with videos absent from this download, **not** lost stills. Confirm the videos exist on the NAS.
+- CT04's 723 loose frames carry their own counter run restarting at 1, an MMDD range disjoint from and later than both DCIM folders, and no filename in common with either — a third DCIM folder flattened by hand at some earlier point.
+- The existing export is animal-only (830 rows), so the campaign stays rejected by the gate until swept in full.
+- **otoño 2025 is in `REPORT_CAMPAIGNS`** — re-ingest will move the 2025 annual report's numbers. Mirror `Anual-reports/2025/figures/` first.
+
+---
+
 ## [2026-08-12] — Camera-traps: the field record becomes a pipeline input; otoño 2026 ingested
 
 `data/campaigns/field_notes.csv` stops being a reference document and starts driving the clock diagnosis. The change that matters is the **deployment window**: it used to be derived from the anchors, and anchors exist only where a clock already broke — so 26 of otoño 2026's 27 stations had **no window at all**, and a forward clock jump (a clock set *ahead*, which keeps every capture delta positive and is invisible to backwards-step detection) could not have been detected for any of them.
