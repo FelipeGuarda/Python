@@ -6,6 +6,42 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## [2026-08-12] — Camera-traps: the field record becomes a pipeline input; otoño 2026 ingested
+
+`data/campaigns/field_notes.csv` stops being a reference document and starts driving the clock diagnosis. The change that matters is the **deployment window**: it used to be derived from the anchors, and anchors exist only where a clock already broke — so 26 of otoño 2026's 27 stations had **no window at all**, and a forward clock jump (a clock set *ahead*, which keeps every capture delta positive and is invisible to backwards-step detection) could not have been detected for any of them.
+
+Also lands two days of uncommitted work: the Camtrap DP vocabulary correction to the export gate, and the one-time migration of the monitoring workbook.
+
+### Added
+- **`camtrap/anchors.py`** — owns what the field record asserts about a camera's clock, deliberately split into two assertions with different preconditions: the **deployment window** (every station, needs no photograph) and an **anchor** (only where the clock failed, needs a datable frame). Absorbs the anchor-CSV schema and `load_anchors` from `timestamps.py`, so the file format is stated in one place.
+- **`propose_anchors.py`** — joins the visit record to `anchor_candidates.csv` and writes `anchor_proposals.csv` with a `READY` / `NEEDS_REVIEW` / `NOT_NEEDED` status per segment. Promotes nothing automatically.
+- **`setup/build_field_notes.py` + `data/campaigns/field_notes.csv`** — 106 visits, 27 stations, one row per physical visit (a revision closes one campaign and opens the next). The workbook held three date conventions at once — Chilean `d/m/y` as text, `m/d/y` off camera screens, and cells Excel had already parsed with the machine locale; the last are the dangerous ones because a wrong reading looks clean. Swaps are detected against each sheet's plausible window and recorded in `data_flags`; a value plausible both ways is flagged, never picked. 57 of 106 rows carry a flag. `clock_state` defaults to `unknown`, never `ok`.
+- **`visit_date_only`** anchor type (APPROXIMATE). All 27 otoño 2026 opening visits record a date and no time, so an exact anchor would assert an hour nobody wrote down — which is how CT18's install anchor came to claim `14:00:00` against a notebook that says only `2025-11-14`.
+- **`tests/test_anchors.py`** — 19 fixtures. **81 total, all passing** (was 59).
+
+### Changed
+- **`anchor_candidates.py`** now ranks the swept export **above** MegaDetector: `human_labelled` / `vehicle_labelled` (someone looked and said so) outrank `person_detection` / `vehicle_detection` (an unconfirmed guess). On otoño 2026 that is 584 + 25 confirmed frames and **zero** unconfirmed — the sweep corroborated every MegaDetector person hit.
+- **A station with no deployment window is now reported as `unverified` clean, not clean.** CT27 is the live case: no install record, so the in-window test never ran. Its passing verdict is an absence of evidence, and both `timestamps.py` and `clocks.diagnose` now say so instead of claiming "every frame is in-window".
+- **`camtrap/exports.py`** — Camtrap DP's vocabulary named constant-by-constant (`TYPE_HUMAN`, `TYPE_BLANK`, …) so consumers stop restating it; likewise MegaDetector's in `camtrap/detections.py` (`CATEGORY_PERSON`, …). The two vocabularies are deliberately spelled differently because they are different vocabularies.
+
+### Fixed
+- **The export gate used our own invented vocabulary** (`person`/`empty`) instead of Camtrap DP's (`human`/`blank`), which the Timelapse2 template emits verbatim. Otoño 2026's first properly swept export passed **only because `vehicle` is spelled the same in both** — its 584 `human` rows counted as neither assigned nor proof, so the same campaign with no vehicle frames would have been rejected as unswept *after* the sweep was done. An unrecognised `observationType` is now a hard rejection (`unrecognised_category_values`) rather than a note: a value the gate cannot interpret vanishes from the tally, which is exactly the failure above.
+- **A visit is not an anchor.** CT01's notebook says the deployment ran 2025-11-24 → 2026-05-13 while its frames run 2025-11-26 → 2026-05-14 across one coherent segment with no reset. Turning that visit into an anchor would apply a two-day offset to a clock that was never wrong. Anchors are now proposed only where the segment would otherwise be refused.
+- **Witness vs navigational evidence.** The first version of the proposer paired CT18 segment 0 with `11190001.JPG` — a counter-`0001` frame — for a **−5 day offset applied to ten frames whose clock was correct**. A counter-`0001` frame is the first file on a card, not a photograph of the technician; the camera simply did not trigger for five days after install. Only a frame that *witnesses* a visit can date one.
+
+### Verified
+- The 3-day visit-window tolerance is **measured, not guessed**: across the 20 otoño 2026 stations provably coherent from capture order alone (so any gap to the notebook is the notebook's imprecision), the largest excursion past a recorded visit date is **+1.67 d**. The constraint is one-sided at each edge — a frame before the install or after the retrieval is impossible, while a quiet stretch inside the window is evidence of nothing (CT06 and CT11 went 35 and 41 days from install to first trigger; CT19 stopped firing 91 days before retrieval).
+- Applying the window changes **zero** verdicts while giving 26 stations a check they never had.
+- **otoño 2026 ingested end-to-end**: 1,785 rows, 26 clean stations, CT18 refused on all five segments (10/32/40/3/227, `valid_effort=FALSE`) — reproducing the 2026-08-03 hand analysis mechanically.
+
+### Open
+- **The Mayo 2026 horario-de-invierno shift.** Every camera was set back 1 h at that visit, and Chile left summer time 2026-04-04, so otoño 2026 frames between those dates read **1 h ahead of local time**. A ~40-day systematic time-of-day error that no reset detector can see — an hour never breaks segment coherence. Awaiting Felipe's decision on whether to correct it.
+- The other three campaigns still need Timelapse2 sweeps; nothing else can move them.
+
+Session log: `SecondBrain/Sessions/2026-08-12-camera-traps-field-record-as-pipeline-input.md`.
+
+---
+
 ## [2026-07-09] — Pehuen research: Monterroso overlap categorisation on Dhat4 CI
 
 Reframed `Research/pehuen-species-interactions/R/04_temporal_overlap.R` around the Monterroso et al. (2014) classification — the ecological standard for interpreting Dhat4. Explored Watson's U² and a Dhat4 randomisation test first; both were dropped after user pushback identified a conceptual mismatch: those tests answer "**are the two activity curves different?**", not the actual biological question **"is the observed 0.79 overlap meaningful?"**. Dhat4 has no natural null value (two nocturnal species can share Dhat4 ≈ 0.8 just from both being nocturnal), so a "significance of Dhat4" test isn't well-posed. The Monterroso threshold interpretation — applied to the *whole CI*, not the point estimate — sidesteps that trap by classifying the pair rather than testing it.
