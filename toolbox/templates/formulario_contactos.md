@@ -130,7 +130,7 @@ escrita de cualquiera de las dos formas. **Las marcadas con «?» son expansione
 que deduje y hay que confirmar antes de publicar.**
 
 ```
-AECID — Agencia Española de Cooperación Internacional para el Desarrollo
+Agencia Española de Cooperación Internacional para el Desarrollo (AECID)
 Área Tinquilco
 Así Conserva Chile
 Aula de Mar
@@ -146,8 +146,8 @@ CIGIDEN
 CIMA
 CONAF — Corporación Nacional Forestal
 Córpora
-(CR)² — Centro de Ciencia del Clima y la Resiliencia   (?)
-ECIM — Estación Costera de Investigaciones Marinas     (?)
+Centro de Ciencia del Clima y la Resiliencia (CR)²
+Estación Costera de Investigaciones Marinas (ECIM)
 Embajada del Reino Unido en Chile
 Explora
 FAO Chile
@@ -174,11 +174,11 @@ Kreen
 Laboratorio Natural Andes del Sur
 Ladera Sur
 Manomet
-MIM — Museo Interactivo Mirador                        (?)
+MIM — Museo Interactivo Mirador                        
 Ministerio de Energía
 Ministerio de Relaciones Exteriores
 Ministerio del Medio Ambiente (MMA)
-MSSA — Museo de la Solidaridad Salvador Allende        (?)
+MSSA — Museo de la Solidaridad Salvador Allende       
 Museo Nacional de Historia Natural
 Museo Taller
 Museo Violeta Parra
@@ -197,7 +197,7 @@ Pontificia Universidad Católica de Chile (PUC)
 Proyecto Imagina Rural
 Reservas Elementales
 Robles de Cantillana
-ROC — Red de Observadores de Aves y Vida Silvestre     (?)
+ROC — Red de Observadores de Aves y Vida Silvestre
 SBAP — Servicio de Biodiversidad y Áreas Protegidas
 SN Alto de Cantillana
 SN Cascada de las Ánimas
