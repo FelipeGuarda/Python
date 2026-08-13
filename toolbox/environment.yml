@@ -1,0 +1,18 @@
+# conda env create -f environment.yml
+# conda activate toolbox
+name: toolbox
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pandas
+  - openpyxl        # .xlsx read/write behind pandas
+  - jinja2          # campaign templates
+  - python-dotenv   # SMTP credentials out of .env
+  - pip
+  - pip:
+      # moviepy 2.x moved the public API from moviepy.editor to moviepy.
+      # Scripts here import the 2.x way; do not relax this pin.
+      - moviepy>=2.0
+      # Ships an ffmpeg binary. Required: ffmpeg is not on this machine's PATH.
+      - imageio-ffmpeg

@@ -1,0 +1,93 @@
+{# Fondo FMA selection result. Ported from "correos Fondo FMA masivos.py".
+
+   Branches on the workbook's `Estado` column: "Seleccionada" gets the
+   interview invitation, everything else gets the rejection.
+
+   EDIT PER ROUND: the three values below and the interview slots. Nothing in
+   this template needs a Python change to reuse it next year. #}
+
+{% extends "_base.html" %}
+
+{% set convocatoria = "Fondo FMA 2025-2026" %}
+{% set duracion_entrevista = "15 minutos" %}
+{% set horarios = [
+     "Martes 12 de noviembre: 9.00 - 18.00 hrs",
+     "Miércoles 13 de noviembre: 9.00 - 18.00 hrs",
+     "Jueves 14 de noviembre: 9.00 - 18.00 hrs",
+   ] %}
+
+{% block content %}
+{% if row.get("Estado", "") | trim | lower == "seleccionada" %}
+
+  <p>{{ saludo }},</p>
+
+  <p>Nos alegra informarle que su proyecto ha pasado la etapa de
+  <b>preselección</b> de nuestro <b>{{ convocatoria }}</b>. ¡Felicitaciones!</p>
+
+  <p>La siguiente etapa consistirá en una <b>entrevista</b> donde se buscará
+  profundizar en las características y ejecución de su propuesta, a través de una
+  <b>presentación online que Ud. podrá realizar junto a una persona más</b> si así
+  lo estima. La duración de la entrevista es de <b>{{ duracion_entrevista }}</b>:
+  10 para su presentación y 5 para preguntas de FMA.</p>
+
+  <p><b>Características de la presentación:</b></p>
+  <ul>
+    <li>Considere dar cuenta de la definición del problema</li>
+    <li>Describa cómo quieren aportar hacia una o más soluciones</li>
+    <li>Explique la metodología a implementar</li>
+    <li>Detalle con quiénes trabajarán</li>
+    <li>Aborde qué esperan lograr</li>
+  </ul>
+
+  <p>Confirme <b>al menos dos opciones de horario en que podría participar de la
+  entrevista</b>. Recuerde que será un rango de {{ duracion_entrevista }}.
+  <b>Ejemplo</b>: <i>Miércoles 13 de noviembre 9 AM / Jueves 14 de noviembre
+  17.00 PM.</i></p>
+
+  <p><b>Estos son los días/horas disponibles:</b></p>
+  <ul>
+    {% for horario in horarios %}<li>{{ horario }}</li>
+    {% endfor %}
+  </ul>
+
+  <p>Luego de la instancia de entrevista se realizará un proceso final en el cual
+  informaremos la lista definitiva de proyectos seleccionados/as.</p>
+
+  <p>Mucha suerte en esta etapa y esperamos su respuesta.</p>
+
+  <p>Saludos y felicidades nuevamente,</p>
+
+{% else %}
+
+  <p>{{ saludo }},</p>
+
+  <p>Buen día. Durante las últimas semanas, nuestro equipo ha estado revisando las
+  postulaciones de la convocatoria <b>{{ convocatoria }}</b>.</p>
+
+  <p>Agradecemos sinceramente su esfuerzo y dedicación para participar de esta
+  instancia concursable, sin embargo, esta vez su propuesta no pasó al siguiente
+  nivel de selección.</p>
+
+  <p>Este año el nivel de las iniciativas fue especialmente alto, por lo que
+  estamos muy agradecidos de conocer el compromiso, la diversidad y el entusiasmo
+  a lo largo de Chile para emprender acciones por el cuidado de la naturaleza.</p>
+
+  <p>Debido a la gran cantidad de propuestas recibidas y la capacidad de respuesta
+  de nuestro equipo, no podremos entregar retroalimentación personalizada de cada
+  proyecto.</p>
+
+  <p>Esperamos hayan podido aprovechar las instancias de orientación, así como el
+  material disponible sobre proyectos seleccionados en versiones anteriores.</p>
+
+  <p>En las próximas semanas publicaremos los resultados finales en nuestro sitio
+  web y plataformas digitales.</p>
+
+  <p>Esperamos que sus proyectos encuentren vías de ejecución y que puedan seguir
+  atentos/as a nuestras convocatorias.</p>
+
+  <p>Saludos, que tengan un excelente día.</p>
+
+{% endif %}
+
+<p><b>Atte.<br>Equipo FMA</b></p>
+{% endblock %}

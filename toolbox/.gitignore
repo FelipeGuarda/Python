@@ -1,0 +1,17 @@
+# Everything that passes through this toolbox is somebody's personal data:
+# participant lists, registration exports, send ledgers, raw video. None of it
+# belongs in the repo — only the code that processes it does.
+data/
+*.xlsx
+*.xls
+*.csv
+!.env.example
+.env
+
+# Video sources and outputs
+*.MOV
+*.mov
+*.AVI
+*.avi
+*.mp4
+*.MTS

@@ -1,0 +1,11 @@
+{# Shared shell for every campaign body: mail-client-safe inline styling plus
+   the institutional signature. Campaign templates extend this and fill
+   `content` — they should not restate the body styling or re-include the
+   signature. #}
+<html>
+  <body style="font-family:Arial,sans-serif;color:#333;line-height:1.6">
+    {% block content %}{% endblock %}
+    <br>
+    {% include '_firma_fma.html' %}
+  </body>
+</html>
