@@ -4,9 +4,76 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ---
 
+## ⚠️ Read this before re-ingesting a campaign
+
+Three standing hazards. Each one is silent — nothing in the pipeline will stop you.
+
+### 1. Re-ingesting will move the 2025 annual report's numbers — mirror `figures/` first
+
+`REPORT_CAMPAIGNS` in `Anual-reports/2025/py/01_data_prep.py:71` is
+`("otono_2025", "primavera_2025", "pv_2025_2026")` — **three of the four campaigns**.
+Any re-ingest of any of them changes the published report.
+
+```bash
+cp -r Anual-reports/2025/figures Anual-reports/2025/figures_pre_<date>
+```
+
+The 2026-07-30 re-ingest already moved it **419 → 369 events**, and
+`figures_pre_canonical/` exists because of it. The next one is bigger:
+
+| Campaign | Current `observations.parquet` | After re-ingest | Why |
+|---|---|---|---|
+| `primavera_2025` | 1,960 obs, **14 stations** | 19,522 files, **26 stations** | The 2026-08-13 download is the full campaign; the existing parquet is a partial ingest |
+| `otono_2025` | — | 8,997 files | Re-downloaded 2026-08-12 with DCIM subfolders |
+| `pv_2025_2026` | 792 obs, 21 stations | see §2 | Not a campaign |
+
+Do the diff deliberately. A number that moves for a known reason is a correction;
+the same number moving unnoticed is a defect.
+
+### 2. `pv_2025_2026` is not a campaign — it is a second review pass
+
+The field record (`data/campaigns/field_notes.csv`) has exactly three transitions:
+`otono_2025` → `primavera_2025` → `otono_2026`. **Campaigns are named for the season
+they are *retrieved* in**, so the deployment that ran May 2025 → Jan 2026 is
+`primavera_2025`. `pv_2025_2026` appears nowhere in it — it is a second Timelapse2 pass
+over the same SD cards (396 shared `(camera, file_name)` keys; see
+`label_conflicts_primavera_vs_pv_2026-05-27.csv`).
+
+`CAMPAIGN_ORDER` in `camtrap/observations.py:75` currently treats them as **consecutive
+campaigns**, deduplicating by precedence. That is the wrong shape for two readings of
+one deployment — but pv holds *adjudicated* labels (a naive dedup once nearly demoted a
+puma), so it cannot simply be dropped. **Unresolved.** Decide it before re-ingesting
+either one.
+
+### 3. CT16's clock is corrupt, not offset — no anchor can repair it
+
+Primavera 2025 CT16 emits filenames `00300001.JPG` (**month 00**) and `16300071.JPG`
+(**month 16**). Those are not wrong dates, they are *impossible* ones: the camera's RTC
+is producing invalid values, not a consistent shift.
+
+This is almost certainly the explanation for the **chronic TC-16 problem recorded
+across campaigns** in the notes below. An anchor repairs a clock that is wrong by a
+fixed amount; it cannot repair one that is not a clock. Expect CT16 to be refused, and
+treat any past repair of it as suspect.
+
+Related, from the same download — **~9 stations carry January frames in a deployment
+opened in May/June** (CT03, CT05, CT08, CT14, CT17, CT23, CT24, CT26), i.e. clock
+resets detectable from the deployment window alone. Filename-MMDD evidence, preliminary
+until the sweep lands.
+
+### And one gap the pipeline does not cover
+
+Flatten verifies that files are **conserved** and that they are **ordered**. Nothing
+verifies they are **attributed** to the right camera — see the nested-station warning
+in [Step 1b](#step-1b--flatten-folder-structure). Primavera 2025 arrived with one
+station's 2,460 files inside another station's folder, and every existing check passed.
+
+---
+
 ## Status
 
-**Last Updated:** 2026-08-03 — the segment-aware repair is now wired into ingest: `timestamps.py` consumes `camtrap/clocks.py`, the full-category export gate is enforced, and `anchor_candidates.py` finds the anchors
+**Last Updated:** 2026-08-13 — **all four downloads are now flattened and two campaigns are gate-ready.** Primavera 2025 re-downloaded and flattened (19,522 files, 26 stations, 13,814 moved, 1,935 renamed, **0 lost**); `dcim_manifest.csv` staged, with CT02/CT08/CT11/CT14 earning `ORDER_MANIFEST`. Otoño 2025's export **passes the gate** (`full_category_sweep`, 8,997 rows — animal 818, human 478, vehicle 99, blank 7,602), so its ingest is unblocked for the first time. Two findings outranked the flatten and are recorded in the ⚠️ block above: **a whole station (`TC23_M20.2`, 2,460 files) was nested inside another** and would have been attributed to camera 22 with every existing check passing — the pipeline verifies conservation and ordering but never *attribution*; and **`pv_2025_2026` is not a campaign** but a second review pass over Primavera 2025, which the field record settles outright. Also verified: the deployment window built on 2026-08-12 **holds on 26 stations it was never written against** — every working-clock station's frames fall inside its field-record window, often to the day. No code changed; **96 tests pass**.
+**Prior (2026-08-03):** the segment-aware repair is now wired into ingest: `timestamps.py` consumes `camtrap/clocks.py`, the full-category export gate is enforced, and `anchor_candidates.py` finds the anchors
 **What Changed:** Handoff steps 2–5 are done, so the 2026-07-31 verdicts now reach the data instead of only the analysis. (1) **`timestamps.py` rewired** — it diagnoses every clock from `ImageData_total.csv`, applies a **separate offset per segment** via `clocks.repair_plan()`, and `classify_epochs` (the `year < 2024` test that applied one offset per station) is deleted. New `clocks.segment_for_rows()` maps every row — videos and unparseable stamps included — to its segment, or to none, in which case the row is refused rather than guessed. (2) **The export gate is enforced** (`camtrap/exports.py`): ingest refuses any export where neither `person` nor `vehicle` appears, because `unclassified` doubles as `empty` in our template and a `{animal, unclassified}` file therefore *looks* labelled while nothing was assigned. That verdict cannot be overridden; a genuinely person-free campaign is admitted by a signed `export_gate_override.txt`. Three enforcement points: ingest, `python -m camtrap.exports <csv>` for an immediate check at export time, and `flatten_for_camtrapdp.py --check-export`. **Today's otoño 2026 export is rejected** — verified. (3) **`anchor_candidates.py`** (new) joins the MegaDetector JSON to the total export and lists every person/vehicle detection, counter-`0001` frame and segment boundary with the segment it sits in. On otoño 2026 it finds **595 person + 28 vehicle frames** that MegaDetector already detected and the Timelapse2 sweep never recorded — 17 stations have an install-side candidate, 7 a retrieval-side one. (4) **Schema** — `valid_effort` added to `CANONICAL_COLUMNS` (station-level: FALSE leaves the effort denominator, not just the numerator) and optional `segment_index` to the anchor CSV. The corrected CSV now carries 7 new columns, adding `valid_effort` and `clock_segment`. (5) **`station_aliases.csv` gained `CT_02` and `CT_12`** — 23 images across two deployments that have no animal records, so they never appeared in the animal-only export and were invisible until the all-images export was read. 59 fixtures pass (`python3 -m unittest discover -s tests`), 34 of them new.
 **Prior (2026-07-31):** DCIM manifest + `camtrap/clocks.py` — capture order preserved at flatten time, clock repair made segment-aware.
 **What Changed (2026-07-31):** Two changes, both prerequisites for re-ingesting the campaigns from Synology. (1) `setup/flatten_for_camtrapdp.py` now writes a `dcim_manifest.csv` sidecar recording which SD-card DCIM folder every frame came from. Flattening pools `xxxx0001.JPG` from every folder into one directory and Timelapse2's `RelativePath` keeps only the deployment name, so capture order — the only way to detect a clock reset — used to be destroyed by this step. Nothing is renamed that was not renamed before, so existing joins on `file_name` are unaffected. The same script **no longer skips same-name/same-size files as duplicates**: that is exactly what a reset-clock camera emits, and a conservation check now aborts the run if any deployment ends up with fewer files than it should. (2) New `camtrap/clocks.py` owns clock-failure diagnosis — segments, capture-order evidence, coherence, and the repairability rule *a segment is repairable iff it is coherent AND contains ≥1 anchor*. It replaces the old binary `year < 2024` test, which could not see a forward jump, and it emits the third validity axis `valid_effort`. 25 fixtures in `tests/test_clocks.py` cover Felipe's scenarios A–G plus both precondition failures; run with `python3 -m unittest discover -s tests`. Verified against the real otoño 2026 export: CT_18 comes back as **5 segments** (10 / 32 / 40 / 3 / 227 frames), reproducing the 2026-07-30 hand analysis, and every segment is refused — including via its uncorroborated install anchor, which falls inside no segment.
@@ -176,6 +243,24 @@ from, and flattening consumes the tree that produced it — it cannot be regener
 `100EK113/` subfolders and nothing else.** An intermediate grid folder (`M5`, `M 11`)
 is harmless to ordering but its name can leak into filenames when two frames collide,
 so prefer not to create one.
+
+> ⚠️ **Never let one station's folder sit inside another's — check before flattening.**
+> Primavera 2025 arrived with `TC23_M20.2/` (2,460 files) nested inside `TC22_M19.2/`.
+> Flattening would have moved all 2,460 into camera 22's deployment, at camera 22's
+> coordinates. **The run would have looked perfect:** the two cameras use different
+> filename schemes (`IMAG####` vs `MMDDnnnn`), so there were no collisions —
+> `moved=2460 renamed=0 lost=0`, conservation check passed.
+>
+> This is the gap the current checks leave. The script verifies that files are
+> **conserved** (nothing lost) and that they are **ordered** (the manifest conditions
+> above); nothing verifies they are **attributed** to the right camera. Until a
+> precondition exists, confirm by eye that every station folder is a direct child of the
+> DataPackage root:
+>
+> ```bash
+> # Any station-shaped folder deeper than one level is a problem
+> find "C:\path\to\DataPackage" -mindepth 2 -type d -iname "CT*" -o -mindepth 2 -type d -iname "TC*"
+> ```
 
 ### Step 1c — Run MegaDetector via AddaxAI
 
@@ -625,12 +710,21 @@ Canonical species catalog lives at `data-pipeline/species.yaml` (shared by `data
 
 ## Campaign History
 
-| Campaign | Status | Reviewed CSV |
-|---|---|---|
-| Primavera 2025 | Complete — largely superseded by PV 2025-2026 (see note) | `data/campaigns/primavera_2025/new_labeled_data_reviewed.csv` |
-| Otoño 2025 | Complete | `data/campaigns/otono_2025/new_labeled_data_reviewed.csv` |
-| Primavera-verano 2025-2026 | Complete | `data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv` |
-| Otoño 2026 | Reviewed; **CT_18 clock unrepairable — 4 resets, not 1. Dates fabricated by the current repair; see `docs/HANDOFF-clock-repair.md`** | `data/campaigns/otono_2026/new_labeled_data_reviewed.csv` |
+Per the field record there are **three** deployments, not four. Campaigns are named for
+the season they are **retrieved** in.
+
+| Campaign | Ran | Retrieved | Status |
+|---|---|---|---|
+| Otoño 2025 | 2024-10-09 → 2025-05-14/06-11 | autumn 2025 | Re-downloaded and flattened 2026-08-12 (8,997 files). Export passes the gate. **CT15/CT16/CT19 `unrepairable_pending`**; 8 images undecodable (six 0-byte CT04, two all-zero CT13) and labelled `blank` — a known, accepted limitation |
+| Primavera 2025 | 2025-05-14/06-11 → 2025-11-12/2026-01-14 | spring 2025 | Re-downloaded and flattened 2026-08-13 (19,522 files, **26 stations**). Existing parquet is a **partial** ingest of 14 stations. **CT16 clock corrupt — see §3 above** |
+| Otoño 2026 | 2025-11-12/2026-01-14 → 2026-05-13/15 | autumn 2026 | Ingested 2026-08-12 — 1,785 rows, 26 clean stations. **CT_18 refused on all five segments** (4 resets, not 1; `docs/HANDOFF-clock-repair.md`). **Carries the unfixed horario-de-invierno shift** |
+
+**`pv_2025_2026` is not in this table because it is not a campaign** — it is a second
+Timelapse2 review pass over Primavera 2025's cards. See §2 above. Its reviewed CSV
+(`data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv`) still holds adjudicated
+labels that Primavera 2025's does not, so it must be merged rather than discarded.
+
+Reviewed CSVs live at `data/campaigns/<campaign>/new_labeled_data_reviewed.csv`.
 
 ---
 
