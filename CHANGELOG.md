@@ -6,6 +6,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## [2026-08-13] — Camera-traps: the last campaign flattened, and `pv_2025_2026` turns out not to be a campaign
+
+The primavera-verano download reviewed and flattened (19,522 files, 26 stations, **0 lost**). Two findings outrank the flatten itself.
+
+### Fixed (on disk, before flattening)
+- **🛑 A whole station was nested inside another.** `TC23_M20.2` — 2,460 files — sat inside `TC22_M19.2`. Flattening would have attributed all of them to camera 22, at camera 22's coordinates. **Nothing in the pipeline would have caught it:** the two cameras use different filename schemes (`IMAG####` vs `MMDDnnnn`), so there were zero collisions — the run prints `moved=2460 renamed=0 lost=0` and the conservation check passes. The already-ingested `pv_2025_2026` parquet proves the nesting is new: `TC23_M20.2` appears there as a *top-level* `rel_path` prefix, and camera 22 has 0 rows (never reviewed). → **Conservation and ordering are checked; station attribution is not.** A precondition for this goes through the design gate next session.
+- 26 folders renamed `TC<n>_M<grid>` → canonical `CT01`–`CT26`. The mapping rule was **checked against all 34 TC-style rows** in `station_aliases.csv` (0 disagreements) rather than assumed.
+
+### Changed
+- **`pv_2025_2026` is not a campaign.** The field record has exactly three transitions — `otono_2025` → `primavera_2025` → `otono_2026` — and campaigns are named for the season they are **retrieved** in. The campaign opened 2025-05-14/06-11 and closed 2025-11-12/2026-01-14 is `primavera_2025`; the download's span matches it exactly. `pv_2025_2026` is a **second Timelapse2 review pass** over the same cards (396 shared camera+filename keys; `label_conflicts_primavera_vs_pv_2026-05-27.csv`). This sharpens the 2026-07-30 note: they are not consecutive campaigns to dedup by precedence, they are two readings of one campaign, and `CAMPAIGN_ORDER` currently encodes them as sequential.
+
+### Added
+- **`data/campaigns/primavera_2025/dcim_manifest.csv`** — 13,814 rows; 19,522 files in → 19,522 out, 1,935 renamed (all CT14), **0 lost**. CT02, CT08, CT11 and CT14 all earn `ORDER_MANIFEST`.
+
+### Verified
+- **The deployment window holds on data it was not written from.** Every station with a working clock has its frame span *inside* its field-record window, often to the day: CT04 opened 05-14 / closed 11-21 with frames 0514..1121; CT06 05-14/11-13 with 0514..1113; CT20 06-09/12-03 with 0609..1203; CT15's first frame *is* its install date. First real test of yesterday's `camtrap/anchors.py` against unseen data.
+- **Otoño 2025's export passes the gate** — `full_category_sweep`, 8,997 rows (animal 818, human 478, vehicle 99, blank 7,602), matching the flatten exactly. Ingest is unblocked.
+- **Unicode: nothing to do** — 39,173 paths, 0 non-ASCII, 0 NFD, 0 control characters.
+- No code changed; **96 tests still pass.**
+
+### Notes for the sweeps
+- **~9 primavera_2025 stations show clock resets detectable from the field window alone** (CT03, CT05, CT08, CT14, CT17, CT23, CT24, CT26 carry January frames in a deployment opened in May/June). Filename-MMDD evidence — a preliminary signal, not a pipeline verdict.
+- **CT16's clock is impossible, not merely wrong** — filenames `00300001.JPG` (month 00) and `16300071.JPG` (month 16). Corrupt RTC; no anchor repairs a clock emitting invalid dates.
+- **Eight otoño 2025 images cannot be decoded** — six 0-byte in CT04, two ~4.6 MB in CT13 whose bytes are all-zero. MegaDetector skipped all eight; Timelapse2 labels them `blank`. **Felipe's call: leave them `blank`** (I recommended `unknown`); 8 rows of 8,997, no figure moves — recorded as an accepted limitation. A scanner reproducing MegaDetector's error log found the same 8, and **0 in primavera_2025**.
+- ⚠️ **Both `primavera_2025` and `pv_2025_2026` are in `REPORT_CAMPAIGNS`.** Re-ingesting primavera_2025 at full size — 26 stations vs the current parquet's 14, 19,522 files vs 1,960 observations — will move the 2025 report substantially more than otoño 2025 will. Mirror `Anual-reports/2025/figures/` before either.
+- **The horario-de-invierno shift is deferred a second time** — it keeps losing to campaign work.
+
+---
+
 ## [2026-08-12b] — Camera-traps: otoño 2025 re-downloaded and flattened; ordering evidence tightened
 
 The campaign was re-pulled from the Synology originals **with its SD-card subfolders intact** — the capture-order evidence otoño 2026 lost permanently. Flattening it exposed a defect in what the DCIM manifest is allowed to claim.
