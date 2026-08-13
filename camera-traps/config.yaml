@@ -1,5 +1,5 @@
 # ─── Paths ────────────────────────────────────────────────────────────────────
-campaign_dir: "C:\\Users\\USUARIO\\Desktop\\BP Mayo 2026\\SynologyDrive"
+campaign_dir: "C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive"
 megadetector_json: "timelapse_recognition_file.json"
 input_csv:        "ImageData_animals.csv"
 output_csv:       "ImageData_animals_classified.csv"
