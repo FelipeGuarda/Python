@@ -6,6 +6,51 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## [2026-08-14] — Camera-traps: attribution becomes a flatten precondition; two long-open chores closed
+
+Worked entirely from the Linux laptop, which turned out to be more capable than the docs assumed.
+
+### Added
+- **`camtrap/stations.names_a_station(folder_name) -> bool`** — what a station folder looks like, in every spelling the project has used (`CT23`, `CT_23`, `TC23_M20.2`). Matched by **shape**, not by membership in `station_aliases.csv`, for one concrete reason: `100EK113` **is** an alias row (an unrenamed SD-card folder that became primavera_2025's camera 5), so a membership test would call every DCIM folder a station and refuse every deployment that contains one. Shape excludes it without needing to know what a DCF folder is — that stays owned by `clocks.dcim_folder_key`. Returns `bool` precisely so it cannot become a second route from a name to a camera number; `resolve()` and the alias table remain the only one.
+- **`flatten_for_camtrapdp.find_nested_stations(files)`** — `{rel path: files beneath it}` for station folders nested inside a deployment. Reports only the **shallowest** station-shaped component (`TC23_M20.2/100EK113` is one offence, not two — the operator moves one folder, and naming its children would bury the instruction), and counts files from the already-collected walk, so a station folder holding no media misattributes nothing and is not reported.
+- **8 fixtures** in `tests/test_flatten.py`. The one that matters reads `station_aliases.csv` and asserts every spelling is recognised **except `100EK113`** — the 2026-08-13 hand-check ("34 TC-style rows, 0 disagreements") turned into a test that re-runs whenever a row is added. **104 total, all passing** (was 96).
+
+### Changed
+- **Attribution is now the third flatten precondition**, alongside conservation and ordering. `flatten_for_camtrapdp.py` refuses a deployment containing a station-shaped subfolder, checked after discovery and **before a single file moves** — under `--dry-run` too, since a dry run exists to be trusted. **Deliberately fatal-always, with no override flag** (Felipe's call, asked explicitly): no arrangement puts one station folder legitimately inside another, so there is nothing to override and the fix is always to move the folder up and rename it. This closes the gap `TC23_M20.2`-inside-`TC22_M19.2` exposed on 2026-08-13 — 2,460 files that would have been attributed to camera 22 at camera 22's coordinates, with `moved=2460 renamed=0 lost=0` and every existing check passing.
+
+### Verified
+- End-to-end on scratch trees: the TC23 arrangement is refused (`CT22/TC23_M20.2 (2 file(s) would be attributed to CT22)`, exit 1); a clean tree with grid folders, DCIM folders and a real filename collision flattens exactly as before.
+- **Informe Anual 2025 v2 DOCX rendered** — `bash Anual-reports/2025/render.sh`, 1.4 MB with figures embedded. Open since 2026-05-20; it only ever needed pandoc on Linux (3.1.3 present).
+- **`Anual-reports/2025/figures/` mirrored to `figures_pre_reingest/`** — the ⚠️ precondition the README, CHANGELOG and PROJECT_STATUS all repeat before any re-ingest, now actually satisfied.
+
+### Machine audit — what the Linux box can and cannot do
+- **MegaDetector can run here.** RTX 4070 Laptop (8 GB), AddaxAI installed at `~/.AddaxAI_files/` with `models/det/MegaDetector 5a/md_v5a.0.0.pt`. Only the **Timelapse2 sweep** still requires Windows — it is a .NET app, and the `Timelapse/` folder on Synology holds `.dll`/`.exe` only.
+- **The ingest chain never opens an image.** `anchor_candidates.py`, `propose_anchors.py` and `timestamps.py` read the export CSV, the DCIM manifest and the MegaDetector JSON. So **otoño 2025's ingest is blocked on Linux by exactly one missing file** — `ImageData_total.csv` (8,997 rows), which passed the gate on 2026-08-13 but exists only on the Windows box. Copying that one CSV unblocks the whole chain here. Caveat: confirming a `NEEDS_REVIEW` anchor still means looking at the photograph.
+- **The campaign images are not on this machine.** `SynologyDrive/Datos/2. Camaras trampa/…/CAMPAÑAS DE RECOLECCION DE IMAGENES/{Otoño 2025, Primavera 2025}` exist but are empty (selective sync); 309 JPGs total under that tree, all legacy pre-Sept-2024 material.
+
+### Added — later the same day, after Felipe reviewed the gates
+Felipe's objection: every gate quotes the incident that produced it, which makes them read as point-fixes rather than rules. **Audited all six.** Five are derived from a stated premise and name the incident only as a regression witness (`clocks` P1/P2 + the repairability rule, `dcim_folder_key`, the export gate's unknown-value rejection, `establish_order`'s partial-manifest refusal, `stations.resolve()`). **One was not**: `names_a_station` enumerates the three spellings this project has used, so `Camara 23` or `Cam23` walks past it.
+
+The sharper finding: **the pipeline already saw the alien frames.** Pooled into CT22, `establish_order` reports `2460 filename(s) do not match the MMDD+counter grammar` and returns `ordered=False` — verified by running it. But that routes the evidence to the **ordering** question, and per the documented P1 asymmetry a camera that cannot be ordered is not thereby condemned, so 2,460 frames kept camera 22's identity and coordinates. The missing gate was not a new observation; it was the right question asked of an observation we already had.
+
+- **`camtrap/provenance.py`** — owns *how many capture stories does this folder tell?* The rule: **two or more filename shapes each forming a counter run** means more than one camera. A shape is the stem with digit runs collapsed (`IMAG0001` → `IMAG#`), **extension excluded** because these cameras fire three stills and a video and `01120001.JPG`/`01120004.AVI` are one story. A *run* rather than a group, because otoño 2026 CT_27's hand-renamed `01060117_fiscalizador.JPG` is one frame and one frame is not a sequence. It **enumerates nothing**, so a naming convention nobody has seen forms its own group automatically — the property `names_a_station` lacks.
+- **Validated before being wired in, not after:** all four campaigns, **28,178 files/rows, 0 false positives.** The one false positive the first version produced was real and instructive — pv 2025-2026 CT14's 13 `101EK113_`-prefixed names, written by our own `resolve_dest`, formed their own run. **Folded into the rule rather than tuned away**: a shape that is a strict suffix of another at a separator boundary is that shape wearing a prefix, resolved transitively (a single pass leaves `#`, `X_#`, `Y_X_#` in two groups).
+- **16 fixtures** in `tests/test_provenance.py`, including the cases that must *not* fire: stills-plus-video, the hand-renamed one-off, our rename prefixes, repeated names, and CT16's impossible months — a clock failure that belongs to `clocks.py`, and this module must stay out of it. **120 total, all passing** (was 104).
+- It imports **nothing** from `clocks` and is stdlib-only. The design gate predicted it would consume `parse_filename`; it does not need to, because shapes are grammar-agnostic — a stronger position than the one designed, and the docstring was corrected to say so rather than left claiming the coupling.
+
+### Changed — later the same day
+- **The top-level station-convention check is fatal by default.** It warned unless `--check-stations` was passed, which left the *weaker* guard on the older failure — `100EK113` reaching Timelapse2 as a deployment cost 252 rows of camera 5 from the 2025 report for a year — while its sibling, a station folder nested inside another, refuses outright. Both answer "is this folder the camera we think it is?", and two severities for one question is how the cheaper one gets skipped. `--check-stations` is now accepted and ignored, so command lines and notes written before today keep working.
+- **`names_a_station` deliberately stays narrow**, with a docstring recording why: it can name *which folder to move*, which the general check cannot; the general check catches names nobody has thought of, which it cannot. Do not widen the regex to chase a name the other already covers.
+
+### Still open
+- The **horario-de-invierno** shift — deferred a third time, though it is fully doable here (otoño 2026's data is all local). Needs Felipe's decision first.
+- **`primavera_2025` × `pv_2025_2026`** as two readings of one campaign — both parquets are local, so this is analysable on Linux and is a prerequisite for the primavera re-ingest.
+- **pehuen's hardcoded `C:/Users/USUARIO/...` paths** (`R/01_load_data.R:50–58`), plus three more in `Anual-reports/2025/py/`.
+
+Session log: `SecondBrain/Sessions/2026-08-14-camera-traps-nested-station-precondition-and-linux-audit.md`.
+
+---
+
 ## [2026-08-13] — Camera-traps: the last campaign flattened, and `pv_2025_2026` turns out not to be a campaign
 
 The primavera-verano download reviewed and flattened (19,522 files, 26 stations, **0 lost**). Two findings outrank the flatten itself.

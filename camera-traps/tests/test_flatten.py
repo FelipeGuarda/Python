@@ -11,6 +11,7 @@ locking down is which NAME a colliding frame ends up with, because that name rea
 `file_name` in every export and every downstream join.
 """
 
+import csv
 import sys
 import tempfile
 import unittest
@@ -19,7 +20,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'setup'))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from flatten_for_camtrapdp import prefix_candidates, resolve_dest
+from camtrap import stations
+from flatten_for_camtrapdp import (
+    find_nested_stations,
+    prefix_candidates,
+    resolve_dest,
+)
+
+_ALIAS_CSV = (
+    Path(__file__).resolve().parents[1] / 'data' / 'campaigns' / 'station_aliases.csv'
+)
 
 
 class TestPrefixCandidates(unittest.TestCase):
@@ -95,6 +105,82 @@ class TestResolveDest(unittest.TestCase):
         dest, action = resolve_dest(self.dep, ['101EK113'], '01010001.JPG')
         self.assertIsNotNone(dest)
         self.assertNotEqual(dest, self.dep / '01010001.JPG')
+
+
+class TestNamesAStation(unittest.TestCase):
+    """The recogniser behind the nested-station refusal.
+
+    Recognition is by SHAPE, so what it must not do is drift away from the spellings
+    the campaigns actually used — hence the alias file itself is the fixture.
+    """
+
+    # The one alias that must NOT be recognised: an unrenamed SD-card folder that
+    # became a deployment in primavera_2025. Every deployment contains DCIM folders,
+    # so recognising it would refuse every flatten there has ever been.
+    DCIM_ALIAS = '100EK113'
+
+    def test_every_alias_spelling_is_recognised_except_the_dcim_one(self):
+        """The 2026-08-13 hand-check — 34 TC-style rows, 0 disagreements — as a
+        fixture that re-runs whenever a row is added."""
+        with open(_ALIAS_CSV, encoding='utf-8', newline='') as f:
+            spellings = {row['station_raw'].strip() for row in csv.DictReader(f)}
+        self.assertIn(self.DCIM_ALIAS, spellings, 'fixture premise changed')
+
+        for spelling in sorted(spellings):
+            with self.subTest(spelling=spelling):
+                self.assertEqual(
+                    stations.names_a_station(spelling),
+                    spelling != self.DCIM_ALIAS,
+                )
+
+    def test_canonical_is_recognised(self):
+        self.assertTrue(stations.names_a_station('CT23'))
+
+    def test_dcim_and_grid_folders_are_not_stations(self):
+        """A false positive is now fatal, so the folders every deployment actually
+        contains must be rejected. Grid names are typed by hand in the field."""
+        for name in (
+            '100EK113', '101EK113', '102EK113',
+            'M5', 'M 11', 'M17 (TC20)', 'M18 (vacía, TC mala)', 'Backups',
+        ):
+            with self.subTest(name=name):
+                self.assertFalse(stations.names_a_station(name))
+
+
+class TestFindNestedStations(unittest.TestCase):
+    """Attribution — the question conservation and ordering do not ask."""
+
+    def test_the_tc23_case(self):
+        """Primavera 2025: a whole camera inside CT22. Different filename schemes,
+        so zero collisions — `moved=2460 renamed=0 lost=0` and every check passed."""
+        files = [(Path(f'/x/IMAG{i:04d}.JPG'), ['TC23_M20.2']) for i in range(2460)]
+        self.assertEqual(find_nested_stations(files), {'TC23_M20.2': 2460})
+
+    def test_only_the_shallowest_component_is_reported(self):
+        """The operator moves one folder; naming its DCIM children too would bury
+        the instruction."""
+        files = [(Path('/x/a.JPG'), ['M19', 'TC23_M20.2', '100EK113'])]
+        self.assertEqual(find_nested_stations(files), {'M19/TC23_M20.2': 1})
+
+    def test_a_clean_deployment_reports_nothing(self):
+        files = [
+            (Path('/x/01160002.JPG'), ['M 11', '101EK113']),
+            (Path('/x/01160003.JPG'), ['M 11', '101EK113']),
+        ]
+        self.assertEqual(find_nested_stations(files), {})
+
+    def test_files_are_counted_per_offending_folder(self):
+        files = (
+            [(Path('/x/a.JPG'), ['CT_23'])] * 3
+            + [(Path('/x/b.JPG'), ['TC24_M21.2'])] * 2
+            + [(Path('/x/c.JPG'), ['100EK113'])] * 9
+        )
+        self.assertEqual(find_nested_stations(files), {'CT_23': 3, 'TC24_M21.2': 2})
+
+    def test_an_empty_station_folder_is_not_an_offence(self):
+        """collect_subdir_files yields no rows for it, and a folder holding no media
+        misattributes nothing."""
+        self.assertEqual(find_nested_stations([]), {})
 
 
 if __name__ == '__main__':

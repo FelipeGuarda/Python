@@ -45,7 +45,7 @@ from _fileops import cleanup_empty_dirs, is_target, move_file
 # camera-traps repo root — so `camtrap` is importable when run from setup/
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from camtrap import exports, stations
+from camtrap import exports, provenance, stations
 from camtrap.clocks import (
     DCIM_MANIFEST_COLUMNS,
     DCIM_MANIFEST_FILENAME,
@@ -81,6 +81,27 @@ def collect_subdir_files(deployment_dir: Path) -> list:
                 results.append((fp, rel_parts))
 
     return results
+
+
+def find_nested_stations(files: list) -> dict:
+    """Station folders sitting INSIDE a deployment → {rel path: files beneath it}.
+
+    `files` is what collect_subdir_files returned, so this counts exactly the frames
+    that would be misattributed — a station folder holding no media misattributes
+    nothing and is not reported.
+
+    Only the SHALLOWEST station-shaped component is reported. `TC23_M20.2/100EK113`
+    is one offence at `TC23_M20.2`, not a second one below it: the operator has to
+    move that folder, and naming its children as well would only bury the instruction.
+    """
+    offences: dict = {}
+    for _, rel_parts in files:
+        for depth, part in enumerate(rel_parts):
+            if stations.names_a_station(part):
+                key = '/'.join(rel_parts[:depth + 1])
+                offences[key] = offences.get(key, 0) + 1
+                break
+    return offences
 
 
 # ── Destination resolution ────────────────────────────────────────────────────
@@ -403,6 +424,68 @@ def main() -> int:
         files = collect_subdir_files(dep)
         deploy_files[dep] = files
         total_files += len(files)
+
+    # ── Station nesting ───────────────────────────────────────────────────────
+    # Always fatal, and checked before a single file moves — including under
+    # --dry-run, since a dry run exists to be trusted. There is no arrangement in
+    # which one station folder legitimately sits inside another, so there is nothing
+    # to override; the fix is always to move the folder up and rename it.
+    #
+    # This is the third precondition on a flatten, and the one the other two could
+    # not see. Conservation asks "did every file survive?" and ordering asks "do we
+    # know what order they were taken in?" — TC23 passed both while 2,460 frames
+    # changed camera. Attribution is its own question.
+    nested = [
+        (dep.name, folder, n)
+        for dep in deployments
+        for folder, n in sorted(find_nested_stations(deploy_files[dep]).items())
+    ]
+    if nested:
+        lines = "\n".join(
+            f"    {dep}/{folder}  ({n} file(s) would be attributed to {dep})"
+            for dep, folder, n in nested
+        )
+        sys.exit(
+            f"\nERROR: {len(nested)} station folder(s) are nested inside a "
+            f"deployment:\n{lines}\n"
+            "  Flattening would move those files into the PARENT deployment and "
+            "stamp them\n  with the parent's camera and coordinates — silently, "
+            "because nothing is lost\n  and nothing collides. Move each folder up "
+            "to the DataPackage root and rename\n  it to canonical form "
+            f"({stations.CANONICAL_PATTERN}) before flattening."
+        )
+
+    # ── One deployment, one capture story ─────────────────────────────────────
+    # The general form of the check above. That one recognises a station FOLDER by
+    # name and can therefore say which folder to move; this one recognises a second
+    # camera by its FRAMES and so catches an intruder whose folder is called
+    # anything at all. Narrow-and-precise in front, general-and-vague behind — see
+    # camtrap/provenance.py. Measured across all four campaigns: 0 false positives
+    # on 28,178 files.
+    stories = []
+    for dep in deployments:
+        names = [f.name for f, _ in deploy_files[dep]]
+        names += [p.name for p in dep.iterdir() if p.is_file() and is_target(p)]
+        found = provenance.multiple_capture_stories(names)
+        if found:
+            stories.append((dep.name, found))
+    if stories:
+        lines = "\n".join(
+            f"    {dep}\n" + "\n".join(
+                f"        {p.shape:<24} {p.n:>6} frame(s)   e.g. {', '.join(p.sample)}"
+                for p in pops
+            )
+            for dep, pops in stories
+        )
+        sys.exit(
+            f"\nERROR: {len(stories)} deployment(s) contain frames from more than one "
+            f"camera:\n{lines}\n"
+            "  Each filename shape below is its own counter run, which is what a "
+            "separate camera\n  looks like. Flattening would merge them under one "
+            "station ID and one set of\n  coordinates. Find the intruding folder, "
+            "move it to the DataPackage root and\n  rename it to canonical form "
+            f"({stations.CANONICAL_PATTERN})."
+        )
 
     # ── Print discovery summary ───────────────────────────────────────────────
     print(f"\nDataPackage root : {root}")

@@ -46,6 +46,47 @@ def is_canonical(station_raw: str) -> bool:
     return bool(_CANONICAL_RE.match(station_raw.strip()))
 
 
+# Every spelling this project has used for a station, as a SHAPE: canonical `CT23`,
+# otoño 2026's `CT_23`, and the TC-with-grid form `TC23_M20.2`. Recognition only —
+# see names_a_station.
+_STATION_SHAPE_RE = re.compile(r'^(?:CT|TC)[_-]?\d{1,2}(?:_M[0-9.]+)?$', re.IGNORECASE)
+
+
+def names_a_station(folder_name: str) -> bool:
+    """Does this folder name name a camera station, in any spelling we have used?
+
+    RECOGNISES, NEVER RESOLVES. It returns a bool precisely so it cannot become a
+    second route from a name to a camera number — `resolve()` and
+    `station_aliases.csv` remain the only one, because a name this matches by shape
+    may still belong to no camera we know.
+
+    Matched by SHAPE rather than by membership in the alias table, for one concrete
+    reason: `100EK113` IS an alias row (an unrenamed SD-card folder that became
+    primavera_2025's camera 5), so a membership test would call every DCIM folder a
+    station and refuse every deployment that contains one. The shape test excludes
+    it without needing to know what a DCF folder is — that stays owned by
+    `clocks.dcim_folder_key`.
+
+    DELIBERATELY NARROW, AND NOT THE ONLY GUARD. Recognising by shape means it knows
+    the three spellings this project has used and no others: a folder called
+    `Camara 23` or `Cam23` walks straight past it. That is an accepted limit rather
+    than a gap, because `camtrap/provenance.multiple_capture_stories()` sits behind
+    it and recognises a second camera from its FRAMES, enumerating nothing. The two
+    are complementary — this one can say *which folder to move*, which the general
+    check cannot; the general one catches names nobody has thought of, which this
+    one cannot. Do not widen this regex to chase a name the other check already
+    covers.
+
+    Used by `setup/flatten_for_camtrapdp.py` to refuse a deployment with a station
+    folder nested inside it. Primavera 2025 had `TC23_M20.2` — 2,460 files, a whole
+    camera — sitting inside `TC22_M19.2`; flattening would have attributed all of
+    them to camera 22, at camera 22's coordinates. Nothing caught it: the two use
+    different filename schemes, so there were zero collisions and the conservation
+    check passed. Conservation and ordering were checked; attribution was not.
+    """
+    return bool(_STATION_SHAPE_RE.match(folder_name.strip()))
+
+
 @lru_cache(maxsize=1)
 def _aliases() -> dict[tuple[str, str], int]:
     """{(campaign, station_raw): camera_num} for the pre-convention campaigns."""

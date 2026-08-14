@@ -61,18 +61,37 @@ opened in May/June** (CT03, CT05, CT08, CT14, CT17, CT23, CT24, CT26), i.e. cloc
 resets detectable from the deployment window alone. Filename-MMDD evidence, preliminary
 until the sweep lands.
 
-### And one gap the pipeline does not cover
+### And one gap the pipeline used to leave — closed 2026-08-14
 
-Flatten verifies that files are **conserved** and that they are **ordered**. Nothing
-verifies they are **attributed** to the right camera — see the nested-station warning
-in [Step 1b](#step-1b--flatten-folder-structure). Primavera 2025 arrived with one
+Flatten verified that files were **conserved** and that they were **ordered**. Nothing
+verified they were **attributed** to the right camera. Primavera 2025 arrived with one
 station's 2,460 files inside another station's folder, and every existing check passed.
+
+**Attribution is now the third precondition**, alongside conservation and ordering, and
+it is enforced twice over — see [Step 1b](#step-1b--flatten-folder-structure):
+
+| | Recognises | Catches | Misses |
+|---|---|---|---|
+| `stations.names_a_station()` | a station **folder**, by name | `TC23_M20.2` — and says *which folder to move* | a folder called `Camara 23` |
+| `provenance.multiple_capture_stories()` | a second camera, by its **frames** | any intruder, whatever the folder is called | nothing name-shaped; it enumerates nothing |
+
+Both are fatal, neither is overridable. The general one was validated across all four
+campaigns before it was wired in: **28,178 files, 0 false positives.**
+
+**The lesson worth keeping.** The pipeline *already saw* TC23's 2,460 alien frames —
+`establish_order` reported them as unparseable filenames — but filed them under
+*ordering*, where a failure does not condemn a camera. The gate that was missing was
+not a new observation; it was the right **question** asked of an observation we already
+had. When a check fires for a reason that surprises you, ask whether it is answering
+the question you think it is.
 
 ---
 
 ## Status
 
-**Last Updated:** 2026-08-13 — **all four downloads are now flattened and two campaigns are gate-ready.** Primavera 2025 re-downloaded and flattened (19,522 files, 26 stations, 13,814 moved, 1,935 renamed, **0 lost**); `dcim_manifest.csv` staged, with CT02/CT08/CT11/CT14 earning `ORDER_MANIFEST`. Otoño 2025's export **passes the gate** (`full_category_sweep`, 8,997 rows — animal 818, human 478, vehicle 99, blank 7,602), so its ingest is unblocked for the first time. Two findings outranked the flatten and are recorded in the ⚠️ block above: **a whole station (`TC23_M20.2`, 2,460 files) was nested inside another** and would have been attributed to camera 22 with every existing check passing — the pipeline verifies conservation and ordering but never *attribution*; and **`pv_2025_2026` is not a campaign** but a second review pass over Primavera 2025, which the field record settles outright. Also verified: the deployment window built on 2026-08-12 **holds on 26 stations it was never written against** — every working-clock station's frames fall inside its field-record window, often to the day. No code changed; **96 tests pass**.
+**Last Updated:** 2026-08-14 — **attribution becomes the third flatten precondition, and the Linux box is confirmed as more capable than the docs assumed.** `flatten_for_camtrapdp.py` now refuses — always, no override flag — to flatten a deployment containing a station-shaped subfolder, closing the gap `TC23_M20.2`-inside-`TC22_M19.2` exposed: conservation and ordering were checked, attribution never was. `camtrap/stations.names_a_station()` owns what a station folder looks like, by **shape** rather than by membership in `station_aliases.csv` — the alias table contains `100EK113`, so a membership test would call every DCIM folder a station and refuse every flatten there has ever been. A fixture asserts the shape rule accepts every alias spelling *except* that one, so the 2026-08-13 hand-check ("34 TC-style rows, 0 disagreements") now re-runs on every commit. **104 tests pass** (was 96). Verified end-to-end on scratch trees: the TC23 arrangement is refused with a `2 file(s) would be attributed to CT22` message; a clean tree flattens unchanged, collision renames included. Also done: **the Informe Anual 2025 v2 DOCX is finally rendered** (`render.sh`, pandoc 3.1.3 — open since May, it only ever needed pandoc), and `figures/` is mirrored to `figures_pre_reingest/` ahead of the re-ingest. **Machine audit:** this box has an RTX 4070 (8 GB) with AddaxAI and `md_v5a.0.0.pt` already installed, so **MegaDetector can run on Linux** — only the Timelapse2 sweep still needs Windows. The whole ingest chain (`anchor_candidates.py` → `propose_anchors.py` → `timestamps.py`) reads CSVs and never opens an image, so **otoño 2025's ingest is blocked here by exactly one missing file**: `ImageData_total.csv` (8,997 rows), which exists only on the Windows box. The campaign images are not on this machine — the Synology folders `CAMPAÑAS DE RECOLECCION/{Otoño 2025, Primavera 2025}` are present but empty.
+**Same day, after review:** Felipe pushed back on the shape of these gates — each one quotes the incident that produced it, which makes them read as point-fixes rather than rules. Audited all six: five are derived from a stated premise (`clocks` P1/P2, `dcim_folder_key`, the export gate's unknown-value rejection, `establish_order`'s partial-manifest refusal, `resolve()`), and **one was not** — `names_a_station` enumerates the three spellings we have used. Worse: the pipeline **already saw** TC23's 2,460 alien frames and filed them under *ordering*, where a failure does not condemn a camera. The evidence was never missing, only misfiled. New **`camtrap/provenance.py`** owns the general rule — *one deployment, one capture story*: two filename shapes each forming their own counter run is what a second camera looks like, and it enumerates nothing, so a folder called `Camara 23` is caught as readily as `TC23_M20.2`. Validated **before** being wired in: **28,178 files across all four campaigns, 0 false positives**, with the one measured false positive (our own `101EK113_` rename prefixes) folded into the rule rather than tuned away. It imports nothing from `clocks` and is stdlib-only — shapes are grammar-agnostic, which the design did not anticipate and which is the stronger position. Also: **the top-level station check is now fatal by default** (it was a warning unless `--check-stations`, leaving the weaker guard on the failure that cost 252 rows of camera 5; `--check-stations` is now accepted and ignored so old command lines still run). **120 tests pass** (was 104).
+**Prior (2026-08-13):** **all four downloads are now flattened and two campaigns are gate-ready.** Primavera 2025 re-downloaded and flattened (19,522 files, 26 stations, 13,814 moved, 1,935 renamed, **0 lost**); `dcim_manifest.csv` staged, with CT02/CT08/CT11/CT14 earning `ORDER_MANIFEST`. Otoño 2025's export **passes the gate** (`full_category_sweep`, 8,997 rows — animal 818, human 478, vehicle 99, blank 7,602), so its ingest is unblocked for the first time. Two findings outranked the flatten and are recorded in the ⚠️ block above: **a whole station (`TC23_M20.2`, 2,460 files) was nested inside another** and would have been attributed to camera 22 with every existing check passing — the pipeline verifies conservation and ordering but never *attribution*; and **`pv_2025_2026` is not a campaign** but a second review pass over Primavera 2025, which the field record settles outright. Also verified: the deployment window built on 2026-08-12 **holds on 26 stations it was never written against** — every working-clock station's frames fall inside its field-record window, often to the day. No code changed; **96 tests pass**.
 **Prior (2026-08-03):** the segment-aware repair is now wired into ingest: `timestamps.py` consumes `camtrap/clocks.py`, the full-category export gate is enforced, and `anchor_candidates.py` finds the anchors
 **What Changed:** Handoff steps 2–5 are done, so the 2026-07-31 verdicts now reach the data instead of only the analysis. (1) **`timestamps.py` rewired** — it diagnoses every clock from `ImageData_total.csv`, applies a **separate offset per segment** via `clocks.repair_plan()`, and `classify_epochs` (the `year < 2024` test that applied one offset per station) is deleted. New `clocks.segment_for_rows()` maps every row — videos and unparseable stamps included — to its segment, or to none, in which case the row is refused rather than guessed. (2) **The export gate is enforced** (`camtrap/exports.py`): ingest refuses any export where neither `person` nor `vehicle` appears, because `unclassified` doubles as `empty` in our template and a `{animal, unclassified}` file therefore *looks* labelled while nothing was assigned. That verdict cannot be overridden; a genuinely person-free campaign is admitted by a signed `export_gate_override.txt`. Three enforcement points: ingest, `python -m camtrap.exports <csv>` for an immediate check at export time, and `flatten_for_camtrapdp.py --check-export`. **Today's otoño 2026 export is rejected** — verified. (3) **`anchor_candidates.py`** (new) joins the MegaDetector JSON to the total export and lists every person/vehicle detection, counter-`0001` frame and segment boundary with the segment it sits in. On otoño 2026 it finds **595 person + 28 vehicle frames** that MegaDetector already detected and the Timelapse2 sweep never recorded — 17 stations have an install-side candidate, 7 a retrieval-side one. (4) **Schema** — `valid_effort` added to `CANONICAL_COLUMNS` (station-level: FALSE leaves the effort denominator, not just the numerator) and optional `segment_index` to the anchor CSV. The corrected CSV now carries 7 new columns, adding `valid_effort` and `clock_segment`. (5) **`station_aliases.csv` gained `CT_02` and `CT_12`** — 23 images across two deployments that have no animal records, so they never appeared in the animal-only export and were invisible until the all-images export was read. 59 fixtures pass (`python3 -m unittest discover -s tests`), 34 of them new.
 **Prior (2026-07-31):** DCIM manifest + `camtrap/clocks.py` — capture order preserved at flatten time, clock repair made segment-aware.
@@ -244,23 +263,51 @@ from, and flattening consumes the tree that produced it — it cannot be regener
 is harmless to ordering but its name can leak into filenames when two frames collide,
 so prefer not to create one.
 
-> ⚠️ **Never let one station's folder sit inside another's — check before flattening.**
+> ⚠️ **One station's folder must never sit inside another's — the script now refuses.**
 > Primavera 2025 arrived with `TC23_M20.2/` (2,460 files) nested inside `TC22_M19.2/`.
 > Flattening would have moved all 2,460 into camera 22's deployment, at camera 22's
 > coordinates. **The run would have looked perfect:** the two cameras use different
 > filename schemes (`IMAG####` vs `MMDDnnnn`), so there were no collisions —
 > `moved=2460 renamed=0 lost=0`, conservation check passed.
 >
-> This is the gap the current checks leave. The script verifies that files are
-> **conserved** (nothing lost) and that they are **ordered** (the manifest conditions
-> above); nothing verifies they are **attributed** to the right camera. Until a
-> precondition exists, confirm by eye that every station folder is a direct child of the
-> DataPackage root:
+> Since 2026-08-14 that is a hard precondition, checked after discovery and **before a
+> single file moves** — under `--dry-run` too, since a dry run exists to be trusted:
 >
-> ```bash
-> # Any station-shaped folder deeper than one level is a problem
-> find "C:\path\to\DataPackage" -mindepth 2 -type d -iname "CT*" -o -mindepth 2 -type d -iname "TC*"
 > ```
+> ERROR: 1 station folder(s) are nested inside a deployment:
+>     CT22/TC23_M20.2  (2460 file(s) would be attributed to CT22)
+> ```
+>
+> **There is no flag to override it.** No arrangement puts one station folder
+> legitimately inside another, so the fix is always the same — move the folder up to the
+> DataPackage root and rename it canonically. `camtrap/stations.names_a_station()`
+> decides what counts as station-shaped (`CT23`, `CT_23`, `TC23_M20.2`); a DCIM folder
+> never does, `100EK113` included, even though that one is a real alias row.
+>
+> ⚠️ **And a second, general check behind it: one deployment, one capture story.**
+> The check above recognises a station *folder* by name, so it knows the three
+> spellings we have used and no others — a folder called `Camara 23` walks past it.
+> `camtrap/provenance.multiple_capture_stories()` recognises a second camera by its
+> **frames** instead, and enumerates nothing:
+>
+> ```
+> ERROR: 1 deployment(s) contain frames from more than one camera:
+>     CT22
+>         IMAG#      2460 frame(s)   e.g. IMAG0001.JPG, IMAG0002.JPG
+>         #            50 frame(s)   e.g. 05120001.JPG, 05120002.JPG
+> ```
+>
+> Two filename shapes, each its own counter run, is what a separate camera looks like.
+> Narrow-and-precise in front (it can say *which folder to move*), general-and-vague
+> behind (it catches names nobody has thought of). **Measured across all four
+> campaigns — 28,178 files, 0 false positives**, including the cases that must not
+> fire: stills-plus-video, hand-renamed one-offs, our own `101EK113_` rename prefixes,
+> and CT16's impossible months (a clock failure, not a provenance one).
+>
+> The evidence was never missing, only misfiled. Pooled into CT22, `establish_order`
+> already reported `2460 filename(s) do not match the MMDD+counter grammar` — but it
+> read that as an **ordering** problem, and failing to order does not condemn a camera,
+> so the frames kept camera 22's identity anyway.
 
 ### Step 1c — Run MegaDetector via AddaxAI
 
