@@ -310,10 +310,9 @@ def main() -> int:
     parser.add_argument(
         '--check-stations', action='store_true',
         help=(
-            'Refuse to proceed unless every deployment folder follows the canonical '
-            'station convention (CT01..CT27). Timelapse2 derives its Deployments '
-            'column from these folder names, so enforcing it here is what keeps '
-            'station names clean for every downstream consumer.'
+            'Accepted and ignored. The station-convention check has been fatal by '
+            'default since 2026-08-14; the flag survives so command lines and notes '
+            'written before then keep working instead of dying on an unknown option.'
         ),
     )
     parser.add_argument(
@@ -347,18 +346,22 @@ def main() -> int:
     # A folder like `100EK113` (an unrenamed SD-card directory) silently became an
     # unmappable deployment and cost 252 rows of camera 5 in the 2025 annual report.
     # Catching it here — before Timelapse2 ever sees it — is the cheap fix.
+    # Fatal by default since 2026-08-14. It used to warn unless --check-stations was
+    # passed, which left the WEAKER guard on the older failure: `100EK113` reaching
+    # Timelapse2 as a deployment cost 252 rows of camera 5 from the 2025 report for a
+    # year. Its sibling — a station folder nested inside another — refuses outright,
+    # and both are the same question, "is this folder the camera we think it is?".
+    # Two severities for one question is how the cheaper one gets skipped.
     offenders = [d.name for d in deployments if not stations.is_canonical(d.name)]
     if offenders:
-        msg = (
-            f"\n{len(offenders)} folder(s) do not follow the station convention "
-            f"({stations.CANONICAL_PATTERN}):\n"
+        sys.exit(
+            f"\nERROR: {len(offenders)} folder(s) do not follow the station "
+            f"convention ({stations.CANONICAL_PATTERN}):\n"
             + "\n".join(f"    {name}" for name in offenders)
             + "\n  Rename them to CT01..CT27 before flattening — Timelapse2 takes its "
-              "Deployments\n  column straight from these folder names."
+              "Deployments\n  column straight from these folder names, and a folder "
+              "it cannot map becomes\n  a deployment that silently belongs to no camera."
         )
-        if args.check_stations:
-            sys.exit(f"ERROR:{msg}")
-        print(f"WARNING:{msg}\n  (run with --check-stations to make this fatal)")
 
     # ── Export gate ───────────────────────────────────────────────────────────
     # The same rule ingest enforces, available here so a bad export is caught on the
