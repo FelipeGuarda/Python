@@ -31,6 +31,7 @@ CANONICAL_PATTERN = r"^CT\d{2}$"
 _CANONICAL_RE = re.compile(CANONICAL_PATTERN)
 
 _ALIAS_CSV = Path(__file__).resolve().parents[1] / "data" / "campaigns" / "station_aliases.csv"
+_REGISTRY_CSV = Path(__file__).resolve().parents[1] / "data" / "campaigns" / "estaciones.csv"
 
 
 class UnknownStation(ValueError):
@@ -85,6 +86,30 @@ def names_a_station(folder_name: str) -> bool:
     check passed. Conservation and ordering were checked; attribution was not.
     """
     return bool(_STATION_SHAPE_RE.match(folder_name.strip()))
+
+
+@lru_cache(maxsize=1)
+def registry() -> dict[str, dict[str, str]]:
+    """{station_id: standing facts} from `data/campaigns/estaciones.csv`.
+
+    The site's attributes — grid cell, current position, elevation, last known
+    camera unit and geometry. Seeded once from the platform's canonical station
+    geojson, then maintained here.
+
+    This is the file the module docstring has been asking for: the monitoring-grid
+    ID identifies a place rather than a camera (`M15.2` holds cameras 11 and 18), so
+    it never belonged in a station name, and until now it had nowhere else to live.
+
+    Empty strings mean NOT RECORDED, not zero. `camera_unit_id`, `height_m`,
+    `bearing_deg` and `detection_distance_m` are blank for all 27 stations because
+    the field record never captured them; they are the punch list for the next
+    salida, not missing data to be imputed.
+    """
+    if not _REGISTRY_CSV.exists():
+        return {}
+    with open(_REGISTRY_CSV, encoding="utf-8", newline="") as f:
+        return {row["station_id"].strip(): row for row in csv.DictReader(f)
+                if row.get("station_id", "").strip()}
 
 
 @lru_cache(maxsize=1)

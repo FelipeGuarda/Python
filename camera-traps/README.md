@@ -89,7 +89,9 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-08-14 — **attribution becomes the third flatten precondition, and the Linux box is confirmed as more capable than the docs assumed.** `flatten_for_camtrapdp.py` now refuses — always, no override flag — to flatten a deployment containing a station-shaped subfolder, closing the gap `TC23_M20.2`-inside-`TC22_M19.2` exposed: conservation and ordering were checked, attribution never was. `camtrap/stations.names_a_station()` owns what a station folder looks like, by **shape** rather than by membership in `station_aliases.csv` — the alias table contains `100EK113`, so a membership test would call every DCIM folder a station and refuse every flatten there has ever been. A fixture asserts the shape rule accepts every alias spelling *except* that one, so the 2026-08-13 hand-check ("34 TC-style rows, 0 disagreements") now re-runs on every commit. **104 tests pass** (was 96). Verified end-to-end on scratch trees: the TC23 arrangement is refused with a `2 file(s) would be attributed to CT22` message; a clean tree flattens unchanged, collision renames included. Also done: **the Informe Anual 2025 v2 DOCX is finally rendered** (`render.sh`, pandoc 3.1.3 — open since May, it only ever needed pandoc), and `figures/` is mirrored to `figures_pre_reingest/` ahead of the re-ingest. **Machine audit:** this box has an RTX 4070 (8 GB) with AddaxAI and `md_v5a.0.0.pt` already installed, so **MegaDetector can run on Linux** — only the Timelapse2 sweep still needs Windows. The whole ingest chain (`anchor_candidates.py` → `propose_anchors.py` → `timestamps.py`) reads CSVs and never opens an image, so **otoño 2025's ingest is blocked here by exactly one missing file**: `ImageData_total.csv` (8,997 rows), which exists only on the Windows box. The campaign images are not on this machine — the Synology folders `CAMPAÑAS DE RECOLECCION/{Otoño 2025, Primavera 2025}` are present but empty.
+**Last Updated:** 2026-08-17 (second pass) — **the form collapses to one file, and the CT26 coordinate error is fixed at its source.** Felipe's operational review rejected the per-salida folder tree: more files means more instructions means it does not get implemented, and the realistic outcome is someone copying a sheet by hand. So the output is a single `data/campaigns/Registro de visitas CT.xlsx` whose `Visitas` rows accumulate forever — no per-salida copy, no naming convention, no folder. `campaign_closed` is not asked at all (it is the campaign the previous visit to that station opened, so it is derived and cannot contradict the record), and standing site facts moved to a new **station registry** `data/campaigns/estaciones.csv` (27 rows, seeded from the platform geojson, read by `stations.registry()`) surfaced as a read-only `Estaciones` sheet — the registry `camtrap/stations.py` has wanted since it was written, since `M15.2` holds cameras 11 and 18 and so names a place, not a camera. **CT26:** the 19 km error was diagnosed and repaired in the platform on 2026-04-15 (`39°25'44.7"` copied as `39.25447`), but `build_field_notes.py` was written in August and re-read the same cell — the fix never reached a consumer that did not yet exist. Fixed as a rule, not a point-fix: `visit_schema.read_coordinate()` converts any coordinate that is implausible as decimal but plausible as DMS, flags it in `data_flags`, and refuses rather than guesses when neither reads. It works only at reserve scale — with a Chile-wide box both readings of `39.25447` are valid — so bounds and the DMS rule live together. Rebuilding `field_notes.csv` **corrected all 52 coordinate rows**: CT26 to the map value, and every other row gained the minus sign it had been missing (the workbook's columns are headed `S` and `W`, so the hemisphere was in the header all along). All 52 now agree with the canonical geojson. **152 tests pass** (was 120), 32 in `test_visit_schema.py`; LibreOffice round-trip verified. Legacy workbook rename to `Registro de monitoreo CT (HISTORICO 2024-2026 - NO LLENAR).xlsx` is wired in code but **not yet performed on disk** — LibreOffice held it open.
+**Prior (2026-08-17):** **the field form exists, and it asks for readings instead of verdicts.** New `camtrap/visit_schema.py` declares the visit record once — 19 columns, their Spanish wording, allowed answers, and the `field_notes.csv` column each lands in — and `setup/build_visit_template.py` renders it to `data/campaigns/plantilla_visita_terreno.xlsx` (Campaña · Visitas · Ejemplo · Glosario · Listas). This is implementation piece **1 of 3** from the 2026-08-14 horario-de-invierno decision, the one flagged as "cheapest, decays if it waits". **`clock_state` / `clock_action` / `clock_offset_hours` are deliberately absent**: asked for a verdict, terreno supplied `shifted, -1.0` and the observation behind it was lost on all 26 otoño 2026 rows — and they cannot produce that verdict honestly anyway, since the phone they compare against adjusts itself. The form asks for two raw clocks and offers no cell for a correction. `visit_time` becomes obligatory (27 of 27 otoño 2026 opening visits had none). Every validation rule is drawn from an incident already in the record: coordinates bounded to Chile (the CSV holds `39.45183 / 71.72707`, unsigned, which is in China), date cells forced to **text** so no machine locale can reparse them, `camera_unit_id` required to carry a `CAM-` prefix after May 2026 put unit 18 in station CT23 and unit 28 in station CT18, station IDs drawn from `stations.canonical_id`. Four columns are new — `camera_working`, `bearing_deg`, `detection_distance_m`, `camera_datetime_after`; the middle two are the effective sampled area and are unrecoverable after the fact. Ten legacy columns are dropped as unused or derivable (SD-card names, `elevation_m`, `grid_id`/`waypoint`/`gps_device`), and `campaign_closed`/`campaign_opened` move to a per-salida sheet. **138 tests pass** (was 120), 18 of them new; verified round-tripping through LibreOffice with ISO dates and signed coordinates intact. Not yet built: the loader that turns a filled workbook into `field_notes.csv` rows — `visit_schema.by_label()` is its entry point.
+**Prior (2026-08-14):** **attribution becomes the third flatten precondition, and the Linux box is confirmed as more capable than the docs assumed.** `flatten_for_camtrapdp.py` now refuses — always, no override flag — to flatten a deployment containing a station-shaped subfolder, closing the gap `TC23_M20.2`-inside-`TC22_M19.2` exposed: conservation and ordering were checked, attribution never was. `camtrap/stations.names_a_station()` owns what a station folder looks like, by **shape** rather than by membership in `station_aliases.csv` — the alias table contains `100EK113`, so a membership test would call every DCIM folder a station and refuse every flatten there has ever been. A fixture asserts the shape rule accepts every alias spelling *except* that one, so the 2026-08-13 hand-check ("34 TC-style rows, 0 disagreements") now re-runs on every commit. **104 tests pass** (was 96). Verified end-to-end on scratch trees: the TC23 arrangement is refused with a `2 file(s) would be attributed to CT22` message; a clean tree flattens unchanged, collision renames included. Also done: **the Informe Anual 2025 v2 DOCX is finally rendered** (`render.sh`, pandoc 3.1.3 — open since May, it only ever needed pandoc), and `figures/` is mirrored to `figures_pre_reingest/` ahead of the re-ingest. **Machine audit:** this box has an RTX 4070 (8 GB) with AddaxAI and `md_v5a.0.0.pt` already installed, so **MegaDetector can run on Linux** — only the Timelapse2 sweep still needs Windows. The whole ingest chain (`anchor_candidates.py` → `propose_anchors.py` → `timestamps.py`) reads CSVs and never opens an image, so **otoño 2025's ingest is blocked here by exactly one missing file**: `ImageData_total.csv` (8,997 rows), which exists only on the Windows box. The campaign images are not on this machine — the Synology folders `CAMPAÑAS DE RECOLECCION/{Otoño 2025, Primavera 2025}` are present but empty.
 **Same day, after review:** Felipe pushed back on the shape of these gates — each one quotes the incident that produced it, which makes them read as point-fixes rather than rules. Audited all six: five are derived from a stated premise (`clocks` P1/P2, `dcim_folder_key`, the export gate's unknown-value rejection, `establish_order`'s partial-manifest refusal, `resolve()`), and **one was not** — `names_a_station` enumerates the three spellings we have used. Worse: the pipeline **already saw** TC23's 2,460 alien frames and filed them under *ordering*, where a failure does not condemn a camera. The evidence was never missing, only misfiled. New **`camtrap/provenance.py`** owns the general rule — *one deployment, one capture story*: two filename shapes each forming their own counter run is what a second camera looks like, and it enumerates nothing, so a folder called `Camara 23` is caught as readily as `TC23_M20.2`. Validated **before** being wired in: **28,178 files across all four campaigns, 0 false positives**, with the one measured false positive (our own `101EK113_` rename prefixes) folded into the rule rather than tuned away. It imports nothing from `clocks` and is stdlib-only — shapes are grammar-agnostic, which the design did not anticipate and which is the stronger position. Also: **the top-level station check is now fatal by default** (it was a warning unless `--check-stations`, leaving the weaker guard on the failure that cost 252 rows of camera 5; `--check-stations` is now accepted and ignored so old command lines still run). **120 tests pass** (was 104).
 **Prior (2026-08-13):** **all four downloads are now flattened and two campaigns are gate-ready.** Primavera 2025 re-downloaded and flattened (19,522 files, 26 stations, 13,814 moved, 1,935 renamed, **0 lost**); `dcim_manifest.csv` staged, with CT02/CT08/CT11/CT14 earning `ORDER_MANIFEST`. Otoño 2025's export **passes the gate** (`full_category_sweep`, 8,997 rows — animal 818, human 478, vehicle 99, blank 7,602), so its ingest is unblocked for the first time. Two findings outranked the flatten and are recorded in the ⚠️ block above: **a whole station (`TC23_M20.2`, 2,460 files) was nested inside another** and would have been attributed to camera 22 with every existing check passing — the pipeline verifies conservation and ordering but never *attribution*; and **`pv_2025_2026` is not a campaign** but a second review pass over Primavera 2025, which the field record settles outright. Also verified: the deployment window built on 2026-08-12 **holds on 26 stations it was never written against** — every working-clock station's frames fall inside its field-record window, often to the day. No code changed; **96 tests pass**.
 **Prior (2026-08-03):** the segment-aware repair is now wired into ingest: `timestamps.py` consumes `camtrap/clocks.py`, the full-category export gate is enforced, and `anchor_candidates.py` finds the anchors
@@ -125,12 +127,14 @@ camera-traps/
 │   ├── clocks.py                ← clock-failure diagnosis + the repairability rule
 │   ├── anchors.py               ← what the FIELD RECORD asserts: deployment windows,
 │   │                              the anchor CSV, and visit→anchor pairing
+│   ├── visit_schema.py          ← what a field visit must record; coordinate rules
 │   ├── exports.py               ← the two Timelapse2 exports + full-category gate
 │   └── detections.py            ← the MegaDetector JSON
 │
 ├── tests/                       ← stdlib unittest; python3 -m unittest discover -s tests
 │   ├── test_clocks.py           ← the repair RULE (Felipe's scenarios A–G)
 │   ├── test_anchors.py          ← a visit is not an anchor; witness vs navigational
+│   ├── test_visit_schema.py     ← what the field form refuses, and why (incl. CT26)
 │   ├── test_exports.py          ← the export gate + its override
 │   └── test_timestamps.py       ← the PLUMBING (per-segment offsets reach the rows)
 │
@@ -144,6 +148,7 @@ camera-traps/
 │
 ├── setup/                       ← pre-processing utilities (run once per campaign)
 │   ├── build_field_notes.py     ← ONE-TIME: monitoring workbook → field_notes.csv
+│   ├── build_visit_template.py  ← Step 0-ter: visit schema → "Registro de visitas CT.xlsx"
 │   ├── flatten_for_camtrapdp.py ← flatten per-camera subfolders to deployment level
 │   ├── fix_unicode_filenames.py ← NFD → NFC filename normalization (Synology sync fix)
 │   ├── create_junction.py       ← Windows junction for accented-path workaround
@@ -182,17 +187,26 @@ C:\Users\USUARIO\SynologyDrive\2. Camaras trampa (SC)\SynologyDrive\
 
 ### Step 0-bis — The field visit record
 
-`data/campaigns/field_notes.csv` is the canonical record of who went where and when:
-one row per **visit**, 106 visits across 27 stations. A visit is a physical event, not
-a property of a campaign — at Bosque Pehuén every revision swaps the card, so one
-visit **closes** one campaign and **opens** the next (`campaign_closed` /
-`campaign_opened`).
+Three layers, and confusing the middle one for the first is the mistake to avoid:
 
-It was migrated once from `data/campaigns/Registro de monitoreo CT.xlsx` by
-`setup/build_field_notes.py`. **The CSV is canonical; the workbook is legacy** and is
-kept only for provenance. Every inferred or corrected value is recorded in the row's
-`data_flags` column, so a reader can see what was deduced without going back to the
-script — 57 of 106 rows carry a flag.
+| | What it is | Status |
+|---|---|---|
+| `Registro de monitoreo CT (HISTORICO 2024-2026 - NO LLENAR).xlsx` | the old workbook | **frozen.** Provenance only; nothing is ever added to it again |
+| `field_notes.csv` | the accumulating record | **canonical.** `camtrap/anchors.py` reads it; it must keep growing |
+| `Registro de visitas CT.xlsx` | the form terreno fills | **live.** One file, one sheet, rows accumulate forever |
+
+The planilla does not replace `field_notes.csv` — it is the intake that keeps it
+alive. Freeze the CSV too and every future campaign loses its deployment window and
+falls back to *unverified clean* verdicts.
+
+`field_notes.csv` holds one row per **visit**: 106 visits across 27 stations. A visit
+is a physical event, not a property of a campaign — at Bosque Pehuén every revision
+swaps the card, so one visit **closes** one campaign and **opens** the next
+(`campaign_closed` / `campaign_opened`).
+
+It was migrated once from the workbook by `setup/build_field_notes.py`. Every inferred
+or corrected value is recorded in the row's `data_flags` column, so a reader can see
+what was deduced without going back to the script — 57 of 106 rows carry a flag.
 
 Two consumers, and they need different things from it:
 
@@ -208,6 +222,77 @@ with no remark is not evidence the clock was fine.
 
 If a new campaign's visits are not in this file, its stations get no deployment window
 and their clean verdicts are reported as **unverified**.
+
+### Step 0-ter — The visit template (what terreno fills from now on)
+
+`field_notes.csv` looks backwards; this looks forwards. `camtrap/visit_schema.py`
+declares the visit form once — 20 columns, their Spanish wording, their allowed
+answers, and the `field_notes.csv` column each lands in — and
+`setup/build_visit_template.py` renders it:
+
+```bash
+python setup/build_visit_template.py      # → data/campaigns/Registro de visitas CT.xlsx
+```
+
+**One file, one sheet to fill, no copies.** A salida is not a new file, a new sheet or
+a new folder: rows accumulate on `Visitas` forever, so the whole instruction to a field
+coordinator is *abre el archivo y agrega una fila por cámara visitada*. Per-salida
+copies would need a naming convention, a folder tree and a README nobody reads, and the
+predictable outcome is someone duplicating a sheet by hand anyway — this removes the
+step instead of policing it. If a sheet does get duplicated, every sheet whose headers
+match stays readable, so the habit is not a failure mode.
+
+Sheets: **Visitas** (the only one they touch), **Ejemplo**, **Estaciones** (reference —
+grid, coordinates, elevation per site), **Glosario**, **Listas** (hidden).
+
+**`campaign_closed` is not asked at all.** The campaign a visit closes is the one the
+previous visit to that same station opened, so it is derived — and a derived value
+cannot contradict the record.
+
+**Standing site facts are never retyped into a visit row.** `grid_id`, coordinates and
+elevation live once in `data/campaigns/estaciones.csv`, surfaced as the `Estaciones`
+sheet and loaded by `stations.registry()`. This is the registry `camtrap/stations.py`
+has been asking for since the module was written: `M15.2` holds cameras 11 and 18, so
+the grid identifies a place rather than a camera and never belonged in a station name.
+A visit row carries `lat`/`lon`/`height_m` only when the camera actually moved.
+
+**The form asks for readings, never verdicts.** There is no `clock_state`, no
+`clock_action`, no `clock_offset_hours` — those are what emptied
+`camera_datetime_observed` on all 26 otoño 2026 rows. Asked for a judgement, the
+technician supplied one (`shifted, -1.0`) and the observation behind it was lost. They
+also cannot make that judgement honestly: they compare the camera against a phone that
+adjusts itself, so "fixed offset, civil time moved" and "the clock reset" look
+identical at the tree. Two raw clocks separate them; a verdict cannot. Same reason
+`visit_time` is now obligatory — 27 of 27 otoño 2026 opening visits recorded none.
+
+Every validation rule corresponds to an error already in the record:
+
+| Rule | The incident |
+|---|---|
+| lat ∈ [−39.51, −39.37], lon ∈ [−71.81, −71.67] | the CSV held `39.45183 / 71.72707` — unsigned, i.e. China |
+| DMS-as-decimal detected and converted | **CT26** sat 19 km outside the reserve for a year because `39°25'44.7"` was copied as `39.25447` |
+| date cells are **text**, ISO only | the legacy workbook's worst cells were the ones Excel had already parsed by machine locale — a wrong reading that looks clean |
+| `camera_unit_id` must start `CAM-` | May 2026: station **CT23** received unit **18**, station **CT18** received unit **28** |
+| `station_id` from the registry | a station silently dropped for being unrecognised cost 252 rows of camera 5 |
+
+The coordinate box is the **reserve**, not the country, and that is load-bearing: with
+a Chile-wide box both readings of `39.25447` are plausible and the DMS test can decide
+nothing. `visit_schema.read_coordinate()` owns bounds and DMS together for that reason,
+and `build_field_notes.py` imports it rather than restating either — the CT26 repair
+was made in the platform on 2026-04-15 and still reached this project's CSV wrong,
+because the migration script was written in August and re-read the same bad cell.
+
+New per-visit columns the old sheet never had: `camera_working` (CT19 died 91 days
+before retrieval), `bearing_deg` and `detection_distance_m` (the effective sampled
+area — unrecoverable after the fact, and without them two stations' detection rates
+are not comparable), `camera_datetime_after`.
+
+Dropped as unused or derivable: SD-card names, `elevation_m`, `grid_id`, `waypoint`,
+`gps_device` (all standing site facts, now in the registry) and `campaign_closed`.
+
+> A filled workbook is not yet loaded automatically. `visit_schema.by_label()` is the
+> entry point that will resolve its headers; until that loader exists, rows are
+> transcribed into `field_notes.csv` by hand.
 
 ### Step 1a — Fix Unicode filenames (if needed)
 

@@ -15,4 +15,5 @@ dependencies:
       - streamlit>=1.40.0
       - tqdm>=4.66.0
       - pyyaml>=6.0
+      - openpyxl>=3.1        # reads the monitoring workbook; writes the visit template
       # setup/megadetector_campaigns.py requires wildlife-detector — install separately if using that script

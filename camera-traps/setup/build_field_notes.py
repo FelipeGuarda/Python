@@ -53,11 +53,15 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from camtrap import stations  # noqa: E402
+from camtrap import stations, visit_schema  # noqa: E402
 from camtrap.anchors import FIELD_NOTES_FILENAME  # noqa: E402
 
 CAMPAIGNS_DIR = Path('data/campaigns')
-WORKBOOK = CAMPAIGNS_DIR / 'Registro de monitoreo CT.xlsx'
+# Renamed 2026-08-17 so the filename itself retires the file. Its successor is
+# `Registro de visitas CT.xlsx`, which is the one terreno fills from now on; nothing
+# is ever added to this one again. This script has already run and its output is
+# committed, so the rename breaking it is the intended end state, not a regression.
+WORKBOOK = CAMPAIGNS_DIR / 'Registro de monitoreo CT (HISTORICO 2024-2026 - NO LLENAR).xlsx'
 # The consumer names this file; restating it here is how a rename would silently
 # produce a CSV nobody reads.
 OUT_CSV  = CAMPAIGNS_DIR / FIELD_NOTES_FILENAME
@@ -202,6 +206,21 @@ def yesno(value) -> str:
     return 'yes' if text in {'x', 'si', 'sí', 'yes'} else ('no' if text == 'no' else text)
 
 
+def parse_coordinate(value, kind: str) -> tuple[str, list[str]]:
+    """Workbook cell -> ISO-ready signed decimal degrees, plus any flag it earned.
+
+    The sheet's columns are literally headed `S` and `W`, so the hemisphere is
+    carried by the header and the magnitude by the cell; restoring the sign here is
+    reading the sheet, not guessing at it.
+
+    `visit_schema.read_coordinate` owns the rest — bounds and the DMS-as-decimal
+    rule that repairs CT26. Restating either here is how the platform's 2026-04-15
+    fix failed to reach this file in the first place.
+    """
+    decimal, flag = visit_schema.read_coordinate(clean(value), kind)
+    return ('' if decimal is None else f'{decimal:.5f}'), ([flag] if flag else [])
+
+
 def clean(value) -> str:
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return ''
@@ -304,6 +323,8 @@ def build_revision(book: pd.ExcelFile, sheet: str, key: str,
             d, note = fix
             flags = [note]
         notes = read_notes(r.get('Observaciones'))
+        lat_v, latf = parse_coordinate(r.get('S'), 'lat')
+        lon_v, lonf = parse_coordinate(r.get('W'), 'lon')
         clock, cf = clock_from_notes(notes)
         replaced, unit, rf = replacement_from_notes(notes)
         height, hf = height_from_notes(notes)
@@ -336,12 +357,12 @@ def build_revision(book: pd.ExcelFile, sheet: str, key: str,
             card_changed=yesno(r.get('Cambio de tarjeta')),
             batteries_changed=yesno(r.get('Cambio de pilas')),
             moved=moved,
-            lat=clean(r.get('S')), lon=clean(r.get('W')),
+            lat=lat_v, lon=lon_v,
             elevation_m=clean(r.get('Altitud')), height_m=height,
             grid_id=clean(r.get('Grilla') if 'Grilla' in df.columns else r.get('N Grilla')),
             waypoint=clean(r.get('Waypoint')), gps_device=clean(r.get('GPS Empleado')),
             source_sheet=sheet, notes=notes,
-            data_flags=flags + cf + rf + hf + af,
+            data_flags=flags + cf + rf + hf + af + latf + lonf,
         ))
     return out
 
