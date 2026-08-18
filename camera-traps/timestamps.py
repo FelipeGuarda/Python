@@ -217,10 +217,20 @@ def load_reviewed(csv: Path) -> pd.DataFrame:
 def load_manifest(campaign_dir: Path) -> Optional[pd.DataFrame]:
     """Read dcim_manifest.csv if the campaign has one.
 
-    Written by setup/flatten_for_camtrapdp.py. Its absence is not an error — otoño
-    2026 was flattened before the manifest existed and can never have one — but it
+    Written by setup/flatten_for_camtrapdp.py. Its absence is not an error, but it
     is the difference between being able to locate a reset and only being able to
     rule one out.
+
+    This docstring used to say otoño 2026 "can never have one". That was wrong, and
+    the way it was wrong is worth keeping: flattening consumes the tree, but it does
+    not consume the RECORD of the tree. Otoño 2026's flatten log survived, and the
+    Synology originals still carried the DCIM folders, so its manifest was rebuilt in
+    2026-08 from the log and verified against both. CT14, CT20 and CT23 went from
+    "capture order not recoverable" to fully ordered — 3,561 frames.
+
+    The limit is real though: only frames the log describes can be recovered. CT08's
+    1,129 frames were flattened before upload and have no folder evidence anywhere,
+    so 130 of its counters stay colliding.
     """
     path = campaign_dir / clocks.DCIM_MANIFEST_FILENAME
     if not path.exists():

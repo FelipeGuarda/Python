@@ -6,6 +6,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## [2026-08-18] — Camera-traps: otoño 2026's capture order recovered; 103 GB of Synology re-downloads removed
+
+Renaming the download folders locally made all three Synology sync tasks treat the originals as missing and restore them beside the flattened trees. Otoño 2026 had been carrying a restored copy since June without anyone noticing.
+
+### Added
+- **`data/campaigns/otono_2026/dcim_manifest.csv`** (5,748 rows — 5,724 `moved`, 24 `renamed`) — the capture-order evidence this campaign was believed to have lost permanently. Rebuilt from `flatten_log_20260616_100329.csv`, which survived the June flatten: **flattening consumes the tree, but not the record of the tree.** Covers CT14 (3 DCIM folders), CT20 (2), CT23 (2), CT24 (1).
+- **`data/campaigns/otono_2026/flatten_log_20260616_100329.csv`** — the source, committed because it existed only inside a sync folder that is never uploaded (one-way *download*), so the working copy was its only copy.
+
+### Fixed
+- **`timestamps.load_manifest` docstring** claimed otoño 2026 "was flattened before the manifest existed and can never have one". Both halves of that were wrong, and the docstring now records why, along with the limit that remains.
+
+### Verified
+- **Ordering recovered:** CT14 **1,633 colliding counters → fully ordered**, CT20 **837 → ordered**, CT23 **89 → ordered**; CT24 upgraded from `counter` to `dcim_manifest+counter`. 3,561 frames total. Confirmed by running `clocks.establish_order` with and without the manifest.
+- **The manifest three ways:** per-`(deployment, DCIM folder)` counts against the restored on-disk tree; against the NAS listing in the sync client's `event-db.sqlite`; against `ImageData_total.csv` — 0 manifest rows unjoined, and coverage **total** within every described deployment, which is what stops `establish_order` refusing them as partially described.
+- **Conservation, finally provable.** The NAS holds exactly 2,632 / 1,836 / 1,088 / 192 files for CT14/20/23/24; the flattened trees hold the same. The old duplicate-skip discarded **nothing** — closing the CT_14 same-size-collision worry open since 2026-07-31 by arithmetic instead of assumption.
+- **Deletion safety, established before touching anything.** All three tasks are `sync_direction: 2`, and the daemon log says so in words: `is one-way downloading, ignore event`. Nothing local has ever reached the NAS; nothing deleted locally can propagate to it.
+- **Deletion gated per station.** Every restored file had to have a flattened counterpart matched by **size** — names differ wherever the flatten renamed on collision, so a name match would have wrongly condemned exactly the interesting files. 10,808 files, **0 unaccounted**; re-checked immediately before each removal, skipping rather than deleting on any mismatch. Freed **103.01 GB** (free space 188 → 291 GB).
+- **152 tests still pass.**
+
+### Findings
+- ⚠️ **The NAS is not a complete backup.** Five full-size (~6 MB) CT04 frames in otoño 2025 exist only on the Windows box. They are *not* the known 0-byte corrupt files, and one-way-download sync will never upload them.
+- **pv/primavera needed no recovery.** Its 13,814 remote DCIM files match `primavera_2025/dcim_manifest.csv` exactly; the 2,460 non-DCIM depth-3 files are the `TC23_M20.2` station un-nested on 2026-08-13. The merged primavera/pv folder produced no discrepancy.
+- **What stays lost:** CT15 (1,331 frames) and CT08 (1,129) were flattened *before* upload. No folder evidence exists anywhere, so their counters still wrap undetectably.
+
+### Deferred
+- **The structural fix.** A one-way-download sync pointed at a folder we restructure will re-download forever. The tasks are **paused, not fixed** — either remove them and keep the trees as working copies, or repoint sync at a pristine mirror and flatten into a separate directory.
+
+---
+
 ## [2026-08-14] — Camera-traps: attribution becomes a flatten precondition; two long-open chores closed
 
 Worked entirely from the Linux laptop, which turned out to be more capable than the docs assumed.
