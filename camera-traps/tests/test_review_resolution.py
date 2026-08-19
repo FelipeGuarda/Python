@@ -23,8 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from camtrap import exports
 from camtrap.observations import (
-    RESOLUTION_PENDING_REVIEW,
-    RESOLUTION_PENDING_TAXON,
+    RESOLUTION_REVIEW_NOTE,
+    RESOLUTION_COARSE_COMMENT,
     RESOLUTION_SPECIES_FROM_COMMENT,
     RESOLUTION_SPECIES_NAMED,
     RESOLUTION_TYPE_FROM_COMMENT,
@@ -109,14 +109,14 @@ class SpeciesFromComment(unittest.TestCase):
         self.assertEqual(out['review_resolution'][0], RESOLUTION_SPECIES_FROM_COMMENT)
 
 
-class PendingDecisions(unittest.TestCase):
-    """R4 — resolves to `unknown`, but tagged so the open question stays findable."""
+class CoarseAndNoteComments(unittest.TestCase):
+    """R4 — too coarse to name a species, so `unknown`, but tagged by which kind."""
 
     def test_coarse_taxon_is_tagged_apart_from_genuine_unknowns(self):
-        out = resolve_review(reviewed([('', 'ave'), ('', 'roedor'), ('', 'No reconocible')]))
+        out = resolve_review(reviewed([('', 'ave'), ('', 'churrete'), ('', 'No reconocible')]))
         self.assertEqual(
             list(out['review_resolution']),
-            [RESOLUTION_PENDING_TAXON, RESOLUTION_PENDING_TAXON,
+            [RESOLUTION_COARSE_COMMENT, RESOLUTION_COARSE_COMMENT,
              RESOLUTION_TYPE_FROM_COMMENT],
         )
         self.assertTrue((out['observation_type'] == exports.TYPE_UNKNOWN).all())
@@ -125,12 +125,17 @@ class PendingDecisions(unittest.TestCase):
         """Merging these into the genuine unknowns silently closes an open task."""
         out = resolve_review(reviewed([('', 'identificar'), ('', 'error de imagen')]))
         self.assertTrue(
-            (out['review_resolution'] == RESOLUTION_PENDING_REVIEW).all()
+            (out['review_resolution'] == RESOLUTION_REVIEW_NOTE).all()
         )
 
-    def test_accented_and_unaccented_pitio_both_resolve(self):
-        out = resolve_review(reviewed([('', 'Pitío'), ('', 'pitio')]))
-        self.assertTrue((out['review_resolution'] == RESOLUTION_PENDING_TAXON).all())
+    def test_pitio_and_conejo_now_resolve_to_a_species(self):
+        """Adjudicated 2026-08-19 and added to species.yaml, so R3 handles them."""
+        out = resolve_review(reviewed([('', 'Pitío'), ('', 'pitio'), ('', 'conejo')]))
+        self.assertTrue((out['observation_type'] == exports.TYPE_ANIMAL).all())
+        self.assertEqual(list(out['species_latin']),
+                         ['Colaptes pitius', 'Colaptes pitius', 'Oryctolagus cuniculus'])
+        self.assertTrue(
+            (out['review_resolution'] == RESOLUTION_SPECIES_FROM_COMMENT).all())
 
 
 class FailClosed(unittest.TestCase):

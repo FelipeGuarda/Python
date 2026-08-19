@@ -50,6 +50,12 @@ from pathlib import Path
 
 import pandas as pd
 
+# Force UTF-8 on stdout/stderr so accented species names and box-drawing characters
+# do not raise UnicodeEncodeError on a default Windows console (cp1252).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from camtrap import anchors, clocks, detections, exports, stations
 from camtrap.anchors import ANCHOR_FILENAME, FIELD_NOTES_FILENAME, FieldRecord, load_anchors
 from timestamps import diagnose_campaign, prepare_total

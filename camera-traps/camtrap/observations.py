@@ -1,4 +1,8 @@
-"""The canonical observation table — what one reviewed camera-trap record *is*.
+"""The canonical observation table — what one camera-trap record *is*.
+
+ONE ROW PER STILL IN THE GATED EXPORT, not one row per reviewed record. Changed
+2026-08-19; see `compose_ingest_frame` for why a reviewed-only row set made a
+zero-detection station indistinguishable from one that was never deployed.
 
 Every consumer (annual report, pehuen, data-pipeline, platform) reads this shape and
 nothing else. It is written once at ingest, so the Timelapse2 export quirks are
@@ -66,7 +70,8 @@ CANONICAL_COLUMNS: dict[str, str] = {
     "review_outcome":    "string",
     # Which rule resolved this row's type and species — see RESOLUTION_* below. It
     # travels in the table rather than in a log because a marker nobody can query is a
-    # marker nobody acts on, and two of its values mark decisions still open.
+    # marker nobody acts on. `sweep_only` is the majority: a still the sweep categorised
+    # and the species review never opened.
     "review_resolution": "string",
     "file_name":         "string",
     "rel_path":          "string",          # forward slashes, case preserved
@@ -170,35 +175,38 @@ COMMENT_TO_TYPE: dict[str, str] = {
     "vehiculo":        exports.TYPE_VEHICLE,
 }
 
-# Comments that name something real but coarser than a species, or that record the
-# reviewer's own doubt. They resolve to `unknown` and are tagged apart from the genuine
-# unknowns so the open question stays queryable.
+# Comments too coarse to be a species. DECIDED 2026-08-19 (Felipe): these stay
+# `unknown`, because a specific species cannot be identified from them. `ave` is a class
+# and `roedor` an order, and Camtrap DP's scientificName would accept a higher rank, but
+# recording one would assert more than the reviewer saw. `churrete` is ruled `unknown`
+# too — Cinclodes is a genus of several species here and the comment does not pick one.
 #
-# OPEN DESIGN QUESTION as of 2026-08-19, deliberately deferred: `ave` and `roedor` are
-# a class and an order, not species, and Camtrap DP's scientificName does accept a
-# higher rank. Whether they should become Aves and Rodentia in species.yaml rather than
-# collapsing to `unknown` is unsettled. `churrete` (Cinclodes sp.) and `pitio`
-# (Colaptes pitius) are real species simply missing from the catalogue; `conejo?` is
-# the reviewer's question mark, not ours to resolve.
-# Accented and unaccented spellings are both listed, the same convention species.yaml
-# uses, because _normalise() lowercases but deliberately does not fold accents.
-PENDING_TAXON_COMMENTS = frozenset({
-    "ave", "roedor", "conejo?", "churrete", "pitio", "pitío",
+# Two comments that were in this set are NOT here any more, having been adjudicated as
+# identifiable animals and added to species.yaml, which is where species decisions live:
+# `conejo` -> Oryctolagus cuniculus and `pitío` -> Colaptes pitius. They now resolve
+# through R3 like any other Spanish common name.
+COARSE_COMMENTS = frozenset({
+    "ave", "roedor", "churrete",
 })
 
-# Notes to self left in place of an identification. Also `unknown`, also tagged apart:
-# folding them into the 499 genuine "could not tell" rows would silently close a task
-# the reviewer meant to come back to, and nobody would ever look again.
-PENDING_REVIEW_COMMENTS = frozenset({
+# Notes to self left in place of an identification, reviewed 2026-08-19 and also ruled
+# `unknown`. Still tagged apart from the coarse-taxon rows and from the 499 plain "could
+# not tell" ones, because the three are different kinds of not-knowing and a later
+# question about any one of them should be answerable without re-reading the CSVs.
+REVIEW_NOTE_COMMENTS = frozenset({
     "identificar", "no reconocible pero identificar", "error de imagen",
 })
 
-# Values of the `review_resolution` column.
+# Values of the `review_resolution` column. They name WHICH RULE fired, so a consumer
+# can ask why a row says what it says without reopening the reviewed CSV.
 RESOLUTION_SPECIES_NAMED        = "species_named"
 RESOLUTION_TYPE_FROM_COMMENT    = "type_from_comment"
 RESOLUTION_SPECIES_FROM_COMMENT = "species_from_comment"
-RESOLUTION_PENDING_TAXON        = "unknown_pending_taxon"
-RESOLUTION_PENDING_REVIEW       = "unknown_pending_review"
+RESOLUTION_COARSE_COMMENT       = "unknown_coarse_comment"
+RESOLUTION_REVIEW_NOTE          = "unknown_review_note"
+# The row was never reviewed — it is a still the sweep categorised and the species
+# review never opened. Its type is the sweep's and its species is empty, by definition.
+RESOLUTION_SWEEP_ONLY           = "sweep_only"
 
 
 class UnmappedReviewComment(ValueError):
@@ -241,7 +249,7 @@ def audit_review_comments(reviewed: pd.DataFrame) -> dict[str, int]:
     latin = _column(reviewed, "scientificName")
     comments = _normalise(reviewed)
     known = set(COMMENT_TO_TYPE) | set(spanish_to_latin())
-    known |= PENDING_TAXON_COMMENTS | PENDING_REVIEW_COMMENTS
+    known |= COARSE_COMMENTS | REVIEW_NOTE_COMMENTS
     unmapped = comments[(latin == "") & ~comments.isin(known)]
     return {k: int(v) for k, v in unmapped.value_counts().items()}
 
@@ -264,7 +272,7 @@ def resolve_review(reviewed: pd.DataFrame) -> pd.DataFrame:
             f"and a comment no rule covers:\n{listed}\n"
             f"  Every one needs a decision before ingest — a species belongs in "
             f"species.yaml, a negation in COMMENT_TO_TYPE, a coarse taxon or an "
-            f"open question in PENDING_TAXON_COMMENTS (camtrap/observations.py).\n"
+            f"open question in COARSE_COMMENTS (camtrap/observations.py).\n"
             f"  An empty comment on an empty species means the row was never actually "
             f"reviewed; that is `unclassified`, not `unknown`, and no rule here can "
             f"invent a verdict for it."
@@ -284,11 +292,11 @@ def resolve_review(reviewed: pd.DataFrame) -> pd.DataFrame:
     out["species_latin"] = ""
     out["review_resolution"] = ""
 
-    note = comments.isin(PENDING_REVIEW_COMMENTS)
-    out.loc[note, "review_resolution"] = RESOLUTION_PENDING_REVIEW
+    note = comments.isin(REVIEW_NOTE_COMMENTS)
+    out.loc[note, "review_resolution"] = RESOLUTION_REVIEW_NOTE
 
-    taxon = comments.isin(PENDING_TAXON_COMMENTS)
-    out.loc[taxon, "review_resolution"] = RESOLUTION_PENDING_TAXON
+    taxon = comments.isin(COARSE_COMMENTS)
+    out.loc[taxon, "review_resolution"] = RESOLUTION_COARSE_COMMENT
 
     named_in_comment = (latin == "") & from_catalogue.notna()
     out.loc[named_in_comment, "observation_type"] = exports.TYPE_ANIMAL
@@ -315,6 +323,141 @@ def resolve_review(reviewed: pd.DataFrame) -> pd.DataFrame:
             f"{uncovered} row(s) matched no resolution rule despite passing the comment "
             f"audit — the rule tables and audit_review_comments() have drifted apart"
         )
+    return out
+
+
+# =============================================================================
+# Which rows the canonical table describes
+# =============================================================================
+#
+# EVERY STILL IN THE GATED EXPORT — not just the ones the species review opened.
+# Changed 2026-08-19; before that the row set was the reviewed CSV, and the cost was
+# that a station which recorded no animal vanished from the table entirely. Seven
+# station-campaigns were missing: CT23 in otoño 2025, CT01/CT06/CT17/CT22 in primavera
+# (6, 21, 7 and 18 frames each, none with an animal), CT02/CT12 in otoño 2026. A station
+# absent from the table is indistinguishable from a station that was never deployed,
+# which makes it fine as a detection numerator and wrong as a trap-effort denominator —
+# and this module's own docstring already promised otherwise.
+#
+# The review supplies the verdict where one exists; the sweep supplies it where none
+# does. That is not a reversal of the rule that the review beats the sweep: the sweep is
+# the DEFAULT for rows the review never saw, never a competitor to a row it did.
+
+REVIEW_COLUMNS = ["scientificName", "observationComments", "reviewOutcome"]
+REVIEWED_FLAG = "_reviewed"
+
+
+class ReviewedRowNotInExport(ValueError):
+    """A reviewed row has no counterpart in the all-images export.
+
+    Means the export is not, in fact, all the images — the one thing the export gate
+    exists to guarantee — so the clock diagnosis ran on a different set of frames than
+    the rows being written.
+    """
+
+
+def compose_ingest_frame(
+    total: pd.DataFrame,
+    reviewed: pd.DataFrame,
+    campaign: str,
+) -> pd.DataFrame:
+    """Every still in `total`, with `reviewed`'s verdict attached where one exists.
+
+    Adds `_reviewed`. The returned frame keeps `total`'s columns, so the caller hands it
+    to the same clock repair as before — the repair works per (camera, file) and does not
+    care whether a row was reviewed.
+    """
+    key = ["_camera_num", "_file_name"]
+
+    def keyed(df: pd.DataFrame) -> pd.DataFrame:
+        out = df.copy()
+        out["_camera_num"] = [
+            stations.resolve(str(s), campaign) for s in out["Deployments"]
+        ]
+        out["_file_name"] = out["File"].astype(str).str.strip()
+        return out
+
+    left = keyed(total)
+    right = keyed(reviewed)
+
+    # The review's own columns only. Everything else about a row comes from the export,
+    # so the two files cannot disagree about a frame's path, station or stamp.
+    present = [c for c in REVIEW_COLUMNS if c in right.columns]
+    right = right[key + present].drop_duplicates(subset=key, keep="first")
+
+    # The all-images export carries these column NAMES too, empty, because it is the same
+    # CamtrapDP schema. Dropping them from the export side is what makes the review the
+    # only source of a verdict — leave them in and the merge suffixes the review's values
+    # to `scientificName_rev`, the empty export column wins, and every reviewed row
+    # arrives looking unreviewed.
+    left = left.drop(columns=[c for c in present if c in left.columns])
+
+    merged = left.merge(right, on=key, how="left", indicator=True)
+
+    # Anti-join in the other direction. This check used to live in
+    # timestamps.repair_campaign, where it could still fire because the reviewed rows
+    # were the frame being merged; now that the export is the frame, it has to be asked
+    # here or it stops being asked at all.
+    orphans = right.merge(left[key], on=key, how="left", indicator=True)
+    orphans = orphans[orphans["_merge"] == "left_only"]
+    if len(orphans):
+        examples = ", ".join(orphans["_file_name"].head(5))
+        raise ReviewedRowNotInExport(
+            f"{campaign}: {len(orphans)} reviewed row(s) do not appear in "
+            f"{exports.TOTAL_EXPORT_FILENAME}. Examples: {examples}. Re-export all "
+            f"images from the same Timelapse2 project the review was done in."
+        )
+
+    merged[REVIEWED_FLAG] = merged["_merge"] == "both"
+    for col in REVIEW_COLUMNS:
+        if col not in merged.columns:
+            merged[col] = ""
+        merged[col] = merged[col].fillna("")
+    return merged.drop(columns=["_merge"])
+
+
+def resolve_observation(frame: pd.DataFrame) -> pd.DataFrame:
+    """Resolve type, species and rule tag for reviewed AND un-reviewed rows.
+
+    Reviewed rows go through resolve_review()'s verdict rules. Un-reviewed rows take the
+    sweep's `observationType` verbatim with an empty species — there is nothing else to
+    take, and inventing a species for a frame nobody opened is the failure this module
+    exists to prevent.
+    """
+    reviewed_mask = (
+        frame[REVIEWED_FLAG].astype(bool)
+        if REVIEWED_FLAG in frame.columns
+        else pd.Series(True, index=frame.index)
+    )
+
+    out = pd.DataFrame(index=frame.index)
+    out["observation_type"] = ""
+    out["species_latin"] = ""
+    out["review_resolution"] = ""
+
+    if reviewed_mask.any():
+        out.loc[reviewed_mask] = resolve_review(frame[reviewed_mask]).values
+
+    unreviewed = ~reviewed_mask
+    if unreviewed.any():
+        sweep = (
+            frame.loc[unreviewed, exports.OBSERVATION_TYPE_COLUMN]
+            .fillna("").astype(str).str.strip().str.lower()
+        )
+        # `unclassified` on an un-reviewed row is the export gate's business, not this
+        # module's: the gate refuses a campaign that still holds any, so reaching here
+        # with one means the gate was bypassed.
+        unassigned = sweep.isin(exports.UNASSIGNED_TYPES)
+        if unassigned.any():
+            raise UnmappedReviewComment(
+                f"{int(unassigned.sum())} un-reviewed row(s) carry an unassigned "
+                f"observationType ({sorted(sweep[unassigned].unique())}). The export gate "
+                f"refuses a campaign in that state, so this frame did not come through it."
+            )
+        out.loc[unreviewed, "observation_type"] = sweep
+        out.loc[unreviewed, "species_latin"] = ""
+        out.loc[unreviewed, "review_resolution"] = RESOLUTION_SWEEP_ONLY
+
     return out
 
 
@@ -356,7 +499,7 @@ def to_canonical(corrected: pd.DataFrame, campaign: str) -> pd.DataFrame:
     # `observationType` from the reviewed CSV is NOT copied through: it reads `animal`
     # on every row of an animal-only export, including the rows the reviewer went on to
     # say hold no animal. resolve_review() is what decides the type.
-    resolved = resolve_review(src)
+    resolved = resolve_observation(src)
     out["observation_type"] = resolved["observation_type"]
     out["species_latin"] = resolved["species_latin"]
     out["review_resolution"] = resolved["review_resolution"]
@@ -364,11 +507,6 @@ def to_canonical(corrected: pd.DataFrame, campaign: str) -> pd.DataFrame:
     tally = resolved["review_resolution"].value_counts()
     for rule, n in tally.items():
         print(f"    {rule}: {n}")
-    pending = int(
-        tally.get(RESOLUTION_PENDING_TAXON, 0) + tally.get(RESOLUTION_PENDING_REVIEW, 0)
-    )
-    if pending:
-        print(f"    ! {pending} row(s) resolved to `unknown` with a decision still open")
 
     # Reindexed, not just cast: CANONICAL_COLUMNS declares an order and the written
     # table should match it, so the contract can be asserted as written rather than as

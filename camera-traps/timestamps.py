@@ -122,6 +122,15 @@ from typing import Optional
 
 import pandas as pd
 
+# Force UTF-8 on stdout/stderr. The audit report is drawn with box characters and
+# species names carry accents, and a default Windows console is cp1252 — where the
+# report is PRINTED BEFORE ANY FILE IS WRITTEN, so a UnicodeEncodeError there aborts
+# the whole ingest having written nothing. Same guard, same reason, as
+# Anual-reports/2025/py/01_data_prep.py.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from camtrap import anchors as anchors_mod
 from camtrap import clocks, exports, stations
 from camtrap.anchors import (
@@ -139,6 +148,7 @@ from camtrap.clocks import (
     ClockDiagnosis,
     SegmentRepair,
 )
+from camtrap import observations
 from camtrap.observations import CANONICAL_FILENAME, write_canonical
 
 
@@ -198,11 +208,14 @@ class RepairReport:
 # 3. Load the two exports and the manifest
 # =============================================================================
 
-def load_reviewed(csv: Path) -> pd.DataFrame:
-    """Read new_labeled_data_reviewed.csv. Coalesces timestamp + DateTime cols
-    and parses into a tz-naive datetime column `_datetime_parsed`."""
-    df = pd.read_csv(csv, dtype=str, keep_default_na=False)
-    # Older campaigns populate `timestamp`; newer ones leave it blank and use `DateTime`.
+def attach_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Add `_datetime_raw` and `_datetime_parsed`, in place, and return the frame.
+
+    Which column holds the stamp is a per-campaign Timelapse2 quirk this module owns:
+    older campaigns populate `timestamp`, newer ones leave it blank and use `DateTime`.
+    Factored out of load_reviewed() so the all-stills frame assembled for the canonical
+    table derives its stamp by the same rule rather than a second copy of it.
+    """
     def _coalesce(r):
         for col in ('timestamp', 'DateTime'):
             v = (r.get(col) or '').strip()
@@ -212,6 +225,13 @@ def load_reviewed(csv: Path) -> pd.DataFrame:
     df['_datetime_raw'] = df.apply(_coalesce, axis=1)
     df['_datetime_parsed'] = pd.to_datetime(df['_datetime_raw'], errors='coerce')
     return df
+
+
+def load_reviewed(csv: Path) -> pd.DataFrame:
+    """Read new_labeled_data_reviewed.csv, with the stamp columns attached."""
+    return attach_datetime_columns(
+        pd.read_csv(csv, dtype=str, keep_default_na=False)
+    )
 
 
 def load_manifest(campaign_dir: Path) -> Optional[pd.DataFrame]:
@@ -657,6 +677,38 @@ def render_report(report: RepairReport) -> str:
 # 7. CLI
 # =============================================================================
 
+def _assert_repair_agrees(reviewed_run, full_run) -> None:
+    """The repair must give a reviewed row the same answer in both runs.
+
+    Cheap to check and the whole basis for running it twice; if it ever fails, the repair
+    has stopped being a per-(camera, file) lookup and the canonical table and the
+    _corrected.csv have started to disagree about the same frame.
+    """
+    # Keyed on the public columns: repair_campaign drops its private _camera_num /
+    # _file_name before returning.
+    key = ['Deployments', 'File']
+    cols = ['datetime_corrected', 'repair_method', 'valid_date', 'valid_time_of_day',
+            'valid_effort']
+    cols = [c for c in cols if c in reviewed_run.columns and c in full_run.columns]
+    a = reviewed_run[key + cols].sort_values(key).reset_index(drop=True)
+    b = (full_run.loc[full_run[observations.REVIEWED_FLAG], key + cols]
+         .sort_values(key).reset_index(drop=True))
+    if len(a) != len(b):
+        raise AssertionError(
+            f'repair disagreement: {len(a)} reviewed rows in the reviewed-only run, '
+            f'{len(b)} flagged reviewed in the full run'
+        )
+    for c in cols:
+        left, right = a[c], b[c]
+        same = (left == right) | (left.isna() & right.isna())
+        if not bool(same.all()):
+            n = int((~same).sum())
+            raise AssertionError(
+                f'repair disagreement on {c!r} for {n} reviewed row(s) between the '
+                f'reviewed-only run and the all-stills run'
+            )
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         description='Apply segment-aware camera-clock repair to a reviewed '
@@ -745,10 +797,29 @@ def main(argv=None) -> int:
     corrected.to_csv(corrected_csv, index=False, date_format='%Y-%m-%d %H:%M:%S')
     print(f'Wrote: {corrected_csv}  ({len(corrected)} rows, +7 columns)')
 
-    # Canonical observation table — the shape every downstream consumer reads.
-    # The _corrected.csv above stays for consumers not yet migrated (pehuen).
-    n_canonical = write_canonical(corrected, args.campaign, canonical_pq)
-    print(f'Wrote: {canonical_pq}  ({n_canonical} rows, canonical schema)')
+    # Canonical observation table — the shape every downstream consumer reads, and it
+    # describes EVERY STILL, not only the reviewed ones, so a station that recorded no
+    # animal still appears and can carry trap-effort. See camtrap/observations.py.
+    #
+    # The repair runs a second time here rather than being sliced out of the run above,
+    # so the audit report and _corrected.csv keep their reviewed-row meaning exactly.
+    # That is safe because the repair is a per-(camera, file) lookup: running it on a
+    # superset cannot change the answer for a row in the subset. Asserted, not assumed.
+    print('Applying repair to every still for the canonical table...')
+    ingest = attach_datetime_columns(
+        observations.compose_ingest_frame(total, photos, args.campaign)
+    )
+    canonical_corrected, _ = repair_campaign(
+        ingest, total, diagnoses, args.campaign, allow_unmatched=args.allow_unmatched,
+    )
+    _assert_repair_agrees(corrected, canonical_corrected)
+
+    # _corrected.csv stays reviewed-only: pehuen reads it (R/01_load_data.R) and has no
+    # use for 32,000 swept rows it would only filter back out.
+    n_canonical = write_canonical(canonical_corrected, args.campaign, canonical_pq)
+    n_reviewed = int(canonical_corrected[observations.REVIEWED_FLAG].sum())
+    print(f'Wrote: {canonical_pq}  ({n_canonical} rows, canonical schema; '
+          f'{n_reviewed} reviewed, {n_canonical - n_reviewed} swept only)')
 
     audit_log.write_text(audit_text, encoding='utf-8')
     print(f'Wrote: {audit_log}')

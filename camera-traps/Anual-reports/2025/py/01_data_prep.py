@@ -3,8 +3,11 @@
 
 Inputs
 ------
-- camera-traps/data/campaigns/{otono_2025, primavera_2025, pv_2025_2026}/observations.parquet
+- camera-traps/data/campaigns/{otono_2025, primavera_2025}/observations.parquet
   (canonical observation tables — produced by `python timestamps.py --campaign <name>`)
+  Each holds ONE ROW PER STILL, not per reviewed record, so most rows are blank/human/
+  vehicle and the animal filter below is what narrows it. Row counts jumped ~16x on
+  2026-08-19 for that reason; the kept-record count did not move with them.
 - data-pipeline/species.yaml                                 (canonical species catalog)
 
 Output
@@ -67,11 +70,11 @@ SPECIES_YAML = REPO / "data-pipeline" / "species.yaml"
 OUT_DIR = REPORT_ROOT / "data"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Otoño 2026 is deliberately excluded — this report covers oct 2024 – mar 2026.
-# pv_2025_2026 dropped 2026-08-19: not a campaign, a second review pass over
+# Otoño 2026 is deliberately excluded — this report covers oct 2024 – mar 2026, and that
+# campaign runs to may 2026. Reconfirmed 2026-08-19: still out, on scope not oversight.
+# pv_2025_2026 dropped 2026-08-19: not a campaign but a second review pass over
 # primavera_2025, and it was overriding primavera's re-review — see CAMPAIGN_ORDER in
-# camtrap/observations.py. NOTE otono_2026 is still absent here; whether the 2025 report
-# should include it is a scope decision, not an oversight to patch silently.
+# camtrap/observations.py.
 REPORT_CAMPAIGNS = ("otono_2025", "primavera_2025")
 
 CONAF_CUTOFF = pd.Timestamp("2024-10-01")

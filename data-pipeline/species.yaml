@@ -116,6 +116,15 @@ species:
     spanish: Chingue
     taxonomic_group: mamifero
 
+  # Added 2026-08-19 from a reviewer comment adjudicated by Felipe. The comment read
+  # "conejo?" — the question mark was rabbit-vs-hare, and Liebre (Lepus europaeus) is by
+  # far the most-recorded species in these campaigns, so read that row with the doubt in
+  # mind even though it is now recorded as a rabbit.
+  - latin: Oryctolagus cuniculus
+    spanish: Conejo
+    taxonomic_group: mamifero
+    is_invasive: true
+
   # ── Aves ──
   - latin: Scelorchilus rubecula
     spanish: Chucao
@@ -197,6 +206,14 @@ species:
   - latin: Elaenia albiceps
     spanish: Fío-fío
     spanish_aliases: [fio fio, fío fío, fio-fio]
+    taxonomic_group: ave
+
+  # Added 2026-08-19 from a reviewer comment. NOTE this species is in the catalogue but
+  # will NOT appear in the annual report: 01_data_prep.py rule 4 drops every
+  # taxonomic_group == "ave", as it does for all the birds above.
+  - latin: Colaptes pitius
+    spanish: Pitío
+    spanish_aliases: [pitio]
     taxonomic_group: ave
 
   # ── Invertebrados ──

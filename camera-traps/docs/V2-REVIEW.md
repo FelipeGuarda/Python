@@ -56,19 +56,40 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       still absent from the 2025 report.** That is a scope decision, left open
       deliberately rather than patched in.
 
-- [ ] **1.2 The canonical file set is identical across campaigns.** Closer after the
-      2026-08-19 move: all three now hold `ImageData_total.csv`, both animal exports and
-      a current `timelapse_recognition_file.json`. **Still undecided: the Timelapse
-      working DBs.** All three now carry `TimelapseData.ddb` + `TimelapseTemplate.tdb`
-      (15.4 MB), and otoño 2025 and primavera *additionally* carry the superseded V1
-      `CamtrapDB_*.ddb`/`.tdb`. Primavera also carries three `addaxai-*` files (6.9 MB)
-      that no module reads. Decide the required set, write it down, assert it.
-      Candidate required set per campaign: `ImageData_total.csv`,
+- [x] **1.2 The canonical file set is decided** — **2026-08-19** (Felipe).
+      **Required per campaign**, and all three now hold every one:
+      `ImageData_total.csv`, `ImageData_animals.csv`, `ImageData_animals_classified.csv`,
       `timelapse_recognition_file.json`, `new_labeled_data_reviewed.csv`,
       `new_labeled_data_corrected.csv`, `dcim_manifest.csv`, `deployment_anchors.csv`,
-      `observations.parquet`, `timestamps_audit.log`.
-      Pass: a check lists, per campaign, present / missing / unexpected — and every
-      "missing" is either fixed or justified in one line here.
+      `observations.parquet`, `timestamps_audit.log`, **`TimelapseData.ddb`** and
+      **`TimelapseTemplate.tdb`**.
+      The two Timelapse DBs are in by decision, not by accident: the `.ddb` is the only
+      thing that can regenerate an export, and after the 2026-08-19 CSV-side video filter
+      otoño 2026's `.ddb` is knowingly divergent from its CSV — committing it is what
+      makes that divergence visible rather than a surprise at the next export.
+      **Nothing in `camtrap/` reads either**, nor `ImageData_animals*.csv`: the classifier
+      writes those and the ingest takes `new_labeled_data_reviewed.csv`. They are
+      provenance, and that is the point.
+      **Verified 2026-08-19: all three `TimelapseTemplate.tdb` are functionally
+      identical** — same `TemplateTable`, same `FolderDataTemplateTable`, same
+      `VersionCompatabily 2.5.0.7 / CamtrapDP`, and the same `observationType` vocabulary
+      `[animal, human, vehicle, blank, unknown, unclassified]` defaulting to
+      `unclassified`. Otoño 2026's file differs by md5 only, which is SQLite page-level
+      noise. **This matters because the export gate's entire premise is what the template
+      emits** — the `empty`/`person` vs `blank`/`human` mismatch on 2026-08-11 cost 584
+      uncounted `human` rows — and it now rests on a checked fact rather than an
+      assumption.
+      **Two items still open, deliberately:**
+      - **The `addaxai-*` files** (`addaxai-detections.csv` 2.7 MB, `addaxai-files.csv`
+        4.2 MB, `addaxai-run-info.txt`), primavera only. New with the AddaxAI update;
+        Felipe has not decided what role they play. No module reads them. Not required
+        until that is settled, and **not** to be quietly deleted meanwhile.
+      - **The legacy `CamtrapDB_*` project DBs** — `CamtrapDB_Otono_2025.ddb` (3.9 MB),
+        `CamtrapDB_Primavera2025.ddb` (1.9 MB) + `.tdb`. All three DIFFER from the current
+        `TimelapseData.ddb`/`TimelapseTemplate.tdb`, so they are the superseded V1 project
+        state, and otoño 2026 has no equivalent. They are the last thing keeping the file
+        set from being identical across campaigns. Deleting them is a data decision, not a
+        cleanup — they may be the only record of the V1 review — so it is Felipe's call.
 
 - [x] **1.3 The export gate passes for all three** — **DONE 2026-08-19**, run from the
       repo, verdict `full_category_sweep` for each:
@@ -99,18 +120,26 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       fired, including `unknown_pending_taxon` (21 rows) and `unknown_pending_review`
       (3 rows), which mark decisions still open — see 1.12.
 
-- [ ] **1.12 The two deferred label decisions.** Both are tagged in
-      `review_resolution`, so they are queryable rather than lost.
-      **(a) `unknown_pending_taxon`, 21 rows.** `ave` (9) and `roedor` (9) are a class
-      and an order — Camtrap DP's `scientificName` does accept a higher rank, so whether
-      these become `Aves`/`Rodentia` in `species.yaml` or stay `unknown` is unsettled.
-      `churrete` (Cinclodes sp.) and `pitío` (Colaptes pitius) are real species simply
-      missing from the catalogue. `conejo?` is the reviewer's own question mark.
-      **(b) `unknown_pending_review`, 3 rows**, all otoño 2025 — `identificar`
-      (CT10/02250269), `no reconocible pero identificar` (CT07/06010039) and
-      `error de imagen` (CT14/01160729). The first two are notes-to-self that were never
-      returned to; the third is a corrupt frame, arguably neither `unknown` nor `blank`
-      but an excluded file. Three images: look at them and this closes.
+- [x] **1.12 The two deferred label decisions** — **CLOSED 2026-08-19** (Felipe).
+      **Ruling: a comment that cannot name a species resolves to `unknown`.** So `ave`
+      (9 rows, otoño 2025), `roedor` (9, otoño 2026) and `churrete` (1) stay `unknown` —
+      `ave` is a class and `roedor` an order, and `Cinclodes` is a genus of several
+      species here, so recording any of them as a scientificName would assert more than
+      the reviewer saw. The 3 review-note rows (`identificar`, `no reconocible pero
+      identificar`, `error de imagen`) are `unknown` too.
+      **Two exceptions, adjudicated as identifiable animals** and added to
+      `data-pipeline/species.yaml`, which is where species decisions live:
+      `conejo` -> *Oryctolagus cuniculus* (`is_invasive`) and `pitío` -> *Colaptes
+      pitius*. Both now resolve through the ordinary Spanish-common-name path.
+      Two data cells were corrected rather than teaching the code a typo: `conejo?` ->
+      `Conejo` (the `?` was rabbit-vs-hare, and *Lepus europaeus* is the most-recorded
+      species in these campaigns — read that row with the doubt in mind) and
+      `Pitio}` -> `Pitío`.
+      Tags renamed accordingly: `unknown_pending_taxon`/`unknown_pending_review` became
+      **`unknown_coarse_comment`** (19 rows) and **`unknown_review_note`** (3), since
+      nothing is pending any more.
+      *Colaptes pitius* is in the catalogue but will not appear in the annual report —
+      `taxonomic_group: ave` and rule 4 drops every bird.
 
 - [ ] **1.4 DCIM manifest coverage is stated per campaign**, including the stations
       that legitimately have none. Coverage must be **total within a described
@@ -153,8 +182,9 @@ Each item is a check with a stated pass condition, not a task to eyeball.
 
 - [ ] **1.9 Dead and stale code removed.** Full list in §3.
 
-- [ ] **1.10 Test suite extended.** **179 pass as of 2026-08-19** (+27: 20 for the
-      review-comment resolution, 7 for the stills-only export precondition).
+- [ ] **1.10 Test suite extended.** **190 pass as of 2026-08-19** (+38: 20 for the
+      review-comment resolution, 7 for the stills-only export precondition, 11 for the
+      ingest row set and where each row's verdict comes from).
       Run them with `python -m unittest discover -s tests` — **pytest is not installed in
       the `camera-traps` env**, which is why the 152 figure went unverified on 2026-08-18.
       Still to add regression fixtures
@@ -163,26 +193,42 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       1.6.
 
 - [ ] **1.11 Outputs regenerated and every moved number attributed.**
-      **Canonical tables rebuilt 2026-08-19** (`otono_2025` 830, `primavera_2025` 744,
-      `otono_2026` 1785 rows; 3,359 total via `read_campaigns`). Figures NOT yet
-      re-rendered. Post-rebuild state: animal 2,520 / unknown 523 / blank 302 /
-      human 10 / vehicle 4, and **zero rows are `animal` with an empty species**.
-      ⚠️ **primavera's canonical table holds 22 stations, not the 26 this item
-      predicted.** The canonical table is built from the animal-only reviewed CSV, so
-      CT01, CT06, CT17 and CT22 — which have 6/21/7/18 frames and no animal detection —
-      contribute no rows at all. That is fine for a numerator and wrong for a
-      trap-effort denominator, and it is a property of the pipeline rather than of this
-      re-ingest. Decide it under 1.4, not here. Diff against
-      `Anual-reports/2025/figures_pre_reingest/`. Expect large movement: primavera goes
-      from 14 stations / 1,960 observations to 26 stations / 16,904 stills. A number that
-      moves without a named cause is a finding, not noise.
-      **Three named causes are already known and must be attributed separately**, or
-      they will be blamed on each other:
-      (a) the primavera re-ingest itself;
-      (b) video leaving the denominators — primavera's V1 parquet held 516 inert video
-          rows, otoño 2026's export held 2,162;
-      (c) the review-comment repair moving 815 rows out of `animal`
-          (otoño 2025 830→706, otoño 2026 1,785→1,320, primavera 744→494).
+      **Canonical tables rebuilt 2026-08-19, now ONE ROW PER STILL** (see 1.13):
+      `otono_2025` 8,997, `primavera_2025` 16,904, `otono_2026` 9,906 — **35,807 total**
+      via `read_campaigns`, of which 3,359 reviewed and 32,448 `sweep_only`.
+      Post-rebuild: animal 2,522 / blank 31,090 / human 1,424 / unknown 521 /
+      vehicle 250, and **zero rows are `animal` with an empty species**.
+      **The annual report moved by exactly one record, and the cause is named.**
+      `01_data_prep.py` output diffed before and after at row level: **1 row added, 0
+      removed** — CT04 `01130013.JPG` *Oryctolagus cuniculus*, i.e. the `conejo?`
+      adjudication from 1.12. Final records 641 -> 642, events 261 -> 262, species kept
+      11 -> 12. **The all-stills rebuild itself moved nothing**, because no `sweep_only`
+      row is ever typed `animal` (asserted in `tests/test_ingest_frame.py`) and the
+      report filters on `animal` + non-empty species.
+      Figures are **not** re-rendered yet. Remaining causes to attribute when they are:
+      video leaving the denominators, and the 815-row review repair.
+
+- [x] **1.13 The canonical table describes every still, not only reviewed rows** —
+      **DONE 2026-08-19.** Seven station-campaigns were absent from the tables because
+      they recorded no animal: **CT23** (otoño 2025), **CT01/CT06/CT17/CT22** (primavera —
+      6, 21, 7 and 18 frames each), **CT02/CT12** (otoño 2026). A station missing from the
+      table is indistinguishable from one never deployed, which is fine for a detection
+      numerator and wrong for a trap-effort denominator — and the module docstring already
+      promised otherwise.
+      `observations.compose_ingest_frame()` now pins the row set to the gated export and
+      attaches the review where one exists; `resolve_observation()` decides where each
+      row's verdict comes from — the review for reviewed rows, the sweep for the rest,
+      tagged `sweep_only`. Station gap is now **0 in all three campaigns**.
+      `new_labeled_data_corrected.csv` deliberately stays reviewed-only: pehuen reads it
+      and has no use for 32,000 swept rows it would filter straight back out.
+      **The remaining station-count difference is RESOLVED, 2026-08-19 (Felipe): the
+      grid was built up over time.** Cameras were installed as the programme went, so
+      otoño 2025 covers **21** stations, primavera **26** and otoño 2026 **27** because
+      that is how many existed at each retrieval. It is the real deployment history, not a
+      pipeline gap, and it must NOT be "fixed" — a later session finding 21 against 27
+      should read this line and stop. What has to stay equal across campaigns is the
+      *file set* (1.2) and the *row-set rule* (every still in the export), never the
+      station count.
 
 ---
 
