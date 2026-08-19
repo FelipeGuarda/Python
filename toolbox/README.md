@@ -3,9 +3,10 @@
 Operational scripts that recur but belong to no single project — the things
 asked for a few times a year, for a different event each time.
 
-**Last Updated:** 2026-08-13
-**What Changed:** Created the toolbox; migrated the bulk-mail scripts and the
-video converter out of `Envio correos/` and `Transforma MOV a MP4/`.
+**Last Updated:** 2026-08-18
+**What Changed:** Added `curate_master.py` and `split_cargo`, to fix rows the
+master already holds rather than only append to it. Fixed `N` numbering, which
+re-used a dozen numbers once the list's owner sorted the sheet by name.
 **Integration Status:** `Ready`
 **Blockers/Notes:** Three credentials committed to this repo's history before
 the migration still need rotating — see *Credentials* below.
@@ -17,6 +18,7 @@ the migration still need rotating — see *Credentials* below.
 | Script | Does | Run it |
 |---|---|---|
 | `merge_contacts.py` | Add contacts from event forms to the canonical master list, preserving its formatting | `python scripts/merge_contacts.py --review --master M.xlsx --source A.xlsx` |
+| `curate_master.py` | Fix the rows already on the master: job titles typed into `Organización`, one person occupying two rows | `python scripts/curate_master.py --review --master M.xlsx` |
 | `excel_crosscheck.py` | Compare two contact workbooks: who's missing from each, and which fields the second one fills in or contradicts | `python scripts/excel_crosscheck.py a.xlsx b.xlsx` |
 | `send_campaign.py` | Personalised bulk mail from a spreadsheet + an HTML template | `python scripts/send_campaign.py lista.xlsx --template X --subject "Y"` |
 | `video_to_mp4.py` | Convert MOV/AVI/MTS to H.264 MP4 | `python scripts/video_to_mp4.py input.MOV` |
@@ -25,7 +27,8 @@ the migration still need rotating — see *Credentials* below.
 
 | Script | Verified | Not yet verified |
 |---|---|---|
-| `merge_contacts.py` | Full run on the real master (141 → 166 rows): highlights and existing rows preserved byte-for-byte, packed address cells split, `N` continued, autofilter grown, share copy generated, original untouched | Behaviour once the standardised form exists (columns will map 1:1, so the review pass should become a formality) |
+| `merge_contacts.py` | Full run on the real master (141 → 161 rows, then 139 → 159 after curation): highlights and existing rows preserved byte-for-byte, packed address cells split, `N` continued without collision on a name-sorted sheet, autofilter grown, share copy generated, original untouched | Behaviour once the standardised form exists (columns will map 1:1, so the review pass should become a formality) |
+| `curate_master.py` | Full run on the real master (142 → 139 rows): 15 job titles moved to `Notas`, 3 duplicate pairs fused with both addresses kept, the owner's highlight and its note intact through three row deletions, no other row altered. `split_cargo` exercised against all 110 organisation values in the list — 17 detections, zero false positives | Behaviour on a list whose duplicates are *not* adjacent by name; a cargo shape not in the current data |
 | `excel_crosscheck.py` | Run against real FMA workbooks and synthetic ones: banner rows above the header, accented column names, `Name <addr>` cells, case/whitespace variance, enrichment and conflict detection | — |
 | `send_campaign.py` | Template rendering (both branches), signature, preview, dry run, ledger skip | **Actual SMTP delivery.** Needs a filled-in `.env`. Send yourself a one-row test list before any real campaign. |
 | `video_to_mp4.py` | AVI → MP4 via bundled ffmpeg | Batch/directory mode, `--force` |
@@ -172,6 +175,58 @@ the review pass necessary in the first place. Once every source comes from
 this template, `--review` should return `confianza = alta` on everything and
 become a formality.
 
+## Curating the master list
+
+The merge script only ever adds. Two kinds of mess accumulate in the rows
+already there, and both need a human in the loop for the same reason as a
+merge: the rules can see that a cell is wrong far more reliably than they can
+see what it should say instead.
+
+```bash
+python scripts/curate_master.py --review --master "data/.../LISTADO_CONTACTOS_MAESTRO.xlsx"
+# open curacion.xlsx, fix any organisation, set Aplicar=NO to skip a row
+python scripts/curate_master.py --apply  --master "data/.../LISTADO_CONTACTOS_MAESTRO.xlsx"
+```
+
+**Cargo in `Organización`.** Asked where they are from, people answer what they
+are, so the column fills up with "Directora Educación MIM" and "SBAP- Jefa
+División Biodiversidad". The title moves to `Notas` — which is not in the
+shared copy — and the organisation stays behind. The title is never deleted:
+it is the owner's text, and `Notas` costs nothing.
+
+Two shapes are recognised and nothing else is touched. A cell like
+`SBAP- Depto Fondo e IECB` names a *unit*, not a person's role, and
+`librería naturaleza, editores` is a business — both are left alone by design.
+What the rules cannot do is tell `Directora | Educación MIM` from
+`Coordinador | Centros UC`: same shape, and only a human knows which side the
+middle word belongs to. Those come back at `confianza = media`.
+
+**One person, two rows.** Someone who registered once with a personal address
+and once with an institutional one is on the list twice, and address matching
+cannot see it. The survivor keeps its own address cell exactly as written and
+gains the other's in `Email alternativo`.
+
+Nothing the loser held is lost. Its `Consentimiento`, `Origen` and `Fecha`
+fill any blank on the survivor, its notes are appended, and its organisation
+becomes a note reading `antes: …` — Paulina Stowhas changed ministries, which
+is history, not an error.
+
+Run curation **before** a merge, not after: appending is what needs a correct
+list to append to, and `--apply` writes `*_curado.xlsx` which then becomes the
+`--master` of the merge.
+
+### `N` after the owner sorts the sheet
+
+`N` records the order people joined, not where they sit. The list's owner sorts
+by name — he looks people up by name, not by number — which scatters the
+numbers, and he adds rows without numbering them. So the next number is one
+past the **highest** in the column, never one past the bottom row's: reading
+the bottom row of a name-sorted sheet returned 130 for a list whose highest
+number was 141, which would have re-used twelve numbers.
+
+Gaps in `N` are normal and mean something: 50, 54 and 134 are missing because
+those rows were merged into others.
+
 ## Sending a campaign
 
 Bodies are templates in `templates/`, not Python. Editing next year's copy
@@ -277,13 +332,21 @@ Two modules, each owning one piece of knowledge:
 - **`lib/mailer.py`** — *how FMA sends personalised bulk mail.* Credentials,
   MIME assembly, throttling, the send ledger. Moving off Gmail is a change here
   and nowhere else.
-- **`lib/namesplit.py`** — *how a person and their organisation get packed
-  into one cell, and how much to trust the split.* A source file with yet
-  another delimiter is a change here alone. Pure functions, no I/O.
+- **`lib/namesplit.py`** — *how a person, their organisation and their job
+  title get packed into one cell, and how much to trust taking them apart.*
+  `split_contact` handles "Nombre - Organización" from event forms;
+  `split_cargo` handles "Directora Educación MIM" in the master's own
+  `Organización` column. Both live here because both turn on the same
+  question — which words name an organisation and which name a person's place
+  in one. A new delimiter or a new job-title word is a change here alone.
+  Pure functions, no I/O.
 - **`lib/master_list.py`** — *the structure of the canonical contact list.*
   Column meanings, multi-address cells, `N` continuation, autofilter growth,
   and the rule that the file is a colleague's working document whose
   formatting must survive. The master gaining a column is a change here alone.
+  It also owns what a write may destroy — nothing: `curate` takes an entire
+  plan rather than one edit at a time, because a row deletion shifts every row
+  beneath it and callers must never have to know that.
 
 `mailer` consumes a `Roster`, never a raw DataFrame, so it never learns what a
 contact column is called. Scripts are thin CLIs — argument parsing and

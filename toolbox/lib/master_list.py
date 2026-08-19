@@ -4,7 +4,10 @@ This module owns what the master workbook *is*: which columns mean what, that
 addresses may be packed several to a cell, how the `N` column continues, that
 the autofilter has to grow with the data, and that the file is a colleague's
 working document whose formatting — his highlights above all — must survive
-every write.
+every write. Since rows may now be corrected and consolidated as well as
+appended, it also owns what a write is allowed to destroy: nothing. A merge
+moves what it cannot keep in place into `Notas`, and a deletion happens only
+after every read the plan depends on.
 
 The originating file is never opened for writing. Every operation produces a
 new file and returns its path.
@@ -72,6 +75,64 @@ class Person:
     nombre: str
     organizacion: str
     addresses: list[str]
+    # `N` as displayed, which is not the row: the owner sorts by name. Carried
+    # here so callers can reason about join order without knowing that reading
+    # it means going through a second, data-only read of the workbook.
+    numero: int | None = None
+
+
+@dataclass(frozen=True)
+class Amendment:
+    """A correction to a row that is already on the list.
+
+    `None` leaves a field alone; `""` clears it. Notas are appended to
+    whatever the row already says rather than replacing it — the owner's note
+    and a cargo lifted out of `Organización` both belong there.
+    """
+
+    row: int
+    organizacion: str | None = None
+    notas: str | None = None
+
+
+@dataclass(frozen=True)
+class Merge:
+    """Two rows that are one person.
+
+    `keep` survives and gains every address both rows held; `drop` is removed.
+    Which of the two to keep is a judgement about which organisation is
+    current, so it is decided by the reviewer, not here.
+    """
+
+    keep: int
+    drop: int
+    organizacion: str | None = None
+    notas: str | None = None
+
+
+@dataclass
+class Curation:
+    """Everything to change about rows already on the list, in one object.
+
+    Handed over whole because applying it in the wrong order corrupts the
+    sheet: a deletion shifts every row beneath it, so row numbers taken from
+    a review sheet stop meaning what they meant. `MasterList.curate` owns
+    that ordering and callers never see it.
+    """
+
+    amendments: list[Amendment] = field(default_factory=list)
+    merges: list[Merge] = field(default_factory=list)
+
+
+@dataclass
+class CurationReport:
+    """What curating actually changed, for the operator to read back."""
+
+    organizaciones: list[tuple[str, str, str]] = field(default_factory=list)
+    notas: int = 0
+    addresses_added: list[tuple[str, str]] = field(default_factory=list)
+    rows_removed: list[tuple[int, str]] = field(default_factory=list)
+    carried_over: list[tuple[str, str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -171,11 +232,13 @@ class MasterList:
             # would let the same address be re-added as new next time.
             if not nombre and not addresses:
                 continue
+            numero = self._cached_value(row, 1)
             found.append(Person(
                 row=row,
                 nombre=nombre,
                 organizacion=str(self.sheet.cell(row, 3).value or "").strip(),
                 addresses=addresses,
+                numero=int(numero) if isinstance(numero, (int, float)) else None,
             ))
         return found
 
@@ -281,6 +344,111 @@ class MasterList:
                 frozen += 1
         return frozen
 
+    def curate(self, plan: Curation) -> CurationReport:
+        """Correct and consolidate rows that are already on the list.
+
+        This is the only operation here that alters and removes the owner's
+        rows, so it does the least it can: it writes only the fields the plan
+        names, never touches a fill, and before removing a row it carries
+        every value that row held alone onto the survivor. Nothing the owner
+        typed is lost by a merge — at worst it moves to `Notas`.
+
+        Requires the canonical columns: uniting two people's addresses needs
+        somewhere to put the second one. Call `restructure` first.
+        """
+        if not self.is_restructured:
+            raise ValueError(
+                "curate needs the canonical columns — call restructure() first, "
+                "or a merged address has nowhere to go."
+            )
+
+        report = CurationReport()
+        for amendment in plan.amendments:
+            self._amend(amendment, report)
+
+        # Every read and write finishes before any row is deleted. Deleting
+        # shifts everything beneath it, which would silently repoint the row
+        # numbers the rest of the plan still refers to.
+        for merge in plan.merges:
+            self._fuse(merge, report)
+        for row, _ in sorted(report.rows_removed, reverse=True):
+            self.sheet.delete_rows(row)
+            if self._cached:
+                self._cached.delete_rows(row)
+
+        self._apply_widths()
+        self._refresh_autofilter()
+        return report
+
+    def _amend(self, amendment: Amendment, report: CurationReport) -> None:
+        row = amendment.row
+        nombre = str(self.sheet.cell(row, 2).value or "")
+        if amendment.organizacion is not None:
+            cell = self.sheet.cell(row, self.column("Organización"))
+            before, after = str(cell.value or "").strip(), amendment.organizacion.strip()
+            if before != after:
+                cell.value = after or None
+                report.organizaciones.append((nombre, before, after))
+        if amendment.notas and self._append_note(row, amendment.notas):
+            report.notas += 1
+
+    def _append_note(self, row: int, text: str) -> bool:
+        """Add to a row's notes without displacing what is already there."""
+        cell = self.sheet.cell(row, self.column("Notas"))
+        existing = str(cell.value or "").strip()
+        if existing.lower() == "nan":
+            existing = ""  # a pandas NaN that reached the sheet as text
+        if text in existing:
+            return False
+        cell.value = f"{existing}; {text}" if existing else text
+        return True
+
+    def _fuse(self, merge: Merge, report: CurationReport) -> None:
+        """Union one row into another and mark the loser for removal."""
+        keep, drop = merge.keep, merge.drop
+        principal, alternativo = self.column("Email principal"), self.column("Email alternativo")
+        nombre = str(self.sheet.cell(keep, 2).value or "")
+
+        held = extract_emails(self.sheet.cell(keep, principal).value)
+        held += extract_emails(self.sheet.cell(keep, alternativo).value)
+        incoming = extract_emails(self.sheet.cell(drop, principal).value)
+        incoming += extract_emails(self.sheet.cell(drop, alternativo).value)
+        arriving = [a for a in dict.fromkeys(incoming) if a not in set(held)]
+
+        # The survivor's own address cell is left exactly as written — the
+        # owner's capitalisation of it is not ours to normalise.
+        if not held and arriving:
+            self.sheet.cell(keep, principal).value = arriving.pop(0)
+        if arriving:
+            existing = str(self.sheet.cell(keep, alternativo).value or "").strip()
+            parts = ([existing] if existing else []) + arriving
+            self.sheet.cell(keep, alternativo).value = "; ".join(parts)
+        for address in arriving:
+            report.addresses_added.append((nombre, address))
+
+        for name in ("Consentimiento", "Origen", "Fecha"):
+            column = self.column(name)
+            surviving, losing = self.sheet.cell(keep, column), self.sheet.cell(drop, column)
+            if surviving.value in (None, "") and losing.value not in (None, ""):
+                surviving.value = losing.value
+                surviving.number_format = losing.number_format
+                report.carried_over.append((nombre, name, str(losing.value)))
+
+        # The other row's organisation is the person's history, not a mistake:
+        # Stowhas moved ministries. It goes to Notas rather than nowhere.
+        theirs = str(self.sheet.cell(drop, self.column("Organización")).value or "").strip()
+        ours = str(self.sheet.cell(keep, self.column("Organización")).value or "").strip()
+        if theirs and theirs.casefold() != ours.casefold():
+            self._append_note(keep, f"antes: {theirs}")
+        their_note = str(self.sheet.cell(drop, self.column("Notas")).value or "").strip()
+        if their_note and their_note.lower() != "nan":
+            self._append_note(keep, their_note)
+
+        if merge.organizacion is not None or merge.notas is not None:
+            self._amend(Amendment(keep, merge.organizacion, merge.notas), report)
+
+        report.rows_removed.append((drop, str(self.sheet.cell(drop, 2).value or "")))
+
     def append(
         self,
         contacts: list[NewContact],
@@ -363,16 +531,43 @@ class MasterList:
         return self._cached.cell(row, column).value if self._cached else None
 
     def _next_number(self) -> int:
-        """The next value for `N`.
+        """The next value for `N`, one past the highest already in use.
 
         The column mixes formulas (early rows) with pasted literals (later
         ones), so the cached result is read rather than the cell content.
+
+        It is the maximum rather than the last row's value because `N` records
+        the order people joined, not where they sit: the list's owner sorts the
+        sheet by name, which scatters the numbers, and adds rows without
+        numbering them. Reading the bottom row gave 130 against a list whose
+        highest number was 141, which would have re-used a dozen numbers.
         """
-        for row in range(self.last_data_row, FIRST_DATA_ROW - 1, -1):
-            value = self._cached_value(row, 1)
-            if isinstance(value, (int, float)):
-                return int(value) + 1
-        return 1
+        used = [
+            self._cached_value(row, 1)
+            for row in range(FIRST_DATA_ROW, self.last_data_row + 1)
+        ]
+        numbers = [int(v) for v in used if isinstance(v, (int, float))]
+        return max(numbers) + 1 if numbers else 1
+
+    def fill_missing_numbers(self) -> list[tuple[int, int]]:
+        """Number any row the owner added without one.
+
+        Returns the (row, number) pairs assigned, top to bottom. Idempotent:
+        a second call finds nothing to do.
+        """
+        assigned = []
+        for row in range(FIRST_DATA_ROW, self.last_data_row + 1):
+            if self._cached_value(row, 1) is not None:
+                continue
+            if not self.sheet.cell(row, 2).value and not self.sheet.cell(row, 3).value:
+                continue  # a genuinely empty row is not a person
+            number = self._next_number()
+            self.sheet.cell(row, 1).value = number
+            if self._cached:
+                self._cached.cell(row, 1).value = number
+            _copy_style(self.sheet.cell(row - 1, 1), self.sheet.cell(row, 1))
+            assigned.append((row, number))
+        return assigned
 
     def _apply_widths(self) -> None:
         for index, name in enumerate(COLUMNS, start=1):

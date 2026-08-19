@@ -37,6 +37,57 @@ OVERRIDE_TEXT = (
 )
 
 
+class TestStillsOnly(unittest.TestCase):
+    """The media-shape precondition. Video in a total export is refused outright."""
+
+    @staticmethod
+    def mixed(names):
+        return pd.DataFrame({
+            'Deployments': ['CT01'] * len(names),
+            'File': names,
+            exports.OBSERVATION_TYPE_COLUMN: ['blank'] * len(names),
+        })
+
+    def test_stills_only_passes(self):
+        exports.require_stills_only(self.mixed(['01010001.JPG']), source='x')
+
+    def test_mp4_and_mov_are_both_refused(self):
+        """Both occur in otoño 2026, so neither extension may be special-cased."""
+        for name in ('01010001.MP4', '01010001.MOV'):
+            with self.assertRaises(exports.ExportGateError):
+                exports.require_stills_only(self.mixed([name]), source='x')
+
+    def test_the_message_counts_the_video_rows(self):
+        frame = self.mixed(['a.JPG', 'b.MP4', 'c.MOV', 'd.JPG'])
+        with self.assertRaises(exports.ExportGateError) as ctx:
+            exports.require_stills_only(frame, source='x')
+        self.assertIn('2 of 4', str(ctx.exception))
+        self.assertIn(exports.VIDEO_ROWS, str(ctx.exception))
+
+    def test_the_message_says_to_fix_it_in_timelapse_not_the_csv(self):
+        """Filtering the CSV leaves the .ddb holding video, so the next export undoes it."""
+        with self.assertRaises(exports.ExportGateError) as ctx:
+            exports.require_stills_only(self.mixed(['a.MP4']), source='x')
+        self.assertIn('Timelapse2', str(ctx.exception))
+        self.assertIn('.ddb', str(ctx.exception))
+
+    def test_count_video_rows_tolerates_a_missing_File_column(self):
+        self.assertEqual(exports.count_video_rows(pd.DataFrame({'x': [1]})), 0)
+
+    def test_no_override_can_rescue_it(self):
+        """Not a category judgement — the wrong set of files. Nothing to sign off on."""
+        self.assertNotIn(exports.VIDEO_ROWS, exports.OVERRIDABLE_VERDICTS)
+
+    def test_video_is_refused_before_the_category_tally_is_believed(self):
+        """otoño 2026 read blank 9,710 when its stills alone were 7,552."""
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            self.mixed(['a.JPG', 'b.MP4']).to_csv(d / 'ImageData_total.csv', index=False)
+            with self.assertRaises(exports.ExportGateError) as ctx:
+                exports.read_total_export(d)
+            self.assertIn(exports.VIDEO_ROWS, str(ctx.exception))
+
+
 class TestTheRule(unittest.TestCase):
 
     def test_human_present_passes(self):

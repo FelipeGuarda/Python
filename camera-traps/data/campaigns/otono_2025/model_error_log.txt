@@ -1,0 +1,16 @@
+Image C:/Users/USUARIO/Desktop/Otono_2025/SynologyDrive/CT04/10140007.JPG cannot be loaded. Exception: cannot identify image file 'C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive\\CT04\\10140007.JPG'
+
+Image C:/Users/USUARIO/Desktop/Otono_2025/SynologyDrive/CT04/10140009.JPG cannot be loaded. Exception: cannot identify image file 'C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive\\CT04\\10140009.JPG'
+
+Image C:/Users/USUARIO/Desktop/Otono_2025/SynologyDrive/CT04/10160029.JPG cannot be loaded. Exception: cannot identify image file 'C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive\\CT04\\10160029.JPG'
+
+Image C:/Users/USUARIO/Desktop/Otono_2025/SynologyDrive/CT04/12090716.JPG cannot be loaded. Exception: cannot identify image file 'C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive\\CT04\\12090716.JPG'
+
+Image C:/Users/USUARIO/Desktop/Otono_2025/SynologyDrive/CT04/12090718.JPG cannot be loaded. Exception: cannot identify image file 'C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive\\CT04\\12090718.JPG'
+
+Image C:/Users/USUARIO/Desktop/Otono_2025/SynologyDrive/CT04/12090719.JPG cannot be loaded. Exception: cannot identify image file 'C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive\\CT04\\12090719.JPG'
+
+Image C:/Users/USUARIO/Desktop/Otono_2025/SynologyDrive/CT13/02280048.JPG cannot be loaded. Exception: cannot identify image file 'C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive\\CT13\\02280048.JPG'
+
+Image C:/Users/USUARIO/Desktop/Otono_2025/SynologyDrive/CT13/05290064.JPG cannot be loaded. Exception: cannot identify image file 'C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive\\CT13\\05290064.JPG'
+

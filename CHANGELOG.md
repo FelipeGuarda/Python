@@ -6,6 +6,122 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## [2026-08-19] — camera-traps: the reviewer's verdict now reaches the canonical table
+
+The primavera 2025 re-review finished, which made all three campaigns comparable for the
+first time and immediately exposed the largest data defect of the V2 pass.
+
+### Fixed
+
+- **815 rows were typed `animal` while the reviewer had written that the frame holds no
+  animal.** The review pass recorded its correction in free-text Spanish
+  `observationComments` while the typed `observationType` column kept the classifier's
+  guess, so every consumer counted the classifier's answer. Primavera's animal count was
+  overstated by 50.6% (744 against 494) and counted 10 people and 4 vehicles as animals;
+  otoño 2025 and otoño 2026 carried 124 and 465 such rows. `resolve_review()` in
+  `camtrap/observations.py` now owns the resolution and is fail-closed — it refused the
+  otoño 2026 ingest until a `Pitio}` typo was corrected. Animal counts: otoño 2025
+  830→706, otoño 2026 1,785→1,320, primavera 744→494. Zero rows are now `animal` with an
+  empty species.
+- **`pv_2025_2026` was silently reverting the new review.** It is not a campaign but a
+  second review pass over primavera, and while it sat in `CAMPAIGN_ORDER` it outranked
+  primavera — so `read_campaigns` returned **169** primavera rows instead of 744, with 606
+  overlapping keys restoring April labels over the 2026-08-19 review. Removed from
+  `CAMPAIGN_ORDER` and `REPORT_CAMPAIGNS`; directory kept as provenance and now raises
+  `UnorderedCampaign` on read.
+- **`data/campaigns/otono_2025/timelapse_recognition_file.json` held 28 pre-flatten
+  filenames** (`CT14/M 11_101EK113_*` against the flattened `CT14/101EK113_*`), which
+  would have failed to join for those frames. Replaced with the post-flatten re-run.
+- A **0-byte `TimelapseData.ddb`** had been committed for otoño 2025 — an empty database
+  that looked like a database. Replaced with the real file.
+
+### Changed
+
+- **Video is excluded from every campaign's export, by policy.** Otoño 2026 had carried
+  2,162 video rows swept as `blank` (2,158) / `human` (2) / `vehicle` (2) and **zero**
+  `animal`, inflating its blank count and deflating every rate built on it, while
+  primavera excluded its 2,618 videos at source. Denominators of a different *kind* are
+  not comparable across campaigns. Otoño 2026's export is now 9,906 stills.
+  `exports.require_stills_only()` refuses any future export carrying video, and is not
+  overridable. Proven a no-op for the rest of the chain: `clocks.diagnose` already
+  discarded video before ordering, so the clock diagnosis, segment table and all 26
+  clean-clock verdicts came out byte-identical.
+- `STILL_EXTENSIONS`/`is_still` moved from `camtrap/clocks.py` to `camtrap/exports.py`,
+  which owns the Timelapse2 record shape per DESIGN_NOTES, rather than duplicating the
+  extension set in a second module.
+- New canonical column **`review_resolution`** records which rule resolved each row,
+  including two values that mark decisions still open.
+- Canonical tables rebuilt for all three campaigns: 830 / 744 / 1,785 rows, 3,359 total.
+
+### Added
+
+- **otoño 2025 and primavera now hold `ImageData_total.csv` in the repo**, so the export
+  gate passes for all three campaigns from the repo for the first time — V2-REVIEW 1.3.
+- 27 tests (179 total, up from 152). Note **pytest is not installed** in the
+  `camera-traps` env; run `python -m unittest discover -s tests`.
+
+### Deferred
+
+- **21 rows tagged `unknown_pending_taxon`** — `ave` and `roedor` are a class and an
+  order rather than species, and Camtrap DP accepts a higher rank, so whether they become
+  `Aves`/`Rodentia` in `species.yaml` is unsettled. `churrete` and `pitío` are real
+  species missing from the catalogue.
+- **3 rows tagged `unknown_pending_review`** — two notes-to-self the reviewer never
+  returned to, one corrupt frame.
+- **`otono_2026` is still absent from `REPORT_CAMPAIGNS`.** A scope decision for the 2025
+  report, deliberately not patched in.
+- **Figures not re-rendered.** Three named causes must be attributed separately or they
+  will be blamed on each other: the primavera re-ingest, video leaving the denominators,
+  and the 815-row review repair.
+
+### Findings not acted on
+
+- **otoño 2025 did not need re-reviewing.** Its March review covers all 818 animal rows
+  of the new export, verified by an identical `DateTime` on all 830 joined rows. The
+  Desktop `ImageData_animals_classified.csv` is a fresh CLIP pass with no `reviewOutcome`
+  column that disagrees with the human review on 524/818 rows.
+- **primavera's canonical table holds 22 stations, not 26.** The table is built from the
+  animal-only reviewed CSV, so CT01/CT06/CT17/CT22 — 6/21/7/18 frames, no animal
+  detection — contribute no rows. Fine for a numerator, wrong for a trap-effort
+  denominator.
+- **`timestamps.py` crashes on this Windows console** at `print(audit_text)`, before any
+  write, so an ingest aborts having written nothing. Workaround `PYTHONIOENCODING=utf-8`;
+  the box-drawing characters in the audit report meet a cp1252 stdout.
+- **Whether otoño 2026's 2,158 `blank` videos were ever watched is not established.**
+  Only 248 of 2,162 have a still within ±60 s, and 39 of those sit in a burst whose
+  stills contain an animal.
+
+---
+
+## [2026-08-18] — Toolbox: the contact master can now be corrected, not only appended to
+
+The boss edited the master while the merged copy sat unpromoted, so the two had diverged: the 20 contacts from the 3° Encuentro existed only in `_actualizado.xlsx`, and his file was still the pre-merge 4-column layout. Re-running the merge on it would have corrupted `N`.
+
+### Added
+- **`scripts/curate_master.py`** — two-pass curation of rows already on the master (`--review` → `curacion.xlsx` → `--apply`), the counterpart to `merge_contacts.py`'s append-only pass. Proposes rather than decides, for the same reason the merge does.
+- **`namesplit.split_cargo`** — pulls a job title back out of `Organización` ("Directora Educación MIM", "SBAP- Jefa División Biodiversidad"). Lives beside `split_contact` because both turn on which words name an organisation and which name a person's place in one.
+- **`MasterList.curate`** — takes an entire `Curation` plan rather than one edit at a time, so no caller has to know that deleting a row shifts every row beneath it and invalidates the plan's own indices. Every read and write completes before any deletion.
+- **`MasterList.fill_missing_numbers`**, **`Person.numero`** — the owner adds rows without numbering them, and `N` is not the row number once the sheet is sorted by name.
+
+### Fixed
+- **`_next_number` re-used a dozen numbers.** It read up from the bottom row, which on a name-sorted sheet held `N=129` against a maximum of 141 — the 20 appended rows would have been numbered 130–149. Now one past the highest number in the column, which does not depend on row order.
+- **The append wrote the literal string `nan` into `Notas`** for every row whose review-sheet note was empty (a pandas NaN stringified on the way through `revision.xlsx`).
+- **`split_cargo` contradicted its own docstring**, returning `alta` on the ambiguous `Directora | Educación MIM` shape because an acronym survived *somewhere* in the remainder. Only a remainder that *starts* like an organisation now earns `alta`.
+- **README and PROJECT_STATUS** both recorded the 13 Aug merge as 141 → 166 rows. It was 161.
+
+### Verified
+- **Diagnosis before any write:** 141 of 141 of the boss's rows matched on address or name — **zero deletions, no column misalignment from his A→Z sort.** His changes were the sort, one new row, two filled-in emails, and six `Nombre, Cargo` cells split with the cargo landing in `Organización`.
+- **`split_cargo` against all 110 organisation values in the real list:** 17 detections, **zero false positives.** `SBAP- Depto Fondo e IECB` (a unit) and `librería naturaleza, editores` (a business) untouched by design.
+- **The keep/drop rule chose correctly on all three duplicate pairs** with no hand-editing — including preferring the *later* row for Paulina Stowhas, whose newer entry carries the current employer.
+- **142 → 139 → 159 rows.** `N` 1–162, no duplicates, gaps only at 50/54/134 (the merged-away rows). **The owner's yellow highlight and its note survived three row deletions** (`D51`→`D49`), confirmed through a save/reload cycle before anything shipped. **0 unexpected changes to any other row**, 0 duplicate addresses or names remaining, share copy byte-consistent with the canonical file, boss's original untouched at 142 × 4.
+
+### Findings
+- **Three duplicate pairs were pre-existing** — the sort merely made them adjacent. One (Enrique Rivera, `N` 40 and 134) held the *identical* address on both rows, so address matching had already seen it and nothing had acted.
+- **The cargo problem is growing, not shrinking.** The boss added six more while splitting cells by hand. The form template exists to stop this at the source; it has not been built into a Google Form yet.
+- ⚠️ **Still open:** `UC - Glaciares` is not an organisation's name, `Katherine` has no surname, the six `?` acronym expansions from 13 Aug are unconfirmed, and **the three leaked credentials still need rotating.**
+
+---
+
 ## [2026-08-18] — Camera-traps: otoño 2026's capture order recovered; 103 GB of Synology re-downloads removed
 
 Renaming the download folders locally made all three Synology sync tasks treat the originals as missing and restore them beside the flattened trees. Otoño 2026 had been carrying a restored copy since June without anyone noticing.

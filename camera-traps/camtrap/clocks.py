@@ -78,6 +78,8 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 
+from camtrap import exports
+
 # ── The DCIM manifest ─────────────────────────────────────────────────────────
 # Written by setup/flatten_for_camtrapdp.py, read here. The schema lives with the
 # reader because this module is the only thing that cares what it means.
@@ -166,10 +168,10 @@ _FILENAME_RE = re.compile(r'(?P<mmdd>\d{4})(?P<counter>\d{4})$')
 
 # Videos are excluded from every chronology decision: their DateTime is stamped an
 # hour off from the paired JPG and some carry the file-copy date instead. Including
-# them produced 61 phantom resets for CT_18 against a true count of 4. Both .MP4
-# and .MOV occur in otoño 2026, so filter TO stills rather than excluding one
-# extension.
-STILL_EXTENSIONS = frozenset({'.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff'})
+# them produced 61 phantom resets for CT_18 against a true count of 4.
+# What counts as a still is camtrap/exports.py's decision — it owns what an export is.
+# This filter stays even though the export gate now refuses video outright: a caller
+# may hand diagnose() rows from somewhere other than a gated export.
 
 
 # =============================================================================
@@ -293,11 +295,6 @@ def parse_filename(name: str) -> tuple[str | None, int | None]:
     return m.group('mmdd'), int(m.group('counter'))
 
 
-def is_still(name: str) -> bool:
-    ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
-    return f'.{ext}' in STILL_EXTENSIONS
-
-
 def establish_order(df: pd.DataFrame) -> tuple[pd.DataFrame, bool, str, list[str]]:
     """Sort frames into capture order and report how strongly that order is known.
 
@@ -398,7 +395,7 @@ def diagnose(
             raise ValueError(f'diagnose() requires a {col!r} column')
 
     # Trap 1 — videos never take part in a chronology decision.
-    mask_still = df['file_name'].astype(str).map(is_still)
+    mask_still = df['file_name'].astype(str).map(exports.is_still)
     n_videos = int((~mask_still).sum())
     df = df[mask_still]
 

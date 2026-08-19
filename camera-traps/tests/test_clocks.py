@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from camtrap import clocks
+from camtrap import clocks, exports
 
 
 # Real deployment window, matching otoño 2026's shape.
@@ -94,9 +94,9 @@ class TestFilenameGrammar(unittest.TestCase):
         )
 
     def test_stills_and_videos(self):
-        self.assertTrue(clocks.is_still('01190313.JPG'))
-        self.assertFalse(clocks.is_still('01190313.MP4'))
-        self.assertFalse(clocks.is_still('01190313.MOV'))
+        self.assertTrue(exports.is_still('01190313.JPG'))
+        self.assertFalse(exports.is_still('01190313.MP4'))
+        self.assertFalse(exports.is_still('01190313.MOV'))
 
 
 # =============================================================================

@@ -99,6 +99,10 @@ UNASSIGNED_TYPES = frozenset({'unclassified', ''})
 # The categories whose presence proves a sweep actually happened.
 PROOF_OF_SWEEP = frozenset({TYPE_HUMAN, TYPE_VEHICLE})
 
+# What counts as a still. This module owns it because it owns what an export *is*;
+# camtrap/clocks.py imports it rather than restating the extension set.
+STILL_EXTENSIONS = frozenset({'.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff'})
+
 OVERRIDE_FILENAME = 'export_gate_override.txt'
 OVERRIDE_REQUIRED_KEYS = ('verified_by', 'date', 'reason')
 
@@ -109,6 +113,7 @@ NO_PROOF_OF_SWEEP  = 'no_human_or_vehicle'
 NEVER_ASSIGNED     = 'categories_never_assigned'
 NO_ROWS            = 'empty_export'
 UNKNOWN_VALUES     = 'unrecognised_category_values'
+VIDEO_ROWS         = 'video_rows_in_export'
 
 # Only this verdict is an exception a human may sign off on.
 OVERRIDABLE_VERDICTS = frozenset({NO_PROOF_OF_SWEEP})
@@ -156,6 +161,54 @@ class CategoryAudit:
             )
         lines.extend(f'  note: {n}' for n in self.notes)
         return '\n'.join(lines)
+
+
+# =============================================================================
+# Media shape — stills only
+# =============================================================================
+
+FILE_COLUMN = 'File'
+
+
+def is_still(name: str) -> bool:
+    """True for a still frame, by filename extension."""
+    ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+    return f'.{ext}' in STILL_EXTENSIONS
+
+
+def count_video_rows(df: pd.DataFrame) -> int:
+    """How many rows of a loaded export describe video rather than a still."""
+    if FILE_COLUMN not in df.columns:
+        return 0
+    return int((~df[FILE_COLUMN].astype(str).map(is_still)).sum())
+
+
+def require_stills_only(df: pd.DataFrame, *, source: str) -> None:
+    """Refuse an export that carries video rows.
+
+    Checked BEFORE the category audit, because a tally computed with video rows in it
+    misreports the sweep: otoño 2026's export read `blank` 9,710 when the stills alone
+    were 7,552, the 2,158 video rows having been swept as empty. Video and stills are
+    separate trigger events on these cameras, so an export that keeps them has a
+    denominator of a different KIND from one that drops them — blank rate, detection
+    rate and trap-nights stop being comparable across campaigns.
+
+    Not overridable. The fix is upstream in Timelapse2, and it has to be upstream:
+    filtering the CSV instead leaves TimelapseData.ddb holding the videos, so the next
+    export puts them back.
+    """
+    n_video = count_video_rows(df)
+    if not n_video:
+        return
+    raise ExportGateError(
+        f'{source}: {n_video} of {len(df)} row(s) are video, not stills '
+        f'(verdict: {VIDEO_ROWS}).\n'
+        f'  Exports must contain stills only — see README Step 2a. Filter video out '
+        f'in Timelapse2 and export again; do NOT strip the rows from the CSV, because '
+        f'the .ddb would still hold them and the next export would reintroduce them.\n'
+        f'  No override applies: this is not a category judgement, it is the wrong '
+        f'set of files.'
+    )
 
 
 # =============================================================================
@@ -360,6 +413,7 @@ def read_total_export(campaign_dir: Path, *, filename: str = TOTAL_EXPORT_FILENA
         )
 
     df = pd.read_csv(path, dtype=str, keep_default_na=False, low_memory=False)
+    require_stills_only(df, source=str(path))
     audit = require_full_category(df, source=str(path), override_dir=campaign_dir)
     return df, audit
 
@@ -391,6 +445,7 @@ def main(argv=None) -> int:
 
     df = pd.read_csv(path, dtype=str, keep_default_na=False, low_memory=False)
     try:
+        require_stills_only(df, source=str(path))
         audit = require_full_category(
             df, source=str(path), override_dir=campaign_dir,
         )

@@ -1,15 +1,93 @@
 === Timestamp audit: campaign primavera_2025 ===
-Total photos:                       1960
-  Clean (no repair needed):         1892
+Export gate:
+  observationType over 16904 row(s):
+      blank            15634
+      animal             744
+      human              399
+      vehicle            127
+    verdict: full_category_sweep
+
+Reviewed rows:                      744
+  Clean (no repair needed):         689
   Repaired (exact anchor):          0
   Repaired (approximate anchor):    0
-  Unrepairable:                     68
+  Unrepairable:                     55
   Unparseable datetime:             0
+  Stations with unknowable effort:  5
 
-Stations with issues:
-  TC16_M13.2: clusters={'real': 8, 'bogus': 68}, methods=['unrepairable_pending_anchor']
+── Stations with a clock failure ──────────────────────────────────────────────
+  CT08 — 2434 still(s), 0 video(s) excluded, 0 unparseable, 0 anchor(s)
+    capture order: established (evidence: dcim_manifest+counter)
+    deployment window: 2025-06-02 12:00 → 2026-01-16 12:00
+    segments: 1
+      [0]  2434 frame(s)  2025-08-13 08:54 → 2026-01-13 12:46  INCOHERENT  in-window
+            → segment_incoherent:filename_mmdd_disagrees_with_datetime  date=F tod=F
+    unaccounted_days: 74.84 (AUDIT DIAGNOSTIC ONLY — never a criterion)
+    valid_effort: FALSE — exclude this station from rate DENOMINATORS as well as numerators
+    reviewed rows by method: {'segment_incoherent:filename_mmdd_disagrees_with_datetime': 21}
+  CT16 — 66 still(s), 0 video(s) excluded, 0 unparseable, 1 anchor(s)
+    capture order: established (evidence: counter)
+    deployment window: 2025-06-06 12:00 → 2025-11-28 12:00
+    segments: 4
+      [0]     6 frame(s)  2025-06-09 16:19 → 2025-07-04 12:15  INCOHERENT  in-window
+            → unrepairable_pending_anchor  date=F tod=F
+      [1]     3 frame(s)  2017-01-01 00:00 → 2017-01-01 00:00  coherent  OUT-OF-WINDOW
+            → unrepairable_pending_anchor  date=F tod=F
+      [2]     3 frame(s)  2017-01-01 00:00 → 2017-01-01 00:00  coherent  OUT-OF-WINDOW
+            → unrepairable_pending_anchor  date=F tod=F
+      [3]    54 frame(s)  2017-01-01 00:00 → 2017-05-10 23:33  INCOHERENT  OUT-OF-WINDOW
+            → unrepairable_pending_anchor  date=F tod=F
+    unaccounted_days: 20.19 (AUDIT DIAGNOSTIC ONLY — never a criterion)
+    valid_effort: FALSE — exclude this station from rate DENOMINATORS as well as numerators
+    reviewed rows by method: {'unrepairable_pending_anchor': 1}
+  CT17 — 7 still(s), 0 video(s) excluded, 0 unparseable, 0 anchor(s)
+    capture order: established (evidence: counter)
+    deployment window: 2025-06-03 12:00 → 2026-01-11 12:00
+    segments: 2
+      [0]     5 frame(s)  2025-06-04 14:58 → 2025-08-17 08:43  coherent  in-window
+            → no_anchor_in_segment  date=F tod=F
+      [1]     2 frame(s)  2017-01-01 00:00 → 2017-01-01 00:00  coherent  OUT-OF-WINDOW
+            → no_anchor_in_segment  date=F tod=F
+    unaccounted_days: 148.26 (AUDIT DIAGNOSTIC ONLY — never a criterion)
+    valid_effort: FALSE — exclude this station from rate DENOMINATORS as well as numerators
+  CT18 — 67 still(s), 0 video(s) excluded, 0 unparseable, 0 anchor(s)
+    capture order: established (evidence: counter)
+    deployment window: 2025-06-07 12:00 → 2025-11-17 12:00
+    segments: 1
+      [0]    67 frame(s)  2025-06-10 15:50 → 2025-09-12 03:53  INCOHERENT  in-window
+            → segment_incoherent:filename_mmdd_disagrees_with_datetime  date=F tod=F
+    unaccounted_days: 69.5 (AUDIT DIAGNOSTIC ONLY — never a criterion)
+    valid_effort: FALSE — exclude this station from rate DENOMINATORS as well as numerators
+    reviewed rows by method: {'segment_incoherent:filename_mmdd_disagrees_with_datetime': 17}
+  CT23 — 1735 still(s), 0 video(s) excluded, 0 unparseable, 0 anchor(s)
+    capture order: NOT established (evidence: counter)
+    deployment window: 2025-06-07 12:00 → 2026-01-17 12:00
+    segments: 1
+      [0]  1735 frame(s)  2025-06-10 12:24 → 2026-01-11 12:58  INCOHERENT  in-window
+            → ordering_unrecoverable  date=F tod=F
+    unaccounted_days: 8.98 (AUDIT DIAGNOSTIC ONLY — never a criterion)
+    valid_effort: FALSE — exclude this station from rate DENOMINATORS as well as numerators
+    reviewed rows by method: {'ordering_unrecoverable': 16}
 
-Stations with clean clocks (13): 100EK113, TC10_M3.2, TC11_M15.2, TC12_M17.2, TC13_M16.2, TC15_M12.2, TC18_M15.2, TC19_M16.2, TC1_M7.2, TC20_M17.2, TC4_M5.2, TC6_M1.2, TC9_M2.2
+Stations with a clean clock (21): CT01, CT02, CT03, CT04, CT05, CT06, CT07, CT09, CT10, CT11, CT12, CT13, CT14, CT15, CT19, CT20, CT21, CT22, CT24, CT25, CT26
+  of which 1 could not be ordered but show no clock failure (CT22) — every frame is in-window and agrees with its own filename, so there is no reset to attribute
 
-Warnings:
-  ! TC16_M13.2: 68 bogus photos marked unrepairable_pending (awaiting field info — notes: 'TC-16 chronic clock-reset offender; 68 bogus rows 2017-01-01 to 2017-05-10; all have empty scientificName so downstream species filters will exclude them')
+Notes and warnings:
+  ! CT08: 7/2434 frame(s) disagree between filename MMDD and DateTime — the date registers are corrupt, so the clock may not tick coherently even within a segment
+  ! CT08: segment(s) [0] have unknown dates, so the station contributes no effort at all — exclude it from rate denominators, not just numerators
+  ! CT08: 74.84 day(s) of the deployment window are unaccounted for by any segment (diagnostic only)
+  ! CT16: 57/66 frame(s) disagree between filename MMDD and DateTime — the date registers are corrupt, so the clock may not tick coherently even within a segment
+  ! CT16: 60 frame(s) fall outside the deployment window
+  ! CT16: unrepairable_pending anchor present (TC-16 chronic clock-reset offender; 68 bogus rows 2017-01-01 to 2017-05-10; all have empty scientificName so downstream species filters will exclude them) — awaiting field info
+  ! CT17: 2 frame(s) fall outside the deployment window
+  ! CT17: segment(s) [0, 1] have unknown dates, so the station contributes no effort at all — exclude it from rate denominators, not just numerators
+  ! CT17: 148.26 day(s) of the deployment window are unaccounted for by any segment (diagnostic only)
+  ! CT18: 67/67 frame(s) disagree between filename MMDD and DateTime — the date registers are corrupt, so the clock may not tick coherently even within a segment
+  ! CT18: segment(s) [0] have unknown dates, so the station contributes no effort at all — exclude it from rate denominators, not just numerators
+  ! CT18: 69.5 day(s) of the deployment window are unaccounted for by any segment (diagnostic only)
+  ! CT22: 18 filename(s) do not match the MMDD+counter grammar, so no counter order can be derived from them
+  ! CT22: capture order not established, but no clock failure is detectable: every frame is in-window and agrees with its own filename
+  ! CT23: 802 colliding filename counter(s) and no DCIM manifest — the counter is per-folder and wraps at 999, so capture order is not recoverable from filenames alone
+  ! CT23: 2/1735 frame(s) disagree between filename MMDD and DateTime — the date registers are corrupt, so the clock may not tick coherently even within a segment
+  ! CT23: capture order not established AND the datetimes are suspect — the split cannot be located, so the camera fails closed
+  ! CT23: clock failure present but capture order is not established (evidence=counter) — no repair reasoning applies

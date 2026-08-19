@@ -68,7 +68,11 @@ OUT_DIR = REPORT_ROOT / "data"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Otoño 2026 is deliberately excluded — this report covers oct 2024 – mar 2026.
-REPORT_CAMPAIGNS = ("otono_2025", "primavera_2025", "pv_2025_2026")
+# pv_2025_2026 dropped 2026-08-19: not a campaign, a second review pass over
+# primavera_2025, and it was overriding primavera's re-review — see CAMPAIGN_ORDER in
+# camtrap/observations.py. NOTE otono_2026 is still absent here; whether the 2025 report
+# should include it is a scope decision, not an oversight to patch silently.
+REPORT_CAMPAIGNS = ("otono_2025", "primavera_2025")
 
 CONAF_CUTOFF = pd.Timestamp("2024-10-01")
 EPISODE_GAP = pd.Timedelta(minutes=30)

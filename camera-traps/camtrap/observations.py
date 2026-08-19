@@ -14,8 +14,12 @@ resolved in one place rather than re-derived per consumer:
       those rows stay valid for activity and overlap analysis.
     * Three station spellings across four campaigns -> `camera_num` only, via
       `camtrap.stations`.
-    * Reviewers using "Otro (especificar)" leave `scientificName` empty with the
-      Spanish name in `observationComments` -> resolved to `species_latin` here.
+    * A reviewer's verdict lives in two columns that can disagree — the typed
+      `scientificName` and a free-text Spanish `observationComments` that may hold a
+      species, a negation ("no es un animal") or a note to self -> `observation_type`,
+      `species_latin` and `review_resolution` all come from `resolve_review()` here.
+      `observationType` as exported is NOT copied through: it reads `animal` on every
+      row of an animal-only export, including rows the reviewer said hold no animal.
 
 Deliberately NOT stored: species attributes (`spanish`, `taxonomic_group`,
 `is_invasive`, `is_priority`). The table carries the species *key*;
@@ -37,7 +41,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from camtrap import stations
+from camtrap import exports, stations
 from classify_campaign.species import spanish_to_latin
 
 CAMPAIGNS_ROOT = Path(__file__).resolve().parents[1] / "data" / "campaigns"
@@ -60,6 +64,10 @@ CANONICAL_COLUMNS: dict[str, str] = {
     "observation_type":  "string",
     "species_latin":     "string",          # '' when not an identified animal
     "review_outcome":    "string",
+    # Which rule resolved this row's type and species — see RESOLUTION_* below. It
+    # travels in the table rather than in a log because a marker nobody can query is a
+    # marker nobody acts on, and two of its values mark decisions still open.
+    "review_resolution": "string",
     "file_name":         "string",
     "rel_path":          "string",          # forward slashes, case preserved
 }
@@ -72,10 +80,18 @@ DEDUP_KEY = ["camera_num", "file_name", "datetime"]
 # adjudicated labels: primavera_2025 and pv_2025_2026 overlap by 396 records, 31 of
 # which carry different species, and `label_conflicts_primavera_vs_pv_2026-05-27.csv`
 # records pv as the resolution already loaded into DuckDB.
+#
+# `pv_2025_2026` was REMOVED 2026-08-19. It was never a campaign — it is a second
+# review pass over primavera_2025, which the field record settles outright. While it sat
+# here it outranked primavera, so once primavera was re-ingested from the full 26-station
+# download its 606 freshly reviewed rows were being silently replaced by pv's April
+# labels: `read_campaigns` returned 169 primavera rows instead of 744, reverting
+# adjudicated species (CT20 09240308 went from Pteroptochos tectus back to Lepus
+# europaeus). The directory and its parquet are kept as provenance; reading them through
+# `read_campaigns` now raises UnorderedCampaign, which is the intended fail-loud.
 CAMPAIGN_ORDER = [
     "otono_2025",
     "primavera_2025",
-    "pv_2025_2026",
     "otono_2026",
 ]
 
@@ -103,6 +119,203 @@ def _resolve_rel_path(row: pd.Series) -> str:
         name = str(row.get("File") or "").strip()
         fp = f"{rel}/{name}" if rel and name else name
     return fp.replace("\\", "/")
+
+
+# =============================================================================
+# Review-comment resolution
+# =============================================================================
+#
+# The review pass records its conclusion in TWO columns that can disagree with each
+# other and with the category sweep in ImageData_total.csv:
+#
+#     scientificName        the typed identification, often empty
+#     observationComments   free-text Spanish — sometimes a species, sometimes a
+#                           negation ("no es un animal"), sometimes a note to self
+#
+# Left unresolved this is not a cosmetic problem: 815 rows across the three campaigns
+# carried observationType=animal while the reviewer had written that the frame holds no
+# animal, which overstated primavera's animal count by 50.6% (744 against 494) and
+# counted 10 people and 4 vehicles as animals.
+#
+# TWO PRECEDENCE RULES, decided with Felipe 2026-08-19, and they point opposite ways:
+#
+#   1. The review NAMES an animal, the sweep says human or vehicle -> animal wins.
+#      A vehicle moving through the park carries people, and dogs follow them, so all
+#      three are in frame at once and only one observationType fits. Ranking is
+#      animal > vehicle > human. 37 rows: 13 Perro, 23 Caballo, 1 Vaca.
+#
+#   2. The review NEGATES the animal, the sweep says animal -> the review wins.
+#      Here the sweep's `animal` is the false positive the review is correcting, so
+#      rule 1 must NOT fire, or all 250 of primavera's corrections revert.
+#
+# The discriminator is whether the review NAMES something or NEGATES it, which is why
+# R1 tests scientificName and R2 tests the comment. Verified 2026-08-19: no row in any
+# campaign has both a species and a negating comment, so the two never race.
+#
+# The sweep's own observationType is deliberately NOT an input. An earlier draft let a
+# sweep `human` outrank a negating comment on the grounds that the specific beats the
+# generic; Felipe's ruling is that the review always wins, because it is the later and
+# closer look. That makes this resolution a pure function of the reviewed row — no
+# cross-file join — and it costs nothing, because the sweep's labels stay untouched in
+# ImageData_total.csv, which is where anchor_candidates.py reads `human` frames to
+# propose clock anchors from install and retrieval photos.
+
+# Spanish negation or non-animal category -> the Camtrap DP type it really is. The type
+# spellings come from camtrap/exports.py, which owns that vocabulary; restating them
+# here as literals would put one decision in two places.
+COMMENT_TO_TYPE: dict[str, str] = {
+    "no es un animal": exports.TYPE_BLANK,
+    "no reconocible":  exports.TYPE_UNKNOWN,
+    "humano":          exports.TYPE_HUMAN,
+    "vehiculo":        exports.TYPE_VEHICLE,
+}
+
+# Comments that name something real but coarser than a species, or that record the
+# reviewer's own doubt. They resolve to `unknown` and are tagged apart from the genuine
+# unknowns so the open question stays queryable.
+#
+# OPEN DESIGN QUESTION as of 2026-08-19, deliberately deferred: `ave` and `roedor` are
+# a class and an order, not species, and Camtrap DP's scientificName does accept a
+# higher rank. Whether they should become Aves and Rodentia in species.yaml rather than
+# collapsing to `unknown` is unsettled. `churrete` (Cinclodes sp.) and `pitio`
+# (Colaptes pitius) are real species simply missing from the catalogue; `conejo?` is
+# the reviewer's question mark, not ours to resolve.
+# Accented and unaccented spellings are both listed, the same convention species.yaml
+# uses, because _normalise() lowercases but deliberately does not fold accents.
+PENDING_TAXON_COMMENTS = frozenset({
+    "ave", "roedor", "conejo?", "churrete", "pitio", "pitío",
+})
+
+# Notes to self left in place of an identification. Also `unknown`, also tagged apart:
+# folding them into the 499 genuine "could not tell" rows would silently close a task
+# the reviewer meant to come back to, and nobody would ever look again.
+PENDING_REVIEW_COMMENTS = frozenset({
+    "identificar", "no reconocible pero identificar", "error de imagen",
+})
+
+# Values of the `review_resolution` column.
+RESOLUTION_SPECIES_NAMED        = "species_named"
+RESOLUTION_TYPE_FROM_COMMENT    = "type_from_comment"
+RESOLUTION_SPECIES_FROM_COMMENT = "species_from_comment"
+RESOLUTION_PENDING_TAXON        = "unknown_pending_taxon"
+RESOLUTION_PENDING_REVIEW       = "unknown_pending_review"
+
+
+class UnmappedReviewComment(ValueError):
+    """A reviewer comment no rule covers. Names every one of them, with counts.
+
+    Fail-closed on purpose, and it aggregates rather than dying on the first: guessing
+    would put a fabricated verdict in the canonical table, and raising one comment at a
+    time would make a ten-comment backlog take ten runs to discover.
+    """
+
+
+def _column(reviewed: pd.DataFrame, name: str) -> pd.Series:
+    """One review column as text, always on `reviewed`'s index.
+
+    A missing column yields empty strings rather than an empty Series: a short Series
+    would silently misalign every subsequent .isin() and .loc[] against a frame of a
+    different length.
+    """
+    if name not in reviewed.columns:
+        return pd.Series("", index=reviewed.index, dtype=object)
+    return reviewed[name].fillna("").astype(str).str.strip()
+
+
+def _normalise(reviewed: pd.DataFrame) -> pd.Series:
+    """Comment text as the rule tables key it: stripped and lowercased.
+
+    Accents are NOT folded. species.yaml already lists accented and unaccented spellings
+    side by side, so folding here would second-guess that catalogue; an unlisted accented
+    variant is caught by UnmappedReviewComment instead of being silently mapped.
+    """
+    return _column(reviewed, "observationComments").str.lower()
+
+
+def audit_review_comments(reviewed: pd.DataFrame) -> dict[str, int]:
+    """Comments on empty-species rows that no rule covers, with row counts.
+
+    Empty dict means resolve_review() will not raise. Separate from resolve_review so a
+    caller can survey a reviewed CSV without having to catch an exception to do it.
+    """
+    latin = _column(reviewed, "scientificName")
+    comments = _normalise(reviewed)
+    known = set(COMMENT_TO_TYPE) | set(spanish_to_latin())
+    known |= PENDING_TAXON_COMMENTS | PENDING_REVIEW_COMMENTS
+    unmapped = comments[(latin == "") & ~comments.isin(known)]
+    return {k: int(v) for k, v in unmapped.value_counts().items()}
+
+
+def resolve_review(reviewed: pd.DataFrame) -> pd.DataFrame:
+    """Resolve each reviewed row into its canonical type, species and rule tag.
+
+    Returns a frame indexed like `reviewed` with columns `observation_type`,
+    `species_latin` and `review_resolution`. Raises UnmappedReviewComment if any
+    empty-species row carries a comment no rule covers.
+    """
+    unmapped = audit_review_comments(reviewed)
+    if unmapped:
+        listed = "\n".join(
+            f"    {comment or '(empty comment)'!r:<36} {n:>5} row(s)"
+            for comment, n in sorted(unmapped.items(), key=lambda kv: -kv[1])
+        )
+        raise UnmappedReviewComment(
+            f"{sum(unmapped.values())} reviewed row(s) have an empty scientificName "
+            f"and a comment no rule covers:\n{listed}\n"
+            f"  Every one needs a decision before ingest — a species belongs in "
+            f"species.yaml, a negation in COMMENT_TO_TYPE, a coarse taxon or an "
+            f"open question in PENDING_TAXON_COMMENTS (camtrap/observations.py).\n"
+            f"  An empty comment on an empty species means the row was never actually "
+            f"reviewed; that is `unclassified`, not `unknown`, and no rule here can "
+            f"invent a verdict for it."
+        )
+
+    latin = _column(reviewed, "scientificName")
+    comments = _normalise(reviewed)
+    from_catalogue = comments.map(spanish_to_latin())
+
+    out = pd.DataFrame(index=reviewed.index)
+    # Built in reverse precedence: each rule overwrites the weaker ones and R1 lands
+    # last, which keeps the ranking readable as a sequence rather than nested where().
+    # Every rule assigns its own tag — nothing is left to the initial value, so a row
+    # the rules failed to cover shows up as '' in the assertion below instead of
+    # inheriting a plausible-looking verdict.
+    out["observation_type"] = exports.TYPE_UNKNOWN
+    out["species_latin"] = ""
+    out["review_resolution"] = ""
+
+    note = comments.isin(PENDING_REVIEW_COMMENTS)
+    out.loc[note, "review_resolution"] = RESOLUTION_PENDING_REVIEW
+
+    taxon = comments.isin(PENDING_TAXON_COMMENTS)
+    out.loc[taxon, "review_resolution"] = RESOLUTION_PENDING_TAXON
+
+    named_in_comment = (latin == "") & from_catalogue.notna()
+    out.loc[named_in_comment, "observation_type"] = exports.TYPE_ANIMAL
+    out.loc[named_in_comment, "species_latin"] = from_catalogue[named_in_comment]
+    out.loc[named_in_comment, "review_resolution"] = RESOLUTION_SPECIES_FROM_COMMENT
+
+    typed = (latin == "") & comments.isin(COMMENT_TO_TYPE)
+    out.loc[typed, "observation_type"] = comments[typed].map(COMMENT_TO_TYPE)
+    out.loc[typed, "species_latin"] = ""
+    out.loc[typed, "review_resolution"] = RESOLUTION_TYPE_FROM_COMMENT
+
+    named = latin != ""
+    out.loc[named, "observation_type"] = exports.TYPE_ANIMAL
+    out.loc[named, "species_latin"] = latin[named]
+    out.loc[named, "review_resolution"] = RESOLUTION_SPECIES_NAMED
+
+    # audit_review_comments() above should make this unreachable. It is checked anyway
+    # because the alternative to an assertion here is a row reaching the canonical table
+    # with a verdict no rule produced, which is the failure this whole module exists to
+    # prevent.
+    uncovered = int((out["review_resolution"] == "").sum())
+    if uncovered:
+        raise UnmappedReviewComment(
+            f"{uncovered} row(s) matched no resolution rule despite passing the comment "
+            f"audit — the rule tables and audit_review_comments() have drifted apart"
+        )
+    return out
 
 
 def to_canonical(corrected: pd.DataFrame, campaign: str) -> pd.DataFrame:
@@ -136,24 +349,31 @@ def to_canonical(corrected: pd.DataFrame, campaign: str) -> pd.DataFrame:
         out[flag] = src[flag].astype(str).str.strip().str.lower().isin({"true", "1"})
 
     out["repair_method"] = src["repair_method"].astype(str).str.strip()
-    out["observation_type"] = src["observationType"].astype(str).str.strip()
     out["review_outcome"] = src.get("reviewOutcome", "").astype(str).str.strip()
     out["file_name"] = src["File"].astype(str).str.strip()
     out["rel_path"] = src.apply(_resolve_rel_path, axis=1)
 
-    # Species: prefer scientificName; recover "Otro (especificar)" rows from the
-    # Spanish common name the reviewer typed into observationComments.
-    latin = src["scientificName"].astype(str).str.strip()
-    comments = src.get("observationComments", "").astype(str).str.strip().str.lower()
-    lookup = spanish_to_latin()
-    recovered = comments.map(lookup).fillna("")
-    out["species_latin"] = latin.where(latin != "", recovered)
+    # `observationType` from the reviewed CSV is NOT copied through: it reads `animal`
+    # on every row of an animal-only export, including the rows the reviewer went on to
+    # say hold no animal. resolve_review() is what decides the type.
+    resolved = resolve_review(src)
+    out["observation_type"] = resolved["observation_type"]
+    out["species_latin"] = resolved["species_latin"]
+    out["review_resolution"] = resolved["review_resolution"]
 
-    n_recovered = int(((latin == "") & (out["species_latin"] != "")).sum())
-    if n_recovered:
-        print(f"    recovered {n_recovered} species from observationComments")
+    tally = resolved["review_resolution"].value_counts()
+    for rule, n in tally.items():
+        print(f"    {rule}: {n}")
+    pending = int(
+        tally.get(RESOLUTION_PENDING_TAXON, 0) + tally.get(RESOLUTION_PENDING_REVIEW, 0)
+    )
+    if pending:
+        print(f"    ! {pending} row(s) resolved to `unknown` with a decision still open")
 
-    return out.astype(CANONICAL_COLUMNS).reset_index(drop=True)
+    # Reindexed, not just cast: CANONICAL_COLUMNS declares an order and the written
+    # table should match it, so the contract can be asserted as written rather than as
+    # whichever order the assignments above happened to run in.
+    return out[list(CANONICAL_COLUMNS)].astype(CANONICAL_COLUMNS).reset_index(drop=True)
 
 
 def write_canonical(corrected: pd.DataFrame, campaign: str, out_path: Path) -> int:

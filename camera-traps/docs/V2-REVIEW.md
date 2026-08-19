@@ -1,6 +1,6 @@
 # V2 REVIEW — every campaign clean, every consumer clean, before anything new starts
 
-**Written:** 2026-08-18 · **Status:** pending, **not started**
+**Written:** 2026-08-18 · **Status:** in progress — entry condition met 2026-08-19
 **Audience:** a fresh session with no memory of the 2026-08-18 audit.
 
 ---
@@ -17,11 +17,16 @@ was really a hand-made folder sorting first.
 
 **Entry condition — do not start any step below until all three hold:**
 
-1. `primavera_2025`'s re-review is finished in Timelapse2 (all 19,522 rows classified;
-   they are `unclassified` as of 2026-08-18).
-2. Its `ImageData_total.csv` is exported and **passes `exports.read_total_export`**
-   with `verdict='full_category_sweep'`, `n_rows=19522`.
+1. ~~`primavera_2025`'s re-review is finished in Timelapse2~~ **MET 2026-08-19.**
+2. ~~Its `ImageData_total.csv` is exported and passes `exports.read_total_export`~~
+   **MET 2026-08-19** — `full_category_sweep`, `n_rows=16904`.
 3. `pv_2025_2026` is confirmed retired-to-provenance, not deleted.
+
+> **`n_rows` was wrong in this document until 2026-08-19: it said 19522.** That number
+> is the *flatten's* file count, and 19,522 = 16,904 stills + 1,663 mp4 + 955 mov.
+> Timelapse2 exports stills only and the export matches the still count exactly, so
+> nothing was ever missing. Video is now excluded from every campaign's export by
+> policy — see README Step 2a. Do not re-raise 19,522 as an export target.
 
 **Out of scope, deliberately.** Both are real and both are larger than this review;
 folding them in would stall it. Neither blocks it.
@@ -35,17 +40,29 @@ folding them in would stall it. Neither blocks it.
 
 Each item is a check with a stated pass condition, not a task to eyeball.
 
-- [ ] **1.1 The campaign set is exactly three.** `otono_2025`, `primavera_2025`,
-      `otono_2026`. `pv_2025_2026` retired: directory kept as provenance, removed from
-      `CAMPAIGN_ORDER` (`camtrap/observations.py`) and `REPORT_CAMPAIGNS`
-      (`Anual-reports/2025/py/01_data_prep.py`).
-      **Order matters:** drop it from `CAMPAIGN_ORDER` only *after* the new
-      `primavera_2025` parquet exists, or reading pv's still-present parquet raises
-      `UnorderedCampaign`.
+- [x] **1.1 The campaign set is exactly three** — **DONE 2026-08-19.** `pv_2025_2026`
+      removed from `CAMPAIGN_ORDER` (`camtrap/observations.py`) and `REPORT_CAMPAIGNS`
+      (`Anual-reports/2025/py/01_data_prep.py`); directory and parquet kept as
+      provenance, and `read_campaigns('pv_2025_2026')` now raises `UnorderedCampaign`.
+      The stated order was followed: primavera's new parquet was written first.
+      **This was more urgent than the note implied.** While pv sat in `CAMPAIGN_ORDER` it
+      OUTRANKED primavera, so the moment primavera was re-ingested its fresh review was
+      being silently reverted: `read_campaigns` returned **169** primavera rows instead
+      of 744, and 606 keys overlapped, restoring April labels over the 2026-08-19 review
+      (CT20 09240308 went from `Pteroptochos tectus` back to `Lepus europaeus`).
+      Anyone re-ingesting primavera without doing this in the same session gets a
+      quietly wrong table.
+      ⚠️ `REPORT_CAMPAIGNS` is now `("otono_2025", "primavera_2025")` — **`otono_2026` is
+      still absent from the 2025 report.** That is a scope decision, left open
+      deliberately rather than patched in.
 
-- [ ] **1.2 The canonical file set is identical across campaigns.** It is not today —
-      otoño 2025 carries `CamtrapDB_Otono_2025.ddb`, primavera a `.tdb`, pv neither a
-      manifest nor an export. Decide the required set, write it down, assert it.
+- [ ] **1.2 The canonical file set is identical across campaigns.** Closer after the
+      2026-08-19 move: all three now hold `ImageData_total.csv`, both animal exports and
+      a current `timelapse_recognition_file.json`. **Still undecided: the Timelapse
+      working DBs.** All three now carry `TimelapseData.ddb` + `TimelapseTemplate.tdb`
+      (15.4 MB), and otoño 2025 and primavera *additionally* carry the superseded V1
+      `CamtrapDB_*.ddb`/`.tdb`. Primavera also carries three `addaxai-*` files (6.9 MB)
+      that no module reads. Decide the required set, write it down, assert it.
       Candidate required set per campaign: `ImageData_total.csv`,
       `timelapse_recognition_file.json`, `new_labeled_data_reviewed.csv`,
       `new_labeled_data_corrected.csv`, `dcim_manifest.csv`, `deployment_anchors.csv`,
@@ -53,8 +70,47 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       Pass: a check lists, per campaign, present / missing / unexpected — and every
       "missing" is either fixed or justified in one line here.
 
-- [ ] **1.3 The export gate passes for all three**, verdict recorded per campaign.
-      Known as of 2026-08-18: otoño 2025 and otoño 2026 pass; primavera has no export.
+- [x] **1.3 The export gate passes for all three** — **DONE 2026-08-19**, run from the
+      repo, verdict `full_category_sweep` for each:
+      | campaign | rows | blank | animal | human | vehicle |
+      |---|---|---|---|---|---|
+      | `otono_2025` | 8,997 | 7,602 | 818 | 478 | 99 |
+      | `primavera_2025` | 16,904 | 15,634 | 744 | 399 | 127 |
+      | `otono_2026` | 9,906 | 7,552 | 1,749 | 582 | 23 |
+      Otoño 2026's row count is post-video-filter (was 12,068 incl. 2,162 video).
+
+- [x] **1.3b The reviewer's verdict now reaches `observation_type`** — **DONE
+      2026-08-19**, and this was the largest data defect found in the V2 pass. Across
+      the three campaigns **815 rows carried `observationType=animal` while the reviewer
+      had written in `observationComments` that the frame holds no animal**, because the
+      review pass wrote its correction into free text while the typed column kept the
+      classifier's guess. Primavera's animal count was overstated by 50.6% (744 against
+      494) and included 10 people and 4 vehicles.
+      `camtrap/observations.py:resolve_review()` now owns the resolution, fail-closed on
+      any comment it has no rule for (it refused the ingest on a `Pitio}` typo until the
+      cell was fixed). Precedence, agreed with Felipe: an identified animal beats vehicle
+      beats human when the review NAMES a species (37 rows: 13 Perro, 23 Caballo, 1 Vaca);
+      the review wins outright when it NEGATES the animal (815 rows). The sweep's
+      `observationType` is deliberately not an input — the review is the later and closer
+      look — and the sweep's own `human` labels stay untouched in `ImageData_total.csv`,
+      where `anchor_candidates.py` reads them.
+      Resulting animal counts: otoño 2025 830→706, otoño 2026 1,785→1,320,
+      primavera 744→494. New canonical column `review_resolution` carries which rule
+      fired, including `unknown_pending_taxon` (21 rows) and `unknown_pending_review`
+      (3 rows), which mark decisions still open — see 1.12.
+
+- [ ] **1.12 The two deferred label decisions.** Both are tagged in
+      `review_resolution`, so they are queryable rather than lost.
+      **(a) `unknown_pending_taxon`, 21 rows.** `ave` (9) and `roedor` (9) are a class
+      and an order — Camtrap DP's `scientificName` does accept a higher rank, so whether
+      these become `Aves`/`Rodentia` in `species.yaml` or stay `unknown` is unsettled.
+      `churrete` (Cinclodes sp.) and `pitío` (Colaptes pitius) are real species simply
+      missing from the catalogue. `conejo?` is the reviewer's own question mark.
+      **(b) `unknown_pending_review`, 3 rows**, all otoño 2025 — `identificar`
+      (CT10/02250269), `no reconocible pero identificar` (CT07/06010039) and
+      `error de imagen` (CT14/01160729). The first two are notes-to-self that were never
+      returned to; the third is a corrupt frame, arguably neither `unknown` nor `blank`
+      but an excluded file. Three images: look at them and this closes.
 
 - [ ] **1.4 DCIM manifest coverage is stated per campaign**, including the stations
       that legitimately have none. Coverage must be **total within a described
@@ -97,15 +153,36 @@ Each item is a check with a stated pass condition, not a task to eyeball.
 
 - [ ] **1.9 Dead and stale code removed.** Full list in §3.
 
-- [ ] **1.10 Test suite extended.** 152 pass as of 2026-08-18. Add regression fixtures
+- [ ] **1.10 Test suite extended.** **179 pass as of 2026-08-19** (+27: 20 for the
+      review-comment resolution, 7 for the stills-only export precondition).
+      Run them with `python -m unittest discover -s tests` — **pytest is not installed in
+      the `camera-traps` env**, which is why the 152 figure went unverified on 2026-08-18.
+      Still to add regression fixtures
       for what the 2026-08-18 session established: the manifest rebuild from a flatten
       log, the size-matched deletion accounting, and the registry-agreement check from
       1.6.
 
-- [ ] **1.11 Outputs regenerated and every moved number attributed.** Diff against
+- [ ] **1.11 Outputs regenerated and every moved number attributed.**
+      **Canonical tables rebuilt 2026-08-19** (`otono_2025` 830, `primavera_2025` 744,
+      `otono_2026` 1785 rows; 3,359 total via `read_campaigns`). Figures NOT yet
+      re-rendered. Post-rebuild state: animal 2,520 / unknown 523 / blank 302 /
+      human 10 / vehicle 4, and **zero rows are `animal` with an empty species**.
+      ⚠️ **primavera's canonical table holds 22 stations, not the 26 this item
+      predicted.** The canonical table is built from the animal-only reviewed CSV, so
+      CT01, CT06, CT17 and CT22 — which have 6/21/7/18 frames and no animal detection —
+      contribute no rows at all. That is fine for a numerator and wrong for a
+      trap-effort denominator, and it is a property of the pipeline rather than of this
+      re-ingest. Decide it under 1.4, not here. Diff against
       `Anual-reports/2025/figures_pre_reingest/`. Expect large movement: primavera goes
-      from 14 stations / 1,960 observations to 26 stations / 19,522 files. A number that
+      from 14 stations / 1,960 observations to 26 stations / 16,904 stills. A number that
       moves without a named cause is a finding, not noise.
+      **Three named causes are already known and must be attributed separately**, or
+      they will be blamed on each other:
+      (a) the primavera re-ingest itself;
+      (b) video leaving the denominators — primavera's V1 parquet held 516 inert video
+          rows, otoño 2026's export held 2,162;
+      (c) the review-comment repair moving 815 rows out of `animal`
+          (otoño 2025 830→706, otoño 2026 1,785→1,320, primavera 744→494).
 
 ---
 

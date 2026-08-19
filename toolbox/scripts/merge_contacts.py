@@ -206,7 +206,12 @@ def _read_review(path: Path) -> list[NewContact]:
 
     def value(row, name):
         position = index.get(name)
-        return str(row[position].value).strip() if position is not None and row[position].value else ""
+        if position is None or not row[position].value:
+            return ""
+        text = str(row[position].value).strip()
+        # An empty Notas cell round-trips through pandas as the string "nan".
+        # Left alone it reaches the master as a note reading "nan".
+        return "" if text.lower() == "nan" else text
 
     contacts, rejected = [], 0
     for row in sheet.iter_rows(min_row=2):
