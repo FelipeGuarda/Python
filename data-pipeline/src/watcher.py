@@ -11,21 +11,13 @@ from watchdog.observers import Observer
 
 def _detect_and_ingest(path: Path, connect_fn: Callable[[], duckdb.DuckDBPyConnection]) -> None:
     """Detect file type and call appropriate ingest function. Opens its own DB connection."""
-    from src.ingest import (
-        ingest_camtrap_dp,
-        ingest_cr800_backfill,
-    )
+    from src.ingest import ingest_cr800_backfill
 
     if path.is_dir():
-        if not (path / "deployments.csv").exists():
-            print(f"  Skipping folder (no deployments.csv): {path}")
-            return
-        print(f"→ Detected Camtrap DP folder: {path}")
-        con = connect_fn()
-        try:
-            ingest_camtrap_dp(con, path)
-        finally:
-            con.close()
+        # The Camtrap DP folder branch was removed 2026-08-20 with its parser: no such
+        # folder has ever been produced in this monorepo, and camera-trap data now
+        # arrives as observations.parquet rather than as a dropped directory.
+        print(f"  Ignoring dropped folder (no folder ingest is wired up): {path}")
         return
 
     suffix = path.suffix.lower()
@@ -39,16 +31,11 @@ def _detect_and_ingest(path: Path, connect_fn: Callable[[], duckdb.DuckDBPyConne
             con.close()
 
     elif suffix == ".csv":
+        # The Camtrap DP branch that used to live here only ever printed
+        # "needs full folder - skipping" and was removed with its parser on 2026-08-20.
+        # Camera-trap data now arrives as observations.parquet, not as a dropped CSV.
         print(f"→ Detected CSV file: {path}")
-        try:
-            import pandas as pd
-            cols = set(pd.read_csv(path, nrows=0).columns)
-            if "deploymentID" in cols and "locationID" in cols:
-                print("  Looks like a Camtrap DP CSV but needs full folder — skipping.")
-            else:
-                print(f"  Unknown CSV format, columns: {list(cols)[:8]}...")
-        except Exception as e:
-            print(f"  Could not parse CSV ({e}). Skipping.")
+        print("  No CSV ingest is wired up. Ignoring.")
 
     else:
         print(f"  Ignoring unrecognized file type: {path.name}")

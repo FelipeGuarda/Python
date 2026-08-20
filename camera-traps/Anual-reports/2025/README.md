@@ -85,7 +85,10 @@ python py/03_compute_proximity.py  # (diagnóstico) imprime distancias CT→cami
 
 ## Fuentes de datos canónicas
 
-- **Imágenes etiquetadas** — `camera-traps/data/campaigns/{otono_2025, primavera_2025, pv_2025_2026}/new_labeled_data_reviewed.csv`
+- **Observaciones canónicas** — `camera-traps/data/campaigns/{otono_2025, primavera_2025}/observations.parquet`
+  (una fila por imagen del barrido, no sólo las revisadas; `observation_type` ya resuelto).
+  `pv_2025_2026` se eliminó el 2026-08-20: es una segunda revisión de primavera, no una campaña.
+  Otoño 2026 queda fuera a propósito — este informe cubre oct 2024 – mar 2026.
 - **Registro de instalación de CTs** — `camera-traps/Anual-reports/Registro de monitoreo CT.xlsx`, hoja *Registro de instalacion*
 - **Ubicaciones de CTs** — `plataforma-territorial/data/camera_trap_stations.geojson` (26 puntos)
 - **Polígono de Bosque Pehuén** — `plataforma-territorial/data/boundary.geojson` (versión canónica vigente desde 2026-05-12)

@@ -4,8 +4,11 @@ Species Review App — Phase 1 Labeling UI
 Streamlit app that shows CLIP-classified camera trap images grouped by proposed
 species, lets the user confirm or correct each one, and exports a revised CSV.
 
-Usage (from the species-classifier/ directory):
-    streamlit run phase1_labeling/app.py
+Usage (from the camera-traps/ directory):
+    streamlit run phase1_labeling/app.py -- --campaign-dir "D:/Otono_2026/SynologyDrive"
+
+`--campaign-dir` is required — see resolve_campaign_dir(). The `--` is Streamlit's,
+not ours: without it Streamlit eats the argument. CAMERA_TRAPS_CAMPAIGN_DIR works too.
 
 Output:
     <campaign_dir>/new_labeled_data_reviewed.csv
@@ -14,6 +17,7 @@ Output:
 import csv
 import io
 import json
+import os
 import sys
 import unicodedata
 from collections import defaultdict
@@ -32,6 +36,7 @@ from classify_campaign.species import clip_species
 
 # ── Config ────────────────────────────────────────────────────────────────────
 CONFIG_PATH   = Path(__file__).parent.parent / "config.yaml"
+CAMPAIGN_DIR_ENV = "CAMERA_TRAPS_CAMPAIGN_DIR"
 COLS_PER_ROW    = 3      # triptychs per row (each cell holds prev/current/next)
 THUMB_SIZE      = 1280   # max px on long edge — high enough to stay sharp in Streamlit's expand view
 JPEG_QUALITY    = 85
@@ -50,6 +55,45 @@ def load_config() -> dict:
 def _load_config_cached(_mtime: float) -> dict:
     with open(CONFIG_PATH, encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def resolve_campaign_dir() -> Path:
+    """Where this campaign's images live. Required — no default, ever.
+
+    It used to be `campaign_dir` in config.yaml, which meant a committed file decided
+    which campaign got reviewed; it stayed pointed at otoño 2025 for three campaigns and
+    the path still existed, so a wrong run would have looked entirely normal.
+
+    Two ways in, because `streamlit run` swallows bare arguments:
+        streamlit run phase1_labeling/app.py -- --campaign-dir "D:/Otono_2026/SynologyDrive"
+        CAMERA_TRAPS_CAMPAIGN_DIR="D:/..." streamlit run phase1_labeling/app.py
+    """
+    raw = None
+    argv = sys.argv[1:]
+    for i, a in enumerate(argv):
+        if a == "--campaign-dir" and i + 1 < len(argv):
+            raw = argv[i + 1]
+            break
+        if a.startswith("--campaign-dir="):
+            raw = a.split("=", 1)[1]
+            break
+    raw = raw or os.environ.get(CAMPAIGN_DIR_ENV)
+
+    if not raw:
+        st.error(
+            "**No campaign directory given.** This app will not guess one.\n\n"
+            "Relaunch with the campaign's image folder:\n\n"
+            "```\nstreamlit run phase1_labeling/app.py -- "
+            '--campaign-dir "D:/Otono_2026/SynologyDrive"\n```\n\n'
+            f"or set `{CAMPAIGN_DIR_ENV}` in the environment."
+        )
+        st.stop()
+
+    path = Path(raw)
+    if not path.is_dir():
+        st.error(f"**Campaign directory does not exist:** `{path}`")
+        st.stop()
+    return path
 
 
 def load_classified_csv(path: str) -> tuple[list[str], list[dict]]:
@@ -225,9 +269,10 @@ def main() -> None:
     )
 
     config = load_config()
-    campaign_dir    = Path(config["campaign_dir"])
+    campaign_dir    = resolve_campaign_dir()
     input_csv_path  = str(campaign_dir / config["output_csv"])   # classified output
     json_path       = str(campaign_dir / config["megadetector_json"])
+    st.sidebar.caption(f"Campaña: `{campaign_dir}`")
 
     species_list     = clip_species()
     species_options  = sorted([s["spanish"] for s in species_list]) + SPECIAL_OPTIONS

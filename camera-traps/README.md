@@ -156,8 +156,7 @@ camera-traps/
 │   ├── build_visit_template.py  ← Step 0-ter: visit schema → "Registro de visitas CT.xlsx"
 │   ├── flatten_for_camtrapdp.py ← flatten per-camera subfolders to deployment level
 │   ├── fix_unicode_filenames.py ← NFD → NFC filename normalization (Synology sync fix)
-│   ├── create_junction.py       ← Windows junction for accented-path workaround
-│   └── megadetector_campaigns.py← MegaDetector v6 CLI wrapper (alternative to AddaxAI)
+│   └── create_junction.py       ← Windows junction for accented-path workaround
 │
 └── Anual-reports/               ← deliverable reports (separate from the pipeline above)
     ├── 2022_2024_legacy methodology.pdf
@@ -412,13 +411,10 @@ so prefer not to create one.
 2. Open **AddaxAI**, point it at the junction path (e.g. `C:\ADDAX\Otono_2025`), run MegaDetector v5b.
 3. Copy the resulting `timelapse_recognition_file.json` into the campaign `Fotos` folder.
 
-Alternatively, run MegaDetector v6 directly (requires `wildlife_detector` package):
-
-```bash
-python setup/megadetector_campaigns.py \
-  --input_dir "C:\ADDAX\Otono_2025" \
-  --output_json "C:\path\to\Fotos\timelapse_recognition_file.json"
-```
+AddaxAI is the only supported route. A `setup/megadetector_campaigns.py` wrapper for
+MegaDetector v6 existed until 2026-08-20 and was deleted: it imported `wildlife_detector`,
+which is not in `environment.yml` and never was, so nobody could run it. If a
+direct-MegaDetector path is ever wanted again, it needs a pinned dependency first.
 
 ### Step 2 — Export TWO CSVs from Timelapse2
 
@@ -429,7 +425,12 @@ neither substitutes for the other.
 
 1. Open the campaign's Timelapse2 project (`.tdb` template + image folder).
 2. **Sweep every image**, assigning one category to each:
-   `empty` / `animal` / `person` / `vehicle`.
+   `blank` / `animal` / `human` / `vehicle`.
+   These are Camtrap DP's words and the template emits them verbatim — **not** `empty`
+   and `person`, which this repo once invented. An export using the old spelling is
+   refused by the gate (`tests/test_exports.py::test_our_old_invented_vocabulary_is_now_refused`),
+   and before the gate existed it silently counted 584 otoño 2026 `human` rows as
+   nothing. See the vocabulary note under 2b.
 3. **Filter the video out first.** Go to **Custom Selection** and exclude video on the
    `fileMediatype` variable, so the selection holds stills only. Do this before
    exporting, not afterwards in the CSV — see the block below for why.
@@ -549,15 +550,19 @@ nothing else does.
 
 ### Step 3 — CLIP zero-shot classification
 
-Edit `config.yaml` to point at the new campaign (see [Configuration](#configuration)), then:
-
 ```bash
 conda activate species-classifier
 cd C:\Users\USUARIO\Dev\Python\camera-traps
 
-python run_classification.py
-# or: python run_classification.py --config config.yaml
+python run_classification.py --campaign-dir "D:\Otono_2026\SynologyDrive"
 ```
+
+`--campaign-dir` is **required and has no default** — it points at wherever the campaign's
+images actually live (Synology share, external disk). It used to be `campaign_dir` in
+`config.yaml`; that key is gone. A committed path goes stale the moment a campaign ends,
+and this one stayed pointed at otoño 2025 for three campaigns while the directory still
+existed — so a run against the wrong campaign would have looked completely normal.
+`config.yaml` now holds only the CLIP model, thresholds and the fixed filenames.
 
 **What it does:**
 - Reads `ImageData_animals.csv` — the pre-filtered list of animal images from Timelapse2 review
@@ -571,9 +576,13 @@ python run_classification.py
 ### Step 4 — Human review (Streamlit)
 
 ```bash
-streamlit run phase1_labeling/app.py
+streamlit run phase1_labeling/app.py -- --campaign-dir "D:\Otono_2026\SynologyDrive"
 # Opens at http://localhost:8501
 ```
+
+The bare `--` is Streamlit's own separator, not ours: without it Streamlit consumes the
+argument and never passes it on. `CAMERA_TRAPS_CAMPAIGN_DIR` in the environment works too.
+Launch it without either and the app refuses to start rather than guessing a campaign.
 
 The UI:
 - Groups images by CLIP-proposed species, one batch page per species sorted by detection count
@@ -796,9 +805,12 @@ python export_best_images.py
 
 ## Configuration (`config.yaml`)
 
+> **The campaign directory is NOT in this file and must not come back.** It is passed per
+> run via `--campaign-dir` (Step 3 and Step 4). Everything left here is stable across
+> campaigns, which is the test for whether a setting belongs in a committed config file.
+
 ```yaml
-# ── Paths ────────────────────────────────────────────────────────────────────
-campaign_dir:      "C:/path/to/Season YYYY"   # ← update for each campaign
+# ── Filenames ────────────────────────────────────────────────────────────────
 megadetector_json: "timelapse_recognition_file.json"
 input_csv:         "ImageData_animals.csv"     # Timelapse2 export filtered to observationType=animal
 output_csv:        "ImageData_animals_classified.csv"
@@ -816,7 +828,9 @@ classified_by:         "CLIP zero-shot"
 classification_method: "machine"
 ```
 
-Only `campaign_dir`, `input_csv`, and `output_csv` change between campaigns.
+**Nothing in this file changes between campaigns.** What changes is `--campaign-dir`, and
+it is an argument precisely so that forgetting it is an error instead of a silent re-run of
+the previous campaign.
 
 ---
 
@@ -903,13 +917,23 @@ the season they are **retrieved** in.
 | Campaign | Ran | Retrieved | Status |
 |---|---|---|---|
 | Otoño 2025 | 2024-10-09 → 2025-05-14/06-11 | autumn 2025 | Re-downloaded and flattened 2026-08-12 (8,997 files). Export passes the gate. **CT15/CT16/CT19 `unrepairable_pending`**; 8 images undecodable (six 0-byte CT04, two all-zero CT13) and labelled `blank` — a known, accepted limitation |
-| Primavera 2025 | 2025-05-14/06-11 → 2025-11-12/2026-01-14 | spring 2025 | Re-downloaded and flattened 2026-08-13 (19,522 files = **16,904 images** + 2,618 video, **26 stations**). Existing parquet is a **partial** ingest of 14 stations. **CT16 clock corrupt — see §3 above** |
-| Otoño 2026 | 2025-11-12/2026-01-14 → 2026-05-13/15 | autumn 2026 | Ingested 2026-08-12 — 1,785 rows, 26 clean stations. **CT_18 refused on all five segments** (4 resets, not 1; `docs/HANDOFF-clock-repair.md`). **Carries the unfixed horario-de-invierno shift** |
+| Primavera 2025 | 2025-05-14/06-11 → 2025-11-12/2026-01-14 | spring 2025 | Re-downloaded and flattened 2026-08-13 (19,522 files = **16,904 images** + 2,618 video, **26 stations**). Re-reviewed and re-ingested 2026-08-19: parquet holds all **16,904** rows across **26** stations. **CT16 clock corrupt — see §3 above** |
+| Otoño 2026 | 2025-11-12/2026-01-14 → 2026-05-13/15 | autumn 2026 | Re-ingested 2026-08-19 — **9,906** rows (video excluded at the CSV), **27** stations. **CT_18 refused on all five segments** (4 resets, not 1; `docs/HANDOFF-clock-repair.md`). **Carries the unfixed horario-de-invierno shift** |
 
 **`pv_2025_2026` is not in this table because it is not a campaign** — it is a second
-Timelapse2 review pass over Primavera 2025's cards. See §2 above. Its reviewed CSV
-(`data/campaigns/pv_2025_2026/new_labeled_data_reviewed.csv`) still holds adjudicated
-labels that Primavera 2025's does not, so it must be merged rather than discarded.
+Timelapse2 review pass over Primavera 2025's cards. See §2 above.
+
+> **Correction, 2026-08-20.** This paragraph used to claim pv "still holds adjudicated
+> labels that Primavera 2025's does not, so it must be merged rather than discarded."
+> **That was measured and is false.** pv has 792 reviewed rows; 606 keys are shared with
+> primavera and 186 are pv-only — and **all 186 exist in primavera's current 16,904-still
+> export**, so pv records no image that is otherwise lost. Of the 186, 176 carry no species
+> name; the 10 that do name five species (*Canis lupus familiaris*, *Phrygilus gayi*,
+> *Felis catus*, *Cervus elaphus*, *Pteroptochos tectus*) **every one of which is already
+> recorded in the live campaigns**, several many times over. The 46 shared-key rows where
+> pv names a species and primavera is blank are not adjudications to rescue: primavera's
+> later reviewer saw the same frame and declined to name it, and the standing rule is that
+> the later review supersedes. **Nothing in pv needs merging.**
 
 Reviewed CSVs live at `data/campaigns/<campaign>/new_labeled_data_reviewed.csv`.
 

@@ -1,5 +1,12 @@
-# ─── Paths ────────────────────────────────────────────────────────────────────
-campaign_dir: "C:\\Users\\USUARIO\\Desktop\\Otono_2025\\SynologyDrive"
+# ─── Filenames ────────────────────────────────────────────────────────────────
+# Filenames only. The campaign DIRECTORY is NOT here and must not come back:
+# it is machine-specific and changes every campaign, so a committed value goes stale
+# silently. It stayed pointed at otoño 2025 for three campaigns while the path still
+# existed, which is the worst kind of wrong — a run against the previous campaign
+# looks completely normal. Pass it per run instead:
+#   python run_classification.py --campaign-dir "D:\Otono_2026\SynologyDrive"
+#   streamlit run phase1_labeling/app.py -- --campaign-dir "D:\Otono_2026\SynologyDrive"
+# These names, by contrast, are fixed by the pipeline and belong in a config file.
 megadetector_json: "timelapse_recognition_file.json"
 input_csv:        "ImageData_animals.csv"
 output_csv:       "ImageData_animals_classified.csv"

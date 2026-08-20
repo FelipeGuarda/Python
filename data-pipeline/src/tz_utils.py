@@ -9,7 +9,9 @@ DST policy:
     single point).
 
 Replaces the five inconsistent `ambiguous=` strategies that previously lived
-across cr800.py, open_meteo.py, toa5.py, met_csv.py, and timelapse_reviewed.py.
+across cr800.py, open_meteo.py, toa5.py and met_csv.py. (A fifth, timelapse_reviewed.py,
+was deleted 2026-08-20 — camera-trap timestamps are repaired upstream in camera-traps
+and arrive already correct in observations.parquet.)
 """
 
 from __future__ import annotations

@@ -75,6 +75,17 @@ CANONICAL_COLUMNS: dict[str, str] = {
     "review_resolution": "string",
     "file_name":         "string",
     "rel_path":          "string",          # forward slashes, case preserved
+    # The reviewer's own words, carried verbatim. `review_resolution` says WHICH rule
+    # fired; this says what the reviewer actually wrote, and the two answer different
+    # questions. It is here because the 815-row type defect was only findable by reading
+    # this text — a table that resolves comments but discards them cannot be audited
+    # against the reviewer again. Empty on sweep-only rows.
+    "observation_comments": "string",
+    # CLIP's cosine similarity for the proposed species, as recorded by the classifier
+    # before human review. 509/502/800 distinct values across the three campaigns, so it
+    # is real per-row data and unrecoverable once the Timelapse export is gone. NaN on
+    # sweep-only rows — CLIP never saw them.
+    "classification_probability": "Float64",
 }
 
 DEDUP_KEY = ["camera_num", "file_name", "datetime"]
@@ -343,7 +354,13 @@ def resolve_review(reviewed: pd.DataFrame) -> pd.DataFrame:
 # does. That is not a reversal of the rule that the review beats the sweep: the sweep is
 # the DEFAULT for rows the review never saw, never a competitor to a row it did.
 
-REVIEW_COLUMNS = ["scientificName", "observationComments", "reviewOutcome"]
+# Columns taken from the review, not from the sweep. They are dropped from the export
+# side before the merge (see compose_ingest_frame) because the all-images export carries
+# them as EMPTY columns of the same CamtrapDP schema — letting those win is what made
+# every reviewed row arrive looking unreviewed.
+REVIEW_COLUMNS = [
+    "scientificName", "observationComments", "reviewOutcome", "classificationProbability",
+]
 REVIEWED_FLAG = "_reviewed"
 
 
@@ -495,6 +512,18 @@ def to_canonical(corrected: pd.DataFrame, campaign: str) -> pd.DataFrame:
     out["review_outcome"] = src.get("reviewOutcome", "").astype(str).str.strip()
     out["file_name"] = src["File"].astype(str).str.strip()
     out["rel_path"] = src.apply(_resolve_rel_path, axis=1)
+
+    # Verbatim, not normalised: `_normalise()` lowercases for RULE MATCHING, but the
+    # audit value of this column is that it is what the reviewer typed. Casing and
+    # accents included.
+    out["observation_comments"] = (
+        src.get("observationComments", "").astype(str).str.strip()
+    )
+    # errors='coerce' rather than a raise: a blank on a sweep-only row is correct, and a
+    # malformed score is a classifier artefact that should not block an ingest.
+    out["classification_probability"] = pd.to_numeric(
+        src.get("classificationProbability", ""), errors="coerce"
+    ).astype("Float64")
 
     # `observationType` from the reviewed CSV is NOT copied through: it reads `animal`
     # on every row of an animal-only export, including the rows the reviewer went on to

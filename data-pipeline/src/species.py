@@ -2,7 +2,10 @@
 Canonical species catalog loader.
 
 Reads `data-pipeline/species.yaml` — the single source of truth for
-Bosque Pehuén fauna (27 CLIP-classified species + 4 reviewer-added extras).
+Bosque Pehuén fauna: 35 species, of which 29 carry an `english` prompt used by the CLIP
+classifier and 6 were added from reviewer identifications (no prompt, so CLIP never
+proposes them — they only arrive by human review). Counted 2026-08-20; the previous
+docstring said 27 + 4.
 
 Mirrors the pattern in `stations.py`: default path assumes FMA monorepo
 layout (data-pipeline/ at siblings under one parent); override via

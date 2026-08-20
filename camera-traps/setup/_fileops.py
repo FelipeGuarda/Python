@@ -1,6 +1,6 @@
 """Shared filesystem helpers for the setup/ scripts.
 
-Used by flatten_for_camtrapdp.py and merge_videos_to_fotos.py. resolve_dest()
+Used by flatten_for_camtrapdp.py. resolve_dest()
 is intentionally kept per-script because the two consumers have divergent
 action-string conventions and prefix logic.
 """

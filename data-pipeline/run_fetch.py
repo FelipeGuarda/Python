@@ -52,7 +52,7 @@ def run_fetch_range(start: str, end: str):
 
 
 def run_ingest_ct():
-    """Ingest all configured camera trap campaigns into DuckDB."""
+    """Camera-trap ingest — retired 2026-08-20, raises with the reason. See V2-REVIEW 2.3."""
     with managed_conn() as con:
         ingest_all_ct_campaigns(con)
 
@@ -98,7 +98,10 @@ def main():
     parser.add_argument("--health", action="store_true", help="Print health report and exit")
     parser.add_argument("--verbose", action="store_true", help="Show gap details with --health")
     parser.add_argument("--ct", action="store_true",
-                        help="Ingest camera trap campaigns from config.yaml camera_traps.campaigns")
+                        help="Camera-trap ingest -- NOT IMPLEMENTED. Retired 2026-08-20; "
+                             "must be rebuilt from observations.parquet (V2-REVIEW 2.3). "
+                             "Kept as a flag so it fails with an explanation instead of "
+                             "silently vanishing from the CLI.")
     args = parser.parse_args()
 
     if args.ct:

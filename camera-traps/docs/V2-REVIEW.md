@@ -234,6 +234,16 @@ Each item is a check with a stated pass condition, not a task to eyeball.
 
 ## 2. Data-pipeline — the DuckDB rebuild
 
+> **UNBLOCKED 2026-08-20, by deletion rather than by repair.** This section was blocked
+> the same day because `timelapse_reviewed.py` re-derived the review-comment resolution and
+> disagreed with `camtrap.observations` on 515 live rows — ingesting would have rebuilt the
+> defect 1.3 closed. **2.4 and 2.6 are now done and 2.7 is moot:** both parsers, the
+> dedup script, the `--ct` campaign list and the ingest functions are gone, and
+> `ingest_all_ct_campaigns` raises `CameraTrapIngestNotRebuilt` with the reason. Nothing can
+> now silently ingest the wrong thing. **What remains is 2.1, 2.2, 2.3, 2.5 and 2.8** —
+> building the replacement from `observations.parquet` and recovering the irreplaceable
+> weather tables from the Linux box.
+
 **State as of 2026-08-18.** The Windows `fma_data.duckdb` (1.5 MB, 2026-03-31) has
 **zero** camera-trap rows — `ct_deployments`, `ct_media`, `ct_observations` all empty,
 `literature` empty; only weather has data. The populated database is on the **Linux**
@@ -259,26 +269,92 @@ covering only two campaigns.
 
 - [ ] **2.3 Rebuild `ct_*` from `observations.parquet`**, not from the reviewed CSVs.
 
-- [ ] **2.4 Retire `timelapse_reviewed.py`'s duplicate derivations** — station→camera
-      number, coordinates, Spanish→Latin species, Santiago→UTC. `camtrap/observations.py`
-      owns all four and documents itself as owning them ("Every consumer … reads this
-      shape and nothing else"). That claim is false today; 2.3 and 2.4 make it true and
-      delete a parser.
+      **The column contract**, preserved here 2026-08-20 from `camtrap_dp.py` before that
+      parser was deleted — it was the only written statement of the `ct_*` shape, and it
+      had never had an input folder to parse:
+
+      | table | columns |
+      |---|---|
+      | `ct_deployments` | `deploymentID`, `locationID`, `locationName`, `latitude`, `longitude`, `deploymentStart`, `deploymentEnd`, `cameraID`, `cameraModel`, `habitat`, `source` |
+      | `ct_media` | `mediaID`, `deploymentID`, `timestamp`, `fileName`, `filePath`, `fileMediatype`, `source` |
+      | `ct_observations` | `observationID`, `deploymentID`, `mediaID`, `eventID`, `eventStart`, `eventEnd`, `observationType`, `scientificName`, `count`, `classificationMethod`, `classificationProbability`, `source` |
+
+      Timestamps are UTC; `count` is nullable `Int64`; `source` names the producer.
+      **Keys must derive from the image, never be inherited from Timelapse** — see 2.8.
+      `count` and `eventID` are empty in all three campaigns (measured 2026-08-20), so they
+      stay nullable and unpopulated rather than being invented.
+
+- [x] **2.4 Retire `timelapse_reviewed.py`'s duplicate derivations** — DONE 2026-08-20.
+      It re-derived five decisions `camtrap/observations.py` owns: station→camera number,
+      coordinates, Spanish→Latin species, Santiago→UTC, **and the review-comment
+      resolution**. The module docstring's claim that "every consumer reads this shape and
+      nothing else" was false while that parser existed; deleting it makes the claim true.
+
+      **The fifth duplicate is why this was blocking rather than cosmetic.**
+      `NON_ANIMAL_COMMENTS` knew four comment strings and only ever demoted to `blank`. It
+      had **no rule producing `human`, `vehicle` or `unknown` from a comment** — the rules
+      `resolve_review()` was written to own. Had it run, the `ct_*` rebuild would have
+      reproduced the exact 815-row defect closed in 1.3:
+
+      | comment | live rows | `camtrap.observations` | `timelapse_reviewed.py` |
+      |---|---|---|---|
+      | `No reconocible` | 500 | `unknown` | unmapped -> stays `animal` |
+      | `humano` | 10 (pv) | `human` | unmapped -> stays `animal` |
+      | `vehiculo` | 4 (pv) | `vehicle` | unmapped -> stays `animal` |
+      | `error de imagen` | 1 (ot25) | `unknown` | `blank` |
+
+      (`no aparece imagewn`, the fourth string it knows, exists **only** in
+      `pv_2025_2026` — which is why the fail-closed resolver in camera-traps never met
+      it, and why the parser looks harmless on inspection.)
+
+      It was **not** fixed by teaching the parser the new rules — that would have been a
+      second place a repair must reach, and per §0 it would not have reached it. The parser
+      was deleted. 2.3 is the replacement: the consumer reads `observations.parquet`, where
+      the resolution has already happened.
+
+      Also deleted with it: `camtrap_dp.py` (81 lines, parsed a Camtrap DP folder that has
+      never existed in this monorepo — its column mapping is preserved under 2.3), the
+      `ingest_camtrap_dp` / `ingest_timelapse_reviewed` functions, and the watcher's folder
+      and CSV branches that called them.
 
 - [ ] **2.5 Registry dependency fixed** — see 1.6. Until then CT27 ingests coordinateless.
 
-- [ ] **2.6 Delete `scripts/dedup_primavera_2025.py`.** Its whole premise dissolves:
-      pv is no longer a separate campaign, and the "unmappable `100EK113` folder" it
-      excludes was resolved into CT05 by the 2026-08-13 flatten — so those records stop
-      being excluded, which is a data change, not just a deletion.
+- [x] **2.6 Delete `scripts/dedup_primavera_2025.py`** — DONE 2026-08-20. Its whole
+      premise had dissolved: pv is no longer a separate campaign, and the "unmappable
+      `100EK113` folder" it excluded was resolved into CT05 by the 2026-08-13 flatten.
+      **This was a data change, not just a deletion** — those records stop being excluded.
+      Its output file (`new_labeled_data_reviewed.dedup.csv`) did not exist on disk, which
+      is why the campaign loop skipped primavera and ingested pv instead.
 
-- [ ] **2.7 Rewrite `config.yaml`'s `camera_traps.campaigns`** to the three campaigns.
+- [x] **2.7 `config.yaml`'s `camera_traps.campaigns`** — DONE 2026-08-20, by removal
+      rather than rewrite. There is no per-campaign CSV list any more: the replacement reads
+      `observations.parquet` per campaign, so the setting has nothing to configure. The
+      block is replaced by a comment recording what it used to do and why it was wrong
+      (it named a nonexistent primavera file and so ingested pv as a campaign).
 
 - [ ] **2.8 Reconcile.** DB row counts equal parquet row counts exactly, per campaign.
-      Note `upsert_df` is `INSERT OR REPLACE` on `mediaID`/`observationID`, which are
-      **UUIDs regenerated on every parse** — so re-running ingest against a populated
-      table duplicates rather than replaces. Loading into the currently-empty DB is the
-      only clean path.
+
+      **Correction, 2026-08-20 — the earlier note here was wrong in a way that pointed
+      at the wrong risk.** `upsert_df` is indeed `INSERT OR REPLACE` on
+      `mediaID`/`observationID`, but those are **not** "regenerated on every parse":
+      `timelapse_reviewed.py` reads them straight out of the export's `mediaID` /
+      `observationID` columns and generates nothing. They are GUIDs minted by Timelapse2
+      and stored in the project's `.ddb` `DataTable`, so they are **stable across every
+      export of the same project** — re-running ingest replaces, it does not duplicate.
+
+      What *is* true is narrower and worse: the GUIDs are **per project, not per image**.
+      Joining primavera's legacy `CamtrapDB_Primavera2025.ddb` against its current
+      `TimelapseData.ddb` on `File` gives 2,387 shared filenames and **0 shared
+      `mediaID`s**. So a rebuilt or re-created Timelapse project mints an entirely new
+      identity for the same photograph, and any `ct_*` row keyed on the old one is
+      orphaned rather than updated.
+
+      The consequence is a design requirement, not a procedure: **`ct_*` keys must be
+      derived from the image, not inherited from Timelapse.** `observations.parquet`
+      already carries a stable natural key — `DEDUP_KEY = [camera_num, file_name,
+      datetime]` — and 2.3 says to build from the parquet. Do that and this whole class
+      of breakage disappears; inherit Timelapse GUIDs and the next project rebuild
+      silently forks the table.
 
 ---
 
@@ -300,11 +376,11 @@ covering only two campaigns.
 
 | Location | What rots |
 |---|---|
-| `data-pipeline/scripts/dedup_primavera_2025.py` | entire premise (see 2.6) |
+| ~~`data-pipeline/scripts/dedup_primavera_2025.py`~~ | **deleted 2026-08-20** (2.6) |
 | `camtrap/observations.py:70–79, 185` | `CAMPAIGN_ORDER` entry + both precedence comments (396 overlap / 31 conflicts) |
 | `camtrap/observations.py:7–9` | per-campaign export quirks — `filePath` populated in primavera_2025, `timestamp` only there. A fresh export has different quirks |
 | `Anual-reports/2025/py/01_data_prep.py:6, 71` | `REPORT_CAMPAIGNS` |
-| `Anual-reports/2025/py/list_ciervo_guina_images.py:34–44, 122, 166` | reads pv's reviewed CSV and the `exports/Primavera-verano 2025-2026/species` thumbnails |
+| ~~`Anual-reports/2025/py/list_ciervo_guina_images.py:34–44, 122`~~ | **fixed 2026-08-20** — reads otoño 2025 / primavera 2025 / otoño 2026; pv dropped |
 | `Anual-reports/2025/py/apply_verdicts.py:143` | comment on primavera→pv survival |
 | `data/campaigns/label_conflicts_primavera_vs_pv_2026-05-27.csv` | a conflict that no longer has two sides |
 | `Anual-reports/2025/data/manual_review_ciervo_guina.md` | every row keyed to `TC*_M*.2` paths and a `pv_2025_2026` column |

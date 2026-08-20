@@ -89,7 +89,6 @@ data-pipeline/
     │   ├── open_meteo.py     ← Fetch hourly weather forecast
     │   └── cr800.py          ← Connect + fetch CR800 via PakBus TCP
     └── parsers/
-        ├── camtrap_dp.py          ← Parse Camtrap DP (TDWG) standard
         ├── met_csv.py             ← Parse merged CR800 CSV exports
         └── toa5.py                ← Parse Campbell Scientific TOA5 files
 ```
@@ -102,8 +101,7 @@ data-pipeline/
 |---|---|---|---|
 | CR800 datalogger (Bosque Pehuén) | TOA5 ASCII / PakBus | Remote pull via Tailscale | Code complete, awaiting connection test |
 | Open-Meteo API | JSON → DataFrame | Scheduled fetch (hourly) | Working |
-| Camera trap exports (Timelapse2) | CSV | — | Legacy parser removed (data already ingested) |
-| Camera trap (Camtrap DP) | 3 CSVs (TDWG standard) | File watcher | Code complete, awaiting test data |
+| Camera trap | `observations.parquet` (camera-traps) | — | **Not implemented.** Both parsers deleted 2026-08-20; rebuild from the canonical table per `camera-traps/docs/V2-REVIEW.md` §2.3 |
 
 ---
 
@@ -128,7 +126,7 @@ Raw data analysis (MegaDetector, CLIP classification, image review) runs on the 
 **Last Updated:** 2026-04-27
 **What Changed:** Code review Batch A+B fixes applied (9 warnings resolved). New `src/paths.py` centralises `_STATE_PATH` (W15). Dead deps removed from `environment.yml` — `httpx`, `pandera`, `openpyxl` (W9). `_process_raw` renamed to `process_raw` (W12). `open_meteo.py` `tz_localize` now has `ambiguous=False` to survive DST fall-back (W16). `cr800_session()` context manager added; 3 call sites updated to send PakBus Bye on exit (W18). `run_once()` isolates Open-Meteo and CR800 fetchers so a DNS failure no longer kills the CR800 fetch (W19). `recover_dst_gaps.py` DST dates now derived algorithmically via `_first_saturday_of_april()` — no longer need annual manual updates (W13). `timelapse_reviewed.py` missing `count` field now stores `None` instead of silent `1` (W14). `toa5.py` logs unrecognised columns instead of silently dropping them (W17).
 **Integration Status:** Ready
-**Blockers/Notes:** 8 Spanish display names changed to canonical form (e.g., "Güiña" → "Guiña", "Huet-huet" → "Chucao", "Lechuza del sur" → "Concón") — flag for biological review with Felipe before any user-facing release; species.yaml is the single edit point if any are biologically wrong. Reviewed CSV is observation-centric — Timelapse2 only exports rows with animal images, so zero-animal stations are absent from ct_deployments. Platform map handles this with a TC-coords ground-truth list in the backend. Long-term: add a per-campaign deployment manifest (which TCs were deployed + start/end dates) so DB reflects actual deployments. Re-ingest pattern: DELETE rows for the campaign first, then `python run_fetch.py --ct`, otherwise upsert leaves orphan obs/media. Remaining review items: C1 (CR800 state-before-commit), W8 (DST consolidation into tz_utils.py), W10, W20 — deferred to Batch E.
+**Blockers/Notes:** 8 Spanish display names changed to canonical form (e.g., "Güiña" → "Guiña", "Huet-huet" → "Chucao", "Lechuza del sur" → "Concón") — flag for biological review with Felipe before any user-facing release; species.yaml is the single edit point if any are biologically wrong. ~~Reviewed CSV is observation-centric — zero-animal stations absent from ct_deployments; platform map works around it with a TC-coords list in the backend.~~ **SOLVED 2026-08-19:** `observations.parquet` is now one row per still, so a station that recorded nothing is present with its true frame count and `valid_effort`. The per-campaign deployment manifest this note asked for is that file. **Consequence:** the TC-coords workaround in `plataforma-territorial/backend/routers/detections.py` is removable, and until it is removed `occupancy_pct` (line 381) divides by every station in `stations.yaml` rather than the stations actually deployed in that campaign — otoño 2025 ran 21 cameras and is divided by 27. Re-ingest pattern: DELETE rows for the campaign first, then `python run_fetch.py --ct`, otherwise upsert leaves orphan obs/media. Remaining review items: C1 (CR800 state-before-commit), W8 (DST consolidation into tz_utils.py), W10, W20 — deferred to Batch E.
 
 ---
 

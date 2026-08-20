@@ -814,8 +814,6 @@ def main(argv=None) -> int:
     )
     _assert_repair_agrees(corrected, canonical_corrected)
 
-    # _corrected.csv stays reviewed-only: pehuen reads it (R/01_load_data.R) and has no
-    # use for 32,000 swept rows it would only filter back out.
     n_canonical = write_canonical(canonical_corrected, args.campaign, canonical_pq)
     n_reviewed = int(canonical_corrected[observations.REVIEWED_FLAG].sum())
     print(f'Wrote: {canonical_pq}  ({n_canonical} rows, canonical schema; '
@@ -823,6 +821,16 @@ def main(argv=None) -> int:
 
     audit_log.write_text(audit_text, encoding='utf-8')
     print(f'Wrote: {audit_log}')
+
+    # Deliberately a reminder and not an automatic publish. Four projects read this
+    # table and check `CANONICAL_STATE.json` before trusting it; if this script
+    # re-published the state itself, the check would agree with whatever was just
+    # written and could never catch an unintended rebuild. Publishing is the moment
+    # someone asserts the new numbers are correct, so it stays a separate act.
+    print()
+    print('NEXT: the canonical contract is now stale for this campaign.')
+    print('      python -m camtrap.canonical_state            # see what changed')
+    print('      python -m camtrap.canonical_state --publish  # accept the new numbers')
 
     return 0
 

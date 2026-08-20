@@ -3,7 +3,13 @@ Entry point for zero-shot CLIP species classification of a camera-trap campaign.
 
 Usage (from the camera-traps/ directory):
     conda activate species-classifier
-    python run_classification.py [--config config.yaml]
+    python run_classification.py --campaign-dir "D:\\Otono_2026\\SynologyDrive"
+
+`--campaign-dir` is REQUIRED and has no default. It points at wherever the campaign's
+images actually live — a Synology share, an external disk — which is machine-specific
+and changes every campaign. It used to be `campaign_dir` in config.yaml and that file
+kept pointing at the first campaign long after it ended; `config.yaml` now holds only
+the CLIP model and thresholds, which really are stable.
 
 Input:
     <campaign_dir>/ImageData_animals.csv
@@ -131,14 +137,17 @@ def apply_classifications(
     return updated
 
 
-def main(config_path: str) -> None:
+def main(config_path: str, campaign_dir: Path) -> None:
     with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
-    campaign_dir = Path(config["campaign_dir"])
+    campaign_dir = Path(campaign_dir)
+    if not campaign_dir.is_dir():
+        raise SystemExit(f"ERROR: campaign dir not found: {campaign_dir}")
 
+    print(f"Campaign dir : {campaign_dir}")
     print("Loading data sources …")
-    images = load_animal_images(config)
+    images = load_animal_images(config, campaign_dir)
     n_md   = sum(1 for i in images if i["source"] == "megadetector")
     n_csv  = sum(1 for i in images if i["source"] == "csv_only")
     print(f"  {len(images)} images to classify  "
@@ -146,7 +155,8 @@ def main(config_path: str) -> None:
           f"{n_csv} CSV-only / no MD bbox)")
 
     if not images:
-        print("Nothing to classify. Check input_csv path and megadetector_json in config.yaml.")
+        print(f"Nothing to classify. Check that {config['input_csv']} and "
+              f"{config['megadetector_json']} exist in {campaign_dir}.")
         return
 
     print("Loading CLIP model …")
@@ -172,8 +182,14 @@ if __name__ == "__main__":
         description="Zero-shot CLIP species classifier for camera-trap campaigns."
     )
     parser.add_argument(
+        "--campaign-dir", required=True, type=Path,
+        help="Campaign directory holding the images, ImageData_animals.csv and "
+             "timelapse_recognition_file.json. Required — there is no default, because "
+             "a default is how a run silently classifies the previous campaign."
+    )
+    parser.add_argument(
         "--config", default="config.yaml",
-        help="Path to config.yaml (default: config.yaml in current directory)"
+        help="Path to config.yaml — CLIP model and thresholds only (default: ./config.yaml)"
     )
     args = parser.parse_args()
-    main(args.config)
+    main(args.config, args.campaign_dir)

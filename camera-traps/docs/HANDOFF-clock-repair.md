@@ -1,6 +1,11 @@
 # HANDOFF — Camera-trap clock repair: segment-aware diagnosis and anchored repair
 
-**Written:** 2026-07-30 · **Status:** design agreed, **no implementation code written yet**
+**Written:** 2026-07-30 · **Status update 2026-08-20: IMPLEMENTED — this is now the
+specification of record, not a plan.** `camtrap/clocks.py` (757 lines) implements §5's
+two preconditions, one rule and three flags, with 605 lines of fixtures in
+`tests/test_clocks.py`. Read §5 as the spec for what the code does. **§8.1 and §8.2 are
+still open field questions** — CT18's install date, and whether the older campaigns have
+install photos — and are the reason this file is kept rather than archived.
 **Audience:** a fresh AI session with no memory of the 2026-07-30 discussion.
 **Read this whole file before touching code.** The plan at the end depends on facts
 established in the middle, and the middle contains two traps that already produced

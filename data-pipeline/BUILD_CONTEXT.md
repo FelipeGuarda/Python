@@ -1,5 +1,15 @@
 # Data Pipeline — Build Context for AI Sessions
 
+> **STALE IN PART — read this first (2026-08-20).** The camera-trap sections of this
+> document describe two parsers that no longer exist. `src/parsers/timelapse_reviewed.py`
+> and `src/parsers/camtrap_dp.py` were deleted on 2026-08-20: the first re-derived five
+> decisions that `camera-traps/camtrap/observations.py` owns and disagreed with it on 515
+> live rows; the second parsed a Camtrap DP folder that has never existed here. Camera-trap
+> data now enters as `camera-traps/data/campaigns/<campaign>/observations.parquet`, and the
+> replacement ingest is specified in `camera-traps/docs/V2-REVIEW.md` §2.3, not here.
+> Everything in this document about **weather** (CR800, TOA5, Open-Meteo) and the `ct_*`
+> table shapes is still accurate.
+
 This document was the original build specification used to construct the pipeline.
 All 5 phases are now complete. Kept as reference for understanding design decisions
 and data format details. See README.md for current status.

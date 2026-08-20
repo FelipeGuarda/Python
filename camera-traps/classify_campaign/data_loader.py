@@ -18,8 +18,16 @@ import json
 from pathlib import Path
 
 
-def load_animal_images(config: dict) -> list[dict]:
-    campaign_dir = Path(config["campaign_dir"])
+def load_animal_images(config: dict, campaign_dir: Path) -> list[dict]:
+    """`campaign_dir` is passed in, never read from config.
+
+    It is the one setting that changes every run and differs per machine — the images
+    live on a Synology share or an external disk, not in the repo — so it comes from
+    `--campaign-dir` on the command line. Keeping it in a committed `config.yaml` meant
+    the file went stale the moment a campaign finished and then silently pointed the
+    next run at the previous campaign's images.
+    """
+    campaign_dir = Path(campaign_dir)
     animal_cat   = str(config["animal_category"])
     threshold    = float(config["animal_confidence_threshold"])
 

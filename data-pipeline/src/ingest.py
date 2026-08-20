@@ -13,56 +13,39 @@ def ingest_weather_forecast(con: duckdb.DuckDBPyConnection) -> None:
     print(f"  Upserted {n} rows into weather_forecast.")
 
 
-def ingest_camtrap_dp(con: duckdb.DuckDBPyConnection, folder_path: Path) -> None:
-    from src.parsers.camtrap_dp import parse
-    deployments, media, obs = parse(folder_path)
-    nd = upsert_df(con, "ct_deployments", deployments)
-    nm = upsert_df(con, "ct_media", media)
-    no = upsert_df(con, "ct_observations", obs)
-    print(f"  Camtrap DP: {nd} deployments, {nm} media, {no} observations upserted.")
-
-
-def ingest_timelapse_reviewed(
-    con: duckdb.DuckDBPyConnection,
-    csv_path: Path,
-    campaign_name: str,
-) -> None:
-    """Ingest a new_labeled_data_reviewed.csv from a CLIP+human-review campaign."""
-    from src.parsers.timelapse_reviewed import parse
-    dep_df, med_df, obs_df = parse(csv_path, campaign_name)
-    # Add columns not in the base schema (campaign, observationComments, reviewOutcome)
-    ensure_columns(con, "ct_deployments", dep_df)
-    ensure_columns(con, "ct_observations", obs_df)
-    nd = upsert_df(con, "ct_deployments", dep_df)
-    nm = upsert_df(con, "ct_media", med_df)
-    no = upsert_df(con, "ct_observations", obs_df)
-    print(f"  {campaign_name}: {nd} deployments, {nm} media, {no} observations upserted.")
+class CameraTrapIngestNotRebuilt(NotImplementedError):
+    """Raised by `ingest_all_ct_campaigns` — the camera-trap path was retired, not fixed."""
 
 
 def ingest_all_ct_campaigns(con: duckdb.DuckDBPyConnection) -> None:
-    """
-    Ingest all camera trap campaigns configured in config.yaml under
-    camera_traps.campaigns. Each entry needs csv (path) and name (campaign name).
-    Paths are resolved relative to the data-pipeline repo root.
-    """
-    import yaml
-    cfg_path = Path(__file__).parent.parent / "config.yaml"
-    with open(cfg_path, encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
+    """Refuse, loudly. Retired 2026-08-20; the replacement is V2-REVIEW 2.3.
 
-    campaigns = cfg.get("camera_traps", {}).get("campaigns", [])
-    if not campaigns:
-        print("  No camera_traps.campaigns entries in config.yaml — nothing to ingest.")
-        return
+    Three functions used to live here — `ingest_camtrap_dp`, `ingest_timelapse_reviewed`
+    and this one iterating `config.yaml`'s `camera_traps.campaigns`. All three are gone,
+    along with both parsers, because the path was not merely stale but actively wrong:
 
-    repo_root = Path(__file__).parent.parent
-    for entry in campaigns:
-        csv_path = (repo_root / entry["csv"]).resolve()
-        campaign_name = entry["name"]
-        if not csv_path.exists():
-            print(f"  WARNING: {csv_path} not found — skipping {campaign_name!r}")
-            continue
-        ingest_timelapse_reviewed(con, csv_path, campaign_name)
+    * `timelapse_reviewed.py` re-derived FIVE decisions `camtrap.observations` owns —
+      station->camera number, coordinates, Spanish->Latin, Santiago->UTC, and the
+      review-comment resolution. The last disagreed on 515 live rows: it knew four
+      comment strings and only ever demoted to `blank`, with no rule producing `human`,
+      `vehicle` or `unknown`. Ingesting would have rebuilt the 815-row defect that
+      V2-REVIEW 1.3 closed.
+    * `camtrap_dp.py` parsed a Camtrap DP folder. No such folder has ever existed in this
+      monorepo. Its column mapping is preserved in V2-REVIEW 2.3.
+    * The campaign list named `primavera_2025`'s CSV as `...reviewed.dedup.csv`, which does
+      not exist on disk — so the loop skipped primavera with a warning and ingested
+      `pv_2025_2026`, a retired review pass, AS a campaign.
+
+    Failing here is deliberate. The old code would have run and produced a wrong table.
+    """
+    raise CameraTrapIngestNotRebuilt(
+        "Camera-trap ingest is not implemented. It must be rebuilt from "
+        "camera-traps/data/campaigns/<campaign>/observations.parquet, which already "
+        "carries the resolved observationType, species, effort validity and repair "
+        "provenance -- see camera-traps/docs/V2-REVIEW.md sections 2.3 and 2.4. "
+        "The previous implementation was deleted on 2026-08-20 because it re-derived "
+        "the review resolution and disagreed with the canonical table on 515 rows."
+    )
 
 
 def ingest_cr800_live(con: duckdb.DuckDBPyConnection) -> None:

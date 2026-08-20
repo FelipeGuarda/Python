@@ -2,8 +2,12 @@
 list_ciervo_guina_images.py — Manual-review aid for the 2025 annual report.
 
 Lists every image tagged Cervus elaphus (Ciervo rojo) or Leopardus guigna (Güiña)
-in the three campaign review CSVs, with paths to the on-disk thumbnails (when
+in the three campaigns' review CSVs, with paths to the on-disk thumbnails (when
 present on this Windows machine) and to the raw filePath (for the Linux box).
+
+The three campaigns are otoño 2025, primavera 2025 and otoño 2026. `pv_2025_2026` was
+removed 2026-08-20: it is a second review pass over primavera_2025, not a campaign, so
+reading both listed the same images twice and double-counted spring.
 
 Outputs:
 - camera-traps/Anual-reports/2025/data/manual_review_ciervo_guina.csv
@@ -33,15 +37,15 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 CAMPAIGN_FILES = {
     "otono_2025": CAMPAIGNS / "otono_2025" / "new_labeled_data_reviewed.csv",
     "primavera_2025": CAMPAIGNS / "primavera_2025" / "new_labeled_data_reviewed.csv",
-    "pv_2025_2026": CAMPAIGNS / "pv_2025_2026" / "new_labeled_data_reviewed.csv",
+    "otono_2026": CAMPAIGNS / "otono_2026" / "new_labeled_data_reviewed.csv",
 }
 
-# Where the species thumbnails live, per campaign.  primavera_2025 has no
-# Windows-side export (Linux-only reprocess).
+# Where the species thumbnails live, per campaign. None means no Windows-side export
+# exists yet, so only the raw filePath is emitted for that campaign.
 SPECIES_EXPORT_DIR = {
     "otono_2025": EXPORTS / "Otoño 2025" / "species",
     "primavera_2025": None,
-    "pv_2025_2026": EXPORTS / "Primavera-verano 2025-2026" / "species",
+    "otono_2026": None,
 }
 
 SPECIES_FOLDER = {
@@ -54,6 +58,9 @@ SPANISH = {
     "Leopardus guigna": "Güiña",
 }
 
+# Historical record of the primavera-vs-pv label disagreements, resolved 2026-08-19 in
+# primavera's favour (the later review supersedes). Kept as provenance for rows whose
+# label changed; it is not an input to any decision here.
 CONFLICTS_CSV = (
     CAMPAIGNS / "label_conflicts_primavera_vs_pv_2026-05-27.csv"
 )
@@ -118,8 +125,9 @@ def apply_date_corrections(df: pd.DataFrame) -> pd.DataFrame:
     if mask19.any():
         df.loc[mask19, "date_fix"] = "dropped_clock_frozen_in_report"
 
-    # Primavera / PV TC16 with 2017 ts: dropped pre-deploy in report.  Flag.
-    for camp in ("primavera_2025", "pv_2025_2026"):
+    # Primavera TC16 with 2017 ts: dropped pre-deploy in report.  Flag.
+    # CT16's clock is corrupt, not offset — no anchor can repair it (README §3).
+    for camp in ("primavera_2025",):
         mask16 = (
             (df["campaign"] == camp)
             & (df["camera_num"] == 16)

@@ -4,7 +4,10 @@
 Inputs
 ------
 - camera-traps/data/campaigns/{otono_2025, primavera_2025}/observations.parquet
-  (canonical observation tables — produced by `python timestamps.py --campaign <name>`)
+  (canonical observation tables — produced by `python timestamps.py --campaign <name>`.
+  ONE ROW PER STILL in the gated export, not one per reviewed record, so rule 3 below is
+  what turns this into a detection table rather than an image inventory.)
+- camera-traps/data/CANONICAL_STATE.json  (the published contract; verified on load)
   Each holds ONE ROW PER STILL, not per reviewed record, so most rows are blank/human/
   vehicle and the animal filter below is what narrows it. Row counts jumped ~16x on
   2026-08-19 for that reason; the kept-record count did not move with them.
@@ -51,6 +54,7 @@ import yaml
 # camera-traps repo root — so `camtrap` is importable when this runs from py/
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from camtrap import canonical_state
 from camtrap.observations import read_campaigns
 
 # Force UTF-8 on stdout/stderr so this script prints arrows (→) and accented
@@ -74,7 +78,8 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 # campaign runs to may 2026. Reconfirmed 2026-08-19: still out, on scope not oversight.
 # pv_2025_2026 dropped 2026-08-19: not a campaign but a second review pass over
 # primavera_2025, and it was overriding primavera's re-review — see CAMPAIGN_ORDER in
-# camtrap/observations.py.
+# camtrap/observations.py. Its data was deleted 2026-08-20 after being measured to
+# hold no unique records — see camera-traps/README.md, Campaign History.
 REPORT_CAMPAIGNS = ("otono_2025", "primavera_2025")
 
 CONAF_CUTOFF = pd.Timestamp("2024-10-01")
@@ -153,10 +158,22 @@ def main() -> None:
     species_cat = load_species_catalog()
     print(f"Species catalog rows : {len(species_cat)}")
 
+    # ── Verify the canonical contract BEFORE reading anything.
+    #    This report is a consumer, and on 2026-08-19 the table it reads went from 3,359
+    #    rows to 35,807 without a single error being raised anywhere. It stayed correct by
+    #    luck — it already filtered on observation_type — and luck is not a control. If
+    #    the parquets no longer match their published state, stop here rather than
+    #    producing a report from a table nobody has vouched for.
+    state = canonical_state.verify()
+    print(f"Canonical contract  : schema_version {state['schema_version']}, "
+          f"{state['n_rows_total']:,} rows across {len(state['campaigns'])} campaigns, "
+          f"{state['n_stations_total']} stations")
+
     # ── Load the canonical observation tables (clock repair, station resolution and
     #    cross-campaign dedup already applied — see camtrap/observations.py)
     print()
     canonical = read_campaigns(*REPORT_CAMPAIGNS)
+    canonical_state.assert_columns(canonical, state)
     print(f"\nCanonical records    : {len(canonical):,}")
     print(canonical.groupby("campaign").size().to_string())
 
