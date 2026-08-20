@@ -107,7 +107,7 @@ the question you think it is.
 **Prior (2026-06-25):** New module `timestamps.py` detects camera-clock-reset issues (EXIF reverts to 2017 epoch) and repairs them at the source using field-provided anchors. Each campaign now carries a `deployment_anchors.csv` and produces a `new_labeled_data_corrected.csv` that downstream projects consume in place of the raw reviewed CSV. CT_18 Otoño 2026 (135 bogus rows) repaired via `last_real_proxy` anchor — dates approximate, time-of-day flagged unreliable. CT-15/CT-16/CT-19 Otoño 2025 and TC-16 Primavera/PV (159 + 68 + 3 rows) marked `unrepairable_pending` until field anchors are recovered. See [Step 4b — Timestamp quality](#step-4b--timestamp-quality-check--repair).
 **Integration Status:** Pending [full-category exports]. The code path is complete and validated end-to-end, but **no campaign can be re-ingested yet**: all four exports are animal-only or unswept, so the gate rejects every one of them. Validation was done on a scratch copy of otoño 2026 with `unclassified` relabelled to `empty` — CT18 reproduces the 2026-07-30 hand analysis exactly (5 segments of 10/32/40/3/227, every one refused, `valid_effort=FALSE`, install anchor falling inside no segment) and writes a 1,785-row `observations.parquet` in which CT18 is the only station out of the effort denominator. REMAINING once the exports land: handoff steps 6–7 — re-diagnose all four campaigns and regenerate `observations.parquet` (mirror `figures/` first, since otoño 2025 is in `REPORT_CAMPAIGNS` and its numbers may move), then fix pehuen. Note that existing `observations.parquet` files predate `valid_effort`, so `read_campaigns()` across old and new files will show it as null until every campaign is re-ingested.
 **Blockers/Notes (2026-08-03):** **The one thing that unblocks everything is the Timelapse2 sweep.** For otoño 2026 the anchor evidence already exists — MegaDetector found 595 person frames — so the sweep is confirmation work, not search. Two field questions still gate specific data: CT18's install date and any maintenance visit (`docs/HANDOFF-clock-repair.md` §8.1), now the difference between recovering segment 0's 10 frames and losing them, with `11190001.JPG` (camera-time 2025-11-19 06:41, counter 0001) the frame to look at; and whether the older campaigns have install photos (§8.2), which decides whether otoño 2025's 143 dropped records are recoverable. Also: **pehuen's R scripts hardcode Windows paths** (`C:/Users/USUARIO/...` in `R/01_load_data.R:50–58`), so handoff step 7 cannot run from the Linux laptop until they are parameterised.
-**Blockers/Notes (2026-07-31, largely SUPERSEDED 2026-08-18):** **Re-flatten every campaign with the new script before re-ingesting** — the manifest only exists for runs made after this change. This note used to say otoño 2026 had **no pre-flatten backup** and so could *never* satisfy the ordering precondition. That was wrong twice over, and the way it was wrong is the lesson: the Synology originals still held the DCIM folders, and the June flatten log recorded every move. Of the five cameras with >999 images, **CT_14 (2632), CT_20 (1836) and CT_23 (1088) are recovered and fully ordered**, and their frame counts prove the old duplicate-skip discarded nothing — the collision worry about CT_14's 24 `102EK113_0119xxxx.JPG` files is now closed by arithmetic rather than left open. **CT_15 (1331) and CT_08 (1129) remain unrecoverable**: flattened before upload, no folder evidence anywhere, so their counters still wrap undetectably. `clocks.py` still passes them, for the original reason — their clocks are clean, and a camera that never reset needs no ordering.
+**Blockers/Notes (2026-07-31, largely SUPERSEDED 2026-08-18):** **Re-flatten every campaign with the new script before re-ingesting** — the manifest only exists for runs made after this change. This note used to say otoño 2026 had **no pre-flatten backup** and so could *never* satisfy the ordering precondition. That was wrong twice over, and the way it was wrong is the lesson: the Synology originals still held the DCIM folders, and the June flatten log recorded every move. Of the five cameras with >999 images, **CT_14 (2632), CT_20 (1836) and CT_23 (1088) are recovered and fully ordered**, and their frame counts prove the old duplicate-skip discarded nothing — the collision worry about CT_14's 24 `102EK113_0119xxxx.JPG` files is now closed by arithmetic rather than left open. **CT_15 (1331) and CT_08 (1129) have no recoverable folder evidence**: flattened before upload, so their counters still wrap undetectably. `clocks.py` passes them for the original reason — their clocks are clean, and a camera that never reset needs no ordering. **Since 2026-08-20 that is checked rather than asserted**: `scripts/verify_order.py` reconstructs the folder boundaries from the datetimes and confirms the counter rises monotonically inside every one. See §Order verification below. Note these two are `otono_2026` stations; the equivalent primavera case is CT23, from the `TC23_M20.2` un-nesting.
 **Prior Integration Status (2026-07-30):** CT_18 Otoño 2026 fix is now data-side, not config-side. `data-pipeline/config.yaml` should be pointed at `_corrected.csv` paths in the next Linux session before running `python run_fetch.py --ct`.
 **Blockers/Notes (2026-07-30):** **143 records recoverable with field anchors.** Otoño 2025 CT15/CT16/CT19 are `unrepairable_pending`, so 143 animal records — including 6 puma, 3 guiña, 2 pudú — are excluded from the report. The old code recovered them by guessing `install_year - 2017`; `timestamps.py` will not guess. Two routes to recover them: Felipe's field notebook, **or** the camera filenames, which encode `MMDD` (`01230193.JPG` = Jan 23) and so pin the true date against the bogus 2017 EXIF stamp without any field data. The verdict notes in `manual_review_verdicts_2026-06-02.csv` already record the `+8yr` offset. Adding proper anchor rows is the single highest-value data task outstanding. Also: **`pehuen` and `data-pipeline` still read `_corrected.csv`** — both are still emitted, so nothing is broken, but migrating them to `observations.parquet` and retiring the CSV is the remaining half of this refactor. `export_best_images.py`, `run_classification.py` and the review UI still decode the Timelapse2 CSV / MegaDetector JSON directly (findings F002–F009 in the 2026-07-29 review).
 **Blockers/Notes:** Outstanding anchor data needed from Felipe's field notebook for CT-15 / CT-16 / CT-19 (Otoño 2025) and chronic TC-16 issue across campaigns — until then those rows pass through with `valid_date=FALSE, valid_time_of_day=FALSE` (counted as station presence but excluded from any time analysis). CLIP horse/cow confusion may still appear on side/rear shots; revisit `clip_confidence_threshold` (0.28) only after the new run lands. Pandoc still required for `Anual-reports/2025/render.sh`. Annual report uses the canonical `plataforma-territorial/data/{boundary,camera_trap_stations}.geojson` files directly; legacy GIS files in `camera-traps/GIS/` are deprecated.
@@ -660,6 +660,45 @@ An opening visit recorded with a date but no time (all 27 of otoño 2026's) yiel
 `valid_time_of_day` stays FALSE, so activity analysis never sees it. Asserting an hour
 nobody wrote down is how CT18's install anchor came to claim `14:00:00` against a
 notebook that says only `2025-11-14`.
+
+### Order verification — when a station has no DCIM manifest
+
+Three station-campaigns have colliding filename counters and no `dcim_manifest.csv`:
+`primavera_2025 CT23` (1,735 frames, 802 collisions), `otono_2026 CT15` (999 / 166) and
+`otono_2026 CT08` (873 / 88). `clocks.diagnose` admits all three — they are `clock_clean`
+with 100% `valid_date` — but its own note says *"unverified, not verified clean"*, because
+capture order was never established and a reset is what order exists to detect.
+
+```bash
+python scripts/verify_order.py              # the three stations above
+python scripts/verify_order.py --controls   # re-check ones that DO have a manifest
+```
+
+**The test.** DCIM folders are created in sequence, so within one folder the counter rises
+with real time. Sort every frame by datetime, cut a new folder each time a counter
+*repeats*, then check the falsifiable part: **is the counter monotonically increasing
+inside every reconstructed block?** Datetimes that disagree with true capture order cannot
+satisfy that.
+
+**Validated against ground truth** (2026-08-20). On stations that have a manifest, the
+reconstruction reproduces its folder count: primavera CT14 → **9 folders, manifest says 9**,
+with blocks landing on the DCIM 999 cap; otoño 2025 CT20 → 3 and 3. Otoño 2025 CT04 also
+gets the count right but shows one backwards step, explained by its manifest listing a
+*mixed* structure (`M5`, `M5/100EK113`, `M5/101EK113`) — files both loose in the card root
+and in DCIM subfolders, which breaks the one-folder-one-counter-run assumption. A limit of
+the method, not a clock fault.
+
+> **This is a diagnostic and must stay one.** It derives order *from* the datetimes and
+> then judges the datetimes; making that circularity load-bearing in reset detection would
+> be exactly the heuristic precondition this pipeline refuses. It can strengthen a verdict
+> in a note. It must never admit a station the deterministic rule refused — which is why
+> it is a script and not part of `diagnose()`, and why it writes nothing to
+> `deployment_anchors.csv` (an anchor records a *field observation*, not an audit result;
+> the loader fail-closes on an invented `anchor_type`, verified 2026-08-20).
+
+**What it cannot do:** prove the absence of a reset. A clock set forward by a constant,
+with no frames spanning the jump, leaves no trace here or anywhere else. It rules out a
+backwards reset (breaks monotonicity) and a factory reset (would show 2017 dates).
 
 ### Step 4b — Timestamp quality check & repair
 

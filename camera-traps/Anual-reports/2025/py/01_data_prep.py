@@ -32,8 +32,11 @@ Rules applied
 3. Animal filter: keep observation_type == "animal" with non-empty species_latin.
 4. Small-species filter: drop all taxonomic_group == "ave" or "invertebrado", plus the
    small mammals {Monito del monte, Ratón cola larga} and the legacy "Rata Negra".
-5. 30-min independent-event filter: per (camera, species), consecutive detections
-   within 30 minutes collapse into one event.
+5. 30-min independent-event filter: per (camera, species), a detection starts a new
+   event only if it is >= 30 min after the last RETAINED one (the camtrapR
+   definition, matching pehuen's R/00_admissibility.R). Measuring from the previous
+   detection instead — as this did until 2026-08-20 — merges 0/20/40 min into one
+   event where the rule gives two.
 
 Conventions
 -----------
@@ -122,9 +125,26 @@ def build_events(df: pd.DataFrame, gap: pd.Timedelta = EPISODE_GAP) -> pd.DataFr
     """Per (camera_num, scientificName), collapse images within `gap` into one event."""
     df = df.sort_values(["camera_num", "scientificName", "timestamp_corrected"]).copy()
     key = ["camera_num", "scientificName"]
-    df["__prev_ts"] = df.groupby(key)["timestamp_corrected"].shift()
-    new_event = (df["timestamp_corrected"] - df["__prev_ts"]) > gap
-    new_event = new_event.fillna(True)
+
+    # The gap is measured from the last RETAINED detection, not from the immediately
+    # previous one. Fixed 2026-08-20: this used to compare each row against its
+    # predecessor, which counts detections at 0/20/40 minutes as ONE event where the
+    # standard camtrapR definition counts TWO (0 and 40). pehuen's
+    # R/00_admissibility.R implements the same rule; the two agreed on nothing before
+    # this, so an "independent detection" meant different things in the report and in
+    # the research analysis.
+    def _keep_after_min_gap(ts: pd.Series) -> pd.Series:
+        keep = []
+        last_kept = None
+        for t_i in ts:
+            if last_kept is None or (t_i - last_kept) >= gap:
+                keep.append(True)
+                last_kept = t_i
+            else:
+                keep.append(False)
+        return pd.Series(keep, index=ts.index)
+
+    new_event = df.groupby(key)["timestamp_corrected"].transform(_keep_after_min_gap)
     df["event_seq"] = new_event.groupby([df["camera_num"], df["scientificName"]]).cumsum()
 
     events = (

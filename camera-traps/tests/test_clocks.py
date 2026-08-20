@@ -603,3 +603,60 @@ class TestDcimFolderKey(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class TestMidnightTolerance(unittest.TestCase):
+    """A day-boundary naming artefact is not a corrupt clock.
+
+    Added 2026-08-20. CT03 otono_2025 was refused entirely — 321 images, 7 puma — on
+    three frames at 23:59:28-29 whose filename had rolled to the next day while the
+    stamp had not. 318 frames agreed. The discriminator is distance from midnight:
+    benign cases sit inside a minute, genuine ones are hours away.
+    """
+
+    def _frames(self, rows):
+        return pd.DataFrame([
+            {'file_name': f, 'camera_datetime': pd.Timestamp(d)} for f, d in rows
+        ])
+
+    def test_pre_midnight_rollover_is_forgiven(self):
+        """The real CT03 shape: filename says the next day, 32s before midnight."""
+        rows = [(f'0318{i:04d}.JPG', f'2025-03-18 12:{i:02d}:00') for i in range(1, 20)]
+        rows += [('03190273.JPG', '2025-03-18 23:59:28'),
+                 ('03190274.JPG', '2025-03-18 23:59:29'),
+                 ('03190275.JPG', '2025-03-18 23:59:29')]
+        d = clocks.diagnose(self._frames(rows), station='CT03')
+        self.assertTrue(all(s.coherent for s in d.segments),
+                        'a day-boundary rollover must not make a segment incoherent')
+        self.assertTrue(any('forgiven' in n for n in d.notes), d.notes)
+
+    def test_post_midnight_rollover_is_forgiven(self):
+        """The mirror case: stamp just after midnight, filename still on the old day."""
+        rows = [(f'0319{i:04d}.JPG', f'2025-03-19 12:{i:02d}:00') for i in range(1, 20)]
+        rows += [('03180501.JPG', '2025-03-19 00:00:31')]
+        d = clocks.diagnose(self._frames(rows), station='CT_X')
+        self.assertTrue(all(s.coherent for s in d.segments), d.notes)
+
+    def test_midday_mismatch_is_still_refused(self):
+        """The CT19/CT16/CT18 shape: hours from midnight. Must stay incoherent."""
+        rows = [(f'0318{i:04d}.JPG', f'2025-03-18 12:{i:02d}:00') for i in range(1, 20)]
+        rows += [('03190273.JPG', '2025-03-18 14:19:52')]
+        d = clocks.diagnose(self._frames(rows), station='CT19')
+        self.assertFalse(all(s.coherent for s in d.segments),
+                         'a mismatch hours from midnight is a corrupt date register')
+
+    def test_tolerance_never_creates_a_mismatch(self):
+        """A camera whose filenames all agree is unaffected, boundary frames included."""
+        rows = [('03180001.JPG', '2025-03-18 23:59:58'),
+                ('03190002.JPG', '2025-03-19 00:00:02')]
+        d = clocks.diagnose(self._frames(rows), station='CT_OK')
+        self.assertTrue(all(s.coherent for s in d.segments), d.notes)
+        self.assertFalse(any('forgiven' in n for n in d.notes), d.notes)
+
+    def test_one_genuine_mismatch_outweighs_many_forgiven(self):
+        """Mixed case (CT08 primavera): near-midnight ones forgiven, the rest refused."""
+        rows = [(f'0318{i:04d}.JPG', f'2025-03-18 12:{i:02d}:00') for i in range(1, 20)]
+        rows += [('03190100.JPG', '2025-03-18 23:59:40'),   # forgiven
+                 ('03190101.JPG', '2025-03-18 23:56:39')]   # 3m21s out -> genuine
+        d = clocks.diagnose(self._frames(rows), station='CT08')
+        self.assertFalse(all(s.coherent for s in d.segments), d.notes)
+

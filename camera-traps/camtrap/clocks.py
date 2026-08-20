@@ -141,6 +141,12 @@ ORDER_NONE     = 'none'                    # no usable evidence
 
 # ── Anchors ───────────────────────────────────────────────────────────────────
 
+# How close to midnight a filename/DateTime date disagreement may sit before it is
+# read as a naming artefact rather than a corrupt clock. See the P2 block in
+# diagnose() for the measured basis. Loose relative to the 32-60 s observed, and two
+# orders of magnitude tighter than the smallest genuine case (3 h).
+MIDNIGHT_TOLERANCE = timedelta(seconds=120)
+
 ANCHOR_TYPES_EXACT        = {'install', 'mid_visit', 'retrieval'}
 # APPROXIMATE means the same thing for both members: the DATE is recoverable but the
 # time-of-day is not, so `valid_time_of_day` is False and activity analysis must not
@@ -423,9 +429,39 @@ def diagnose(
     notes.extend(order_notes)
 
     # P2 — the filename's own MMDD must agree with the DateTime it carries.
+    #
+    # EXCEPT within MIDNIGHT_TOLERANCE of midnight. A frame captured seconds before
+    # 00:00 can be named with the NEXT day's date, because the camera builds the
+    # filename from its date at write time and the two straddle the boundary. That is
+    # a naming artefact, not corrupt date registers: the clock is ticking correctly.
+    #
+    # Added 2026-08-20 (Felipe's call) after CT03 otono_2025 was refused entirely —
+    # 321 images including 7 puma — on THREE frames at 23:59:28-29, against 318 that
+    # agreed. The discriminator is distance from midnight and it separates cleanly:
+    # benign cases sit inside a minute (CT03 32 s, CT23 60 s), genuine ones are hours
+    # away (CT19 14 h, CT16 11 h, CT18 3 h). See the module test for the fixtures.
+    #
+    # This only ever FORGIVES a mismatch. A station with one mismatch away from
+    # midnight is still refused, so the tolerance cannot admit a corrupt clock.
     stamp_mmdd = df['camera_datetime'].dt.strftime('%m%d')
-    mismatch = df['_mmdd'].notna() & (df['_mmdd'] != stamp_mmdd)
+    raw_mismatch = df['_mmdd'].notna() & (df['_mmdd'] != stamp_mmdd)
+
+    secs = (df['camera_datetime'] - df['camera_datetime'].dt.normalize()).dt.total_seconds()
+    to_midnight = secs.where(secs <= 43200, 86400 - secs)
+    at_boundary = to_midnight <= MIDNIGHT_TOLERANCE.total_seconds()
+
+    mismatch = raw_mismatch & ~at_boundary
     n_mismatch = int(mismatch.sum())
+    n_forgiven = int((raw_mismatch & at_boundary).sum())
+    n_parseable = int(df['_mmdd'].notna().sum())
+
+    if n_forgiven:
+        notes.append(
+            f'{n_forgiven} filename/DateTime mismatch(es) forgiven as day-boundary '
+            f'naming artefacts (within {int(MIDNIGHT_TOLERANCE.total_seconds())}s of '
+            f'midnight) — the clock crossed a day while writing the file, which is not '
+            f'a corrupt date register'
+        )
     if n_mismatch:
         notes.append(
             f'{n_mismatch}/{n_stills} frame(s) disagree between filename MMDD and '
@@ -467,7 +503,15 @@ def diagnose(
                 'capture order not established, but no clock failure is detectable: '
                 + ('every frame is in-window and agrees with its own filename'
                    if in_window is not None else
-                   'every filename agrees with its own stamp. NOTE: no deployment '
+                   # n_parseable guards a vacuous pass: a camera whose filenames carry
+                   # no date (primavera CT22 writes IMAG0001.JPG, not MMDDnnnn.JPG) has
+                   # nothing to disagree, so P2 succeeds without testing anything. The
+                   # verdict below is already hedged as "unverified", but claiming the
+                   # filenames agree would assert a check that never ran.
+                   ('every filename agrees with its own stamp' if n_parseable
+                    else 'NO filename carries a date to check against the stamp, so '
+                         'the filename/stamp test did not run at all')
+                   + '. NOTE: no deployment '
                    'window was available, so a forward jump would NOT have been '
                    'detected — this is unverified, not verified clean')
             )
