@@ -10,8 +10,8 @@ Export gate:
 Reviewed rows:                      830
   Clean (no repair needed):         384
   Repaired (exact anchor):          0
-  Repaired (approximate anchor):    0
-  Unrepairable:                     446
+  Repaired (approximate anchor):    38
+  Unrepairable:                     408
   Unparseable datetime:             0
   Stations with unknowable effort:  7
 
@@ -63,61 +63,61 @@ Reviewed rows:                      830
     deployment window: 2025-01-06 13:09 → 2025-06-12 12:00
     segments: 14
       [0]    15 frame(s)  2025-01-10 15:07 → 2025-01-11 17:50  coherent  in-window
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [1]     3 frame(s)  2017-01-01 00:00 → 2017-01-01 00:00  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [2]    27 frame(s)  2017-01-01 00:00 → 2017-01-07 03:01  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [3]     6 frame(s)  2017-01-01 00:00 → 2017-01-01 02:38  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [4]     3 frame(s)  2017-01-01 00:00 → 2017-01-01 00:00  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [5]    30 frame(s)  2017-01-01 00:00 → 2017-01-09 23:34  INCOHERENT  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → segment_incoherent:filename_mmdd_disagrees_with_datetime  date=F tod=F
       [6]    12 frame(s)  2017-01-01 00:00 → 2017-01-01 17:20  INCOHERENT  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → segment_incoherent:filename_mmdd_disagrees_with_datetime  date=F tod=F
       [7]     3 frame(s)  2017-01-01 00:00 → 2017-01-01 00:00  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [8]     9 frame(s)  2017-01-01 00:00 → 2017-01-02 22:49  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [9]     9 frame(s)  2017-01-01 00:00 → 2017-01-02 20:44  INCOHERENT  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → segment_incoherent:filename_mmdd_disagrees_with_datetime  date=F tod=F
       [10]     9 frame(s)  2017-01-01 00:00 → 2017-01-09 14:46  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [11]     6 frame(s)  2017-01-01 00:00 → 2017-01-07 22:45  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [12]     3 frame(s)  2017-01-01 00:00 → 2017-01-01 00:00  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [13]    60 frame(s)  2017-01-01 00:00 → 2017-03-30 00:43  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → offset_from_last_real_proxy  date=T tod=F  offset=2993 days, 15:03:01  anchor=technician_photo_next_campaign
     unaccounted_days: 32.49 (AUDIT DIAGNOSTIC ONLY — never a criterion)
     valid_effort: FALSE — exclude this station from rate DENOMINATORS as well as numerators
-    reviewed rows by method: {'unrepairable_pending_anchor': 51}
+    reviewed rows by method: {'offset_from_last_real_proxy': 31, 'no_anchor_in_segment': 16, 'segment_incoherent:filename_mmdd_disagrees_with_datetime': 4}
   CT16 — 72 still(s), 0 video(s) excluded, 0 unparseable, 1 anchor(s)
     capture order: established (evidence: counter)
     deployment window: 2025-01-06 14:08 → 2025-06-12 12:00
     segments: 9
       [0]     6 frame(s)  2025-01-09 14:18 → 2025-01-09 14:19  coherent  in-window
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [1]     3 frame(s)  2017-01-01 00:00 → 2017-01-01 00:00  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [2]     6 frame(s)  2017-01-01 00:00 → 2017-01-07 23:43  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [3]    15 frame(s)  2017-01-01 00:00 → 2017-01-09 19:26  INCOHERENT  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → segment_incoherent:filename_mmdd_disagrees_with_datetime  date=F tod=F
       [4]     6 frame(s)  2017-01-01 00:00 → 2017-01-01 18:12  INCOHERENT  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → segment_incoherent:filename_mmdd_disagrees_with_datetime  date=F tod=F
       [5]     6 frame(s)  2017-01-01 00:00 → 2017-01-03 08:52  INCOHERENT  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → segment_incoherent:filename_mmdd_disagrees_with_datetime  date=F tod=F
       [6]     3 frame(s)  2017-01-01 00:00 → 2017-01-01 00:00  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [7]     6 frame(s)  2017-01-01 00:00 → 2017-01-01 10:51  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → no_anchor_in_segment  date=F tod=F
       [8]    21 frame(s)  2017-01-01 00:00 → 2017-04-10 06:42  coherent  OUT-OF-WINDOW
-            → unrepairable_pending_anchor  date=F tod=F
+            → offset_from_last_real_proxy  date=T tod=F  offset=2982 days, 9:37:26  anchor=technician_photo_next_campaign
     unaccounted_days: 38.25 (AUDIT DIAGNOSTIC ONLY — never a criterion)
     valid_effort: FALSE — exclude this station from rate DENOMINATORS as well as numerators
-    reviewed rows by method: {'unrepairable_pending_anchor': 9}
+    reviewed rows by method: {'offset_from_last_real_proxy': 7, 'segment_incoherent:filename_mmdd_disagrees_with_datetime': 2}
   CT19 — 373 still(s), 0 video(s) excluded, 0 unparseable, 1 anchor(s)
     capture order: established (evidence: counter)
     deployment window: 2025-01-27 14:12 → 2025-06-08 12:00
@@ -281,10 +281,12 @@ Notes and warnings:
   ! CT13: 5.87 day(s) of the deployment window are unaccounted for by any segment (diagnostic only)
   ! CT15: 39/195 frame(s) disagree between filename MMDD and DateTime — the date registers are corrupt, so the clock may not tick coherently even within a segment
   ! CT15: 180 frame(s) fall outside the deployment window
-  ! CT15: unrepairable_pending anchor present (awaiting Felipe's field notebook for install date and retrieval clock reading; 49 bogus rows starting at 2017-01-01 08:40:24) — awaiting field info
+  ! CT15: segment(s) [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] have unknown dates, so the station contributes no effort at all — exclude it from rate denominators, not just numerators
+  ! CT15: 32.49 day(s) of the deployment window are unaccounted for by any segment (diagnostic only)
   ! CT16: 18/72 frame(s) disagree between filename MMDD and DateTime — the date registers are corrupt, so the clock may not tick coherently even within a segment
   ! CT16: 66 frame(s) fall outside the deployment window
-  ! CT16: unrepairable_pending anchor present (awaiting Felipe's field notebook; 9 bogus rows starting at 2017-01-01 00:00:01) — awaiting field info
+  ! CT16: segment(s) [0, 1, 2, 3, 4, 5, 6, 7] have unknown dates, so the station contributes no effort at all — exclude it from rate denominators, not just numerators
+  ! CT16: 38.25 day(s) of the deployment window are unaccounted for by any segment (diagnostic only)
   ! CT19: 61/373 frame(s) disagree between filename MMDD and DateTime — the date registers are corrupt, so the clock may not tick coherently even within a segment
   ! CT19: 373 frame(s) fall outside the deployment window
-  ! CT19: unrepairable_pending anchor present (awaiting Felipe's field notebook; 101 bogus rows all at 2017-01-01 00:00:00 — entire deployment may be affected) — awaiting field info
+  ! CT19: unrepairable_pending anchor present (IMAGES CHECKED 2026-08-20 — do not re-check. 03100001/2/3.JPG are BLANK, no technician, and MegaDetector finds no detection of any kind on the 0310 prefix. Clock was already dead at install and the camera reset to factory 68 times, 66 segments incoherent, so a single notebook date would not repair it either. Filename MMDD says 03-10 and otono_2025's installs ran progressively (CT08 2024-09-09 through CT23 2025-02-05), which places the install around 2025-03-10 — an inference from the camera's own file naming, NOT evidence. Retrieval is bounded only: primavera CT19 06060001.JPG is 2025-06-06 03:37 with no technician, so it is a wildlife trigger and gives an upper bound, not an anchor (Felipe, 2026-08-20).) — awaiting field info

@@ -1,0 +1,111 @@
+campaign,station,deployment,segment,n_images,camera_start,camera_end,reason,candidate_frames,person_vehicle_frames,mmdd_mismatch,mismatch_at_midnight,mismatch_verdict,coherent,recoverable_by_anchor
+otono_2025,CT03,CT03,0,321,2024-10-10 01:39:13,2025-06-05 15:38:59,filename_mmdd_disagrees_with_datetime,116,115,3,3,BOUNDARY ARTEFACT (all mismatches <=120s from midnight),False,YES - technician frames present
+otono_2025,CT08,CT08,0,229,2024-09-09 15:54:20,2025-05-06 16:15:05,no_anchor_in_segment,14,12,0,0,no mismatch in this segment,True,YES - technician frames present
+otono_2025,CT10,CT10,0,285,2024-10-09 15:55:17,2025-06-05 16:32:32,no_anchor_in_segment,72,69,0,0,no mismatch in this segment,True,YES - technician frames present
+otono_2025,CT13,CT13,0,37,2024-10-22 16:52:15,2025-02-28 05:56:54,no_anchor_in_segment,17,15,0,0,no mismatch in this segment,True,YES - technician frames present
+otono_2025,CT13,CT13,1,17,2025-02-28 04:56:54,2025-05-29 14:03:45,no_anchor_in_segment,5,3,0,0,no mismatch in this segment,True,YES - technician frames present
+otono_2025,CT15,CT15,0,15,2025-01-10 15:07:13,2025-01-11 17:50:10,no_anchor_in_segment,3,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,1,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,2,27,2017-01-01 00:00:00,2017-01-07 03:01:23,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,3,6,2017-01-01 00:00:00,2017-01-01 02:38:45,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,4,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,5,30,2017-01-01 00:00:00,2017-01-09 23:34:26,filename_mmdd_disagrees_with_datetime,2,0,27,0,GENUINE (27 of 27 away from midnight),False,NO - clock incoherent
+otono_2025,CT15,CT15,6,12,2017-01-01 00:00:00,2017-01-01 17:20:04,filename_mmdd_disagrees_with_datetime,2,0,6,0,GENUINE (6 of 6 away from midnight),False,NO - clock incoherent
+otono_2025,CT15,CT15,7,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,8,9,2017-01-01 00:00:00,2017-01-02 22:49:42,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,9,9,2017-01-01 00:00:00,2017-01-02 20:44:42,filename_mmdd_disagrees_with_datetime,2,0,6,0,GENUINE (6 of 6 away from midnight),False,NO - clock incoherent
+otono_2025,CT15,CT15,10,9,2017-01-01 00:00:00,2017-01-09 14:46:26,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,11,6,2017-01-01 00:00:00,2017-01-07 22:45:18,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,12,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT15,CT15,13,60,2017-01-01 00:00:00,2017-03-30 00:43:59,no_anchor_in_segment,4,2,0,0,no mismatch in this segment,True,YES - technician frames present
+otono_2025,CT16,CT16,0,6,2025-01-09 14:18:58,2025-01-09 14:19:21,no_anchor_in_segment,5,2,0,0,no mismatch in this segment,True,YES - technician frames present
+otono_2025,CT16,CT16,1,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT16,CT16,2,6,2017-01-01 00:00:00,2017-01-07 23:43:36,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT16,CT16,3,15,2017-01-01 00:00:00,2017-01-09 19:26:41,filename_mmdd_disagrees_with_datetime,2,0,12,0,GENUINE (12 of 12 away from midnight),False,NO - clock incoherent
+otono_2025,CT16,CT16,4,6,2017-01-01 00:00:00,2017-01-01 18:12:56,filename_mmdd_disagrees_with_datetime,2,0,3,0,GENUINE (3 of 3 away from midnight),False,NO - clock incoherent
+otono_2025,CT16,CT16,5,6,2017-01-01 00:00:00,2017-01-03 08:52:02,filename_mmdd_disagrees_with_datetime,2,0,3,0,GENUINE (3 of 3 away from midnight),False,NO - clock incoherent
+otono_2025,CT16,CT16,6,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT16,CT16,7,6,2017-01-01 00:00:00,2017-01-01 10:51:00,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT16,CT16,8,21,2017-01-01 00:00:00,2017-04-10 06:42:03,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,0,23,2017-01-01 00:04:10,2017-01-06 00:28:37,filename_mmdd_disagrees_with_datetime,3,0,23,0,GENUINE (23 of 23 away from midnight),False,NO - clock incoherent
+otono_2025,CT19,CT19,1,4,2017-01-01 00:00:00,2017-01-01 19:08:02,filename_mmdd_disagrees_with_datetime,2,0,2,0,GENUINE (2 of 2 away from midnight),False,NO - clock incoherent
+otono_2025,CT19,CT19,2,4,2017-01-01 00:00:00,2017-01-02 17:26:55,filename_mmdd_disagrees_with_datetime,2,0,2,0,GENUINE (2 of 2 away from midnight),False,NO - clock incoherent
+otono_2025,CT19,CT19,3,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,4,16,2017-01-01 00:00:00,2017-01-06 00:05:06,filename_mmdd_disagrees_with_datetime,2,0,14,0,GENUINE (14 of 14 away from midnight),False,NO - clock incoherent
+otono_2025,CT19,CT19,5,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,6,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,7,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,8,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,9,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,10,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,11,4,2017-01-01 00:00:00,2017-01-01 18:09:33,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,12,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,13,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,14,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,15,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,16,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,17,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,18,14,2017-01-01 00:00:00,2017-01-01 20:37:39,filename_mmdd_disagrees_with_datetime,2,0,12,0,GENUINE (12 of 12 away from midnight),False,NO - clock incoherent
+otono_2025,CT19,CT19,19,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,20,4,2017-01-01 00:00:00,2017-01-01 17:31:08,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,21,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,22,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,23,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,24,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,25,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,26,6,2017-01-01 00:00:00,2017-01-01 20:00:38,filename_mmdd_disagrees_with_datetime,2,0,2,0,GENUINE (2 of 2 away from midnight),False,NO - clock incoherent
+otono_2025,CT19,CT19,27,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,28,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,29,4,2017-01-01 00:00:00,2017-01-02 10:23:54,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,30,11,2017-01-01 00:00:00,2017-01-03 21:47:56,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,31,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,32,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,33,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,34,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,35,20,2017-01-01 00:00:00,2017-01-03 06:05:59,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,36,16,2017-01-01 00:00:00,2017-01-01 15:20:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,37,17,2017-01-01 00:00:00,2017-01-04 08:15:14,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,38,6,2017-01-01 00:00:00,2017-01-01 00:04:03,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,39,8,2017-01-01 00:00:00,2017-01-01 01:56:49,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,40,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,41,17,2017-01-01 00:00:00,2017-01-03 08:13:23,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,42,34,2017-01-01 00:00:00,2017-01-01 10:13:38,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,43,4,2017-01-01 00:00:00,2017-01-01 00:04:47,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,44,6,2017-01-01 00:00:00,2017-01-01 01:43:19,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,45,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,46,4,2017-01-01 00:00:00,2017-01-01 11:31:20,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,47,19,2017-01-01 00:00:00,2017-01-01 01:15:03,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,48,12,2017-01-01 00:00:00,2017-01-01 05:57:54,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,49,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,50,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,51,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,52,5,2017-01-01 00:00:00,2017-01-01 00:24:41,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,53,4,2017-01-01 00:00:00,2017-01-01 12:41:55,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,54,5,2017-01-01 00:00:00,2017-01-01 00:00:09,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,55,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,56,6,2017-01-01 00:00:00,2017-01-01 15:24:06,filename_mmdd_disagrees_with_datetime,2,0,4,0,GENUINE (4 of 4 away from midnight),False,NO - clock incoherent
+otono_2025,CT19,CT19,57,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,58,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,59,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,60,4,2017-01-01 00:00:00,2017-01-01 00:08:09,filename_mmdd_disagrees_with_datetime,2,0,2,0,GENUINE (2 of 2 away from midnight),False,NO - clock incoherent
+otono_2025,CT19,CT19,61,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,62,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,63,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,64,4,2017-01-01 00:00:00,2017-01-01 00:00:08,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,65,6,2017-01-01 00:00:00,2017-01-01 14:07:13,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,66,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2025,CT19,CT19,67,7,2017-01-01 00:00:00,2017-01-01 00:00:48,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2026,CT18,CT18,0,10,2025-11-19 06:41:40,2025-11-28 15:42:55,no_anchor_in_segment,3,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2026,CT18,CT18,1,32,2017-01-01 00:00:00,2017-01-19 07:53:24,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2026,CT18,CT18,2,40,2017-01-01 00:00:00,2017-01-13 23:20:46,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2026,CT18,CT18,3,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+otono_2026,CT18,CT18,4,227,2017-01-01 00:00:00,2017-04-02 19:48:32,filename_mmdd_disagrees_with_datetime,6,4,166,0,GENUINE (166 of 166 away from midnight),False,NO - clock incoherent
+primavera_2025,CT08,CT08,0,2434,2025-08-13 08:54:58,2026-01-13 12:46:12,ordering_unrecoverable,8,5,7,5,GENUINE (2 of 7 away from midnight),False,NO - clock incoherent
+primavera_2025,CT16,CT16,0,6,2025-06-09 16:19:27,2025-07-04 12:15:11,filename_mmdd_disagrees_with_datetime,4,2,6,0,GENUINE (6 of 6 away from midnight),False,NO - clock incoherent
+primavera_2025,CT16,CT16,1,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+primavera_2025,CT16,CT16,2,3,2017-01-01 00:00:00,2017-01-01 00:00:02,no_anchor_in_segment,2,0,0,0,no mismatch in this segment,True,needs field-notebook date
+primavera_2025,CT16,CT16,3,54,2017-01-01 00:00:00,2017-05-10 23:33:24,filename_mmdd_disagrees_with_datetime,6,4,51,0,GENUINE (51 of 51 away from midnight),False,NO - clock incoherent
+primavera_2025,CT17,CT17,0,5,2025-06-04 14:58:25,2025-08-17 08:43:56,no_anchor_in_segment,5,3,0,0,no mismatch in this segment,True,YES - technician frames present
+primavera_2025,CT17,CT17,1,2,2017-01-01 00:00:00,2017-01-01 00:00:01,no_anchor_in_segment,4,2,0,0,no mismatch in this segment,True,YES - technician frames present
+primavera_2025,CT18,CT18,0,67,2025-06-10 15:50:57,2025-09-12 03:53:51,filename_mmdd_disagrees_with_datetime,29,29,67,0,GENUINE (67 of 67 away from midnight),False,NO - clock incoherent
+primavera_2025,CT23,CT23,0,1735,2025-06-10 12:24:17,2026-01-11 12:58:46,ordering_unrecoverable,5,3,2,2,BOUNDARY ARTEFACT (all mismatches <=120s from midnight),False,YES - technician frames present

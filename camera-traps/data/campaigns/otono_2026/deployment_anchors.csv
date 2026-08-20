@@ -1,3 +1,3 @@
-station_id,anchor_type,real_datetime,camera_datetime,source,notes
-CT18,install,2025-11-14 14:00:00,2025-11-14 14:00:00,field_notebook,clock OK at install per Felipe; 2 real-time photos captured before reset
-CT18,last_real_proxy,2026-05-15 12:10:00,2017-04-02 19:48:30,field_notebook + last_bogus_exif,retrieval 2026-05-15 12:10; camera not firing at retrieval; bogus block anchored to last-bogus stamp; biases dates LATE by unknown time-since-camera-died gap; valid_time_of_day=FALSE for repaired rows
+station_id,anchor_type,real_datetime,camera_datetime,source,notes,segment_index
+CT18,install,2025-11-14 14:00:00,2025-11-14 14:00:00,field_notebook,clock OK at install per Felipe; 2 real-time photos captured before reset,
+CT18,last_real_proxy,2026-05-15 12:10:00,2017-04-02 19:48:30,field_notebook + last_bogus_exif,"install 2025-11-14 14:00 per Felipe; clock OK at install; 2 real-time photos captured before reset. RETRIEVAL FRAMES CHECKED 2026-08-20 — do not re-check: 01310452.JPG and 01310454.JPG carry bogus 2017 stamps and hold no human. The retrieval trip itself is well established at 2026-05-13..15 from 26 sibling cameras; what stays unknown is the date the camera DIED. Filename MMDD says 01-31 and MegaDetector has 5 detections on that prefix, so ~2026-01-31 is the best estimate, which is the interval this proxy biases dates late by.",

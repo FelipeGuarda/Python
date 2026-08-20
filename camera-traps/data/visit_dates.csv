@@ -1,0 +1,48 @@
+visit,CT,dir_before,dir_after,last_file_before,last_stamp_before,first_file_after,first_stamp_after,inferred_visit_date,confidence,verdict
+otono_2025 -> primavera_2025,CT01,CT01,CT01,05280055.JPG,2025-05-28 14:12:26,09020001.JPG,2025-09-02 13:23:38,2025-09-02,MEDIUM,witnesses disagree by 97.0 d — old card suspect
+otono_2025 -> primavera_2025,CT02,CT02,CT02,05140050.JPG,2025-05-14 17:05:13,05140001.JPG,2025-05-14 16:19:33,2025-05-14,HIGH,BOTH witnesses agree within 0.0 d
+otono_2025 -> primavera_2025,CT03,CT03,CT03,06050399.JPG,2025-06-05 15:38:29,06100001.JPG,2025-06-10 11:05:01,2025-06-10,MEDIUM,witnesses disagree by 4.8 d — old card suspect
+otono_2025 -> primavera_2025,CT04,CT04,CT04,11300999.JPG,2024-11-30 15:28:50,05140001.JPG,2025-05-14 11:39:33,2025-05-14,MEDIUM,witnesses disagree by 164.8 d — old card suspect
+otono_2025 -> primavera_2025,CT05,CT05,CT05,05280102.JPG,2025-05-28 12:35:54,07110001.JPG,2025-07-11 20:24:09,2025-07-11,MEDIUM,witnesses disagree by 44.3 d — old card suspect
+otono_2025 -> primavera_2025,CT06,CT06,CT06,05140057.JPG,2025-05-10 07:51:33,05140001.JPG,2025-05-14 13:55:11,2025-05-14,MEDIUM,witnesses disagree by 4.3 d — old card suspect
+otono_2025 -> primavera_2025,CT07,CT07,CT07,06040046.JPG,2025-06-01 16:14:23,06040001.JPG,2025-06-04 13:59:18,2025-06-04,HIGH,BOTH witnesses agree within 2.9 d
+otono_2025 -> primavera_2025,CT08,CT08,CT08,05060229.JPG,2025-05-06 16:15:03,08130001.JPG,2025-08-13 08:54:58,2025-08-13,MEDIUM,witnesses disagree by 98.7 d — old card suspect
+otono_2025 -> primavera_2025,CT09,CT09,CT09,05140485.JPG,2025-05-14 13:02:30,05160001.JPG,2025-05-16 16:49:20,2025-05-16,HIGH,BOTH witnesses agree within 2.2 d
+otono_2025 -> primavera_2025,CT10,CT10,CT10,06050379.JPG,2025-06-03 14:41:49,06080001.JPG,2025-06-08 20:59:25,2025-06-08,MEDIUM,witnesses disagree by 5.3 d — old card suspect
+otono_2025 -> primavera_2025,CT11,CT11,CT11,03260195.JPG,2025-03-24 16:56:06,07050001.JPG,2025-07-05 00:58:58,2025-07-05,MEDIUM,witnesses disagree by 102.3 d — old card suspect
+otono_2025 -> primavera_2025,CT12,CT12,CT12,12220923.JPG,2024-12-22 13:39:16,06070001.JPG,2025-06-07 06:49:08,2025-06-07,MEDIUM,witnesses disagree by 166.7 d — old card suspect
+otono_2025 -> primavera_2025,CT13,CT13,CT13,05290066.JPG,2025-05-29 14:02:54,07080001.JPG,2025-07-08 07:25:06,2025-07-08,MEDIUM,witnesses disagree by 39.7 d — old card suspect
+otono_2025 -> primavera_2025,CT14,CT14,CT14,01170999.JPG,2025-01-16 19:46:02,01030001.JPG,2025-06-04 15:28:01,2025-06-04,MEDIUM,witnesses disagree by 138.8 d — old card suspect
+otono_2025 -> primavera_2025,CT15,CT15,CT15,03300259.JPG,,06090001.JPG,2025-06-09 15:46:58,2025-06-09,MEDIUM-HIGH,only the FRESH card is plausible — use it
+otono_2025 -> primavera_2025,CT16,CT16,CT16,04100095.JPG,,00300001.JPG,2025-06-09 16:19:27,2025-06-09,MEDIUM-HIGH,only the FRESH card is plausible — use it
+otono_2025 -> primavera_2025,CT17,CT17,CT17,06040318.JPG,2025-06-04 15:46:13,06040001.JPG,2025-06-04 14:58:25,2025-06-04,HIGH,BOTH witnesses agree within 0.0 d
+otono_2025 -> primavera_2025,CT18,CT18,CT18,06100115.JPG,2025-06-06 19:16:39,07100001.JPG,2025-06-10 15:50:57,2025-06-10,HIGH,BOTH witnesses agree within 3.9 d
+otono_2025 -> primavera_2025,CT19,CT19,CT19,01010458.JPG,,06060001.JPG,2025-06-06 03:37:46,2025-06-06,MEDIUM-HIGH,only the FRESH card is plausible — use it
+otono_2025 -> primavera_2025,CT20,CT20,CT20,02180999.JPG,2025-02-10 16:54:52,06090001.JPG,2025-06-09 13:35:05,2025-06-09,MEDIUM,witnesses disagree by 118.9 d — old card suspect
+otono_2025 -> primavera_2025,CT23,CT23,CT23,06100008.JPG,2025-02-05 15:15:56,06100001.JPG,2025-06-10 12:24:17,2025-06-10,MEDIUM,witnesses disagree by 124.9 d — old card suspect
+primavera_2025 -> otono_2026,CT01,CT01,CT01,09020007.JPG,2025-09-02 13:23:39,11260001.JPG,2025-11-26 13:39:23,2025-11-26,MEDIUM,witnesses disagree by 85.0 d — old card suspect
+primavera_2025 -> otono_2026,CT02,CT02,CT02,09050999.JPG,2025-09-05 11:05:07,01080001.JPG,2026-01-08 14:43:42,2026-01-08,MEDIUM,witnesses disagree by 125.2 d — old card suspect
+primavera_2025 -> otono_2026,CT03,CT03,CT03,01130276.JPG,2026-01-13 15:29:10,01170001.JPG,2026-01-17 11:35:18,2026-01-17,HIGH,BOTH witnesses agree within 3.8 d
+primavera_2025 -> otono_2026,CT04,CT04,CT04,11210259.JPG,2025-11-04 19:35:48,11220001.JPG,2025-11-22 12:00:16,2025-11-22,MEDIUM,witnesses disagree by 17.7 d — old card suspect
+primavera_2025 -> otono_2026,CT05,CT05,CT05,01070251.JPG,2026-01-04 12:33:06,01090001.JPG,2026-01-09 13:24:53,2026-01-09,MEDIUM,witnesses disagree by 5.0 d — old card suspect
+primavera_2025 -> otono_2026,CT06,CT06,CT06,11130021.JPG,2025-11-13 16:02:48,12180001.JPG,2025-12-18 13:30:48,2025-12-18,MEDIUM,witnesses disagree by 34.9 d — old card suspect
+primavera_2025 -> otono_2026,CT07,CT07,CT07,09120433.JPG,2025-08-29 12:56:15,01140001.JPG,2026-01-14 14:49:31,2026-01-14,MEDIUM,witnesses disagree by 138.1 d — old card suspect
+primavera_2025 -> otono_2026,CT08,CT08,CT08,10270999.JPG,2025-09-09 07:13:22,01130001.JPG,2026-01-13 20:22:12,2026-01-13,MEDIUM,witnesses disagree by 126.5 d — old card suspect
+primavera_2025 -> otono_2026,CT09,CT09,CT09,11210082.JPG,2025-11-21 11:43:36,11220001.JPG,2025-11-22 14:19:57,2025-11-22,HIGH,BOTH witnesses agree within 1.1 d
+primavera_2025 -> otono_2026,CT10,CT10,CT10,11250215.JPG,2025-11-25 12:49:34,11250001.JPG,2025-11-25 13:04:56,2025-11-25,HIGH,BOTH witnesses agree within 0.0 d
+primavera_2025 -> otono_2026,CT11,CT11,CT11,08290999.JPG,2025-08-29 14:31:28,01050001.JPG,2026-01-05 09:27:24,2026-01-05,MEDIUM,witnesses disagree by 128.8 d — old card suspect
+primavera_2025 -> otono_2026,CT12,CT12,CT12,11250167.JPG,2025-11-25 10:01:42,11250001.JPG,2025-11-25 11:25:13,2025-11-25,HIGH,BOTH witnesses agree within 0.1 d
+primavera_2025 -> otono_2026,CT13,CT13,CT13,11250107.JPG,2025-11-25 10:43:17,11250001.JPG,2025-11-25 11:57:30,2025-11-25,HIGH,BOTH witnesses agree within 0.1 d
+primavera_2025 -> otono_2026,CT14,CT14,CT14,103EK113_06060999.JPG,2025-06-05 17:31:02,01080001.JPG,2026-01-08 16:01:02,2026-01-08,MEDIUM,witnesses disagree by 216.9 d — old card suspect
+primavera_2025 -> otono_2026,CT15,CT15,CT15,11250073.JPG,2025-11-25 11:45:12,11250001.JPG,2025-11-25 12:59:48,2025-11-25,HIGH,BOTH witnesses agree within 0.1 d
+primavera_2025 -> otono_2026,CT16,CT16,CT16,05010076.JPG,,11250001.JPG,2025-11-25 13:30:11,2025-11-25,MEDIUM-HIGH,only the FRESH card is plausible — use it
+primavera_2025 -> otono_2026,CT17,CT17,CT17,01010009.JPG,2025-06-04 14:58:27,01110001.JPG,2026-01-11 10:28:10,2026-01-11,MEDIUM,witnesses disagree by 220.8 d — old card suspect
+primavera_2025 -> otono_2026,CT18,CT18,CT18,10120094.JPG,2025-09-12 03:53:14,11190001.JPG,2025-11-19 06:41:40,2025-11-19,MEDIUM,witnesses disagree by 68.1 d — old card suspect
+primavera_2025 -> otono_2026,CT19,CT19,CT19,11210191.JPG,2025-11-20 12:35:33,11210001.JPG,2025-11-21 12:19:52,2025-11-21,HIGH,BOTH witnesses agree within 1.0 d
+primavera_2025 -> otono_2026,CT20,CT20,CT20,12030401.JPG,2025-11-21 17:50:04,12030001.JPG,2025-12-03 14:51:00,2025-12-03,MEDIUM,witnesses disagree by 11.9 d — old card suspect
+primavera_2025 -> otono_2026,CT21,CT21,CT21,10020039.JPG,2025-08-28 09:55:35,01130001.JPG,2026-01-13 16:11:57,2026-01-13,MEDIUM,witnesses disagree by 138.3 d — old card suspect
+primavera_2025 -> otono_2026,CT22,CT22,CT22,IMAG0023.JPG,2026-01-12 00:13:03,01160001.JPG,2026-01-16 09:58:28,2026-01-16,MEDIUM,witnesses disagree by 4.4 d — old card suspect
+primavera_2025 -> otono_2026,CT23,CT23,CT23,12080998.JPG,2025-10-28 07:57:20,01140001.JPG,2026-01-14 11:06:47,2026-01-14,MEDIUM,witnesses disagree by 78.1 d — old card suspect
+primavera_2025 -> otono_2026,CT24,CT24,CT24,01140453.JPG,2026-01-14 10:19:20,01140001.JPG,2026-01-14 11:35:28,2026-01-14,HIGH,BOTH witnesses agree within 0.1 d
+primavera_2025 -> otono_2026,CT25,CT25,CT25,09070021.JPG,2025-09-06 20:46:07,01140001.JPG,2026-01-14 12:05:51,2026-01-14,MEDIUM,witnesses disagree by 129.6 d — old card suspect
+primavera_2025 -> otono_2026,CT26,CT26,CT26,01140039.JPG,2026-01-14 12:17:39,01140001.JPG,2026-01-14 13:33:07,2026-01-14,HIGH,BOTH witnesses agree within 0.1 d

@@ -1,2 +1,3 @@
-station_id,anchor_type,real_datetime,camera_datetime,source,notes
-CT16,unrepairable_pending,,,pending_field_info,TC-16 chronic clock-reset offender; 68 bogus rows 2017-01-01 to 2017-05-10; all have empty scientificName so downstream species filters will exclude them
+station_id,anchor_type,real_datetime,camera_datetime,source,notes,segment_index
+CT15,install,2025-06-09 15:46:58,2025-06-09 15:46:58,technician_photo_confirmed_2026-08-20,PROVENANCE ONLY — no repair needed or applied. primavera CT15 has one coherent segment and its stamps were already correct; the technician photo confirms them. offset is zero by construction.,
+CT16,unrepairable_pending,,,field_check_2026-08-20,"TC-16 chronic clock-reset offender; 68 bogus rows 2017-01-01 to 2017-05-10; all have empty scientificName so downstream species filters exclude them. Install CONFIRMED 2025-06-09 16:19 by technician photo in 00300001.JPG, matching segment 0's stamp to the minute — but segments 0 and 3 are INCOHERENT (filenames disagree with their own stamps away from midnight), so no single offset describes them and a confirmed date does not repair them. Corroborated, not fixed.",

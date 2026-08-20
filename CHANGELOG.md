@@ -6,6 +6,198 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-08-20 — camera-traps + data-pipeline + pehuén: the stale-code sweep
+
+A full audit of the camera-trap chain (16,752 lines across camera-traps, data-pipeline's
+CT paths, Anual-reports and pehuén) replaced the pattern of finding one pre-canonical file
+per session. Report: `SecondBrain/Reviews/review-state-camera-traps.md`, 17 findings.
+
+### The root defect: two files both claimed to be the reviewed truth
+`new_labeled_data_corrected.csv` carried an **unresolved** `observationType` — every row
+`animal`, including the 815 where the reviewer had written that the frame holds no animal
+(111 otoño 2025 / 250 primavera / 454 otoño 2026) — with no `review_resolution` column to
+make the disagreement visible. Verified not to have reached pehuén's published numbers
+(pehuén also required a non-empty `scientificName` and those rows are blank there, so 0 of
+815 survived), but it was luck, not a control. **The file is now gone**; pehuén reads the
+canonical parquet.
+
+### pehuén was reading a retired review pass instead of a campaign — results changed
+`R/01_load_data.R` loaded `pv_2025_2026` as its spring campaign and **never read
+`primavera_2025` at all**. pv is a second review pass over primavera's cards, made in
+April and superseded in August. Rewritten to read `observations.parquet`. Spring detections
+moved substantially:
+
+| species | was (pv) | now (primavera) |
+|---|---|---:|
+| Liebre | 230 | **161** |
+| Zorro culpeo | 59 | **82** |
+| Perro | 46 | 35 |
+| Puma | 13 | 10 |
+| Guiña | 8 | 7 |
+
+Totals 850 → 789 records. Otoño 2025 and 2026 unchanged, as expected. All pehuén figures
+re-rendered. The rewrite also deletes three per-campaign station-ID parsing blocks, the
+SD-card cross-validation (its subject no longer exists) and the `"No reconocible"` string
+filter — all owned upstream — and gives pehuén `valid_effort` for the first time (524
+records sit at stations whose effort denominator is unknowable).
+
+### `--ct` retired rather than repaired
+`timelapse_reviewed.py` (196 lines) re-derived five decisions `camtrap.observations` owns
+and disagreed on 515 live rows. Its campaign list named a primavera file that does not
+exist, so the loop skipped primavera and ingested pv **as a campaign**. Deleted, with
+`camtrap_dp.py` (81 lines, no input folder has ever existed here — its column mapping is
+preserved as the `ct_*` contract in V2-REVIEW 2.3) and `dedup_primavera_2025.py` (98 lines,
+premise dissolved). `ingest_all_ct_campaigns` now raises `CameraTrapIngestNotRebuilt` with
+the reason. V2-REVIEW §2 went from BLOCKED to unblocked: 2.4, 2.6 and 2.7 closed.
+
+### Added: a contract that is actually checked
+`camtrap/canonical_state.py` publishes `data/CANONICAL_STATE.json` — schema version,
+columns, per-campaign row/station/animal counts — and both consumers verify it before
+reading. This exists because on 2026-08-19 the canonical tables went from 3,359 to 35,807
+rows and **not one consumer raised an error**. Publishing stays a separate act from
+ingesting, deliberately: if `timestamps.py` re-published automatically the check would
+agree with whatever was just written.
+
+Two columns added while every parquet was being rebuilt anyway (schema_version 2):
+`observation_comments` (the reviewer's verbatim text — the 815-row defect was only
+findable by reading it) and `classification_probability` (CLIP confidence, 509/502/800
+distinct values, unrecoverable once the Timelapse export is gone). `count` and `eventID`
+were measured 100% empty in all three campaigns and deliberately left out.
+
+### `campaign_dir` is an argument, not a config key
+It pointed at `Desktop/Otono_2025/SynologyDrive` — the first campaign, three campaigns on —
+and the path still existed, so a wrong run looked normal. Both consumers
+(`run_classification.py`, `phase1_labeling/app.py`) now take a **required** `--campaign-dir`
+with no default. Felipe's call.
+
+### Also deleted
+`megadetector_campaigns.py` (imported `wildlife_detector`, never in environment.yml, so
+unrunnable) and `merge_videos_to_fotos.py` (undocumented; merges video into Fotos, contrary
+to the video-exclusion policy). **36.0 MB of legacy data**: pv's directory, the legacy
+`CamtrapDB_*` V1 projects, three zero-reader CSVs, three `figures_pre_*` snapshot
+generations, the pv-named `exports/` dir, and `records_clean`/`events_clean` (outputs of a
+superseded baseline, since regenerated).
+
+### Corrected claims
+- `README.md:432` told the operator to sweep `empty`/`person` — the exact vocabulary a
+  regression test asserts the gate refuses, and the defect that left 584 rows uncounted.
+- The README's claim that pv "must be merged rather than discarded" was **measured false**:
+  all 186 pv-only rows exist in primavera's export, 176 carry no species, and all 5 species
+  the other 10 name are already recorded in the live campaigns.
+- V2-REVIEW 2.8 claimed Timelapse IDs are "UUIDs regenerated on every parse". They are not
+  regenerated by the parser at all; they are per-**project** GUIDs (primavera's two `.ddb`
+  files share 2,387 filenames and 0 `mediaID`s), so `ct_*` keys must derive from the image.
+- `HANDOFF-clock-repair.md` said "no implementation code written yet"; `clocks.py` is 757
+  lines with 605 lines of tests. It is the specification of record now.
+- `data-pipeline/README` said the camera-trap parser was removed. It was not, until today.
+- `species.py` said 27 CLIP species + 4 extras; it is 35 (29 CLIP + 6 reviewer-added).
+
+### pehuén: admissibility separated from the unit of analysis
+
+`R/01_load_data.R` ended with `filter(!is.na(datetime))`, so every downstream script
+inherited the strictest rule whether or not it asked. Correct for activity and overlap,
+**wrong for presence/absence**, which needs a station and not a clock. Puma is recorded at
+8 stations and the spatial maps showed 6. New `R/00_admissibility.R` owns
+`admissible(records, "place"|"time")`, `presence()` and `episodes()`; the load-time filter
+became a `time_admissible` column. `records_all.rds` 789 → **1,112** records.
+
+Stations recovered in the presence panel: Puma 6→8, Guiña 8→10, Jabalí 7→9, Liebre 10→11,
+Perro 12→13. `camtrapR::detectionMaps()` could not be used for that panel — its
+`recordTable` requires `DateTimeOriginal`, so it structurally cannot hold the records that
+must be included — so presence is now built directly with sf/ggplot.
+
+**The bubble maps had also been counting IMAGES.** A camera fires 2–3 frames per trigger,
+and the distortion is not uniform: ratios run 1.7× (Guiña) to 4.9× (Jabalí), so image
+counts *reorder* species rather than rescaling them. Jabalí against Guiña read 84:22 by
+images; by episodes it is 17:13.
+
+**One rule, one implementation.** The first `episodes()` measured the gap from the previous
+detection; `record_table`'s existing `keep_after_min_gap()` measures from the last
+*retained* one (0/20/40 min is two events, not one) and groups by campaign. Its rule is the
+standard camtrapR definition and correct, so `episodes()` adopted it and
+`filter_independent_events()` now delegates. Both counts agree at **327**.
+`04_temporal_overlap` output is byte-identical to the pre-fix run — the control that the
+change moved only what it should.
+
+Also: the loader had been reading `pv_2025_2026` — a retired April review pass — as its
+spring campaign and **never reading `primavera_2025`**. Spring detections moved: Liebre
+230→161, Zorro culpeo 59→82; totals 850→789 (before the admissibility change re-added the
+place-admissible rows). `nanoparquet` + `jsonlite` added to `environment.yml` and
+`setup_packages.R`.
+
+### otoño 2025: CT15 and CT16 retrieval dated from the next campaign's card
+
+A service visit is a boundary between campaigns, so the same trip is photographed twice —
+and the **fresh card is the better witness**, because the old camera may have lost its clock
+in the field. Felipe confirmed a technician in primavera's CT15 `06090001.JPG`
+(2025-06-09 15:46) and CT16 `00300001.JPG` (16:19 — 33 minutes later, walking distance, so
+the two corroborate each other).
+
+`last_real_proxy` anchors on CT15 segment 13 and CT16 segment 8 (`segment_index` pinned,
+since several segments share a camera-time start): **33 animal records gain dates**,
+`date=TRUE tod=FALSE`. otoño 2025 datable animal records 289 → **322**. Report 642 → **651**
+records, 262 → **269** events; the gap between 33 and 9 is 24 birds dropped by rule 4.
+
+**pehuén is unchanged, correctly and for two reasons:** the recovered rows are
+`tod=FALSE` so they cannot enter activity or overlap analysis, and for presence they were
+*already* counted, because place-admissibility never depended on the clock.
+
+**Method correction (Felipe).** A boundary frame is a witness only if it is at a working
+hour AND shows a person. primavera CT19's `06060001.JPG` is 2025-06-06 03:37 with nobody in
+it — a wildlife trigger on an already-deployed camera, so an upper bound, not an anchor.
+
+**Recorded as checked-and-empty so they are not re-checked:** otoño 2025 CT19
+(`03100001-3.JPG` blank, no MegaDetector detection of any kind on the `0310` prefix, 66 of
+68 segments incoherent, so a single notebook date would not repair it either) and otoño 2026
+CT18 (bogus stamps, no human; the May 13–15 retrieval is established from 26 sibling
+cameras, so what is unknown is the date the camera *died*, ~2026-01-31 by filename).
+
+**CT03 must not be scrapped.** Its entire "clock incoherence" is 3 frames at 23:59:28–29
+where the filename rolled past midnight before the stamp did — all within 32 seconds of
+midnight, against 318 frames that agree. A genuinely failing clock disagrees at arbitrary
+hours (CT19 by 14 h, CT16 by 11 h, CT18 by 3 h). False positive in `clocks.py:493`, which
+has no midnight tolerance; it costs 321 images including 7 puma. **Not fixed — a data
+decision.**
+
+**DCIM manifests are far from complete:** otoño 2025 21/21, primavera **4/26**, otoño 2026
+**4/27**. The 2026-08-18 recovery only reached deployments whose DCIM structure survived the
+flatten. Primavera CT23 is one of the misses, which is why its 1,735 images are unorderable.
+
+### Found, not fixed — plataforma-territorial
+`backend/routers/detections.py:381` computes `occupancy_pct` as
+`stations_with_detections / len(_TC_COORDS)` — the denominator is every station in
+`stations.yaml`, not the stations deployed in that campaign. Otoño 2025 ran 21 cameras and
+is divided by 27. It is a compensation for the missing zero-detection stations, which the
+all-stills rebuild solved. Gated on the `ct_*` rebuild (V2-REVIEW §2).
+
+**204 tests pass** (190 at the start of the day; 14 new on the contract).
+
+
+## 2026-08-20 — camera-traps
+
+### Merged and consolidated
+- `v2-review/canonical-row-set` merged into `main` fast-forward (`6da81e5`) and deleted,
+  local and remote. Sole-maintainer repo; no branches outstanding. 190 tests pass on the
+  merged tree, all three campaigns pass the export gate, canonical 35,807 rows / 27 stations.
+
+### Found — V2 §2 is blocked, not unstarted
+- `data-pipeline/src/parsers/timelapse_reviewed.py` re-derives the review-comment
+  resolution that `camtrap.observations.resolve_review()` owns, and **disagrees on 515 live
+  rows**. Its `NON_ANIMAL_COMMENTS` knows 4 strings and only demotes to `blank`; it has no
+  rule producing `human`, `vehicle` or `unknown`. A `ct_*` ingest today would rebuild the
+  815-row defect closed on 2026-08-19. Recorded as the fifth duplicate under V2-REVIEW 2.4,
+  with the section marked BLOCKED. The fix is 2.3 — read `observations.parquet` and delete
+  the parser — not teaching the parser the rules.
+
+### Corrected
+- V2-REVIEW 2.8 claimed Timelapse `mediaID`/`observationID` are "UUIDs regenerated on every
+  parse". They are not; the parser reads those columns and generates nothing, so re-ingest
+  replaces rather than duplicates. The real constraint is narrower and worse: the GUIDs are
+  per *project*, not per image — primavera's legacy vs current `.ddb` share 2,387 filenames
+  and **0** `mediaID`s — so `ct_*` keys must derive from the image (`DEDUP_KEY`), never be
+  inherited from Timelapse.
+
+
 ## [2026-08-19] — camera-traps: the reviewer's verdict now reaches the canonical table
 
 The primavera 2025 re-review finished, which made all three campaigns comparable for the
