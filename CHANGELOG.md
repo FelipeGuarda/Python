@@ -6,6 +6,70 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-08-20 (later) — camera-traps: the data-health manual, and a re-audit that says the chain is not closed
+
+### Added — `camera-traps/docs/DATA-HEALTH-MANUAL.md` (1,953 lines)
+The end-to-end protocol with its reasoning attached, written field-facing: every rule states
+the invariant it protects, **what analysis becomes impossible if it is skipped**, and whether
+that is recoverable afterwards. Ten parts, from the conventions that must be fixed before any
+fieldwork through to what the whole apparatus makes possible. Assembled from `V2-REVIEW.md`,
+`HANDOFF-clock-repair.md`, the README's campaign history and fifteen session logs
+(2026-06-25 → 2026-08-20), with the code as the check on all of it.
+
+Two tables in it are new knowledge rather than assembly:
+- **The recovery matrix** (§4E.8) — nine datetime error classes x five levels of available
+  evidence, and what each combination restores. It makes three things explicit that were
+  scattered: **class 4 (corrupt date registers) is unrecoverable with any anchor**, because an
+  anchor corrects an offset and there is nothing to offset; classes 7 and 8 (piecewise offset,
+  systematic shift) are unrecoverable **from the images at all** and depend entirely on the
+  field record; and a date-only visit costs the time-of-day column everywhere.
+- **The admissibility matrix** (§6.10) — every analysis against the three validity axes, the
+  unit of analysis and the minimum sample size. Presence requires **none** of the axes, which
+  is the whole argument for keeping flags rather than deleting bad dates; and **every
+  count-based analysis requires episodes** — there is no row in the table for which counting
+  images is correct.
+
+Published as a private artifact for the field team and the foundation.
+
+### The re-audit — fifteen open items, four of them unenforced guarantees
+Checked against the working tree rather than against V2-REVIEW's own checkboxes, because
+writing "the pipeline guarantees X" made it necessary to confirm that it does.
+
+**Tier A — described in the manual, not enforced in code:**
+1. **The station registry still disagrees with itself** (1.6). `stations.yaml` **26** ·
+   `camera_trap_stations.geojson` **27** · `estaciones.csv` **27**. The 26-station file is the
+   documented "single source of truth", so **CT27's 344 images ingest with no coordinates**.
+   1.6 already states that the agreement test is what makes the CT26/CT27 class impossible to
+   repeat; the test does not exist. Highest priority — the occupancy fix inherits it.
+2. **The canonical contract is published but unverified downstream** (§4). The producer half
+   works; `grep -r CANONICAL_STATE data-pipeline/` returns nothing. A contract nobody verifies
+   is a comment — the exact phrasing already in `canonical_state.py`, now true of the gate.
+3. **The field form has no loader.** `build_visit_template.py` writes the workbook; nothing
+   reads it back (`build_field_notes.py` is the one-time legacy migration). The entire field
+   protocol currently depends on an undocumented hand-transcription step. Never had a numbered
+   V2 item, which is why it stayed invisible.
+4. **Effort denominators wrong in the dashboard** — `detections.py:381` divides by all 27
+   stations; otoño 2025 ran 21.
+
+**Tier B:** the `ct_*` rebuild (2.1/2.2/2.3/2.5/2.8) · pehuén's Windows paths · figures not
+re-rendered, and when they are, otoño 2026 falls out of `05_spatial_distribution.R:249` and
+the `02_detection_summary.R` labellers, so that fix must be re-rendered *separately* from the
+data change · `field_notes.csv` audited for coordinates only (57 of 106 rows flagged) ·
+`provenance.py` not re-run on the re-ingested primavera · manifest coverage not stated per
+campaign (1.4) · CT27's install datable from `CT 27.kml` (2025-12-11 15:52:56) and unrecorded ·
+three missing regression fixtures (1.10).
+
+**Tier C:** two superseded data files on disk · a stale pv comment in `apply_verdicts.py:143` ·
+otoño 2025's video existence never confirmed · empty `count` · the seasonal puma orphan.
+
+### The finding worth keeping
+Every remaining item sits at one of the two **boundaries** — the field record coming in, or a
+consumer going out. Nothing is left in the middle of the chain. That is the same shape as
+every incident this refactor was built around: the defects live where responsibility changes
+hands, which is exactly where nobody owns the check.
+
+---
+
 ## 2026-08-20 — camera-traps + data-pipeline + pehuén: the stale-code sweep
 
 A full audit of the camera-trap chain (16,752 lines across camera-traps, data-pipeline's

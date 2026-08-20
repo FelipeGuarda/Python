@@ -36,6 +36,45 @@ folding them in would stall it. Neither blocks it.
 
 ---
 
+## 0-bis. Re-audit, 2026-08-20 — read this before trusting any checkbox below
+
+Checked against the working tree, not against this document's own `[ ]` marks, while writing
+`DATA-HEALTH-MANUAL.md`. **Fifteen items open. Four are guarantees the manual states and the
+code does not enforce**, and one of those four had no numbered item here at all.
+
+| | item | this doc | status |
+|---|---|---|---|
+| **A1** | station registry disagrees: `stations.yaml` **26** · geojson **27** · `estaciones.csv` **27**; CT27's 344 files ingest coordinateless | 1.6 | open — **do first**, A4 inherits it |
+| **A2** | contract published, consumer-side freshness check absent (`grep -r CANONICAL_STATE data-pipeline/` → nothing) | §4 | open |
+| **A3** | **the field form has no loader** — `build_visit_template.py` writes the workbook, nothing reads it back | **1.14, new** | open |
+| **A4** | `occupancy_pct` divides by all 27 stations | 1.6 / §2.5 | open, gated on §2 |
+| **B1** | the `ct_*` rebuild | 2.1–2.3, 2.5, 2.8 | open — Linux |
+| **B2** | pehuén's absolute Windows paths | 1.11 | open |
+| **B3** | figures not re-rendered; otoño 2026 falls out of `05_spatial_distribution.R:249` and the `02_detection_summary.R` labellers | 1.11 + §3 | open — **re-render that separately** |
+| **B4** | `field_notes.csv` audited for coordinates only, 57/106 rows flagged | 1.7 | open |
+| **B5** | `provenance.py` not re-run on the re-ingested primavera | 1.8 | open |
+| **B6** | manifest coverage not stated per campaign | 1.4 | open |
+| **B7** | CT27 install datable from `CT 27.kml` (2025-12-11 15:52:56), unrecorded | 1.5 | open |
+| **B8** | three regression fixtures | 1.10 | open |
+| **C1–C5** | two superseded data files on disk · stale pv comment `apply_verdicts.py:143` · otoño 2025 video existence unconfirmed · `count` empty · seasonal puma orphan | §3 | open |
+
+**The pattern, and it is the useful part:** every open item sits at one of the two
+**boundaries** — the field record coming in, or a consumer going out. The chain from card to
+canonical table is enforced and tested. Defects survive where responsibility changes hands,
+because that is where nobody owns the check.
+
+- [ ] **1.14 The field workbook has a loader.** `setup/build_visit_template.py` renders
+      `Registro de visitas CT.xlsx` and **nothing reads it back**;
+      `setup/build_field_notes.py` is the one-time legacy migration from the old workbook, not
+      this. So a filled form is a spreadsheet somebody must transcribe by hand, and every
+      guarantee in Part 2 of the manual rests on that undocumented step.
+      `camtrap.visit_schema.by_label()` is the entry point, and the 2026-08-17 session already
+      named this as "not yet built" — it never became an item, which is why it went unnoticed
+      for three sessions. Pass: a filled template round-trips to `field_notes.csv` rows,
+      with a fixture.
+
+---
+
 ## 1. Camera-traps — the review
 
 Each item is a check with a stated pass condition, not a task to eyeball.

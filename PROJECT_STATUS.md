@@ -43,6 +43,16 @@ DCIM folders from datetimes — all three consistent, method validated against p
 CT14 (9 folders recovered, manifest says 9). **Those three were never "lost"**: all are
 `clock_clean` at 100% `valid_date`, and the manifest gap is 3 stations, not 45. 
 
+**📘 NEW — `camera-traps/docs/DATA-HEALTH-MANUAL.md`** (2026-08-20, 1,953 lines).
+The end-to-end protocol with its justification: field procedure, storage, ingest gates, the
+nine-class datetime error taxonomy, and what each analysis requires. Two tables in it are new
+knowledge rather than assembly — the **recovery matrix** (§4E.8: error class x available
+evidence -> what is restored; class 4, corrupt date registers, is unrecoverable with *any*
+anchor) and the **admissibility matrix** (§6.10: analysis x validity axis x unit x minimum n;
+every count-based row requires episodes, none is correct on images). Published as a private
+artifact for the field team. Its §Part 9 is the audit reproduced below, and it is deliberately
+part of the document: a manual that describes checks which are not running is worse than none.
+
 **➡️ NEXT SESSION IS ON THE LINUX BOX (Felipe, 2026-08-20).** `main` is at `aecc64b`,
 pushed; `git pull` first — four commits landed today. Plan: the `ct_*` rebuild (V2-REVIEW
 §2), plus preparing a DuckDB copy to migrate to Windows next week.
@@ -64,10 +74,60 @@ still hardcodes absolute Windows paths (`R/01_load_data.R`, V2-REVIEW 1.11), so 
 run there until they are parameterised; it also needs `nanoparquet` (`Rscript
 setup_packages.R`).
 
-**Still open:** the `ct_*` rebuild itself (V2-REVIEW 2.1/2.2/2.3/2.5/2.8),
-and `plataforma-territorial/backend/routers/detections.py:381`, where `occupancy_pct`
-divides by every station in `stations.yaml` rather than the ones deployed that campaign —
-otoño 2025 ran 21 cameras and is divided by 27. That fix is gated on the rebuild.
+**⛔ STILL OPEN — re-audited 2026-08-20 against the working tree, not against
+V2-REVIEW's own checkboxes. Fifteen items, and four are guarantees the new manual
+describes that the code does not enforce.** Do not treat the chain as closed. Full text in
+`camera-traps/docs/DATA-HEALTH-MANUAL.md` §Part 9.
+
+*Tier A — documented guarantees that are not enforced:*
+- **A1 · The station registry still disagrees with itself** (V2-REVIEW 1.6). Verified:
+  `plataforma-territorial/data/stations.yaml` **26** entries · `camera_trap_stations.geojson`
+  **27** · `camera-traps/data/campaigns/estaciones.csv` **27**. The 26-station file is the one
+  `data-pipeline/src/stations.py` documents as the single source of truth, so **CT27's 344
+  otoño 2026 images ingest with no coordinates**. Same class as the CT26 error that returned
+  as a 19 km displacement, and 1.6 already says the agreement test is what makes CT26/CT27
+  impossible to repeat — **the test does not exist**. Do this first; A4 inherits it.
+- **A2 · The canonical contract is published but nothing verifies it** (V2-REVIEW §4).
+  `data/CANONICAL_STATE.json` is committed and `camtrap.canonical_state.verify()` works on the
+  producer side; the consumer-side freshness check is absent — `grep -r CANONICAL_STATE
+  data-pipeline/` returns nothing. Until it exists the guarantee is a convention, not a gate.
+- **A3 · The field form has no loader.** `setup/build_visit_template.py` writes
+  `Registro de visitas CT.xlsx`; nothing reads it back. `setup/build_field_notes.py` is the
+  one-time legacy migration, not this. A filled form is a spreadsheet that must be
+  transcribed by hand, so the whole field protocol rests on an undocumented manual step.
+  `camtrap.visit_schema.by_label()` is the entry point. **Never got a numbered V2 item —
+  which is why it has been invisible.**
+- **A4 · Effort denominators wrong in the dashboard.**
+  `plataforma-territorial/backend/routers/detections.py:381` — `occupancy_pct` divides by
+  `len(_TC_COORDS)` rather than the stations deployed that campaign; otoño 2025 ran 21 and is
+  divided by 27. Gated on B1 and on A1.
+
+*Tier B — known defects, known fixes:*
+- **B1** the `ct_*` rebuild (V2-REVIEW 2.1/2.2/2.3/2.5/2.8) — the Linux task
+- **B2** pehuén hardcodes absolute Windows paths (`R/01_load_data.R:104`, TODO in code)
+- **B3** figures/tables not re-rendered. When you do: `05_spatial_distribution.R:249` scopes
+  its grid to two campaigns and `02_detection_summary.R:83,110,150` label only two, so otoño
+  2026 falls through. **Fix and re-render that separately from the data change** or the
+  un-breaking of a join reads as an effect of the re-ingest
+- **B4** `field_notes.csv` audited for coordinates only; 57 of 106 rows carry `data_flags`
+- **B5** `provenance.py` not re-run on the re-ingested primavera — data it has not seen
+- **B6** DCIM manifest coverage not stated per campaign, including the stations that
+  legitimately have none (V2-REVIEW 1.4)
+- **B7** CT27's install is datable from `CT 27.kml` (2025-12-11 15:52:56) and is not recorded.
+  Record as evidence reconciled against the field record, **not** as a silent install date
+- **B8** three missing test fixtures (V2-REVIEW 1.10): manifest rebuild from a flatten log,
+  size-matched deletion accounting, registry agreement
+
+*Tier C — housekeeping:* `data/campaigns/label_conflicts_primavera_vs_pv_2026-05-27.csv` and
+`Anual-reports/2025/data/manual_review_ciervo_guina.md` still on disk (superseded);
+stale pv comment at `Anual-reports/2025/py/apply_verdicts.py:143`; otoño 2025's video
+existence on the NAS never confirmed; `count` empty in all campaigns; `06_seasonal_puma.png`
+orphaned at 27 records against its >=30 threshold.
+
+**Where the work actually is:** the chain from card to canonical table is enforced and
+tested. The two ends — the field record going in (A3) and the consumers coming out (A1, A2,
+A4, B1) — are where every remaining item sits. That is not a coincidence: they are the two
+boundaries where the work crosses out of `camera-traps` into something else.
 
 **🔄 IN PROGRESS — camera-traps `docs/V2-REVIEW.md`** (opened 2026-08-18; entry condition met and six items closed 2026-08-19). Felipe's call: **nothing new starts until the camera-trap chain is clean end to end.** Closed: **1.1** campaign set is exactly three (pv dropped from `CAMPAIGN_ORDER` and `REPORT_CAMPAIGNS`, kept as provenance), **1.2** the canonical file set is decided — `TimelapseData.ddb` and `TimelapseTemplate.tdb` are required and all three campaigns hold the full set, with all three templates verified functionally identical down to the `observationType` vocabulary the export gate depends on, **1.3** export gate passes for all three from the repo, **1.3b** the reviewer's verdict reaches `observation_type`, **1.12** both deferred label decisions, **1.13** the canonical table describes every still — and the station-count difference (21 / 26 / 27) is **resolved, not a gap**: the grid was built up over time, so each campaign covers as many stations as existed at its retrieval. Still open: **1.4**–**1.9**, **1.10** regression fixtures, **1.11** figures not re-rendered — two causes left to attribute, video leaving the denominators and the 815-row review repair — and all of **§2**, the DuckDB rebuild, which has not started. **Integration Status:** `In Progress [REMAINING: V2-REVIEW 1.2, 1.4–1.11, all of §2]`. **Blockers/Notes:** the DuckDB `ct_*` rebuild is untouched, so a re-ingest is NOT done until it lands; **consumers now see ~16x more rows per campaign** — anything reading `observations.parquet` must filter on `observation_type`, and `01_data_prep.py` already does; pytest is absent from the `camera-traps` env, use `python -m unittest discover -s tests`; two file-set items stay deliberately open — the three `addaxai-*` files (primavera only, new with the AddaxAI update, role undecided) and the legacy `CamtrapDB_*` V1 project DBs, which are the last thing keeping the file set from being identical across campaigns but whose deletion is a data call, not cleanup.
 
