@@ -32,9 +32,39 @@ rather than rescaling them. The independence rule went from two implementations 
 the two counts now agree at 327. **Field anchors:** Felipe confirmed a technician in
 primavera's CT15 and CT16 first frames (2025-06-09, 33 min apart), which dates otoño 2025's
 retrieval at those stations — 33 animal records recovered, report 642→651 records /
-262→269 events. **CT03 must NOT be scrapped:** its whole "incoherence" is 3 frames within
-32 seconds of midnight, a false positive in `clocks.py:493`, costing 321 images — unfixed,
-pending a data decision on adding a midnight tolerance. **Still open:** the `ct_*` rebuild itself (V2-REVIEW 2.1/2.2/2.3/2.5/2.8),
+262→269 events. **CT03 was not faulty and is now recovered:** its whole "incoherence" was 3 frames within
+32 seconds of midnight — a filename rollover, not a corrupt clock. `MIDNIGHT_TOLERANCE`
+(120 s) added to the P2 test with Felipe's approval; +72 animal records, report 651→717
+records / 269→323 events, all 54 new events at CT03. The tolerance only ever forgives, so
+it cannot admit a corrupt clock. Also: `01_data_prep.py` adopted pehuén's last-retained
+independence rule (it changed zero numbers — the divergence was latent), and
+`scripts/verify_order.py` now checks the three manifest-less stations by reconstructing
+DCIM folders from datetimes — all three consistent, method validated against primavera
+CT14 (9 folders recovered, manifest says 9). **Those three were never "lost"**: all are
+`clock_clean` at 100% `valid_date`, and the manifest gap is 3 stations, not 45. 
+
+**➡️ NEXT SESSION IS ON THE LINUX BOX (Felipe, 2026-08-20).** `main` is at `aecc64b`,
+pushed; `git pull` first — four commits landed today. Plan: the `ct_*` rebuild (V2-REVIEW
+§2), plus preparing a DuckDB copy to migrate to Windows next week.
+
+**Do not migrate the whole database.** V2-REVIEW 2.1 splits it by regenerability and the
+split matters here: `ct_deployments` / `ct_media` / `ct_observations` are **regenerable**
+from `observations.parquet`, which is in git on both machines, and the Linux copy's `ct_*`
+rows are keyed on **Timelapse GUIDs** — proven per-project, not per-image (primavera's two
+`.ddb` files share 2,387 filenames and 0 `mediaID`s). Carrying them over imports rows that
+the rebuild cannot match or replace, so they would be orphans. **Rebuild `ct_*` here;
+migrate only what cannot be refetched:** `weather_station`, `weather_forecast`,
+`literature` — CR800 pulls and open-meteo history are gone if lost. 2.2 asks for those as
+committed parquet rather than a copied binary, which also makes the migration repeatable
+instead of a one-time file move.
+
+**Two things will bite on Linux.** `run_fetch.py --ct` now raises
+`CameraTrapIngestNotRebuilt` by design — that is the retirement, not a break. And pehuén
+still hardcodes absolute Windows paths (`R/01_load_data.R`, V2-REVIEW 1.11), so it cannot
+run there until they are parameterised; it also needs `nanoparquet` (`Rscript
+setup_packages.R`).
+
+**Still open:** the `ct_*` rebuild itself (V2-REVIEW 2.1/2.2/2.3/2.5/2.8),
 and `plataforma-territorial/backend/routers/detections.py:381`, where `occupancy_pct`
 divides by every station in `stations.yaml` rather than the ones deployed that campaign —
 otoño 2025 ran 21 cameras and is divided by 27. That fix is gated on the rebuild.
