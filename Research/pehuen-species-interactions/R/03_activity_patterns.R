@@ -42,7 +42,13 @@ dir.create(here("figures", "activity_individual"), showWarnings = FALSE)
 # ── 1. Load data ─────────────────────────────────────────────────────────────
 
 record_table <- readRDS(here("data", "record_table.rds"))  # camtrapR format
+source(here::here("R", "00_admissibility.R"))
+
 records      <- readRDS(here("data", "records_all.rds"))   # for ggplot2 multi-species
+# Activity and overlap need a trustworthy hour, so the time rule applies. It used
+# to arrive silently from 01_load_data.R; it is now asked for here, which is what
+# lets the spatial scripts ask for something different.
+records <- admissible(records, "time")
 
 SPECIES_ORDER   <- c("Puma", "Guina", "Zorro culpeo", "Jabali", "Liebre", "Perro")
 NATIVE_LABELS   <- c("Puma", "Guina", "Zorro culpeo")

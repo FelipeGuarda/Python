@@ -29,6 +29,8 @@ dir.create(here("figures"), showWarnings = FALSE)
 
 # ── 1. Load data ─────────────────────────────────────────────────────────────
 
+source(here::here("R", "00_admissibility.R"))
+
 records <- readRDS(here("data", "records_all.rds"))
 
 # Ordered species factor: native carnivores first, then invasive species.
@@ -64,8 +66,10 @@ print(trap_nights)
 # reviewed CSV).  Detections ≠ independent events — independence filtering is
 # not applied here since the goal is a presence/activity overview.
 
-detections <- records %>%
-  count(campaign, species_label, guild, name = "n_detections") %>%
+# EPISODES, not images: a camera fires 2-3 frames per trigger, so an image count is
+# partly a measure of how long the animal stayed in frame.
+detections <- episode_counts(records, by = c("campaign", "species_label", "guild")) %>%
+  rename(n_detections = n_episodes) %>%
   # Add trap-nights to compute the rate
   left_join(trap_nights, by = "campaign")
 

@@ -40,6 +40,8 @@ dir.create(here("figures"), showWarnings = FALSE)
 
 # ── 1. Load data ─────────────────────────────────────────────────────────────
 
+source(here::here("R", "00_admissibility.R"))
+
 records     <- readRDS(here("data", "records_all.rds"))
 stations_sf <- readRDS(here("data", "stations_sf.rds"))
 boundary_sf <- readRDS(here("data", "boundary_sf.rds"))
@@ -114,8 +116,11 @@ for (sp in qualifying$species_label) {
   sp_slug    <- tolower(gsub(" ", "_", sp))
 
   # Count detections per station × season
-  det_counts <- sp_records %>%
-    count(station_id, season, name = "n_detections")
+  # Episodes, not images. `sp_records` is already time-admissible (a season cannot
+  # be assigned without a date), so nothing further is excluded here — only the unit
+  # changes, from frames-in-a-burst to independent detections.
+  det_counts <- episode_counts(sp_records, by = c("station_id", "season")) %>%
+    rename(n_detections = n_episodes)
 
   # Full grid: every station × every season (zeros for missing combos)
   full_grid <- expand.grid(
@@ -174,7 +179,7 @@ for (sp in qualifying$species_label) {
     facet_wrap(~season, nrow = 1) +
     labs(
       title    = sp,
-      subtitle = "Detecciones por temporada.  × = estación sin detección.",
+      subtitle = "Eventos independientes (30 min) por temporada.  × = estación sin detección.",
       caption  = caption_txt
     ) +
     map_theme

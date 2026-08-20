@@ -18,3 +18,8 @@ dependencies:
   - r-sf          # spatial features and GeoJSON reading
   - r-circular    # circular statistics (required by camtrapR)
   - r-scales      # axis formatting in ggplot2
+  - r-jsonlite    # reads camera-traps/data/CANONICAL_STATE.json (the data contract)
+# nanoparquet is NOT on conda-forge and is REQUIRED: R/01_load_data.R reads
+# camera-traps' observations.parquet, and there is deliberately no CSV fallback --
+# a second published file would be a second source of truth. Install it alongside
+# camtrapR after creating the env:   Rscript setup_packages.R

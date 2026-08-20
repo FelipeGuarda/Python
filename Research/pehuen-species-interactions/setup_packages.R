@@ -7,6 +7,11 @@
 
 pkgs <- c(
   "camtrapR",
+  # Required: R/01_load_data.R reads camera-traps' observations.parquet.
+  # nanoparquet rather than arrow deliberately -- it is tiny and pulls in no
+  # Arrow runtime. arrow is accepted if it is already installed.
+  "nanoparquet",
+  "jsonlite",
   "overlap",
   "activity",
   "circular",

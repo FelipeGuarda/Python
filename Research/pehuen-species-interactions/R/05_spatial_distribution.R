@@ -8,9 +8,25 @@
 #        species showing which stations detected it, plus a species richness
 #        map.  Saved to figures/detection_maps/.
 #
-#     B) Detection-count bubble maps via sf + ggplot2 — camtrapR's
+#     B) Episode-count bubble maps via sf + ggplot2 — camtrapR's
 #        detectionMaps() shows presence/absence but cannot scale bubble size
-#        by detection count.  For that we use ggplot2 directly.
+#        by count.  For that we use ggplot2 directly.
+#
+# TWO UNITS, TWO ADMISSIBILITY RULES (see R/00_admissibility.R)
+#   Panel A asks WHERE a species was seen, so it uses presence() over every
+#   identified record — including records whose camera clock failed, because the
+#   station is known with certainty even when the timestamp is not. Before
+#   2026-08-20 this panel inherited a time filter from 01_load_data.R and showed
+#   puma at 6 stations when the data holds 8 (CT03 and CT18 were lost).
+#
+#   Panel B asks HOW OFTEN, so it uses episodes() — the 30-minute independent-event
+#   rule — and therefore only records with a trustworthy clock. It previously counted
+#   IMAGES, which is a burst-length artefact: a camera fires 2-3 frames per trigger,
+#   so Bos taurus reads 579 images against 19 episodes.
+#
+#   The two panels therefore legitimately disagree about which stations appear. That
+#   is not an inconsistency to reconcile — it is the difference between "was it here"
+#   and "how often", and the captions say so.
 #        Fig B1 — all six species, both campaigns combined (faceted)
 #        Fig B2 — native carnivores, split by campaign (grid: campaign × species)
 #
@@ -31,7 +47,7 @@ library(here)
 library(dplyr)
 library(ggplot2)
 library(sf)
-library(camtrapR)   # detectionMaps() for presence/absence maps
+library(camtrapR)   # detectionMaps() — richness panel only
 
 here::i_am("R/05_spatial_distribution.R")
 dir.create(here("figures"), showWarnings = FALSE)
@@ -39,6 +55,8 @@ dir.create(here("figures", "detection_maps"), showWarnings = FALSE)
 
 
 # ── 1. Load data ─────────────────────────────────────────────────────────────
+
+source(here::here("R", "00_admissibility.R"))
 
 records      <- readRDS(here("data", "records_all.rds"))
 record_table <- readRDS(here("data", "record_table.rds"))
@@ -75,8 +93,50 @@ SPECIES_COLORS <- c(
 #   plotDirectory     — destination folder for PNGs
 #   richnessPlot      — also produce a species richness map (TRUE by default)
 
-message("Generating presence/absence detection maps (camtrapR)...")
+# camtrapR::detectionMaps() cannot be used for the presence panel: its recordTable
+# requires DateTimeOriginal, so it structurally cannot represent a record whose clock
+# failed — the very records this panel must include. We build presence directly.
+message("Generating presence/absence maps (all place-admissible records)...")
 
+pres <- presence(records)
+
+pres_grid <- expand.grid(
+  station_id    = unique(stations_sf$id),
+  species_label = SPECIES_ORDER,
+  stringsAsFactors = FALSE
+) %>%
+  mutate(detected = paste(station_id, species_label) %in%
+                    paste(pres$station_id, pres$species_label))
+
+pres_sf <- stations_sf %>%
+  rename(station_id = id) %>%
+  right_join(pres_grid, by = "station_id") %>%
+  mutate(species_label = factor(species_label, levels = SPECIES_ORDER))
+
+dir.create(here("figures", "detection_maps"), showWarnings = FALSE, recursive = TRUE)
+
+fig_presence <- ggplot() +
+  geom_sf(data = boundary_sf, fill = "grey97", colour = "grey60", linewidth = 0.3) +
+  geom_sf(data = filter(pres_sf, !detected), shape = 1, size = 1.8,
+          colour = "grey55", stroke = 0.4) +
+  geom_sf(data = filter(pres_sf, detected), shape = 19, size = 2.6,
+          colour = "#1b5e20") +
+  facet_wrap(~ species_label) +
+  labs(
+    title    = "Presencia por estacion",
+    subtitle = paste0("Circulo lleno = detectada. Incluye registros sin reloj ",
+                      "utilizable: la estacion es conocida aunque la hora no lo sea."),
+    caption  = "Unidad: presencia (conjunto), no frecuencia. Ver figura de burbujas para frecuencia."
+  ) +
+  theme_void(base_size = 9) +
+  theme(legend.position = "none")
+
+ggsave(here("figures", "detection_maps", "presence_by_species.png"),
+       fig_presence, width = 9, height = 6.5, dpi = 200)
+
+# Richness stays on camtrapR, which is fine: it counts species per station and the
+# record_table it reads is time-admissible. Noted as a known narrowing rather than
+# silently different from the panel above.
 detectionMaps(
   CTtable      = stations_ct,
   recordTable  = record_table,
@@ -90,7 +150,10 @@ detectionMaps(
   richnessPlot = TRUE
 )
 
-message("Saved presence/absence maps to figures/detection_maps/")
+message(sprintf(
+  "  presence: %d station-species pairs across %d stations (vs %d stations in the time-admissible set)",
+  nrow(pres), n_distinct(pres$station_id),
+  n_distinct(admissible(records, "time", quiet = TRUE)$station_id)))
 
 
 # ── 3. Aggregate detections per (station × species) for bubble maps ───────────
@@ -102,9 +165,10 @@ message("Saved presence/absence maps to figures/detection_maps/")
 #   (c) Left-join counts into the grid; missing combinations get n_detections = 0.
 #   (d) Attach sf geometry by joining on station_id → GeoJSON id.
 
-# (a) Raw counts
-det_by_station <- records %>%
-  count(station_id, species_label, name = "n_detections")
+# (a) EPISODE counts, not image counts. A camera fires 2-3 frames per trigger, so
+#     counting images ranks stations partly by how long an animal lingered in frame.
+det_by_station <- episode_counts(records, by = c("station_id", "species_label")) %>%
+  rename(n_detections = n_episodes)
 
 # (b) Full grid
 all_combinations <- expand.grid(
@@ -159,7 +223,8 @@ fig_all <- ggplot() +
   facet_wrap(~species_label, ncol = 3) +
   labs(
     title    = "Spatial distribution of detections — focal species",
-    subtitle = "Both campaigns combined.  X marks = all camera stations."
+    subtitle = "Both campaigns combined.  X marks = all camera stations.",
+    caption  = "Unidad: eventos independientes (30 min), no imagenes. Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia -- ver figures/detection_maps/presence_by_species.png."
   ) +
   map_theme
 
@@ -214,7 +279,8 @@ fig_native <- ggplot() +
   facet_grid(campaign_lbl ~ species_label) +
   labs(
     title    = "Spatial distribution — native carnivores by campaign",
-    subtitle = "Bubble size = total detections.  X marks = all camera stations."
+    subtitle = "Bubble size = independent events (30-min rule).  X marks = all camera stations.",
+    caption  = "Unidad: eventos independientes (30 min), no imagenes. Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia -- ver figures/detection_maps/presence_by_species.png."
   ) +
   map_theme
 
