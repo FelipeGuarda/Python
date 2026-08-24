@@ -15,11 +15,32 @@ with open(_config_path) as f:
 
 _schema_path = Path(__file__).parent.parent / "schema.sql"
 
+# data-pipeline/src/db.py -> parents[2] = monorepo root. Derived from THIS FILE's location,
+# so it is correct on any machine and any OS with no configuration at all.
+_DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "fma_data.duckdb"
+
+
+def db_path() -> Path:
+    """Where the warehouse lives. Env var wins, then config, then repo-relative.
+
+    THE REPO-RELATIVE DEFAULT IS THE POINT. Until 2026-08-24 `config.yaml` carried a
+    committed absolute path (`/home/fguarda/Dev/Python/fma_data.duckdb`) — correct on
+    exactly one machine, silently wrong everywhere else, and the same failure mode that
+    made `campaign_dir` a required argument in camera-traps: a machine-specific value with
+    a committed default goes stale, and a run against the wrong path looks completely
+    normal. Every other cross-project path in this monorepo already resolves this way
+    (`src/stations.py`, `src/canonical_gate.py`, `backend/paths.py`).
+
+    `DB_PATH` still overrides, for containers and one-off runs.
+    """
+    override = os.getenv("DB_PATH") or (_config.get("database") or {}).get("path")
+    return Path(override) if override else _DEFAULT_DB_PATH
+
 
 def connect() -> duckdb.DuckDBPyConnection:
-    db_path = os.getenv("DB_PATH") or _config["database"]["path"]
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    return duckdb.connect(db_path)
+    path = db_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return duckdb.connect(str(path))
 
 
 def init_schema(con: duckdb.DuckDBPyConnection) -> None:

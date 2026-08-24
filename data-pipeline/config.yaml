@@ -1,5 +1,10 @@
 database:
-  path: /home/fguarda/Dev/Python/fma_data.duckdb
+  # No path here on purpose. src/db.py resolves the monorepo root from its own location,
+  # so fma_data.duckdb is found on any machine and any OS with no configuration at all.
+  # A committed absolute path was correct on exactly one box and silently wrong on every
+  # other — the same failure that made `campaign_dir` a required argument in camera-traps.
+  # Set the DB_PATH env var to override (containers, or a one-off run against a copy).
+  path: null
 
 cr800:
   host: 100.97.202.90
