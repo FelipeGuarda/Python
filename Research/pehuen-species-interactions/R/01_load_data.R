@@ -101,11 +101,36 @@ source(here::here("R", "00_admissibility.R"))
 
 
 # ── 1. Paths ─────────────────────────────────────────────────────────────────
-# TODO(portability): these are absolute Windows paths and so this script cannot run
-# on the Linux box. Parameterising them is tracked as V2-REVIEW 1.11.
+# Derived from THIS PROJECT's location, never from the machine's. `.here` in the project
+# root anchors here() to this directory (without it rprojroot walks up to the monorepo's
+# .git and every here("data", ...) below resolves to a top-level data/ that does not
+# exist). The sibling projects are two levels up, which is true on every checkout.
+#
+# These were absolute Windows paths until 2026-08-24, which is why this script could not
+# run on the Linux box. A committed absolute path is correct on exactly one machine and
+# silently wrong on every other — the same failure that made `campaign_dir` a required
+# argument in camera-traps, where a stale path kept pointing at a directory that still
+# existed and so every run looked normal.
+#
+# FMA_MONOREPO overrides, for a checkout that is not laid out as siblings.
 
-CAMERA_TRAPS <- "C:/Users/USUARIO/Dev/Python/camera-traps"
-PLATAFORMA   <- "C:/Users/USUARIO/Dev/Python/plataforma-territorial"
+MONOREPO <- Sys.getenv("FMA_MONOREPO", unset = NA)
+if (is.na(MONOREPO) || MONOREPO == "") {
+  MONOREPO <- normalizePath(here::here("..", ".."), winslash = "/", mustWork = TRUE)
+}
+
+CAMERA_TRAPS <- file.path(MONOREPO, "camera-traps")
+PLATAFORMA   <- file.path(MONOREPO, "plataforma-territorial")
+
+for (.p in c(CAMERA_TRAPS, PLATAFORMA)) {
+  if (!dir.exists(.p)) {
+    stop(sprintf(
+      paste0("Sibling project not found: %s\nExpected the FMA monorepo layout, with ",
+             "camera-traps/ and plataforma-territorial/ beside Research/.\nSet ",
+             "FMA_MONOREPO to the repository root if your checkout differs."), .p),
+      call. = FALSE)
+  }
+}
 
 # Campaign slugs, in chronological order of retrieval.
 #

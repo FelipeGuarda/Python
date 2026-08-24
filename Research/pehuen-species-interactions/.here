@@ -1,0 +1,8 @@
+Anchors here::here() to THIS directory rather than the monorepo's git root.
+
+Without it, rprojroot walks up to /home/fguarda/Dev/Python/.git and every
+here("data", ...) in R/0*.R resolves to a top-level data/ that does not exist.
+has_file(".here") is rprojroot's highest-priority criterion, so this wins.
+
+Do not delete. It is what makes the R scripts runnable from any working
+directory, on either OS, with no absolute paths.

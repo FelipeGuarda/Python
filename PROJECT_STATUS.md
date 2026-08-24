@@ -158,9 +158,16 @@ describes that the code does not enforce.** Do not treat the chain as closed. Fu
 - ~~**B1** the `ct_*` rebuild (V2-REVIEW 2.1/2.2/2.3/2.5/2.8)~~ — **CLOSED 2026-08-24.**
   35,807 rows, 74 deployments. Identity derives from `(campaign, camera_num, file_name)`,
   never from Timelapse GUIDs. `literature` dropped (0 rows, no reader).
-- **B2** pehuén hardcodes absolute Windows paths (`R/01_load_data.R:107-108`). **Deliberately
-  left** — Felipe does not want pehuén running on the Linux box, so this is Windows-side work
-  rather than a blocker
+- ~~**B2** pehuén hardcodes absolute Windows paths~~ — **CLOSED 2026-08-24**, and it was not
+  the two-line change it appeared to be. Removing the absolute paths exposed that
+  `here::here()` resolved to the **monorepo root**: no `.Rproj` or `.here` existed anywhere,
+  so rprojroot fell through to `.git` and all **48 `here()` calls** across the six scripts
+  pointed at a top-level `data/` that does not exist. The absolute paths had masked it by
+  being the only ones that bypassed `here()`. Fixed with a committed `.here` anchor plus
+  `MONOREPO <- normalizePath(here::here("..",".."))`, an `FMA_MONOREPO` override and a
+  fail-fast sibling check. All 7 scripts parse and `sf` loads on Linux. **Still needs
+  `Rscript setup_packages.R` once** — `camtrapR` / `nanoparquet` / `arrow` are CRAN-only by
+  design and were never installed here. One command, not a defect
 - **B3** figures/tables not re-rendered. **Narrowed 2026-08-24:** the loader now emits
   `Primavera_2025`, so script 05's join is already un-broken. What remains is otoño 2026
   falling out of `05_spatial_distribution.R:249` and `02_detection_summary.R:83,110,150` —
@@ -262,7 +269,7 @@ Full narrative: `CHANGELOG.md` (top entry) + `~/Documents/Obsidian FG/SecondBrai
 The personal laptop (Linux) will NOT be left on permanently — it's a personal machine. This means:
 - **DuckDB (`fma_data.duckdb`), data-pipeline service, and plataforma backend must migrate to the office machine once it switches to Linux.**
 - Until then, the platform can only be used from the laptop itself or when it's manually on and the service running.
-- `bootstrap_windows_db.py` is a temporary workaround for Windows office — it will not be needed post-migration.
+- ~~`bootstrap_windows_db.py` is a temporary workaround for Windows office~~ — **retired 2026-08-24.** It carried its own inline copy of the schema (S47), which is now wrong in both columns and types, and `CREATE TABLE IF NOT EXISTS` meant running it first on a fresh machine would have created the wrong types for the real schema to then accept silently. Superseded by `data-pipeline/src/recovery.py`.
 
 **Migration checklist (when office switches to Linux):**
 - [ ] Copy `fma_data.duckdb` to office Linux machine
@@ -335,7 +342,15 @@ React/Vite frontend with 4 pages. FastAPI backend operational with real endpoint
 **Access Linux:** `plataforma` alias → `http://localhost:8000` (systemd service).
 **Access Windows:** `conda run -n plataforma-territorial uvicorn backend.main:app --port 8000`
 
-**Two-machine data note:** DuckDB lives on Linux (written by data-pipeline service). On Windows, run `python bootstrap_windows_db.py` from `plataforma-territorial/` to seed a local DB with Open-Meteo data (90-day archive + 7-day forecast). Enough for Meteo and Riesgo tabs. No Tailscale needed.
+**Two-machine data note (rewritten 2026-08-24):** the database is now reconstructible from the repository on any machine and either OS — no copying, no seeding, no Tailscale:
+
+```bash
+cd data-pipeline
+python -m src.recovery restore   # weather_station + weather_forecast from committed Parquet
+python run_fetch.py --ct         # ct_* rebuilt from camera-traps' canonical parquets
+```
+
+That gives the real 264,943-row weather series rather than the old 90-day Open-Meteo proxy, and the real camera-trap tables. `src/db.py` resolves the DB path from the repo root, so neither command needs configuring. `python run_fetch.py --ct-check` and `python -m src.recovery verify` report drift and exit 1.
 
 **dist/ sync fix (2026-03-31):** Removed `dist` from `.gitignore`. Built frontend is now committed to git. Both machines get the same compiled UI via `git pull` — no per-machine rebuild needed.
 
