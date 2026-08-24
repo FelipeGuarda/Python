@@ -25,4 +25,4 @@ CT23,44,-39.43704,-71.73900,974,,,,,
 CT24,43,-39.43359,-71.73804,957,,,,,
 CT25,32,-39.42929,-71.74325,945,,,,,
 CT26,22,-39.42908,-71.74894,920,,,,,"Coordenada corregida 2026-04-15: la planilla historica tenia 39d25'44,7"" copiado como 39,25447, lo que dejaba la estacion 19 km fuera de la reserva."
-CT27,,-39.45689,-71.72243,,,,,,Sin registro de instalacion. Grilla y altitud por establecer en terreno; su unica visita registrada tiene fecha ambigua (2025-11-12 o 2025-12-11).
+CT27,,-39.45689,-71.72243,1408.06,,,,,"Instalada el 2025-12-11 (confirmado por Felipe 2026-08-24); se descarta la fecha alternativa 2025-11-12, que era una transposicion dia-mes. El waypoint GPS marca 15:52:56 UTC = 12:52:56 local, y el primer cuadro de la camara es 12:49:01 local: la camara se disparo al montarla y el punto se tomo 3m55s despues. Reloj verificado correcto contra la secuencia de retiro (ver deployment_anchors.csv de otono_2026). Altitud tomada del waypoint. Grilla por establecer en terreno."
