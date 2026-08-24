@@ -44,19 +44,43 @@ code does not enforce**, and one of those four had no numbered item here at all.
 
 | | item | this doc | status |
 |---|---|---|---|
-| **A1** | station registry disagrees: `stations.yaml` **26** · geojson **27** · `estaciones.csv` **27**; CT27's 344 files ingest coordinateless | 1.6 | open — **do first**, A4 inherits it |
-| **A2** | contract published, consumer-side freshness check absent (`grep -r CANONICAL_STATE data-pipeline/` → nothing) | §4 | open |
+| **A1** | station registry disagrees: `stations.yaml` **26** · geojson **27** · `estaciones.csv` **27**; CT27's files ingest coordinateless | 1.6 | ~~open~~ **CLOSED 2026-08-24** |
+| **A2** | contract published, consumer-side freshness check absent (`grep -r CANONICAL_STATE data-pipeline/` → nothing) | §4 | ~~open~~ **CLOSED 2026-08-24** |
 | **A3** | **the field form has no loader** — `build_visit_template.py` writes the workbook, nothing reads it back | **1.14, new** | open |
-| **A4** | `occupancy_pct` divides by all 27 stations | 1.6 / §2.5 | open, gated on §2 |
-| **B1** | the `ct_*` rebuild | 2.1–2.3, 2.5, 2.8 | open — Linux |
-| **B2** | pehuén's absolute Windows paths | 1.11 | open |
-| **B3** | figures not re-rendered; otoño 2026 falls out of `05_spatial_distribution.R:249` and the `02_detection_summary.R` labellers | 1.11 + §3 | open — **re-render that separately** |
+| **A4** | `occupancy_pct` divides by all 27 stations | 1.6 / §2.5 | ~~open~~ **CLOSED 2026-08-24** (per-campaign filtering still open) |
+| **B1** | the `ct_*` rebuild | 2.1–2.3, 2.5, 2.8 | ~~open~~ **CLOSED 2026-08-24** |
+| **B2** | pehuén's absolute Windows paths | 1.11 | open — **and deliberately so.** Felipe does not want pehuén running on the Linux box, so this is a Windows-side task, not a blocker |
+| **B3** | figures not re-rendered; otoño 2026 falls out of `05_spatial_distribution.R:249` and the `02_detection_summary.R` labellers | 1.11 + §3 | open — **narrowed**, see below |
 | **B4** | `field_notes.csv` audited for coordinates only, 57/106 rows flagged | 1.7 | open |
 | **B5** | `provenance.py` not re-run on the re-ingested primavera | 1.8 | open |
 | **B6** | manifest coverage not stated per campaign | 1.4 | open |
-| **B7** | CT27 install datable from `CT 27.kml` (2025-12-11 15:52:56), unrecorded | 1.5 | open |
-| **B8** | three regression fixtures | 1.10 | open |
+| **B7** | CT27 install datable from `CT 27.kml` (2025-12-11 15:52:56), unrecorded | 1.5 | ~~open~~ **CLOSED 2026-08-24** |
+| **B8** | three regression fixtures | 1.10 | **1 of 3 done** — the registry-agreement check exists; manifest rebuild and deletion accounting still missing |
 | **C1–C5** | two superseded data files on disk · stale pv comment `apply_verdicts.py:143` · otoño 2025 video existence unconfirmed · `count` empty · seasonal puma orphan | §3 | open |
+
+### 0-ter. Second re-audit stamp, 2026-08-24 — the consumer boundary is closed
+
+Eight of the fifteen items above are closed, and they are **all of the ones on the
+data-pipeline / platform side**. The pattern §0-bis identified held exactly: every defect
+sat at a boundary, and one session spent entirely at that boundary cleared it. What
+remains is the FIELD-RECORD boundary (A3, B4, B6), pehuén's Windows-side work (B2, B3),
+and cleanup (C).
+
+**Three of this document's own specifications were wrong and are corrected below**, each
+measured rather than argued:
+
+| where | this doc said | measured 2026-08-24 |
+|---|---|---|
+| **2.8** | key on `DEDUP_KEY = [camera_num, file_name, datetime]` | `datetime` is **null in 4,013 of 35,807 rows**, so it cannot be a primary key. `(campaign, camera_num, file_name)` is unique across all 35,807 and never null |
+| **2.3** | the `ct_deployments` column list | omits **`campaign`**, which the platform queries in three places; it existed only because `ensure_columns()` had added it dynamically |
+| **2.3** | "Timestamps are UTC" | they are **naive local**, deliberately — see 2.3 below |
+
+**A fourth correction, to §0-bis itself:** it recorded "CT27's **344** otoño 2026 images".
+The canonical table holds **315**.
+
+**What no longer needs doing:** the DCIM-manifest and station-registry work that A1 was
+feared to cascade into. All three registries already agreed on every value they *shared*;
+the defect was one missing row and the absence of any check to keep it from recurring.
 
 **The pattern, and it is the useful part:** every open item sits at one of the two
 **boundaries** — the field record coming in, or a consumer going out. The chain from card to
@@ -186,15 +210,62 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       none. Known: CT15 (1,331 frames) and CT08 (1,129) in otoño 2026 have no folder
       evidence anywhere and never will; that is a limit, not a gap to fill.
 
-- [ ] **1.5 Anchors are complete or explicitly refused.** CT27's install is now
-      datable — the GPS waypoint in `CT 27.kml` reads 2025-12-11 15:52:56, which
-      resolves the 2025-11-12 / 2025-12-11 ambiguity (the two candidates are a
-      day/month transposition of each other). Record it as evidence reconciled against
-      the field record, **not** as an install date written in silently. CT16 stays
-      `unrepairable_pending` — its clock emits month `00` and month `16`, so no anchor
-      can repair it. CT18 per `HANDOFF-clock-repair.md` §8.1.
+- [x] **1.5 Anchors are complete or explicitly refused** — **CT27 DONE 2026-08-24.**
+      Install `2025-12-11`, confirmed by Felipe, recorded in
+      `otono_2026/deployment_anchors.csv` as an `install` anchor with real == camera
+      datetime (offset zero by construction, the primavera CT15 idiom: provenance, not
+      repair).
+      **The KML timestamp is UTC, and the camera's clock is sound.** The waypoint reads
+      15:52:56 and CT27's first frame reads 12:49:01 — three hours apart, which is either
+      a UTC/local difference or a 3 h-slow camera. Decided against the retrieval trip:
+      CT27's last frame (2026-05-14 14:32:04) sits in correct sequence between CT17
+      (14:07:45) and CT21 (15:15:15); a 3 h-slow camera would have read ~11:32 and landed
+      out of order between CT10 (09:58) and CT15 (11:51). So 15:52:56 UTC = 12:52:56 local,
+      the camera fired 3m55s BEFORE the waypoint was marked — technician mounts it, then
+      takes the fix — and all 315 CT27 rows are time-admissible.
+      `real_datetime` is the camera frame rather than the waypoint, so no 4-minute repair
+      is invented out of technician latency.
+      **The anchor belongs to otoño 2026, not primavera.** The visit fell inside the spring
+      field window, but CT27 has 0 rows in `primavera_2025` and 315 in `otono_2026` — the
+      deployment it opens is otoño 2026's.
+      `CT 27.kml` is **not in this repo** (GIS/ holds `areaBP.kml`, `Puntos BP TC.kml`,
+      `Puntos de monitoreo TC 2024.kml`). It is not needed: the coordinates it carried are
+      registered in `estaciones.csv`, and elevation 1408.06 m is now recorded there too.
+      CT16 stays `unrepairable_pending` — its clock emits month `00` and month `16`, so no
+      anchor can repair it. CT18 per `HANDOFF-clock-repair.md` §8.1.
 
-- [ ] **1.6 One station registry owns station identity.** Three disagree today:
+- [x] **1.6 One station registry owns station identity** — **DONE 2026-08-24.**
+      `estaciones.csv` owns it. `stations.yaml` and `camera_trap_stations.geojson` are
+      GENERATED by `setup/build_station_registry.py` and must not be hand-edited.
+      **Felipe chose the owner on the evidence, not on seniority.** He asked whether
+      `estaciones.csv` was the original registry; it is not — it is the newest of the
+      three (2026-08-17, vs the March pair), and the true original is
+      `CT ID and coordinates.xlsx`, which is none of them. It owns anyway because it holds
+      all 27, uses the canonical `CT##` grammar, carries the columns the visit form writes,
+      is already read by `camtrap/stations.py`, and lives in the producer rather than a
+      consumer — which is §4's direction rule.
+      **The disagreement was smaller than this section claimed.** Measured before any
+      change: all three files agreed on every value they *shared* — coordinates, `grid_id`
+      and elevation, across all 26 common stations, zero discrepancies. The defect was one
+      missing row plus nothing to keep it from recurring.
+      **One canonical spelling everywhere (Felipe):** `CT01`..`CT27`. The artifacts had
+      said `TC-01`, so the project had two names for one thing. Joins are on the integer
+      `tc`, so nothing broke; only labels moved — including pehuén's figure labels and
+      camtrapR's `Station` column, which both derive from `id`.
+      **`sd_card` dropped outright.** It was the `M##` grid-module tag from the old folder
+      names — not an SD card, not unique (`M15` was both CT11 and CT18), and its last
+      reader (`01_load_data.R:176`) had stopped using it when the SD cross-validation was
+      deleted. This closes the S58 changelog question by removing its subject.
+      **The test is stronger than this item specified.** It asserts the committed artifacts
+      equal a fresh render, not that "all three agree on count and coordinates to 5 decimal
+      places" — that check restates the projection in a second place and passes vacuously
+      on any field it does not enumerate, which is precisely how `sd_card` lived in the
+      artifacts and in no test for five months.
+      Still unknown: CT27's `grid_id`, for the field.
+
+      <details><summary>The state before the fix, kept for the record</summary>
+
+      Three disagreed:
       | file | stations | CT27 |
       |---|---|---|
       | `plataforma-territorial/data/stations.yaml` | **26** | **absent** |
@@ -211,6 +282,9 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       decimal places. **This check is what makes CT26 and CT27 impossible to repeat.**
       Still unknown after the KML: CT27's `grid_id`. Elevation is now known (1408.06 m).
 
+      (`344` above is wrong — the canonical table holds **315** CT27 rows.)
+      </details>
+
 - [ ] **1.7 `field_notes.csv` audited beyond coordinates.** The 2026-08-17 pass
       repaired the coordinate column and nothing else; no other column has been checked
       for the same class of error. 57 of 106 rows carry a `data_flags` entry.
@@ -221,15 +295,18 @@ Each item is a check with a stated pass condition, not a task to eyeball.
 
 - [ ] **1.9 Dead and stale code removed.** Full list in §3.
 
-- [ ] **1.10 Test suite extended.** **190 pass as of 2026-08-19** (+38: 20 for the
-      review-comment resolution, 7 for the stills-only export precondition, 11 for the
-      ingest row set and where each row's verdict comes from).
+- [ ] **1.10 Test suite extended.** **226 pass as of 2026-08-24** in camera-traps
+      (190 on 2026-08-19, +19 through 2026-08-20, +17 for the station registry).
       Run them with `python -m unittest discover -s tests` — **pytest is not installed in
       the `camera-traps` env**, which is why the 152 figure went unverified on 2026-08-18.
-      Still to add regression fixtures
-      for what the 2026-08-18 session established: the manifest rebuild from a flatten
-      log, the size-matched deletion accounting, and the registry-agreement check from
-      1.6.
+      **226 pass as of 2026-08-24** (+17: `tests/test_station_registry.py`).
+      Of the three regression fixtures, **one is done**: the registry-agreement check from
+      1.6, written as "the committed artifacts equal a fresh render" rather than the
+      three-way comparison this document specified. Still missing: the manifest rebuild
+      from a flatten log, and the size-matched deletion accounting.
+      **`data-pipeline` has no test suite at all** — 1,642 lines, zero tests, while it now
+      carries four modules whose guarantees rest on having been run once by hand. Designed
+      and deferred 2026-08-24: `data-pipeline/docs/TEST-PLAN.md`.
 
 - [ ] **1.11 Outputs regenerated and every moved number attributed.**
       **Canonical tables rebuilt 2026-08-19, now ONE ROW PER STILL** (see 1.13):
@@ -273,6 +350,19 @@ Each item is a check with a stated pass condition, not a task to eyeball.
 
 ## 2. Data-pipeline — the DuckDB rebuild
 
+> ## ✅ CLOSED 2026-08-24. 2.1, 2.2, 2.3, 2.5 and 2.8 are all done; §2 is complete.
+>
+> The database now holds **35,807 rows across 74 deployments** (21 + 26 + 27 stations —
+> the real deployment history), rebuilt from `observations.parquet` and reconciling
+> exactly against the published contract. `weather_station` (264,943 rows) and
+> `weather_forecast` (4,343) are committed as per-year Parquet, so **the Windows↔Linux
+> question is permanently answered**: any machine can rebuild the warehouse from the
+> repository alone. `literature` was dropped — 0 rows, no reader.
+>
+> **Three specifications in this section were wrong.** They are corrected in place below,
+> each measured rather than argued: the mandated key cannot be a primary key (2.8), the
+> column contract omits `campaign` (2.3), and the timestamps are not UTC (2.3).
+
 > **UNBLOCKED 2026-08-20, by deletion rather than by repair.** This section was blocked
 > the same day because `timelapse_reviewed.py` re-derived the review-comment resolution and
 > disagreed with `camtrap.observations` on 515 live rows — ingesting would have rebuilt the
@@ -291,7 +381,20 @@ machine. `fma_data.duckdb.bak-2026-05-27` (60 MB) holds 41 deployments / 1,622 m
 (`primavera_verano_2025_2026_TC20_M17.2`, and `oto_o_2025_CT07` with the ñ mangled),
 covering only two campaigns.
 
-- [ ] **2.1 Split the decision by regenerability — do not move the file as a whole.**
+- [x] **2.1 Split the decision by regenerability — do not move the file as a whole.**
+      **DONE 2026-08-24.** Measured on the Linux box before deciding: `weather_station`
+      **264,943** rows spanning 2018-09-21 → 2026-04-13, `weather_forecast` **4,343**,
+      `literature` **0**, and the `ct_*` tables **54 / 2,948 / 2,948** — every one of them
+      `source='timelapse_reviewed'`, a parser deleted on 2026-08-20, under pre-flatten
+      identity (`oto_o_2025_CT07`, ñ mangled) and keyed on Timelapse GUIDs. Orphaned, not
+      stale. Dropped and rebuilt.
+      ⚠️ `duckdb_tables().estimated_size` **lies** — it reported 24,665 / 12,222 for
+      `ct_media` / `ct_observations` against actual 2,948 / 2,948. Use `COUNT(*)`.
+      `literature` was dropped with them (Felipe): 0 rows and no reader in this monorepo.
+      Its DDL is removed rather than left in place, because `init_schema()` runs on every
+      connect and a `CREATE TABLE IF NOT EXISTS` would recreate the empty table forever.
+
+      <details><summary>Original text</summary>
       | tables | regenerable? | action |
       |---|---|---|
       | `ct_deployments`, `ct_media`, `ct_observations` | yes, from `observations.parquet` (in git, both machines) | rebuild, never migrate |
@@ -300,13 +403,60 @@ covering only two campaigns.
       `duckdb fma_data.duckdb -c "select table_name, estimated_size from duckdb_tables() order by table_name"`
       If Linux's weather tables exceed the backup's 264,943 `weather_station` rows,
       that copy is the one to preserve.
+      </details>
 
-- [ ] **2.2 Export the irreplaceable tables to Parquet and commit them**, so the
-      recovery is repeatable rather than a one-time file copy. This is what makes the
-      Windows↔Linux migration stop being a blocker: the only data that must travel is
-      this, once.
+- [x] **2.2 Export the irreplaceable tables to Parquet and commit them** —
+      **DONE 2026-08-24**, `data-pipeline/src/recovery.py`, committed under
+      `data-pipeline/data/recovery/`.
+      **Partitioned by year, which this item did not anticipate.** Parquet is opaque to
+      git and the export runs on every poll, so a single 17.5 MB blob would be stored
+      again in full each time. A year that has ended never changes, so per-year files mean
+      only the current year's blob (632 KB) is ever rewritten.
+      **`export` and `restore` are separate verbs and there is no `sync`.** Guessing the
+      direction on irreplaceable data is how the empty copy overwrites the good one — the
+      hazard 2.1 names. `restore` refuses when the database has MORE rows than the archive;
+      `export` refuses when a year-file exists that the table has no rows for.
+      **Verified the way that matters:** an empty database built from `schema.sql` alone,
+      then restored — 264,943 rows, all 41 columns in the same order (including the 33
+      dynamically-added TOA5 columns), first five rows identical, mean temperature equal to
+      six decimals. `python -m src.recovery verify` is the standing check.
+      Note: `literature` was on this list and dropped from it — it holds 0 rows, so there
+      is nothing irreplaceable to preserve.
 
-- [ ] **2.3 Rebuild `ct_*` from `observations.parquet`**, not from the reviewed CSVs.
+- [x] **2.3 Rebuild `ct_*` from `observations.parquet`**, not from the reviewed CSVs —
+      **DONE 2026-08-24**, `data-pipeline/src/parsers/canonical_ct.py`. 35,807 rows,
+      74 deployments, reconciling exactly. `run_fetch.py --ct`.
+
+      **Two corrections to the contract below, both measured:**
+
+      **(a) `campaign` is missing from the `ct_deployments` column list.** The platform
+      queries it in three places (`/summary-stats`, and the campaign filters). It existed
+      in the live table only because `ensure_columns()` had added it dynamically at some
+      past ingest, so `schema.sql` and this document had both drifted from reality.
+      Rebuilding to the list as written would have broken the platform silently. Now
+      declared. Same for `observationComments`, `reviewOutcome` and `reviewResolution`.
+
+      **(b) "Timestamps are UTC" is wrong, and storing them as UTC would be worse.**
+      A camera clock reading is wall time of unknown accuracy — there is no instant to
+      recover, and 11% of rows have no datetime at all. `TIMESTAMPTZ` would force this
+      table to invent a UTC offset per row, ambiguous twice a year at the DST boundary,
+      and would make `HOUR(eventStart)` depend on the reader's session timezone rather than
+      on what the camera saw. The diel-activity figure needs the camera's LOCAL hour.
+      So `ct_*` timestamps are **naive local (America/Santiago wall time)**, while
+      `weather_station` stays `TIMESTAMPTZ` because a datalogger reading IS a known
+      instant. That asymmetry is deliberate and documented in `schema.sql`. Consistent
+      with the horario-de-invierno decision (no DST correction, ever) and with this
+      document's own note that `datetime` is naive local today.
+
+      **Also decided, and flagged at the time as judgement calls:**
+      `deploymentStart`/`deploymentEnd` are the **observed** window (min/max media
+      timestamp), carried with a new `deploymentWindowSource` column so the provenance is
+      explicit rather than implicit in a docstring — when the field form's loader lands
+      (1.14) real windows arrive as `field_record` and consumers can tell them apart.
+      `locationID` stays the camera number as text, because the platform does
+      `int(locationID)` and logs-and-skips anything else. `count` and `eventID` stay NULL.
+
+      <details><summary>The original column contract, preserved from camtrap_dp.py</summary>
 
       **The column contract**, preserved here 2026-08-20 from `camtrap_dp.py` before that
       parser was deleted — it was the only written statement of the `ct_*` shape, and it
@@ -322,6 +472,7 @@ covering only two campaigns.
       **Keys must derive from the image, never be inherited from Timelapse** — see 2.8.
       `count` and `eventID` are empty in all three campaigns (measured 2026-08-20), so they
       stay nullable and unpopulated rather than being invented.
+      </details>
 
 - [x] **2.4 Retire `timelapse_reviewed.py`'s duplicate derivations** — DONE 2026-08-20.
       It re-derived five decisions `camtrap/observations.py` owns: station→camera number,
@@ -356,7 +507,9 @@ covering only two campaigns.
       `ingest_camtrap_dp` / `ingest_timelapse_reviewed` functions, and the watcher's folder
       and CSV branches that called them.
 
-- [ ] **2.5 Registry dependency fixed** — see 1.6. Until then CT27 ingests coordinateless.
+- [x] **2.5 Registry dependency fixed** — **DONE 2026-08-24**, see 1.6. Verified in the
+      rebuilt table: **0 deployments are missing coordinates**, and CT27 carries
+      `-39.45689, -71.72243`.
 
 - [x] **2.6 Delete `scripts/dedup_primavera_2025.py`** — DONE 2026-08-20. Its whole
       premise had dissolved: pv is no longer a separate campaign, and the "unmappable
@@ -371,7 +524,31 @@ covering only two campaigns.
       block is replaced by a comment recording what it used to do and why it was wrong
       (it named a nonexistent primavera file and so ingested pv as a campaign).
 
-- [ ] **2.8 Reconcile.** DB row counts equal parquet row counts exactly, per campaign.
+- [x] **2.8 Reconcile** — **DONE 2026-08-24.** `_reconcile()` runs at the end of every
+      rebuild and RAISES on any mismatch, reading counts back from the DATABASE rather
+      than from the frames just built (a reconciliation that trusts the frames checks
+      nothing). It also asserts `ct_media` and `ct_observations` are 1:1.
+
+      Reconciled: `otono_2025` 8,997 / 21 · `primavera_2025` 16,904 / 26 ·
+      `otono_2026` 9,906 / 27 — **35,807 rows, 74 deployments**, matching the published
+      contract exactly, including `animal 2,522 / blank 31,090 / human 1,424 /
+      unknown 521 / vehicle 250` and the 3,359 human- vs 32,448 machine-classified split.
+
+      **THE KEY THIS ITEM MANDATES CANNOT BE A PRIMARY KEY.** `DEDUP_KEY = [camera_num,
+      file_name, datetime]` — but `datetime` is **NULL in 4,013 of 35,807 rows** (11%),
+      the clock-failure stills that must stay in the table because presence needs a
+      station and not a clock. Measured across all three campaigns,
+      **`(campaign, camera_num, file_name)` is unique for all 35,807 rows and never null**,
+      so that is what identity derives from. The guarantee this item actually cares about
+      is unchanged and is preserved: keys are derived from the image, never inherited from
+      Timelapse.
+
+      **The rebuild is whole, never incremental.** The table is small and the parquets are
+      the entire truth, so a full replace costs nothing and cannot strand a row from a
+      campaign that shrank or was retired — which is exactly how `pv_2025_2026` lived on
+      in this database as a phantom campaign after being dropped upstream. Verified gone.
+
+      <details><summary>The 2026-08-20 correction about Timelapse GUIDs, still true</summary>
 
       **Correction, 2026-08-20 — the earlier note here was wrong in a way that pointed
       at the wrong risk.** `upsert_df` is indeed `INSERT OR REPLACE` on
@@ -394,12 +571,18 @@ covering only two campaigns.
       datetime]` — and 2.3 says to build from the parquet. Do that and this whole class
       of breakage disappears; inherit Timelapse GUIDs and the next project rebuild
       silently forks the table.
+      </details>
 
 ---
 
 ## 3. Stale code inventory (audited 2026-08-18)
 
 ### Breaks — silently, not loudly
+
+> **Status 2026-08-24.** The three "breaks silently" entries are resolved: the loader was
+> rewritten onto the canonical parquet (2026-08-20), and `config.yaml`'s `camera_traps`
+> block was removed (2.7). What remains in this section is the C-tier cleanup and the
+> otoño-2026 exclusion in B3.
 
 - `Research/pehuen-species-interactions/R/01_load_data.R:52` — `PATH_PV` points at
   `pv_2025_2026/new_labeled_data_corrected.csv`, which will no longer be regenerated.
@@ -444,6 +627,25 @@ the first time and that figure changes from zeros to real data** — which will 
 the re-ingest moved it when it actually un-broke a join. Fix and re-render this
 *separately* from the re-ingest so the two effects are not attributed to each other.
 
+> **Re-measured 2026-08-24 — B3 is narrower than written above.** The loader now emits
+> `Primavera_2025`, so script 05's join is already un-broken and that half is done. What
+> is still wrong is only **otoño 2026 falling out**: `05_spatial_distribution.R:249` builds
+> its grid on `c("Otono_2025", "Primavera_2025")` and
+> `02_detection_summary.R:83,110,150` label only those two.
+>
+> **A third effect now lands in the same figures:** `id` renders `CT01` instead of `TC-01`
+> (1.6), so pehuén's station labels and camtrapR's `Station` column both change value. No
+> join breaks — the join is on the integer `tc_num`, and `record_table$Station` and
+> `CTtable$Station` both derive from `id`, so they move together.
+>
+> That makes **three** distinct causes queued for one set of figures. Render them as
+> separate steps or the attribution is lost.
+>
+> Felipe does not want pehuén run on the Linux box, so this is Windows-side work. The
+> `sd_card` removal at `01_load_data.R:176` is therefore **committed but unexecuted** —
+> it is a one-line `select()` change, and without it the script would error against the
+> regenerated GeoJSON, but nobody has run it.
+
 ---
 
 ## 4. The gate — the DuckDB step cannot be silently skipped
@@ -465,8 +667,35 @@ This is the enforceable half, because it lives in the tool that builds the DB ra
 than in anyone's memory. A memory entry exists as well; it is the weak half and must
 not be relied on.
 
-**Neither piece is written yet.** Each gets its own design gate, written against real
-re-ingested data rather than guessed now.
+## ✅ BOTH PIECES ARE WRITTEN — 2026-08-24
+
+- **camera-traps side:** `camtrap/canonical_state.py` + `data/CANONICAL_STATE.json`,
+  shipped 2026-08-20.
+- **data-pipeline side:** `src/canonical_gate.py` + the `ct_ingest_state` table.
+  `python run_fetch.py --ct-check` reports staleness, writes nothing, and **exits 1** —
+  reporting drift without a non-zero exit is how a stale database goes on being served
+  while a log line nobody reads says otherwise.
+
+**It reads the JSON as a FILE and does not import `camtrap`.** That is the direction rule
+made structural: importing the producer would have the check running the producer's own
+code against the producer's own data, where it could only ever agree with itself.
+
+**The gate runs FIRST and the state is stamped LAST**, so an interrupted rebuild reports
+stale rather than finished.
+
+**One addition beyond this specification.** The gate fingerprints the *whole* campaign
+description (SHA-256 over the sorted JSON), not just row counts. The 815-row review repair
+of 1.3b moved `observation_types` and `n_animal_rows` while leaving `n_rows` untouched —
+invisible to a row-count comparison, and precisely the change a consumer most needs to
+notice.
+
+**Tested that it actually refuses:** missing state file → refuse with instructions;
+malformed JSON → refuse; unknown `schema_version` → refuse; tampered row count → caught;
+`ct_ingest_state` wiped → all three campaigns reported never-ingested; a campaign in the
+database but not published → flagged as the `pv_2025_2026` shape.
+
+⚠️ Those checks were run by hand once. **They are not in a test suite** — `data-pipeline`
+has none. See `data-pipeline/docs/TEST-PLAN.md`.
 
 ---
 

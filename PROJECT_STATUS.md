@@ -1,6 +1,28 @@
 # FMA Project Status
 
-**Last updated:** 2026-08-19 (camera-traps: **the reviewer's verdict now reaches the canonical table, and `pv_2025_2026` was silently reverting the new review.** The primavera 2025 re-review finished, making all three campaigns comparable for the first time — and that comparison exposed the largest data defect of the V2 pass: **815 rows across the three campaigns were typed `animal` while the reviewer had written in `observationComments` that the frame holds no animal.** The review pass wrote its correction into free text while the typed column kept the classifier's guess, so every consumer counted the classifier. Primavera's animal count was overstated by 50.6% — 744 against 494 — and counted 10 people and 4 vehicles as animals. `resolve_review()` in `camtrap/observations.py` now owns the resolution and is fail-closed: it refused the otoño 2026 ingest outright until a `Pitio}` typo was fixed. **A second defect was worse because it was invisible:** `pv_2025_2026` is not a campaign but a second review pass over primavera, and while it sat in `CAMPAIGN_ORDER` it OUTRANKED primavera — so the moment primavera was re-ingested, `read_campaigns` returned **169** of its 744 rows, with 606 overlapping keys restoring April labels over the brand-new review. Anyone re-ingesting primavera without dropping pv in the same session would have gotten a quietly wrong table. **Also:** video is now excluded from every export by policy — otoño 2026 had been carrying 2,162 videos swept as `blank` with zero `animal`, while primavera excluded its 2,618 at source, making the two campaigns' denominators different in kind; the export gate now refuses video and cannot be overridden. Animal counts: otoño 2025 830→706, otoño 2026 1,785→1,320, primavera 744→494, and **zero rows are now `animal` with an empty species**. All three campaigns pass the export gate from the repo for the first time. 179 tests pass, up from 152. **Second pass the same day closed the row-set defect underneath all of this:** the canonical table described only reviewed rows, so a station that recorded no animal was absent from it entirely — seven station-campaigns were missing (CT23 in otoño 2025; CT01/CT06/CT17/CT22 in primavera, with 6, 21, 7 and 18 frames each; CT02/CT12 in otoño 2026). Absent is indistinguishable from never-deployed, which is fine as a detection numerator and wrong as a trap-effort denominator. The table now holds **one row per still**: 3,359 → **35,807 rows** and the station gap is **0 in all three campaigns**. **The annual report moved by exactly one record and the cause is named** — diffed at row level, 1 added and 0 removed, CT04 01130013.JPG *Oryctolagus cuniculus*, which is the `conejo?` adjudication, not the rebuild; the rebuild moved nothing because no swept-only row is ever typed `animal`, and a test asserts it. Felipe also settled the two deferred label questions (a comment that cannot name a species stays `unknown`; `conejo` and `pitío` were adjudicated as real animals and added to species.yaml), and `timestamps.py` no longer aborts before writing anything on a cp1252 console. **190 tests pass**, up from 152.)
+**Last updated:** 2026-08-24 — **the consumer boundary is closed.** `estaciones.csv` now owns
+station identity and the platform's two station files are generated from it, with a test that
+fails if either is hand-edited; this ends the class of defect that put CT26 19 km outside the
+reserve and left CT27's 315 images without coordinates. Stations are spelled `CT01`..`CT27`
+**everywhere** now — the platform's `TC-01` dialect is gone. The `ct_*` tables were dropped and
+rebuilt from the canonical parquets: **35,807 rows across 74 deployments** (21 + 26 + 27
+stations, the real deployment history), reconciling exactly against the published contract,
+replacing 2,948 orphaned rows written by a parser deleted four days earlier and still carrying
+`pv_2025_2026` as a phantom campaign. The platform now serves **2,522 real detections** where it
+had been serving that wreckage. `weather_station` (264,943 rows) and `weather_forecast` are
+committed as per-year Parquet, so **the Windows↔Linux question is permanently answered** — any
+machine rebuilds the warehouse from the repo alone, verified by restoring into an empty database
+and matching all 41 columns and the mean temperature to six decimals. The canonical contract is
+finally read at both ends (`run_fetch.py --ct-check`), and it fingerprints the whole campaign
+description rather than row counts, because the 815-row review repair moved verdicts without
+moving `n_rows`. **Three of V2-REVIEW's own specifications were measured wrong and corrected:**
+the key it mandates cannot be a primary key (`datetime` is null in 4,013 of 35,807 rows), its
+column list omits `campaign`, and its "timestamps are UTC" is both false and undesirable for a
+camera clock. **New debt:** `data-pipeline` has no test suite at all while now holding four
+modules that guard this boundary — designed in `data-pipeline/docs/TEST-PLAN.md`, deferred.
+226 camera-traps tests pass.
+
+**Prior — 2026-08-19** (camera-traps: **the reviewer's verdict now reaches the canonical table, and `pv_2025_2026` was silently reverting the new review.** The primavera 2025 re-review finished, making all three campaigns comparable for the first time — and that comparison exposed the largest data defect of the V2 pass: **815 rows across the three campaigns were typed `animal` while the reviewer had written in `observationComments` that the frame holds no animal.** The review pass wrote its correction into free text while the typed column kept the classifier's guess, so every consumer counted the classifier. Primavera's animal count was overstated by 50.6% — 744 against 494 — and counted 10 people and 4 vehicles as animals. `resolve_review()` in `camtrap/observations.py` now owns the resolution and is fail-closed: it refused the otoño 2026 ingest outright until a `Pitio}` typo was fixed. **A second defect was worse because it was invisible:** `pv_2025_2026` is not a campaign but a second review pass over primavera, and while it sat in `CAMPAIGN_ORDER` it OUTRANKED primavera — so the moment primavera was re-ingested, `read_campaigns` returned **169** of its 744 rows, with 606 overlapping keys restoring April labels over the brand-new review. Anyone re-ingesting primavera without dropping pv in the same session would have gotten a quietly wrong table. **Also:** video is now excluded from every export by policy — otoño 2026 had been carrying 2,162 videos swept as `blank` with zero `animal`, while primavera excluded its 2,618 at source, making the two campaigns' denominators different in kind; the export gate now refuses video and cannot be overridden. Animal counts: otoño 2025 830→706, otoño 2026 1,785→1,320, primavera 744→494, and **zero rows are now `animal` with an empty species**. All three campaigns pass the export gate from the repo for the first time. 179 tests pass, up from 152. **Second pass the same day closed the row-set defect underneath all of this:** the canonical table described only reviewed rows, so a station that recorded no animal was absent from it entirely — seven station-campaigns were missing (CT23 in otoño 2025; CT01/CT06/CT17/CT22 in primavera, with 6, 21, 7 and 18 frames each; CT02/CT12 in otoño 2026). Absent is indistinguishable from never-deployed, which is fine as a detection numerator and wrong as a trap-effort denominator. The table now holds **one row per still**: 3,359 → **35,807 rows** and the station gap is **0 in all three campaigns**. **The annual report moved by exactly one record and the cause is named** — diffed at row level, 1 added and 0 removed, CT04 01130013.JPG *Oryctolagus cuniculus*, which is the `conejo?` adjudication, not the rebuild; the rebuild moved nothing because no swept-only row is ever typed `animal`, and a test asserts it. Felipe also settled the two deferred label questions (a comment that cannot name a species stays `unknown`; `conejo` and `pitío` were adjudicated as real animals and added to species.yaml), and `timestamps.py` no longer aborts before writing anything on a cp1252 console. **190 tests pass**, up from 152.)
 
 **✅ 2026-08-20 — the stale-code sweep: the re-ingest finally reaches the documents.**
 A full audit of the camera-trap chain (16,752 lines; report in
@@ -79,44 +101,85 @@ V2-REVIEW's own checkboxes. Fifteen items, and four are guarantees the new manua
 describes that the code does not enforce.** Do not treat the chain as closed. Full text in
 `camera-traps/docs/DATA-HEALTH-MANUAL.md` §Part 9.
 
+> ## ✅ 2026-08-24 — eight of the fifteen are closed, and they are all of the consumer-side ones
+>
+> **Closed: A1, A2, A4, B1, B7, and one third of B8.** The prediction this audit made held
+> exactly — every remaining defect sat at a boundary, and one session spent entirely at the
+> consumer boundary cleared it. **What is left is the FIELD-RECORD side (A3, B4, B6),
+> pehuén's Windows-side work (B2, B3), and Tier C.**
+>
+> - **A1** — `estaciones.csv` owns station identity; the other two are generated by
+>   `camera-traps/setup/build_station_registry.py`, and a test asserts they equal a fresh
+>   render. One canonical spelling everywhere now: `CT01`..`CT27`, not `TC-01`. `sd_card`
+>   dropped. **The disagreement was smaller than stated below:** all three files already
+>   agreed on every value they *shared*; the defect was one missing row and no check to keep
+>   it from recurring. (Also: CT27 has **315** rows, not the 344 recorded below.)
+> - **A2** — `data-pipeline/src/canonical_gate.py` + `ct_ingest_state`. `run_fetch.py
+>   --ct-check` reports drift, writes nothing, exits 1. It reads the JSON as a *file* and does
+>   not import `camtrap`, or the check would agree with itself by construction.
+> - **A4** — `occupancy_pct` now counts from `ct_deployments`, not the registry. Per-campaign
+>   filtering is still open.
+> - **B1** — done: **35,807 rows, 74 deployments** (21+26+27), reconciling exactly against the
+>   contract. Weather committed as per-year Parquet, so the Windows↔Linux question is
+>   permanently answered: any machine can rebuild the warehouse from the repo alone.
+> - **B7** — CT27 install `2025-12-11`, its clock cleared against the retrieval sequence.
+>
+> **Three of V2-REVIEW's own specifications turned out to be wrong** and are corrected in
+> place there: 2.8's mandated key cannot be a primary key (`datetime` is null in 4,013 of
+> 35,807 rows), 2.3's column list omits `campaign`, and 2.3's "timestamps are UTC" is both
+> false and undesirable. Full detail in `CHANGELOG.md` 2026-08-24.
+>
+> **New debt from the same session:** `data-pipeline` has **no test suite at all** (1,642
+> lines) while now carrying four modules whose guarantees rest on one manual run each.
+> Designed and deferred: `data-pipeline/docs/TEST-PLAN.md`.
+
 *Tier A — documented guarantees that are not enforced:*
-- **A1 · The station registry still disagrees with itself** (V2-REVIEW 1.6). Verified:
-  `plataforma-territorial/data/stations.yaml` **26** entries · `camera_trap_stations.geojson`
-  **27** · `camera-traps/data/campaigns/estaciones.csv` **27**. The 26-station file is the one
-  `data-pipeline/src/stations.py` documents as the single source of truth, so **CT27's 344
-  otoño 2026 images ingest with no coordinates**. Same class as the CT26 error that returned
-  as a 19 km displacement, and 1.6 already says the agreement test is what makes CT26/CT27
-  impossible to repeat — **the test does not exist**. Do this first; A4 inherits it.
-- **A2 · The canonical contract is published but nothing verifies it** (V2-REVIEW §4).
-  `data/CANONICAL_STATE.json` is committed and `camtrap.canonical_state.verify()` works on the
-  producer side; the consumer-side freshness check is absent — `grep -r CANONICAL_STATE
-  data-pipeline/` returns nothing. Until it exists the guarantee is a convention, not a gate.
+- ~~**A1 · The station registry still disagrees with itself**~~ — **CLOSED 2026-08-24.**
+  (V2-REVIEW 1.6). Was: `stations.yaml` **26** entries · `camera_trap_stations.geojson`
+  **27** · `estaciones.csv` **27**, so **CT27's otoño 2026 images ingested with no
+  coordinates**. Same class as the CT26 error that returned as a 19 km displacement.
+- ~~**A2 · The canonical contract is published but nothing verifies it**~~ — **CLOSED
+  2026-08-24.** (V2-REVIEW §4). Both halves now exist, and the gate fingerprints the whole
+  campaign description rather than row counts alone.
 - **A3 · The field form has no loader.** `setup/build_visit_template.py` writes
   `Registro de visitas CT.xlsx`; nothing reads it back. `setup/build_field_notes.py` is the
   one-time legacy migration, not this. A filled form is a spreadsheet that must be
   transcribed by hand, so the whole field protocol rests on an undocumented manual step.
   `camtrap.visit_schema.by_label()` is the entry point. **Never got a numbered V2 item —
   which is why it has been invisible.**
-- **A4 · Effort denominators wrong in the dashboard.**
-  `plataforma-territorial/backend/routers/detections.py:381` — `occupancy_pct` divides by
-  `len(_TC_COORDS)` rather than the stations deployed that campaign; otoño 2025 ran 21 and is
-  divided by 27. Gated on B1 and on A1.
+- ~~**A4 · Effort denominators wrong in the dashboard.**~~ — **CLOSED 2026-08-24.**
+  `occupancy_pct` divided by `len(_TC_COORDS)` rather than the stations deployed. Now counted
+  from `ct_deployments`, with `n_stations_deployed` returned so the denominator is visible.
+  It was worse than recorded here: `/species-list` has **no campaign filter at all**, so it
+  was a cross-campaign aggregate over an unrelated number. Per-campaign occupancy needs a
+  filter in numerator and denominator both and is **still open**.
 
 *Tier B — known defects, known fixes:*
-- **B1** the `ct_*` rebuild (V2-REVIEW 2.1/2.2/2.3/2.5/2.8) — the Linux task
-- **B2** pehuén hardcodes absolute Windows paths (`R/01_load_data.R:104`, TODO in code)
-- **B3** figures/tables not re-rendered. When you do: `05_spatial_distribution.R:249` scopes
-  its grid to two campaigns and `02_detection_summary.R:83,110,150` label only two, so otoño
-  2026 falls through. **Fix and re-render that separately from the data change** or the
-  un-breaking of a join reads as an effect of the re-ingest
+- ~~**B1** the `ct_*` rebuild (V2-REVIEW 2.1/2.2/2.3/2.5/2.8)~~ — **CLOSED 2026-08-24.**
+  35,807 rows, 74 deployments. Identity derives from `(campaign, camera_num, file_name)`,
+  never from Timelapse GUIDs. `literature` dropped (0 rows, no reader).
+- **B2** pehuén hardcodes absolute Windows paths (`R/01_load_data.R:107-108`). **Deliberately
+  left** — Felipe does not want pehuén running on the Linux box, so this is Windows-side work
+  rather than a blocker
+- **B3** figures/tables not re-rendered. **Narrowed 2026-08-24:** the loader now emits
+  `Primavera_2025`, so script 05's join is already un-broken. What remains is otoño 2026
+  falling out of `05_spatial_distribution.R:249` and `02_detection_summary.R:83,110,150` —
+  **plus a third cause now queued for the same figures**, station labels rendering `CT01`
+  instead of `TC-01`. Render the three separately or the attribution is lost
 - **B4** `field_notes.csv` audited for coordinates only; 57 of 106 rows carry `data_flags`
 - **B5** `provenance.py` not re-run on the re-ingested primavera — data it has not seen
 - **B6** DCIM manifest coverage not stated per campaign, including the stations that
   legitimately have none (V2-REVIEW 1.4)
-- **B7** CT27's install is datable from `CT 27.kml` (2025-12-11 15:52:56) and is not recorded.
-  Record as evidence reconciled against the field record, **not** as a silent install date
-- **B8** three missing test fixtures (V2-REVIEW 1.10): manifest rebuild from a flatten log,
-  size-matched deletion accounting, registry agreement
+- ~~**B7** CT27's install is datable from `CT 27.kml`~~ — **CLOSED 2026-08-24.** Install
+  `2025-12-11`, recorded in `otono_2026/deployment_anchors.csv` as provenance, offset zero by
+  construction. The waypoint's `15:52:56` is **UTC**: the camera's first frame reads 12:49:01
+  and its last frame sits in correct order in the retrieval trip, so the clock is sound and
+  the 3 h gap is the offset, not a fault. The KML itself is not in this repo and is not needed
+- **B8** ~~three~~ **two** missing test fixtures (V2-REVIEW 1.10): manifest rebuild from a
+  flatten log, size-matched deletion accounting. **Registry agreement is done.**
+- **B9 · NEW — `data-pipeline` has no test suite.** 1,642 lines, zero tests, now carrying
+  `canonical_ct`, `canonical_gate`, `recovery` and `_reconcile`, whose guarantees rest on one
+  manual run each. Designed in `data-pipeline/docs/TEST-PLAN.md`; deferred by Felipe
 
 *Tier C — housekeeping:* `data/campaigns/label_conflicts_primavera_vs_pv_2026-05-27.csv` and
 `Anual-reports/2025/data/manual_review_ciervo_guina.md` still on disk (superseded);
@@ -129,7 +192,17 @@ tested. The two ends — the field record going in (A3) and the consumers coming
 A4, B1) — are where every remaining item sits. That is not a coincidence: they are the two
 boundaries where the work crosses out of `camera-traps` into something else.
 
-**🔄 IN PROGRESS — camera-traps `docs/V2-REVIEW.md`** (opened 2026-08-18; entry condition met and six items closed 2026-08-19). Felipe's call: **nothing new starts until the camera-trap chain is clean end to end.** Closed: **1.1** campaign set is exactly three (pv dropped from `CAMPAIGN_ORDER` and `REPORT_CAMPAIGNS`, kept as provenance), **1.2** the canonical file set is decided — `TimelapseData.ddb` and `TimelapseTemplate.tdb` are required and all three campaigns hold the full set, with all three templates verified functionally identical down to the `observationType` vocabulary the export gate depends on, **1.3** export gate passes for all three from the repo, **1.3b** the reviewer's verdict reaches `observation_type`, **1.12** both deferred label decisions, **1.13** the canonical table describes every still — and the station-count difference (21 / 26 / 27) is **resolved, not a gap**: the grid was built up over time, so each campaign covers as many stations as existed at its retrieval. Still open: **1.4**–**1.9**, **1.10** regression fixtures, **1.11** figures not re-rendered — two causes left to attribute, video leaving the denominators and the 815-row review repair — and all of **§2**, the DuckDB rebuild, which has not started. **Integration Status:** `In Progress [REMAINING: V2-REVIEW 1.2, 1.4–1.11, all of §2]`. **Blockers/Notes:** the DuckDB `ct_*` rebuild is untouched, so a re-ingest is NOT done until it lands; **consumers now see ~16x more rows per campaign** — anything reading `observations.parquet` must filter on `observation_type`, and `01_data_prep.py` already does; pytest is absent from the `camera-traps` env, use `python -m unittest discover -s tests`; two file-set items stay deliberately open — the three `addaxai-*` files (primavera only, new with the AddaxAI update, role undecided) and the legacy `CamtrapDB_*` V1 project DBs, which are the last thing keeping the file set from being identical across campaigns but whose deletion is a data call, not cleanup.
+> **2026-08-24 — this prediction was tested and held.** The consumer boundary was taken as a
+> single session's work and **every item on it closed** (A1, A2, A4, B1, B7). Nothing in the
+> middle of the chain needed touching. What is left is the *other* boundary — the field
+> record coming in (A3, B4, B6) — plus pehuén's Windows-side rendering and Tier C.
+>
+> The one thing the audit did not anticipate: closing the consumer boundary created a **new**
+> instance of the same pattern one layer down. `data-pipeline` now owns four modules that
+> guard the boundary, and **nothing guards them** (B9). A check nobody runs is a comment,
+> which is the sentence this whole refactor was built around.
+
+**🔄 IN PROGRESS — camera-traps `docs/V2-REVIEW.md`** (opened 2026-08-18; entry condition met and six items closed 2026-08-19). Felipe's call: **nothing new starts until the camera-trap chain is clean end to end.** Closed: **1.1** campaign set is exactly three (pv dropped from `CAMPAIGN_ORDER` and `REPORT_CAMPAIGNS`, kept as provenance), **1.2** the canonical file set is decided — `TimelapseData.ddb` and `TimelapseTemplate.tdb` are required and all three campaigns hold the full set, with all three templates verified functionally identical down to the `observationType` vocabulary the export gate depends on, **1.3** export gate passes for all three from the repo, **1.3b** the reviewer's verdict reaches `observation_type`, **1.12** both deferred label decisions, **1.13** the canonical table describes every still — and the station-count difference (21 / 26 / 27) is **resolved, not a gap**: the grid was built up over time, so each campaign covers as many stations as existed at its retrieval. **Updated 2026-08-24 — §2 is COMPLETE and §4 is shipped.** Also closed: **1.5** (CT27's anchor), **1.6** (one station registry), **2.1/2.2** (the regenerability split and the committed weather Parquet), **2.3** (the rebuild), **2.5**, **2.8** (reconciliation), and the **§4 gate** at both ends. Still open: **1.4**, **1.7**–**1.9**, **1.10** (two of three fixtures remain, and `data-pipeline` still has no suite at all), **1.11**, **1.14**. **Integration Status:** `In Progress [REMAINING: V2-REVIEW 1.4, 1.7–1.11, 1.14, §3 cleanup]`. **Blockers/Notes:** ~~the DuckDB `ct_*` rebuild is untouched~~ — done; the live database is current with the published contract, verify with `python run_fetch.py --ct-check`. **consumers now see ~16x more rows per campaign** — anything reading `observations.parquet` must filter on `observation_type`, and `01_data_prep.py` already does; pytest is absent from the `camera-traps` env, use `python -m unittest discover -s tests`; two file-set items stay deliberately open — the three `addaxai-*` files (primavera only, new with the AddaxAI update, role undecided) and the legacy `CamtrapDB_*` V1 project DBs, which are the last thing keeping the file set from being identical across campaigns but whose deletion is a data call, not cleanup.
 
 **Prior — 2026-08-18** — toolbox (**the contact master and the merge output had diverged: the boss edited the pre-merge file while the merged copy sat unpromoted, and the pipeline could not be re-run without corrupting `N`.** Diagnosed first, in full: 141 of 141 original rows intact, **zero deletions, no column misalignment from his sort**; his changes were an A→Z sort by name, one new row (`Katherine / Educa Mac`, `N` blank), two previously-blank emails filled, and six packed `Nombre, Cargo` cells split — into which he put the **cargo**, not the organisation. **The blocking regression:** `_next_number` read the bottom row of the sheet, which after a name sort holds `N=129` on a list whose highest number is 141 — re-running the merge would have issued `N` 130–149 and **collided on twelve existing rows**. Now one past the maximum, order-independent. **New `curate_master.py` + `namesplit.split_cargo`:** the pipeline could only ever append; it can now correct what is already there. Job titles move out of `Organización` into `Notas` (not in the shared copy, and never deleted — it is the owner's text), and one person occupying two rows becomes one row holding both addresses. Same two-pass shape as the merge, and for the same reason: the rules can see a cell is wrong far more reliably than they can see what it should say. **`split_cargo` exercised against all 110 organisation values in the real list — 17 detections, zero false positives**; `SBAP- Depto Fondo e IECB` (a unit, not a role) and `librería naturaleza, editores` (a business) are left alone by design, and the genuinely ambiguous shape — `Directora | Educación MIM` versus `Coordinador | Centros UC` — comes back at `media` instead of being guessed. **Three duplicate pairs the sort made visible, all pre-existing:** Enrique Rivera (`N` 40/134, *identical* address), Cristián Becker (`@mnhn.gob.cl` / `@mnhn.cl`), Paulina Stowhas (`N` 50/140 — MinRel → Fondo Naturaleza, i.e. a job change, so the former ministry became a note reading `antes: …` rather than vanishing). **Run and verified:** 142 → 139 → **159 rows**; `N` 1–162 with no duplicates and gaps only at 50/54/134 (the merged-away rows); the owner's yellow highlight and its note survived three row deletions; **0 unexpected changes to any other row**; 0 duplicate addresses or names remaining; share copy byte-consistent. **Fixed en route:** the append wrote the literal string `nan` into `Notas` for every row whose review-sheet note was empty. **Still open and not ours to decide:** 15→0 cargos, but `UC - Glaciares` is still not an organisation's name; `Katherine` has no surname; the six `?` acronym expansions from 13 Aug are unconfirmed; **the three leaked credentials still need rotating.**)
 

@@ -6,6 +6,151 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-08-24 — the consumer boundary closes: one station registry, the `ct_*` rebuild, and a contract that is finally read
+
+Eight of the fifteen open items from the 2026-08-20 re-audit are closed, and they are **every
+one on the data-pipeline / platform side**. §0-bis's finding held exactly: the chain from card
+to canonical table was already enforced and tested; every surviving defect sat where
+responsibility changed hands. One session spent entirely at that boundary cleared it.
+
+### Added — `camera-traps/setup/build_station_registry.py` + `tests/test_station_registry.py`
+
+`data/campaigns/estaciones.csv` now **owns station identity**. `stations.yaml` and
+`camera_trap_stations.geojson` are generated from it and must not be hand-edited.
+
+The defect: `stations.yaml` held 26 stations against the other two registries' 27, so **CT27's
+315 otoño 2026 images ingested with no coordinates** and nothing raised — the same class as the
+CT26 error that reached the platform and came back as a 19 km displacement.
+
+Measured before changing anything: **all three files agreed on every value they shared** —
+coordinates, `grid_id`, elevation, across all 26 common stations, zero discrepancies. The defect
+was one missing row plus nothing to stop it recurring. V2-REVIEW 1.6 had implied a three-way
+disagreement; there wasn't one.
+
+- **Felipe chose the owner on evidence, not seniority.** He asked whether `estaciones.csv` was
+  the original; it is not — it is the *newest* (2026-08-17 vs the March pair), and the true
+  original is `CT ID and coordinates.xlsx`, which is none of the three. It owns anyway: all 27
+  stations, canonical `CT##` grammar, the columns the visit form writes, already read by
+  `camtrap/stations.py`, and it lives in the producer rather than a consumer.
+- **One canonical spelling everywhere** (Felipe): `CT01`..`CT27`, replacing the artifacts'
+  `TC-01`. Joins are on the integer `tc`, so nothing broke — only labels moved.
+- **`sd_card` dropped.** The `M##` grid-module tag from the old folder names: not an SD card,
+  not unique (`M15` was both CT11 and CT18), and its last reader had stopped using it. Closes
+  the **S58** question by removing its subject.
+- **The test is stronger than specified.** It asserts the committed artifacts equal a fresh
+  render, not "all three agree on count and coordinates to 5dp" — that check restates the
+  projection in a second place and passes vacuously on any field it does not enumerate, which
+  is exactly how `sd_card` lived in the artifacts and in no test for five months.
+- The generator rewrites `stations.yaml` only from `camera_traps:` down and refuses if another
+  top-level key follows, so `reserve:`, `weather:` and the header comments survive byte for
+  byte. CT26's coordinate-error note now renders from the registry's `notes` column instead of
+  being a hand-written comment that can drift.
+
+### Added — `data-pipeline/src/recovery.py` + `data/recovery/*.parquet`
+
+**The Windows↔Linux question is permanently answered.** `weather_station` (264,943 rows,
+2018-09-21 → 2026-04-13) and `weather_forecast` (4,343) cannot be refetched — a CR800 pull is a
+point-in-time read and Open-Meteo serves a horizon, not an archive — so they are committed as
+Parquet. Any machine can now rebuild the warehouse from the repository alone.
+
+- **Partitioned by year.** Parquet is opaque to git and this runs on every poll; a year that has
+  ended never changes, so only the current year's blob (632 KB) is rewritten rather than 17.5 MB.
+- **`export` and `restore` are separate verbs and there is no `sync`** — guessing the direction
+  on irreplaceable data is how the empty copy overwrites the good one. `restore` refuses when the
+  database has more rows than the archive; `export` refuses when a year-file exists that the
+  table has no rows for.
+- **Verified** by building an empty database from `schema.sql` and restoring: 264,943 rows, all
+  41 columns in order (including the 33 dynamically-added TOA5 columns), first five rows
+  identical, mean temperature equal to six decimals.
+
+### Added — `data-pipeline/src/parsers/canonical_ct.py`, `src/canonical_gate.py`
+
+**`ct_*` rebuilt from the canonical parquets: 35,807 rows across 74 deployments** — 21 + 26 + 27
+stations, the real deployment history. Reconciles exactly against the published contract,
+including `animal 2,522 / blank 31,090 / human 1,424 / unknown 521 / vehicle 250` and the
+3,359 human- vs 32,448 machine-classified split. The 4,013 rows with no clock are preserved:
+presence needs a station, not a clock.
+
+Replaces the ingest deleted on 2026-08-20 for re-deriving five decisions `camtrap.observations`
+already owned. The projection re-derives **nothing**.
+
+**The contract gate (V2-REVIEW §4) is now read at both ends.** `run_fetch.py --ct-check` reports
+staleness, writes nothing and exits 1. It reads `CANONICAL_STATE.json` as a *file* and does not
+import `camtrap` — importing the producer would have the check running the producer's code
+against the producer's data, where it could only agree with itself. It fingerprints the whole
+campaign description, not just row counts: the 815-row review repair moved `observation_types`
+while leaving `n_rows` untouched, which a row-count check cannot see.
+
+### Fixed — the platform was serving orphaned data
+
+`ct_deployments` / `ct_media` / `ct_observations` held **54 / 2,948 / 2,948** rows, every one
+`source='timelapse_reviewed'` (a parser deleted 2026-08-20), under pre-flatten identity
+(`oto_o_2025_CT07`, ñ mangled), keyed on Timelapse GUIDs, and with `pv_2025_2026` still present
+as a campaign. The platform now serves 2,522 real detections, 30 species, 27 stations, 3
+campaigns.
+
+`occupancy_pct` divided by every station in `stations.yaml`. Wrong three ways: the grid was built
+up over time so early campaigns were understated; the figure moved whenever a station was added
+to the registry, including stations that did not exist during the campaign; and it made a
+consumer depend on the registry's *size* for a quantity the observation data already answers. Now
+counted from `ct_deployments`. `n_stations_deployed` is returned so the denominator is visible,
+and `occupancy_pct` is `None` — not `0` — when nothing is deployed.
+
+### Fixed — CT27's install date, and its clock cleared
+
+Install **2025-12-11** (Felipe), resolving the 2025-11-12 / 2025-12-11 day-month transposition.
+The GPS waypoint reads 15:52:56 against a first frame of 12:49:01 — three hours apart, so either
+UTC-vs-local or a 3 h-slow camera. **Decided against the retrieval trip:** CT27's last frame
+(2026-05-14 14:32:04) sits in correct sequence between CT17 (14:07:45) and CT21 (15:15:15); a
+3 h-slow camera would have read ~11:32 and landed out of order between CT10 (09:58) and CT15
+(11:51). The clock is sound, the waypoint is UTC, and all 315 CT27 rows are time-admissible.
+
+### Changed — three of V2-REVIEW's own specifications were wrong
+
+- **2.8's mandated key cannot be a primary key.** `DEDUP_KEY` includes `datetime`, which is null
+  in 4,013 of 35,807 rows. `(campaign, camera_num, file_name)` is unique across all of them and
+  never null.
+- **2.3's column contract omits `campaign`**, which the platform queries in three places and
+  which existed only because `ensure_columns()` had added it dynamically — so `schema.sql` and
+  the review had both drifted from the live table.
+- **2.3 says timestamps are UTC.** A camera clock is wall time of unknown accuracy; there is no
+  instant to recover, `TIMESTAMPTZ` would invent one (ambiguous twice a year at the DST
+  boundary), and `HOUR(eventStart)` would depend on the reader's session timezone rather than on
+  what the camera saw. `ct_*` are naive local; `weather_station` stays `TIMESTAMPTZ` because a
+  datalogger reading *is* a known instant.
+
+Also: `duckdb_tables().estimated_size` **lies** — it reported 24,665 / 12,222 for
+`ct_media` / `ct_observations` against an actual 2,948 / 2,948. Use `COUNT(*)`.
+
+### Removed — `literature`
+
+0 rows, no reader in this monorepo (literature-agent is standalone and mails its summaries). The
+DDL is deleted rather than left in place, because `init_schema()` runs on every connect and a
+`CREATE TABLE IF NOT EXISTS` would recreate the empty table forever. Column list preserved as a
+comment.
+
+### Deferred — `data-pipeline` tests
+
+`src/` is 1,642 lines with **no test suite at all**, while now carrying four modules whose
+guarantees rest on having been run once by hand. Designed in `data-pipeline/docs/TEST-PLAN.md`
+and deferred by Felipe so documentation could catch up first. stdlib `unittest`, no new
+dependencies — **pytest is installed in neither environment**, which is the same gap that let a
+claimed "152 tests" go unverified on 2026-08-18.
+
+### Known, and flagged rather than fixed
+
+- **`exports/Primavera-verano 2025-2026/`** still names its station directories `TC10_M3_2`.
+  `station_summary` matches images by `locationName`, now `CT10`, so that campaign's thumbnails
+  will not resolve. Already broken before this (the directory is pv-named), but now explicit.
+- **The CR800 has not been polled since 2026-04-13** — four months of silence.
+- **pehuén's `sd_card` removal is committed but unexecuted.** Felipe does not want pehuén run on
+  the Linux box; without that one-line `select()` change the script would error against the
+  regenerated GeoJSON.
+- Two 63 MB DuckDB backups are tracked in git while the live database is gitignored. New
+  backups are now ignored; removing the existing two is a history rewrite and a separate call.
+
+---
+
 ## 2026-08-20 (later) — camera-traps: the data-health manual, and a re-audit that says the chain is not closed
 
 ### Added — `camera-traps/docs/DATA-HEALTH-MANUAL.md` (1,953 lines)
