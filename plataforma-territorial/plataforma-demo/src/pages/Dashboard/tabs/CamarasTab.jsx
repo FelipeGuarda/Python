@@ -18,10 +18,20 @@ export function CamarasTab({
   dielData, ctStats, speciesList,
   sp1Sel, setSp1Sel, sp2Sel, setSp2Sel,
   applyOverlap, overlapLoading, overlapData,
-  totalStations, camBoundary, geo,
+  camBoundary, geo,
   isInvasive, isPriority,
 }) {
   const applyDisabled = !sp1Sel || !sp2Sel || sp1Sel === sp2Sel;
+
+  // Occupancy denominator: stations actually DEPLOYED, reported by the API alongside every
+  // occupancy count. Never the station registry's size — the grid was built up over time,
+  // so dividing by the registry understates the early campaigns and shifts every percentage
+  // whenever a station is added to it. Taking it from the API also keeps this component
+  // from owning a second copy of the decision, which is how it was wrong here until
+  // 2026-08-24 while the backend was already right.
+  const deployedStations =
+    overlapData?.n_stations_deployed ?? speciesList?.[0]?.n_stations_deployed ?? null;
+
   return (
     <div className={styles.container}>
 
@@ -169,11 +179,11 @@ export function CamarasTab({
                 <SectionLabel style={{ margin: 0 }}>{name}</SectionLabel>
                 <div className={styles.countText}>
                   <span className={styles.countNum} style={{ color: SP_COLORS[ci] }}>{occ}</span>
-                  <span className={styles.countDenom}> / {totalStations ?? "…"} est.</span>
-                  {totalStations && (
+                  <span className={styles.countDenom}> / {deployedStations ?? "…"} est.</span>
+                  {deployedStations > 0 && (
                     <span className={styles.countChip}
                       style={{ background: `${SP_COLORS[ci]}20`, color: SP_COLORS[ci] }}>
-                      {Math.round(occ / totalStations * 100)}%
+                      {Math.round(occ / deployedStations * 100)}%
                     </span>
                   )}
                 </div>
@@ -202,7 +212,10 @@ export function CamarasTab({
               <YAxis type="category" dataKey="common_name" tick={CHART_TICK_CAT}
                 axisLine={CHART_AXIS_LINE} width={180} interval={0} />
               <Tooltip contentStyle={CHART_TOOLTIP}
-                formatter={(v, _n, p) => [`${v}% (${p.payload.n_stations}/${totalStations ?? "…"} estaciones)`, "Ocupación"]} />
+                formatter={(v, _n, p) => [
+                  `${v}% (${p.payload.n_stations}/${p.payload.n_stations_deployed ?? "…"} estaciones desplegadas)`,
+                  "Ocupación",
+                ]} />
               <Bar dataKey="occupancy_pct" radius={[0, 4, 4, 0]}
                 label={{ position: "right", fontSize: 10, fill: C.muted,
                   formatter: (v) => `${v}%` }}>

@@ -38,7 +38,6 @@ export function Dashboard() {
   const { data: ctStats } = useAPI(getCampaignStats, null, [], tab === "camaras");
   const { data: geo } = useAPI(getGeography, null, []);
   const { data: speciesCatalog } = useAPI(getSpecies, null, []);
-  const totalStations = geo?.camera_trap_count ?? null;
 
   // Build lowercase name lookups (both latin and spanish) for invasive/priority
   // classification — fed by /api/config/species. Replaces three regex literals
@@ -179,7 +178,6 @@ export function Dashboard() {
           applyOverlap={applyOverlap}
           overlapLoading={overlapLoading}
           overlapData={overlapData}
-          totalStations={totalStations}
           camBoundary={camBoundary}
           geo={geo}
           isInvasive={isInvasive}

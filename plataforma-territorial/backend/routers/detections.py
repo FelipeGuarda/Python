@@ -45,6 +45,25 @@ _IMAGE_CACHE_TTL = 300
 _image_cache: dict = {"expires": 0.0, "data": {}}
 
 
+def _n_stations_deployed(con) -> int:
+    """The denominator for EVERY occupancy figure: stations actually deployed.
+
+    One function because this is one decision, and it has already been got wrong twice in
+    two different places. Until 2026-08-24 both `/species-list` and the frontend's species
+    comparator divided by `len(_TC_COORDS)` — every station in `stations.yaml` — which is
+    wrong three ways: the grid was built up over time (21 / 26 / 27 stations by campaign),
+    the figure moved whenever a station was added to the registry including ones that did
+    not exist during the campaign, and it made a consumer depend on the registry's SIZE for
+    a quantity the observation data already answers.
+
+    Every endpoint that returns an occupancy count must also return this number, so the
+    frontend never has to pick a denominator of its own.
+    """
+    return con.execute(
+        "SELECT COUNT(DISTINCT locationID) FROM ct_deployments"
+    ).fetchone()[0]
+
+
 def _loc_to_export_id(loc_name: str) -> str:
     # "TC.01" → "TC_01" to match the export directory naming convention
     return loc_name.replace(".", "_")
@@ -399,9 +418,7 @@ def species_list_with_occupancy():
             GROUP BY o.scientificName
             ORDER BY total_detections DESC
         """).fetchall()
-        n_deployed = con.execute(
-            "SELECT COUNT(DISTINCT locationID) FROM ct_deployments"
-        ).fetchone()[0]
+        n_deployed = _n_stations_deployed(con)
 
     return [
         {
@@ -449,6 +466,8 @@ def species_overlap(sp1: str = Query(...), sp2: str = Query(...)):
             GROUP BY o.scientificName
         """, [sp1, sp2]).fetchall()
 
+        n_deployed = _n_stations_deployed(con)
+
     # Hourly distributions (fill 0s for missing hours)
     hourly_by_sp: dict[str, list[int]] = {sp1: [0] * 24, sp2: [0] * 24}
     for sp, hour, count in hourly:
@@ -488,6 +507,9 @@ def species_overlap(sp1: str = Query(...), sp2: str = Query(...)):
         "stations_sp2": station_markers(sp2),
         "occupancy_sp1": occ_by_sp.get(sp1, 0),
         "occupancy_sp2": occ_by_sp.get(sp2, 0),
+        # Ships with the counts above so the frontend never picks its own denominator —
+        # it used to divide by the station registry, which is the A4 defect in a second place.
+        "n_stations_deployed": n_deployed,
         "total_sp1": sum(v1),
         "total_sp2": sum(v2),
         "overlap_coeff": overlap_coeff,
