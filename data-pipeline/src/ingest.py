@@ -1,10 +1,13 @@
 """Orchestrator: routes data sources → parsers/fetchers → upsert into DuckDB."""
 
 import duckdb
+import pandas as pd
 from pathlib import Path
 
+from src import canonical_gate
 from src.db import upsert_df, ensure_columns
 from src.fetchers.open_meteo import fetch as fetch_open_meteo
+from src.parsers import canonical_ct
 
 
 def ingest_weather_forecast(con: duckdb.DuckDBPyConnection) -> None:
@@ -13,39 +16,119 @@ def ingest_weather_forecast(con: duckdb.DuckDBPyConnection) -> None:
     print(f"  Upserted {n} rows into weather_forecast.")
 
 
-class CameraTrapIngestNotRebuilt(NotImplementedError):
-    """Raised by `ingest_all_ct_campaigns` — the camera-trap path was retired, not fixed."""
+class CameraTrapIngestError(RuntimeError):
+    """The camera-trap rebuild could not be completed, or could not be trusted."""
 
 
-def ingest_all_ct_campaigns(con: duckdb.DuckDBPyConnection) -> None:
-    """Refuse, loudly. Retired 2026-08-20; the replacement is V2-REVIEW 2.3.
+#: data-pipeline/src/ingest.py -> parents[2] = monorepo root
+_CAMPAIGNS_ROOT = (
+    Path(__file__).resolve().parents[2] / "camera-traps" / "data" / "campaigns"
+)
 
-    Three functions used to live here — `ingest_camtrap_dp`, `ingest_timelapse_reviewed`
-    and this one iterating `config.yaml`'s `camera_traps.campaigns`. All three are gone,
-    along with both parsers, because the path was not merely stale but actively wrong:
 
-    * `timelapse_reviewed.py` re-derived FIVE decisions `camtrap.observations` owns —
-      station->camera number, coordinates, Spanish->Latin, Santiago->UTC, and the
-      review-comment resolution. The last disagreed on 515 live rows: it knew four
-      comment strings and only ever demoted to `blank`, with no rule producing `human`,
-      `vehicle` or `unknown`. Ingesting would have rebuilt the 815-row defect that
-      V2-REVIEW 1.3 closed.
-    * `camtrap_dp.py` parsed a Camtrap DP folder. No such folder has ever existed in this
-      monorepo. Its column mapping is preserved in V2-REVIEW 2.3.
-    * The campaign list named `primavera_2025`'s CSV as `...reviewed.dedup.csv`, which does
-      not exist on disk — so the loop skipped primavera with a warning and ingested
-      `pv_2025_2026`, a retired review pass, AS a campaign.
+def _read_canonical(campaign: str, state: dict) -> pd.DataFrame:
+    """One campaign's canonical table, checked against the contract before it is used."""
+    path = _CAMPAIGNS_ROOT / campaign / "observations.parquet"
+    if not path.exists():
+        raise CameraTrapIngestError(
+            f"{path} not found, but CANONICAL_STATE.json declares campaign "
+            f"{campaign!r}. The contract and the files on disk disagree."
+        )
+    frame = pd.read_parquet(path)
 
-    Failing here is deliberate. The old code would have run and produced a wrong table.
+    missing = [c for c in state["columns"] if c not in frame.columns]
+    if missing:
+        raise CameraTrapIngestError(
+            f"{path} is missing canonical column(s) {missing}. It predates the "
+            f"published contract — re-run camera-traps' ingest for this campaign."
+        )
+    declared = state["campaigns"][campaign]["n_rows"]
+    if len(frame) != declared:
+        raise CameraTrapIngestError(
+            f"{campaign}: the parquet holds {len(frame)} rows and the contract declares "
+            f"{declared}. Re-publish CANONICAL_STATE.json, or find out who rewrote the "
+            f"parquet without publishing."
+        )
+    return frame
+
+
+def ingest_all_ct_campaigns(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
+    """Rebuild ct_deployments / ct_media / ct_observations from the canonical parquets.
+
+    REBUILT WHOLE, NEVER INCREMENTALLY. The canonical table is 35,807 rows and the
+    parquets are the entire truth, so a full replace costs nothing and cannot strand a
+    row from a campaign that shrank or was retired — which is how `pv_2025_2026` lived
+    on in this database as a phantom campaign after being dropped upstream.
+
+    The gate runs FIRST and the state is stamped LAST, so an interrupted run reports as
+    stale rather than as finished.
+
+    This replaces the implementation deleted on 2026-08-20, which re-derived five
+    decisions `camtrap.observations` already owned and disagreed with it on 515 rows.
+    Nothing here re-derives anything — see src/parsers/canonical_ct.py.
     """
-    raise CameraTrapIngestNotRebuilt(
-        "Camera-trap ingest is not implemented. It must be rebuilt from "
-        "camera-traps/data/campaigns/<campaign>/observations.parquet, which already "
-        "carries the resolved observationType, species, effort validity and repair "
-        "provenance -- see camera-traps/docs/V2-REVIEW.md sections 2.3 and 2.4. "
-        "The previous implementation was deleted on 2026-08-20 because it re-derived "
-        "the review resolution and disagreed with the canonical table on 515 rows."
-    )
+    state = canonical_gate.load_published()
+    campaigns = list(state["campaigns"])
+    print(f"→ Canonical contract v{state['schema_version']}: "
+          f"{len(campaigns)} campaign(s), {state['n_rows_total']} rows declared.")
+
+    frames = {c: _read_canonical(c, state) for c in campaigns}
+    tables = canonical_ct.to_tables(frames)
+
+    written: dict[str, int] = {}
+    for table, df in tables.items():
+        con.execute(f"DELETE FROM {table}")
+        ensure_columns(con, table, df)
+        written[table] = upsert_df(con, table, df)
+        print(f"  {table}: {written[table]} rows.")
+
+    _reconcile(con, state)
+    canonical_gate.record(con, state)
+    return written
+
+
+def _reconcile(con: duckdb.DuckDBPyConnection, state: dict) -> None:
+    """V2-REVIEW 2.8: database row counts equal parquet row counts, per campaign.
+
+    Read back from the DATABASE, not from the frames just built. The frames are what we
+    meant to write; a reconciliation that trusts them checks nothing.
+    """
+    problems = []
+    for campaign, declared in state["campaigns"].items():
+        actual = con.execute(
+            "SELECT COUNT(*) FROM ct_observations o "
+            "JOIN ct_deployments d ON o.deploymentID = d.deploymentID "
+            "WHERE d.campaign = ?", [campaign]
+        ).fetchone()[0]
+        if actual != declared["n_rows"]:
+            problems.append(
+                f"{campaign}: {actual} observation rows in the database, "
+                f"{declared['n_rows']} declared"
+            )
+        stations = con.execute(
+            "SELECT COUNT(DISTINCT locationName) FROM ct_deployments WHERE campaign = ?",
+            [campaign]
+        ).fetchone()[0]
+        if stations != declared["n_stations"]:
+            problems.append(
+                f"{campaign}: {stations} stations in the database, "
+                f"{declared['n_stations']} declared"
+            )
+
+    media = con.execute("SELECT COUNT(*) FROM ct_media").fetchone()[0]
+    obs = con.execute("SELECT COUNT(*) FROM ct_observations").fetchone()[0]
+    if media != obs:
+        problems.append(
+            f"ct_media has {media} rows and ct_observations {obs}; these are "
+            f"media-level observations and must be 1:1"
+        )
+
+    if problems:
+        raise CameraTrapIngestError(
+            "Rebuild finished but did not reconcile:\n"
+            + "\n".join(f"  - {p}" for p in problems)
+        )
+    print(f"  Reconciled: {obs} observations across {len(state['campaigns'])} campaigns.")
 
 
 def ingest_cr800_live(con: duckdb.DuckDBPyConnection) -> None:

@@ -52,9 +52,29 @@ def run_fetch_range(start: str, end: str):
 
 
 def run_ingest_ct():
-    """Camera-trap ingest — retired 2026-08-20, raises with the reason. See V2-REVIEW 2.3."""
+    """Rebuild ct_* from camera-traps' canonical parquets. See V2-REVIEW 2.3."""
     with managed_conn() as con:
         ingest_all_ct_campaigns(con)
+
+
+def run_ct_check() -> int:
+    """Report whether this database is current with the published canonical contract.
+
+    Writes nothing. Exits 1 on drift so a cron wrapper or CI step can act on it —
+    reporting staleness without a non-zero exit is how a stale database goes on being
+    served while a log line nobody reads says otherwise.
+    """
+    from src import canonical_gate
+    with managed_conn(init=False) as con:
+        findings = canonical_gate.check(con)
+    if not findings:
+        print("Camera-trap tables are current with CANONICAL_STATE.json.")
+        return 0
+    print("STALE — this database does not match what camera-traps published:")
+    for f in findings:
+        print(f"  - {f}")
+    print("\nRun: python run_fetch.py --ct")
+    return 1
 
 
 def run_export():
@@ -98,11 +118,15 @@ def main():
     parser.add_argument("--health", action="store_true", help="Print health report and exit")
     parser.add_argument("--verbose", action="store_true", help="Show gap details with --health")
     parser.add_argument("--ct", action="store_true",
-                        help="Camera-trap ingest -- NOT IMPLEMENTED. Retired 2026-08-20; "
-                             "must be rebuilt from observations.parquet (V2-REVIEW 2.3). "
-                             "Kept as a flag so it fails with an explanation instead of "
-                             "silently vanishing from the CLI.")
+                        help="Rebuild ct_deployments/ct_media/ct_observations from "
+                             "camera-traps' observations.parquet (V2-REVIEW 2.3)")
+    parser.add_argument("--ct-check", action="store_true",
+                        help="Report whether ct_* is current with CANONICAL_STATE.json "
+                             "and exit 1 if not. Writes nothing.")
     args = parser.parse_args()
+
+    if args.ct_check:
+        raise SystemExit(run_ct_check())
 
     if args.ct:
         run_ingest_ct()
