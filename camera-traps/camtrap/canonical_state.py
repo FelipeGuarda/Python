@@ -31,22 +31,31 @@ names and `campaigns[<name>].n_rows` against your row count, and stop if they di
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
 
 import pandas as pd
 
+from camtrap.deployments import DEPLOYMENTS_FILENAME
 from camtrap.observations import (
     CAMPAIGNS_ROOT,
     CANONICAL_COLUMNS,
     CANONICAL_FILENAME,
 )
 
-# Bump when a column is added, removed, renamed or retyped. Consumers compare this
-# first: a mismatch means "your code was written against a different table", which is a
-# clearer thing to report than a missing-column KeyError several frames later.
-SCHEMA_VERSION = 2
+# Bump when a column is added, removed, renamed or retyped, or when the SHAPE of this
+# description changes. Consumers compare this first: a mismatch means "your code was
+# written against a different table", which is a clearer thing to report than a
+# missing-column KeyError several frames later.
+#
+#   2 -> 3 (2026-08-24): each campaign now also describes its published deployment
+#   windows. Effort is a DENOMINATOR -- a wrong row count is visible because a species
+#   appears or does not, while a wrong denominator silently rescales every rate in a
+#   report and nothing looks broken. It therefore belongs inside the thing consumers
+#   verify, not beside it.
+SCHEMA_VERSION = 3
 
 STATE_FILENAME = "CANONICAL_STATE.json"
 DEFAULT_STATE_PATH = CAMPAIGNS_ROOT.parent / STATE_FILENAME
@@ -60,6 +69,35 @@ PUBLISHED_CAMPAIGNS = ("otono_2025", "primavera_2025", "otono_2026")
 
 class CanonicalStateError(RuntimeError):
     """The canonical tables do not match their published state."""
+
+
+def _sha256(path: Path) -> str | None:
+    """None, not a crash, when the file is absent: a campaign published before the
+    deployment windows existed is a legitimate state to describe."""
+    if not path.exists():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _describe_deployments(campaign: str, root: Path) -> dict:
+    """The published effort for one campaign, summarised so the gate can check it.
+
+    `n_deployments` counts every station the field record dates, including those with
+    no images; `camera_days` sums only the ones that have images, because that is the
+    number a detection rate may legitimately divide by.
+    """
+    path = root / campaign / DEPLOYMENTS_FILENAME
+    if not path.exists():
+        return {"n_deployments": None, "n_deployments_with_media": None,
+                "camera_days": None, "deployments_sha256": None}
+    dep = pd.read_csv(path)
+    with_media = dep[dep["has_media"].astype(bool)]
+    return {
+        "n_deployments": int(len(dep)),
+        "n_deployments_with_media": int(len(with_media)),
+        "camera_days": int(with_media["field_days"].dropna().sum()),
+        "deployments_sha256": _sha256(path),
+    }
 
 
 def _describe(campaign: str, root: Path) -> dict:
@@ -83,6 +121,7 @@ def _describe(campaign: str, root: Path) -> dict:
         "datetime_max": None if dt.isna().all() else str(dt.max()),
         "n_valid_date_false": int((~df["valid_date"].fillna(False)).sum()),
         "n_valid_effort_false": int((~df["valid_effort"].fillna(False)).sum()),
+        **_describe_deployments(campaign, root),
     }
 
 

@@ -1,0 +1,27 @@
+campaign,station_id,field_start,field_end,field_days,has_media,note
+otono_2025,CT01,2024-12-10,2025-05-28,169,True,
+otono_2025,CT02,2024-12-10,2025-05-14,155,True,
+otono_2025,CT03,2024-10-09,2025-06-05,239,True,
+otono_2025,CT04,2024-10-09,2025-05-14,217,True,
+otono_2025,CT05,2024-12-11,2025-05-28,168,True,
+otono_2025,CT06,2024-10-09,2025-05-14,217,True,
+otono_2025,CT07,2024-12-11,2025-06-04,175,True,
+otono_2025,CT08,2024-10-09,2025-06-05,239,True,
+otono_2025,CT09,2024-10-09,2025-05-14,217,True,
+otono_2025,CT10,2024-10-09,2025-05-28,231,True,
+otono_2025,CT11,2024-10-22,2025-05-29,219,True,
+otono_2025,CT12,2024-10-22,2025-05-29,219,True,
+otono_2025,CT13,2024-10-22,2025-05-29,219,True,
+otono_2025,CT14,2024-12-11,2025-06-04,175,True,
+otono_2025,CT15,2025-01-09,2025-06-09,151,True,
+otono_2025,CT16,2025-01-09,2025-06-09,151,True,
+otono_2025,CT17,2025-01-16,2025-06-06,141,True,
+otono_2025,CT18,2025-01-28,2025-06-10,133,True,
+otono_2025,CT19,2025-01-30,2025-06-05,126,True,
+otono_2025,CT20,2025-01-30,2025-06-09,130,True,
+otono_2025,CT21,2025-02-04,2025-06-05,121,False,"deployed per the field record, no images in the canonical table"
+otono_2025,CT22,2025-02-04,2025-06-11,127,False,"deployed per the field record, no images in the canonical table"
+otono_2025,CT23,2025-02-05,2025-06-10,125,True,
+otono_2025,CT24,2025-02-05,2025-06-10,125,False,"deployed per the field record, no images in the canonical table"
+otono_2025,CT25,2025-02-05,2025-06-10,125,False,"deployed per the field record, no images in the canonical table"
+otono_2025,CT26,2025-02-05,2025-06-10,125,False,"deployed per the field record, no images in the canonical table"
