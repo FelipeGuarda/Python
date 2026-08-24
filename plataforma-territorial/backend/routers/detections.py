@@ -21,6 +21,16 @@ _COMMON_NAMES: dict[str, str] = {sp["latin"]: sp["spanish"] for sp in load_speci
 # Station image exports live in the camera-traps repo (gitignored, large files).
 _CT_EXPORTS_DIR = ct_exports_dir()
 
+# Campaign slug → Spanish label for display. The warehouse stores the canonical slug
+# (`otono_2025`), which is the identity; turning it into "Otoño 2025" is presentation
+# and belongs here rather than as a second column in the database. Unknown slugs fall
+# through unchanged, so a new campaign shows up as itself instead of vanishing.
+_CAMPAIGN_LABELS: dict[str, str] = {
+    "otono_2025": "Otoño 2025",
+    "primavera_2025": "Primavera 2025",
+    "otono_2026": "Otoño 2026",
+}
+
 # Canonical TC camera locations from plataforma-territorial/data/stations.yaml.
 # Used so the Observatorio map shows all deployed cameras even if the reviewed
 # CSV for a given campaign has no rows for that TC (Timelapse only exports rows
@@ -146,7 +156,7 @@ def summary_stats():
         "unique_species": unique_species,
         "active_stations": active_stations,
         "campaign_count": len(campaigns),
-        "campaigns": [r[0] for r in campaigns],
+        "campaigns": [_CAMPAIGN_LABELS.get(r[0], r[0]) for r in campaigns],
         "days_sampled": days_sampled,
         "date_range_start": date_range[0],
         "date_range_end": date_range[1],
@@ -353,8 +363,25 @@ def species_list_with_occupancy():
     """Species + occupancy for the camaras-tab comparator dropdown.
 
     Returns detected species with total detections, distinct-station counts,
-    naive occupancy percentage (n_stations / total TC cameras), and Spanish
-    common name. JOINs ct_deployments to get the distinct-station count.
+    naive occupancy percentage, and Spanish common name.
+
+    THE DENOMINATOR IS THE DEPLOYED GRID, NOT THE STATION REGISTRY. Until
+    2026-08-24 this divided by `len(_TC_COORDS)` — every station in stations.yaml —
+    which is wrong in three separate ways. The grid was built up over time, so
+    otoño 2025 ran 21 cameras, primavera 26 and otoño 2026 27; dividing the early
+    campaigns by the full registry understates them. The figure moved whenever a
+    station was added to the registry, including stations that did not exist when
+    the campaign ran — adding CT27 shifted every percentage on the page. And it
+    made a consumer depend on the registry's SIZE for a quantity the observation
+    data already answers.
+
+    Counting deployments is correct on both sides of the ct_* rebuild: a station
+    deployed with zero detections belongs in the denominator and not the numerator,
+    which is exactly what naive occupancy means.
+
+    NOTE: this aggregates across ALL campaigns, so the denominator is every station
+    deployed in any of them. Per-campaign occupancy needs a campaign filter here and
+    in the numerator; that is still open — see V2-REVIEW 1.6 / §2.5.
 
     Companion endpoint /species-summary returns the per-species detection
     histogram for the Fauna tab (with total_individuals and last_seen).
@@ -372,13 +399,20 @@ def species_list_with_occupancy():
             GROUP BY o.scientificName
             ORDER BY total_detections DESC
         """).fetchall()
+        n_deployed = con.execute(
+            "SELECT COUNT(DISTINCT locationID) FROM ct_deployments"
+        ).fetchone()[0]
+
     return [
         {
             "scientific_name": r[0],
             "common_name": _COMMON_NAMES.get(r[0], r[0]),
             "total_detections": r[1],
             "n_stations": r[2],
-            "occupancy_pct": round(r[2] / len(_TC_COORDS) * 100, 1),
+            "n_stations_deployed": n_deployed,
+            # None, not 0: with nothing deployed the fraction is undefined rather
+            # than zero, and a 0% bar reads as "looked everywhere, found nothing".
+            "occupancy_pct": round(r[2] / n_deployed * 100, 1) if n_deployed else None,
         }
         for r in rows
     ]
