@@ -163,17 +163,21 @@ MIN_DELTA_TIME_MIN <- EPISODE_GAP_MINUTES   # from R/00_admissibility.R
 
 
 # ── 3. Load and parse the station coordinates (GeoJSON) ───────────────────────
-# The GeoJSON holds the canonical information for each physical camera trap:
-#   id       → canonical station label "TC-01", "TC-02", …
-#   tc       → integer station number (1–26); this is the JOIN KEY
-#   sd_card  → SD card code used to cross-validate Primavera station names
+# The GeoJSON is GENERATED from camera-traps/data/campaigns/estaciones.csv, which owns
+# station identity; it is not hand-maintained. It holds, per physical camera trap:
+#   id       → canonical station label "CT01", "CT02", … (was "TC-01" until 2026-08-24;
+#              one spelling is now used in the field, the pipeline and the platform)
+#   tc       → integer station number (1–27); this is the JOIN KEY
 #   geometry → WGS-84 point coordinates (lon, lat)
+# `sd_card` was dropped on 2026-08-24: it was the M## grid-module tag from the old
+# folder names, not an SD card, not unique (M15 was both CT11 and CT18), and the
+# Primavera cross-validation that once read it no longer exists.
 
 stations_sf <- st_read(PATH_GEOJSON, quiet = TRUE) %>%
   # Rename `tc` to `tc_num` to make its role as join key explicit
   rename(tc_num = tc) %>%
   # Keep only the columns we need downstream
-  select(id, tc_num, sd_card, altitude_m, geometry)
+  select(id, tc_num, altitude_m, geometry)
 
 message(sprintf("Loaded %d camera stations from GeoJSON.", nrow(stations_sf)))
 

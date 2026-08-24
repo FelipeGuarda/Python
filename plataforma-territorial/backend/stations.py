@@ -1,9 +1,16 @@
 """
 Station registry loader for the plataforma-territorial backend.
 
-Loads `plataforma-territorial/data/stations.yaml` — the single source of
-truth for Bosque Pehuén monitoring stations. Override with the
-FMA_STATIONS_YAML env var when running outside the repo layout.
+Loads `plataforma-territorial/data/stations.yaml`, which is GENERATED from
+`camera-traps/data/campaigns/estaciones.csv` by
+`camera-traps/setup/build_station_registry.py` — that CSV owns station identity.
+Do not hand-edit the YAML: edit the registry and regenerate, or
+`camera-traps/tests/test_station_registry.py` fails.
+
+Stations are spelled `CT01`..`CT27` here as everywhere else. They were `TC-01`
+until 2026-08-24, which gave the project two names for one thing.
+
+Override with the FMA_STATIONS_YAML env var when running outside the repo layout.
 """
 
 from __future__ import annotations

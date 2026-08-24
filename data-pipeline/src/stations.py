@@ -1,11 +1,20 @@
 """
-Canonical station registry loader.
+Station registry loader.
 
-Reads `plataforma-territorial/data/stations.yaml` — the single source of
-truth for Bosque Pehuén monitoring stations. Default resolution assumes
-the FMA monorepo layout (data-pipeline/ and plataforma-territorial/ as
-siblings under one parent). Override via FMA_STATIONS_YAML env var when
-the layout differs (e.g. container deployments).
+Reads `plataforma-territorial/data/stations.yaml`, which is GENERATED from
+`camera-traps/data/campaigns/estaciones.csv` by
+`camera-traps/setup/build_station_registry.py`. That CSV owns station identity;
+this file reads a projection of it, and the YAML must not be hand-edited.
+
+Until 2026-08-24 this docstring called stations.yaml "the single source of truth"
+while it held 26 stations against the other two registries' 27 — so CT27's otoño
+2026 images ingested with no coordinates and nothing raised. A file three modules
+call canonical is only canonical if something checks; that check now lives in
+`camera-traps/tests/test_station_registry.py`.
+
+Default resolution assumes the FMA monorepo layout (data-pipeline/ and
+plataforma-territorial/ as siblings under one parent). Override via
+FMA_STATIONS_YAML env var when the layout differs (e.g. container deployments).
 """
 
 from __future__ import annotations

@@ -4,10 +4,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-01",
+        "id": "CT01",
         "tc": 1,
         "grid_id": 67,
-        "sd_card": "M7",
         "name": "Cámara Trampa 1",
         "type": "camera_trap",
         "altitude_m": 1263
@@ -23,10 +22,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-02",
+        "id": "CT02",
         "tc": 2,
         "grid_id": 57,
-        "sd_card": "M8",
         "name": "Cámara Trampa 2",
         "type": "camera_trap",
         "altitude_m": 1223
@@ -42,10 +40,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-03",
+        "id": "CT03",
         "tc": 3,
         "grid_id": 34,
-        "sd_card": "M6",
         "name": "Cámara Trampa 3",
         "type": "camera_trap",
         "altitude_m": 998
@@ -61,10 +58,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-04",
+        "id": "CT04",
         "tc": 4,
         "grid_id": 24,
-        "sd_card": "M5",
         "name": "Cámara Trampa 4",
         "type": "camera_trap",
         "altitude_m": 1004
@@ -80,10 +76,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-05",
+        "id": "CT05",
         "tc": 5,
         "grid_id": 58,
-        "sd_card": "M9",
         "name": "Cámara Trampa 5",
         "type": "camera_trap",
         "altitude_m": 1270
@@ -99,10 +94,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-06",
+        "id": "CT06",
         "tc": 6,
         "grid_id": 11,
-        "sd_card": "M1",
         "name": "Cámara Trampa 6",
         "type": "camera_trap",
         "altitude_m": 861
@@ -118,10 +112,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-07",
+        "id": "CT07",
         "tc": 7,
         "grid_id": 56,
-        "sd_card": "M10",
         "name": "Cámara Trampa 7",
         "type": "camera_trap",
         "altitude_m": 1232
@@ -137,10 +130,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-08",
+        "id": "CT08",
         "tc": 8,
         "grid_id": 35,
-        "sd_card": "M4",
         "name": "Cámara Trampa 8",
         "type": "camera_trap",
         "altitude_m": 1048
@@ -156,10 +148,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-09",
+        "id": "CT09",
         "tc": 9,
         "grid_id": 12,
-        "sd_card": "M2",
         "name": "Cámara Trampa 9",
         "type": "camera_trap",
         "altitude_m": 886
@@ -175,10 +166,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-10",
+        "id": "CT10",
         "tc": 10,
         "grid_id": 36,
-        "sd_card": "M3",
         "name": "Cámara Trampa 10",
         "type": "camera_trap",
         "altitude_m": 1135
@@ -194,10 +184,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-11",
+        "id": "CT11",
         "tc": 11,
         "grid_id": 27,
-        "sd_card": "M15",
         "name": "Cámara Trampa 11",
         "type": "camera_trap",
         "altitude_m": 1102
@@ -213,10 +202,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-12",
+        "id": "CT12",
         "tc": 12,
         "grid_id": 29,
-        "sd_card": "M17",
         "name": "Cámara Trampa 12",
         "type": "camera_trap",
         "altitude_m": 1209
@@ -232,10 +220,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-13",
+        "id": "CT13",
         "tc": 13,
         "grid_id": 28,
-        "sd_card": "M16",
         "name": "Cámara Trampa 13",
         "type": "camera_trap",
         "altitude_m": 1172
@@ -251,10 +238,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-14",
+        "id": "CT14",
         "tc": 14,
         "grid_id": 46,
-        "sd_card": "M11",
         "name": "Cámara Trampa 14",
         "type": "camera_trap",
         "altitude_m": 1048
@@ -270,10 +256,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-15",
+        "id": "CT15",
         "tc": 15,
         "grid_id": 37,
-        "sd_card": "M12",
         "name": "Cámara Trampa 15",
         "type": "camera_trap",
         "altitude_m": 1118
@@ -289,10 +274,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-16",
+        "id": "CT16",
         "tc": 16,
         "grid_id": 38,
-        "sd_card": "M13",
         "name": "Cámara Trampa 16",
         "type": "camera_trap",
         "altitude_m": 1126
@@ -308,10 +292,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-17",
+        "id": "CT17",
         "tc": 17,
         "grid_id": 47,
-        "sd_card": "M14",
         "name": "Cámara Trampa 17",
         "type": "camera_trap",
         "altitude_m": 1062
@@ -327,10 +310,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-18",
+        "id": "CT18",
         "tc": 18,
         "grid_id": 33,
-        "sd_card": "M15",
         "name": "Cámara Trampa 18",
         "type": "camera_trap",
         "altitude_m": 978
@@ -346,10 +328,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-19",
+        "id": "CT19",
         "tc": 19,
         "grid_id": 13,
-        "sd_card": "M16",
         "name": "Cámara Trampa 19",
         "type": "camera_trap",
         "altitude_m": 923
@@ -365,10 +346,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-20",
+        "id": "CT20",
         "tc": 20,
         "grid_id": 4,
-        "sd_card": "M17",
         "name": "Cámara Trampa 20",
         "type": "camera_trap",
         "altitude_m": 1231
@@ -384,10 +364,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-21",
+        "id": "CT21",
         "tc": 21,
         "grid_id": 45,
-        "sd_card": "M18",
         "name": "Cámara Trampa 21",
         "type": "camera_trap",
         "altitude_m": 1037
@@ -403,10 +382,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-22",
+        "id": "CT22",
         "tc": 22,
         "grid_id": 23,
-        "sd_card": "M19",
         "name": "Cámara Trampa 22",
         "type": "camera_trap",
         "altitude_m": 951
@@ -422,10 +400,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-23",
+        "id": "CT23",
         "tc": 23,
         "grid_id": 44,
-        "sd_card": "M20",
         "name": "Cámara Trampa 23",
         "type": "camera_trap",
         "altitude_m": 974
@@ -441,10 +418,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-24",
+        "id": "CT24",
         "tc": 24,
         "grid_id": 43,
-        "sd_card": "M21",
         "name": "Cámara Trampa 24",
         "type": "camera_trap",
         "altitude_m": 957
@@ -460,10 +436,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-25",
+        "id": "CT25",
         "tc": 25,
         "grid_id": 32,
-        "sd_card": "M22",
         "name": "Cámara Trampa 25",
         "type": "camera_trap",
         "altitude_m": 945
@@ -479,10 +454,9 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-26",
+        "id": "CT26",
         "tc": 26,
         "grid_id": 22,
-        "sd_card": "M23",
         "name": "Cámara Trampa 26",
         "type": "camera_trap",
         "altitude_m": 920
@@ -498,13 +472,12 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "TC-27",
+        "id": "CT27",
         "tc": 27,
         "grid_id": null,
-        "sd_card": null,
         "name": "Cámara Trampa 27",
         "type": "camera_trap",
-        "altitude_m": null
+        "altitude_m": 1408.06
       },
       "geometry": {
         "type": "Point",

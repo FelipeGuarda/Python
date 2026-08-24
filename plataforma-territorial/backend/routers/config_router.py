@@ -15,8 +15,10 @@ def geography():
 
     Returns reserve center/zoom for the default map view, the weather
     station location and metadata, and the camera-trap station count.
-    The frontend uses this in place of hardcoded coordinates and the
-    `26 estaciones` literal.
+    The frontend uses this in place of hardcoded coordinates and a hardcoded
+    station-count literal. The count comes from the registry, so it followed the
+    grid from 26 to 27 stations on 2026-08-24 without a code change — which is
+    the point of not hardcoding it.
     """
     data = load_stations()
     ws = weather_station()

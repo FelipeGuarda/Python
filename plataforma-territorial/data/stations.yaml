@@ -23,264 +23,253 @@ weather:
     connection: tailscale://100.97.202.90:2000
 
 camera_traps:
-  - id: TC-01
+  - id: CT01
     tc: 1
     grid_id: 67
-    sd_card: M7
     name: Cámara Trampa 1
     lat: -39.45183
     lon: -71.72707
     altitude_m: 1263
     type: camera_trap
 
-  - id: TC-02
+  - id: CT02
     tc: 2
     grid_id: 57
-    sd_card: M8
     name: Cámara Trampa 2
     lat: -39.45163
     lon: -71.73252
     altitude_m: 1223
     type: camera_trap
 
-  - id: TC-03
+  - id: CT03
     tc: 3
     grid_id: 34
-    sd_card: M6
     name: Cámara Trampa 3
     lat: -39.43796
     lon: -71.74220
     altitude_m: 998
     type: camera_trap
 
-  - id: TC-04
+  - id: CT04
     tc: 4
     grid_id: 24
-    sd_card: M5
     name: Cámara Trampa 4
     lat: -39.43774
     lon: -71.74829
     altitude_m: 1004
     type: camera_trap
 
-  - id: TC-05
+  - id: CT05
     tc: 5
     grid_id: 58
-    sd_card: M9
     name: Cámara Trampa 5
     lat: -39.45579
     lon: -71.73253
     altitude_m: 1270
     type: camera_trap
 
-  - id: TC-06
+  - id: CT06
     tc: 6
     grid_id: 11
-    sd_card: M1
     name: Cámara Trampa 6
     lat: -39.42418
     lon: -71.75465
     altitude_m: 861
     type: camera_trap
 
-  - id: TC-07
+  - id: CT07
     tc: 7
     grid_id: 56
-    sd_card: M10
     name: Cámara Trampa 7
     lat: -39.44718
     lon: -71.73228
     altitude_m: 1232
     type: camera_trap
 
-  - id: TC-08
+  - id: CT08
     tc: 8
     grid_id: 35
-    sd_card: M4
     name: Cámara Trampa 8
     lat: -39.44286
     lon: -71.74485
     altitude_m: 1048
     type: camera_trap
 
-  - id: TC-09
+  - id: CT09
     tc: 9
     grid_id: 12
-    sd_card: M2
     name: Cámara Trampa 9
     lat: -39.42885
     lon: -71.75478
     altitude_m: 886
     type: camera_trap
 
-  - id: TC-10
+  - id: CT10
     tc: 10
     grid_id: 36
-    sd_card: M3
     name: Cámara Trampa 10
     lat: -39.44675
     lon: -71.74390
     altitude_m: 1135
     type: camera_trap
 
-  - id: TC-11
+  - id: CT11
     tc: 11
     grid_id: 27
-    sd_card: M15
     name: Cámara Trampa 11
     lat: -39.45130
     lon: -71.74873
-    altitude_m: 1102  # corrected 2026-06-09 from KMZ "Monitoreo TC 2024" + Google Earth (prior log value 820 m was a data-entry error)
+    altitude_m: 1102
     type: camera_trap
 
-  - id: TC-12
+  - id: CT12
     tc: 12
     grid_id: 29
-    sd_card: M17
     name: Cámara Trampa 12
     lat: -39.45905
     lon: -71.75111
-    altitude_m: 1209  # corrected 2026-06-09 from KMZ "Monitoreo TC 2024" (prior log value 819 m was a data-entry error)
+    altitude_m: 1209
     type: camera_trap
 
-  - id: TC-13
+  - id: CT13
     tc: 13
     grid_id: 28
-    sd_card: M16
     name: Cámara Trampa 13
     lat: -39.45556
     lon: -71.75083
-    altitude_m: 1172  # corrected 2026-06-09 from KMZ "Monitoreo TC 2024" (prior log value 819 m was a data-entry error)
+    altitude_m: 1172
     type: camera_trap
 
-  - id: TC-14
+  - id: CT14
     tc: 14
     grid_id: 46
-    sd_card: M11
     name: Cámara Trampa 14
     lat: -39.44709
     lon: -71.73836
     altitude_m: 1048
     type: camera_trap
 
-  - id: TC-15
+  - id: CT15
     tc: 15
     grid_id: 37
-    sd_card: M12
     name: Cámara Trampa 15
     lat: -39.45142
     lon: -71.74398
     altitude_m: 1118
     type: camera_trap
 
-  - id: TC-16
+  - id: CT16
     tc: 16
     grid_id: 38
-    sd_card: M13
     name: Cámara Trampa 16
     lat: -39.45524
     lon: -71.74502
     altitude_m: 1126
     type: camera_trap
 
-  - id: TC-17
+  - id: CT17
     tc: 17
     grid_id: 47
-    sd_card: M14
     name: Cámara Trampa 17
     lat: -39.45180
     lon: -71.73987
     altitude_m: 1062
     type: camera_trap
 
-  - id: TC-18
+  - id: CT18
     tc: 18
     grid_id: 33
-    sd_card: M15
     name: Cámara Trampa 18
     lat: -39.43320
     lon: -71.74338
     altitude_m: 978
     type: camera_trap
 
-  - id: TC-19
+  - id: CT19
     tc: 19
     grid_id: 13
-    sd_card: M16
     name: Cámara Trampa 19
     lat: -39.43286
     lon: -71.75497
     altitude_m: 923
     type: camera_trap
 
-  - id: TC-20
+  - id: CT20
     tc: 20
     grid_id: 4
-    sd_card: M17
     name: Cámara Trampa 20
     lat: -39.43752
     lon: -71.76076
     altitude_m: 1231
     type: camera_trap
 
-  - id: TC-21
+  - id: CT21
     tc: 21
     grid_id: 45
-    sd_card: M18
     name: Cámara Trampa 21
     lat: -39.44299
     lon: -71.73801
     altitude_m: 1037
     type: camera_trap
 
-  - id: TC-22
+  - id: CT22
     tc: 22
     grid_id: 23
-    sd_card: M19
     name: Cámara Trampa 22
     lat: -39.43296
     lon: -71.74903
     altitude_m: 951
     type: camera_trap
 
-  - id: TC-23
+  - id: CT23
     tc: 23
     grid_id: 44
-    sd_card: M20
     name: Cámara Trampa 23
     lat: -39.43704
     lon: -71.73900
     altitude_m: 974
     type: camera_trap
 
-  - id: TC-24
+  - id: CT24
     tc: 24
     grid_id: 43
-    sd_card: M21
     name: Cámara Trampa 24
     lat: -39.43359
     lon: -71.73804
     altitude_m: 957
     type: camera_trap
 
-  - id: TC-25
+  - id: CT25
     tc: 25
     grid_id: 32
-    sd_card: M22
     name: Cámara Trampa 25
     lat: -39.42929
     lon: -71.74325
     altitude_m: 945
     type: camera_trap
 
-  - id: TC-26
+  - id: CT26
     tc: 26
     grid_id: 22
-    sd_card: M23
     name: Cámara Trampa 26
     lat: -39.42908
     lon: -71.74894
     altitude_m: 920
     type: camera_trap
-    # Nota: planilla Excel tenía coordenadas en formato DDMMSS.x (39.25447 → 39°25'44.7"S),
-    # no decimal. Corregido manualmente. GPS terreno: 39°25'44.7"S 71°44'56.2"W.
+    # Coordenada corregida 2026-04-15: la planilla historica tenia 39d25'44,7" copiado como
+    # 39,25447, lo que dejaba la estacion 19 km fuera de la reserva.
+
+  - id: CT27
+    tc: 27
+    grid_id: null
+    name: Cámara Trampa 27
+    lat: -39.45689
+    lon: -71.72243
+    altitude_m: 1408.06
+    type: camera_trap
+    # Instalada el 2025-12-11 (confirmado por Felipe 2026-08-24); se descarta la fecha alternativa
+    # 2025-11-12, que era una transposicion dia-mes. El waypoint GPS marca 15:52:56 UTC = 12:52:56
+    # local, y el primer cuadro de la camara es 12:49:01 local: la camara se disparo al montarla y
+    # el punto se tomo 3m55s despues. Reloj verificado correcto contra la secuencia de retiro (ver
+    # deployment_anchors.csv de otono_2026). Altitud tomada del waypoint. Grilla por establecer en
+    # terreno.
