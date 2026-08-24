@@ -13,3 +13,4 @@ wdpassport-utils
 # Large geo bundles — exceed GitHub's 100 MB per-file limit
 *.kmz
 camera-traps/Anual-reports/Monitoreo TC 2024.kmz
+fma_data.duckdb.bak-*
