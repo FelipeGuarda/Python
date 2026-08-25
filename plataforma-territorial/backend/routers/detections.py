@@ -130,11 +130,18 @@ def recent_detections(limit: int = Query(default=20, le=100)):
 
 @router.get("/diel-activity")
 def diel_activity():
-    """Detection counts by hour of day (0–23), all campaigns combined."""
+    """Detection counts by hour of day (0–23), all campaigns combined.
+
+    Reads the time-admissible view, not ct_observations: 33 animal rows carry a
+    timestamp whose DATE is trustworthy and whose TIME OF DAY is not (repaired by
+    offset from a neighbouring segment). Bucketing those by HOUR() invented activity
+    at hours the animal was not photographed. Species totals elsewhere in this module
+    stay on the full table -- presence does not need a clock.
+    """
     with get_connection() as con:
         rows = con.execute("""
             SELECT HOUR(eventStart) as hour, COUNT(*) as count
-            FROM ct_observations
+            FROM ct_observations_time_admissible
             WHERE observationType = 'animal' AND scientificName IS NOT NULL
             GROUP BY HOUR(eventStart)
             ORDER BY hour
@@ -442,9 +449,12 @@ def species_overlap(sp1: str = Query(...), sp2: str = Query(...)):
     detection counts, and a normalized overlap coefficient (0–1, Dhat1-style).
     """
     with get_connection() as con:
+        # Hourly overlap is a time-of-day claim, so it reads the time-admissible view.
+        # The station and occupancy queries below deliberately do not: where a species
+        # was recorded is knowable without a working clock.
         hourly = con.execute("""
             SELECT o.scientificName, HOUR(o.eventStart) AS hour, COUNT(*) AS count
-            FROM ct_observations o
+            FROM ct_observations_time_admissible o
             JOIN ct_deployments d ON o.deploymentID = d.deploymentID
             WHERE o.observationType = 'animal' AND o.scientificName IN (?, ?)
             GROUP BY o.scientificName, HOUR(o.eventStart)
