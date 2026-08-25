@@ -133,13 +133,103 @@ class TestAgreementWithTheCanonicalTable(unittest.TestCase):
         """otono_2025 records five cameras installed in February 2025 and collected in
         June that appear in no image data at all. Dropping them would erase ~620
         camera-days and make them read as stations that never existed; publishing them
-        with has_media=False keeps the discrepancy visible while it is resolved."""
+        with has_media=False keeps the discrepancy visible."""
         frame = deployments.build("otono_2025")
         empty = frame[~frame["has_media"]]
         self.assertEqual(sorted(empty["station_id"]),
                          ["CT21", "CT22", "CT24", "CT25", "CT26"])
         self.assertTrue((empty["field_days"] > 0).all())
         self.assertTrue((empty["note"] != "").all())
+
+
+class TestMediaStatusIsAReasonNotAMeasurement(unittest.TestCase):
+    """`has_media` says whether stills are here; `media_status` says WHY not.
+
+    These were one column until 2026-08-25, and conflating them published a false
+    sentence for four station-campaigns: "no images in the canonical table" read as
+    "the camera saw nothing" when the cameras had been recording video the whole
+    time, stored outside this pipeline. The distinction decides a DENOMINATOR, so a
+    regression here silently rescales every otono_2025 rate.
+    """
+
+    def test_the_four_video_only_stations_are_named_as_such(self):
+        frame = deployments.build("otono_2025")
+        video = frame[frame["media_status"] == "video_only_offline"]
+        self.assertEqual(sorted(video["station_id"]),
+                         ["CT22", "CT24", "CT25", "CT26"])
+        # They were sampling, so their days are real effort -- the note must say so.
+        self.assertTrue(video["note"].str.contains("EXCLUDE").all())
+
+    def test_ct21_recorded_nothing_and_is_not_lumped_with_them(self):
+        """CT21's own field note says "SD vacia" -- the camera was dead, not filming.
+        It contributes no effort to any question, so it must not share a verdict with
+        the four that do."""
+        frame = deployments.build("otono_2025")
+        row = frame[frame["station_id"] == "CT21"].iloc[0]
+        self.assertEqual(row["media_status"], "card_failure")
+
+    def test_stations_with_stills_are_in_canonical(self):
+        for campaign in PUBLISHED_CAMPAIGNS:
+            frame = deployments.build(campaign)
+            with_media = frame[frame["has_media"]]
+            self.assertTrue(
+                (with_media["media_status"] == deployments.STATUS_IN_CANONICAL).all(),
+                f"{campaign}: a station with stills carries a non-canonical status",
+            )
+
+    def test_an_undeclared_gap_reports_unexplained_rather_than_nothing(self):
+        """The failure this guards is silence. If a future campaign has a station with
+        no stills and nobody writes down why, it must NOT inherit a reassuring note --
+        an unexplained gap is a question that has not been asked, and absorbing it
+        into an effort figure is how a wrong denominator looks right."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "otono_2025").mkdir()
+            # Field record dates both ends for a station with no canonical table at all.
+            with (root / FIELD_NOTES_FILENAME).open("w", encoding="utf-8", newline="") as fh:
+                w = csv.writer(fh)
+                w.writerow(["station_id", "visit_type", "visit_date", "visit_time",
+                            "campaign_opened", "campaign_closed"])
+                w.writerow(["CT99", "install", "2025-02-04", "", "otono_2025", ""])
+                w.writerow(["CT99", "revision", "2025-06-05", "", "", "otono_2025"])
+            frame = deployments.build("otono_2025", root=root)
+            row = frame[frame["station_id"] == "CT99"].iloc[0]
+            self.assertEqual(row["media_status"], deployments.STATUS_UNEXPLAINED)
+            self.assertIn("media_absence.csv", row["note"])
+
+    def test_a_misspelled_reason_is_refused_not_ignored(self):
+        """A typo in the reason column must not read as a licence to count the
+        camera-days. Fail-closed, same posture as the flatten preconditions."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "otono_2025").mkdir()
+            with (root / FIELD_NOTES_FILENAME).open("w", encoding="utf-8", newline="") as fh:
+                w = csv.writer(fh)
+                w.writerow(["station_id", "visit_type", "visit_date", "visit_time",
+                            "campaign_opened", "campaign_closed"])
+                w.writerow(["CT99", "install", "2025-02-04", "", "otono_2025", ""])
+                w.writerow(["CT99", "revision", "2025-06-05", "", "", "otono_2025"])
+            with (root / deployments.MEDIA_ABSENCE_FILENAME).open(
+                    "w", encoding="utf-8", newline="") as fh:
+                w = csv.writer(fh)
+                w.writerow(["campaign", "station_id", "reason"])
+                w.writerow(["otono_2025", "CT99", "video_only_ofline"])   # typo
+            with self.assertRaises(ValueError) as cm:
+                deployments.build("otono_2025", root=root)
+            self.assertIn("video_only_ofline", str(cm.exception))
+
+    def test_the_declared_absences_match_the_committed_file(self):
+        """media_absence.csv is a data file, so it can drift from the stations that
+        actually have no stills. Every declared row must correspond to a real gap --
+        a leftover declaration would silently license effort for a station that has
+        since been ingested."""
+        declared = pd.read_csv(CAMPAIGNS_ROOT / deployments.MEDIA_ABSENCE_FILENAME,
+                               dtype=str, keep_default_na=False)
+        for campaign, group in declared.groupby("campaign"):
+            frame = deployments.build(campaign)
+            without = set(frame.loc[~frame["has_media"], "station_id"])
+            self.assertEqual(set(group["station_id"]), without,
+                             f"{campaign}: declared absences != stations without stills")
 
 
 if __name__ == "__main__":

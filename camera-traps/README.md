@@ -89,7 +89,65 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-08-24 — **`estaciones.csv` now owns station identity, and the consumer
+**Last Updated:** 2026-08-25 — **the producer side of the boundary is closed, and one NAS
+check inverted a module's founding assumption.** Scope was set deliberately: everything from
+the boundary INWARDS — the field record coming in, the gates, the canonical table, the
+published contract. The consumer side is untouched.
+
+**The finding that mattered.** `camtrap/deployments.py` was built on "a station with a field
+window and no images is a discrepancy to resolve", and published exactly that sentence for
+otoño 2025's five image-less deployments: *"deployed per the field record, no images in the
+canonical table."* Felipe checked the NAS: **four of the five were recording the whole time.**
+Their media is video, stored for that campaign in a separate tree
+(`.../CAMPAÑAS DE RECOLECCION DE IMAGENES/Otoño 2025/Videos`). Only **CT21** recorded nothing,
+and its own field note said so a year ago — *"La cámara encendió luz led pero no prendió la
+pantalla, SD vacía"*. So `has_media=false` never meant "the camera saw nothing", and it had
+been read that way four times out of five.
+
+**Why that made the situation more dangerous, not less.** Those four cameras contribute REAL
+effort while their detections sit outside this pipeline. Put their ~500 camera-days into a
+stills-based denominator and every otoño 2025 rate is biased downwards by a plausible-looking
+amount — the manual's §6.3 "plausible number from two mistakes", which is worse than the
+visible 26-vs-21 it would replace. Fixed by separating the MEASUREMENT from the REASON: new
+`media_status` column in `deployments.csv`, sourced from a new declared data file
+`data/campaigns/media_absence.csv` (reason, evidence, NAS location, who checked and when), and
+**effort is now reported as two denominators, neither of them the default** — **3,816
+camera-days over 21 stations** for anything read from `observations.parquet`, 4,318 over 25 for
+anything that counts the video. An undeclared gap reports `unexplained` and a misspelled reason
+raises, because an unexplained gap is a question nobody asked and must not be absorbed into an
+effort figure.
+
+**Capture-order evidence is now stated for every station** (V2-REVIEW 1.4 / manual B6).
+`timestamps_audit.log` gained a *"Capture-order evidence, all N station(s)"* section — the tier
+was already computed for every station and then discarded for the ones that passed, so "no
+manifest" and "nobody looked" were indistinguishable. **The review's own figures were wrong in
+both directions:** ordering evidence exists for **3 / 4 / 4** stations of 21 / 26 / 27, while a
+manifest FILE covers 21 of 21 in otoño 2025 — because that campaign's folders carry hand-made
+names (`M7`, `M5`) and per §3.4 *only a camera-created folder is ordering evidence*. Two
+different measurements had been conflated. The gap is not a defect (§4B.3): six
+station-campaigns fail to order and every one has a clean clock.
+
+**Three more of the review's claims were false and are corrected in place.** `pv_2025_2026` was
+asserted "kept as provenance" for three sessions — it was deleted on 2026-08-20, and Felipe
+confirmed deletion is the decision; the last pv artefact and its live reader
+(`load_conflicts()` in `list_ciervo_guina_images.py`) went 2026-08-25. The field record was
+said to be "audited for coordinates only" — **23** rows carry date flags against **2**
+carrying coordinate flags, and the real gap is six columns never *collected*, with
+`camera_datetime_observed` at **0 / 107**. And `provenance.py` was said to need re-running and
+to be unwired — it is the **fourth flatten precondition**, fatal, checked before a file moves;
+re-run anyway across all 35,807 rows: **0** stations with more than one capture story.
+
+**Cleanup.** Legacy workbook moved to `data/campaigns/legacy/`; a second, byte-divergent copy
+under `Anual-reports/` deleted after verifying its install sheet was identical;
+`manual_review_ciervo_guina.md` and the pv label-conflict table deleted; the two stale
+precedence comments rewritten. `exports/Primavera-verano 2025-2026/` was already gone.
+
+**241 tests pass** (was 235). The export gate returns `full_category_sweep` for all three
+campaigns from the repo and `python -m camtrap.canonical_state` exits 0. Re-running
+`timestamps.py` on all three campaigns produced **byte-identical** parquets — the only contract
+change is three `deployments_sha256` values. **No number moved.**
+
+**Prior (2026-08-24)** — **`estaciones.csv` now owns station identity, and the consumer
 boundary is closed.** `plataforma-territorial`'s `stations.yaml` and
 `camera_trap_stations.geojson` are **generated** from it by `setup/build_station_registry.py`
 and must not be hand-edited; `tests/test_station_registry.py` asserts the committed artifacts
@@ -131,14 +189,29 @@ held by fixtures: the ±3 d anchor tolerance must not reach effort, and camera-d
 date-scale — subtracting visit datetimes truncated CT01 to 168 days because its install carries
 a recorded time and its retrieval does not. **235 tests pass**, up from 226.
 
-**Integration Status:** `In Progress [REMAINING: V2-REVIEW 1.4, 1.7–1.11, 1.14 round-trip, §3
-cleanup]`. **Blockers/Notes:** `deployments.csv` is published but **`data-pipeline` does not
-read it yet** — `ct_deployments` still carries observed-media windows until that pass lands, so
-the warehouse cannot yet serve a detection rate. ⚠️ **otoño 2025 records CT21, CT22, CT24, CT25
-and CT26 as installed 2025-02-04/05 and collected in June, and none of them appears in that
-campaign's DCIM manifest, image data or reviewed CSV** — ~623 camera-days unaccounted. They are
-published with `has_media=false` rather than dropped. Felipe is checking the NAS (2026-08-24);
-the working hypothesis is that the cameras were added late and the folders are empty.
+**Integration Status:** `In Progress [REMAINING: V2-REVIEW 1.9–1.11 and 1.14 on the producer
+side; the whole consumer side]`. **Producer-side scope is closed except 1.14.**
+
+**Blockers/Notes.**
+⚠️ **1.14 — the field workbook has no loader, and it is the highest-priority open item.**
+Nothing reads a filled `Registro de visitas CT.xlsx` back into `field_notes.csv`; that
+transcription is done by hand. Deferred 2026-08-25 because the `Visitas` sheet has **0 filled
+rows** and the next salida is unscheduled — **it expires the day terreno returns.** The shape
+is decided: `field_notes.csv` moves to the new 20-column form shape, the 107 legacy rows
+migrate in, and `FieldRecord` is rewired off `clock_state` / `camera_replaced`.
+⚠️ **The warehouse is stale by design.** `deployments.csv` changed, so its SHA-256 in
+`CANONICAL_STATE.json` moved and `data-pipeline`'s gate will correctly refuse. `python
+run_fetch.py --ct` is the fix and it is consumer-side work.
+`deployments.csv` is published but **`data-pipeline` does not read it yet** — `ct_deployments`
+still carries observed-media windows, so the warehouse cannot yet serve a detection rate.
+**Otoño 2025's five image-less deployments are resolved** (see above): four were recording
+video into a separate tree, one had a dead card. Any consumer computing a rate from
+`observations.parquet` must filter `deployments.csv` on `media_status == in_canonical` —
+**3,816 camera-days over 21 stations**, not 4,439 over 26.
+**Residual, stated not corrected:** CT22 and CT25 were found failed at retrieval (humidity,
+dead screen), so each stopped sampling at an unknown point before its recorded end date.
+Felipe's ruling: the field dates stand as registered. For those two, `field_days` is a
+CEILING, not a measurement.
 
 **Prior (2026-08-19)** — **the reviewer's verdict now reaches the canonical table, and `pv_2025_2026` was silently reverting the new review.** Primavera 2025's re-review finished, making all three campaigns comparable for the first time, and that comparison found the largest data defect of the V2 pass: **815 rows were typed `animal` while the reviewer had written in `observationComments` that the frame holds no animal** — the review wrote its correction into free text while the typed column kept the classifier's guess. Primavera's animal count was overstated by 50.6% (744 against 494) and counted 10 people and 4 vehicles as animals. `resolve_review()` now owns the resolution, fail-closed: it refused the otoño 2026 ingest until a `Pitio}` typo was fixed. Precedence, agreed with Felipe: an identified animal beats vehicle beats human where the review NAMES a species (37 rows — 13 Perro, 23 Caballo, 1 Vaca); the review wins outright where it NEGATES the animal. The sweep is not an input, and its `human` labels stay untouched in `ImageData_total.csv` where `anchor_candidates.py` reads them. **The second defect was worse for being invisible:** pv is not a campaign but a second review pass over primavera, and while it sat in `CAMPAIGN_ORDER` it outranked primavera — `read_campaigns` returned **169** of its 744 rows, 606 overlapping keys restoring April labels over the new review. Dropped from `CAMPAIGN_ORDER` and `REPORT_CAMPAIGNS`, kept as provenance. **Video is now excluded from every export by policy** (see Step 2a): otoño 2026 carried 2,162 videos swept `blank` with zero `animal` while primavera excluded its 2,618 at source, so their denominators differed in kind; the gate now refuses video, non-overridable, and the removal was proven byte-identical for the clock chain. Animal counts: otoño 2025 830→706, otoño 2026 1,785→1,320, primavera 744→494; **zero rows are `animal` with an empty species**. All three pass the gate from the repo for the first time. **A second pass the same day closed the row-set defect underneath all of it.** The canonical table described only reviewed rows, so a station that recorded no animal was absent from it — seven station-campaigns were missing (CT23 in otoño 2025; CT01/CT06/CT17/CT22 in primavera at 6, 21, 7 and 18 frames; CT02/CT12 in otoño 2026), and absent is indistinguishable from never-deployed: fine as a detection numerator, wrong as a trap-effort denominator. The table is now **one row per still** — 3,359 → **35,807 rows**, station gap **0 in all three**. Consumers must filter on `observation_type`; `01_data_prep.py` already did. **The annual report moved by exactly one record and the cause is named:** diffed at row level, 1 added and 0 removed — CT04 `01130013.JPG` *Oryctolagus cuniculus*, the `conejo?` adjudication, **not** the rebuild, which moved nothing because no `sweep_only` row is ever typed `animal` (asserted in a test). Felipe settled the two deferred label questions: a comment that cannot name a species stays `unknown` (`ave`, `roedor`, `churrete`), while `conejo` → *Oryctolagus cuniculus* and `pitío` → *Colaptes pitius* were adjudicated as real animals and added to `species.yaml`. Step 2a now records **how** to exclude video (Custom Selection → filter `fileMediatype`), and `timestamps.py` no longer aborts before writing anything on a cp1252 console. **190 tests pass** (152 at the start of the day) — via `python -m unittest discover -s tests`, since pytest is not in the env.
 
@@ -203,7 +276,7 @@ camera-traps/
 │   └── app.py                   ← review UI (batch by species, export reviewed CSV)
 │
 ├── setup/                       ← pre-processing utilities (run once per campaign)
-│   ├── build_field_notes.py     ← ONE-TIME: monitoring workbook → field_notes.csv
+│   ├── build_field_notes.py     ← ONE-TIME: legacy/ monitoring workbook → field_notes.csv
 │   ├── build_visit_template.py  ← Step 0-ter: visit schema → "Registro de visitas CT.xlsx"
 │   ├── flatten_for_camtrapdp.py ← flatten per-camera subfolders to deployment level
 │   ├── fix_unicode_filenames.py ← NFD → NFC filename normalization (Synology sync fix)
@@ -213,7 +286,6 @@ camera-traps/
     ├── 2022_2024_legacy methodology.pdf
     ├── REVISIÓN DISEÑO METODOLÓGICO DE CONAF.pdf
     ├── Resultados de evaluación Megadetector.docx.pdf
-    ├── Registro de monitoreo CT.xlsx
     └── 2025/                    ← Informe anual 2025 (oct 2024 – mar 2026), self-contained
         ├── informe_anual_2025.md  ← Spanish narrative source
         ├── render.sh             ← pandoc helper → DOCX (for Word review)
@@ -246,15 +318,23 @@ Three layers, and confusing the middle one for the first is the mistake to avoid
 
 | | What it is | Status |
 |---|---|---|
-| `Registro de monitoreo CT (HISTORICO 2024-2026 - NO LLENAR).xlsx` | the old workbook | **frozen.** Provenance only; nothing is ever added to it again |
+| `legacy/Registro de monitoreo CT (HISTORICO 2024-2026 - NO LLENAR).xlsx` | the old workbook | **frozen.** Provenance only; nothing is ever added to it again. Moved into `legacy/` 2026-08-25 so it stops sitting beside live data. A second, byte-divergent copy under `Anual-reports/` was deleted the same day — its install sheet was verified identical, so it could only ever drift |
 | `field_notes.csv` | the accumulating record | **canonical.** `camtrap/anchors.py` reads it; it must keep growing |
-| `Registro de visitas CT.xlsx` | the form terreno fills | **live.** One file, one sheet, rows accumulate forever |
+| `Registro de visitas CT.xlsx` | the form terreno fills | **live**, and **still has 0 filled rows.** One file, one sheet, rows accumulate forever |
+
+⚠️ **The intake step is not built.** Nothing reads a filled `Registro de visitas CT.xlsx`
+back into `field_notes.csv` — that transcription is done by hand, and it is the single
+open item on the producer side of this pipeline (V2-REVIEW 1.14). The shape of the fix was
+decided 2026-08-25: `field_notes.csv` moves to the new 20-column form shape, the 107 legacy
+rows migrate into it, and `FieldRecord` is rewired off `clock_state` / `camera_replaced`.
+Deferred because the sheet is empty and the next salida is unscheduled; it expires the day
+terreno returns.
 
 The planilla does not replace `field_notes.csv` — it is the intake that keeps it
 alive. Freeze the CSV too and every future campaign loses its deployment window and
 falls back to *unverified clean* verdicts.
 
-`field_notes.csv` holds one row per **visit**: 106 visits across 27 stations. A visit
+`field_notes.csv` holds one row per **visit**: 107 visits across 27 stations. A visit
 is a physical event, not a property of a campaign — at Bosque Pehuén every revision
 swaps the card, so one visit **closes** one campaign and **opens** the next
 (`campaign_closed` / `campaign_opened`).

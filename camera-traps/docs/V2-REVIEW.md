@@ -20,7 +20,18 @@ was really a hand-made folder sorting first.
 1. ~~`primavera_2025`'s re-review is finished in Timelapse2~~ **MET 2026-08-19.**
 2. ~~Its `ImageData_total.csv` is exported and passes `exports.read_total_export`~~
    **MET 2026-08-19** — `full_category_sweep`, `n_rows=16904`.
-3. `pv_2025_2026` is confirmed retired-to-provenance, not deleted.
+3. ~~`pv_2025_2026` is confirmed retired-to-provenance, not deleted.~~
+   **SUPERSEDED 2026-08-25. It was DELETED, and that is now the decision.** This
+   condition asked for the opposite of what happened: the directory and its parquet were
+   removed from disk and from git in `c295999` ("36 MB of legacy data removed"), and this
+   document went on asserting they were kept for three sessions. Felipe confirmed the
+   deletion is what he wants -- pv is a review pass, primavera's re-review supersedes it,
+   and keeping a phantom campaign on disk is how it came to outrank primavera in
+   `CAMPAIGN_ORDER` in the first place. The last pv artefact,
+   `label_conflicts_primavera_vs_pv_2026-05-27.csv`, was deleted 2026-08-25 together with
+   the `load_conflicts()` reader in `list_ciervo_guina_images.py`. What survives is the
+   EXPLANATION, in comments and one test asserting pv is not a campaign -- that is
+   deliberate, because deleting the reason is how the mistake returns.
 
 > **`n_rows` was wrong in this document until 2026-08-19: it said 19522.** That number
 > is the *flatten's* file count, and 19,522 = 16,904 stills + 1,663 mp4 + 955 mov.
@@ -46,17 +57,17 @@ code does not enforce**, and one of those four had no numbered item here at all.
 |---|---|---|---|
 | **A1** | station registry disagrees: `stations.yaml` **26** · geojson **27** · `estaciones.csv` **27**; CT27's files ingest coordinateless | 1.6 | ~~open~~ **CLOSED 2026-08-24** |
 | **A2** | contract published, consumer-side freshness check absent (`grep -r CANONICAL_STATE data-pipeline/` → nothing) | §4 | ~~open~~ **CLOSED 2026-08-24** |
-| **A3** | **the field form has no loader** — `build_visit_template.py` writes the workbook, nothing reads it back | **1.14, new** | open |
+| **A3** | **the field form has no loader** — `build_visit_template.py` writes the workbook, nothing reads it back | **1.14** | open — **shape decided 2026-08-25**, deferred; highest priority |
 | **A4** | `occupancy_pct` divides by all 27 stations | 1.6 / §2.5 | ~~open~~ **CLOSED 2026-08-24** (per-campaign filtering still open) |
 | **B1** | the `ct_*` rebuild | 2.1–2.3, 2.5, 2.8 | ~~open~~ **CLOSED 2026-08-24** |
 | **B2** | pehuén's absolute Windows paths | 1.11 | ~~open~~ **CLOSED 2026-08-24** — and it was more than two lines, see below |
-| **B3** | figures not re-rendered; otoño 2026 falls out of `05_spatial_distribution.R:249` and the `02_detection_summary.R` labellers | 1.11 + §3 | open — **narrowed**, see below |
-| **B4** | `field_notes.csv` audited for coordinates only, 57/106 rows flagged | 1.7 | open |
-| **B5** | `provenance.py` not re-run on the re-ingested primavera | 1.8 | open |
-| **B6** | manifest coverage not stated per campaign | 1.4 | open |
+| **B3** | figures not re-rendered; otoño 2026 falls out of `05_spatial_distribution.R:249` and the `02_detection_summary.R` labellers | 1.11 + §3 | open — consumer side, out of scope 2026-08-25 |
+| **B4** | `field_notes.csv` audited for coordinates only, 57/106 rows flagged | 1.7 | ~~open~~ **PREMISE WAS FALSE, 2026-08-25** — dates were audited 23 rows to coordinates' 2. Real finding: six columns were never COLLECTED, `camera_datetime_observed` 0/107 |
+| **B5** | `provenance.py` not re-run on the re-ingested primavera | 1.8 | ~~open~~ **CLOSED 2026-08-25** — 0 multi-story stations over 35,807 rows; and it was already wired as flatten precondition #4 |
+| **B6** | manifest coverage not stated per campaign | 1.4 | ~~open~~ **CLOSED 2026-08-25** — stated per station in `timestamps_audit.log`; the item's own figures were wrong both ways |
 | **B7** | CT27 install datable from `CT 27.kml` (2025-12-11 15:52:56), unrecorded | 1.5 | ~~open~~ **CLOSED 2026-08-24** |
 | **B8** | three regression fixtures | 1.10 | **1 of 3 done** — the registry-agreement check exists; manifest rebuild and deletion accounting still missing |
-| **C1–C5** | two superseded data files on disk · stale pv comment `apply_verdicts.py:143` · otoño 2025 video existence unconfirmed · `count` empty · seasonal puma orphan | §3 | open |
+| **C1–C5** | two superseded data files on disk · stale pv comment `apply_verdicts.py:143` · otoño 2025 video existence unconfirmed · `count` empty · seasonal puma orphan | §3 | **C1, C2, C3 CLOSED 2026-08-25.** C3 is the interesting one: otoño 2025's video EXISTS, on the NAS, in a separate tree — and it is why four stations look empty. C4, C5 remain (both consumer-side) |
 
 ### 0-ter. Second re-audit stamp, 2026-08-24 — the consumer boundary is closed
 
@@ -111,7 +122,32 @@ because that is where nobody owns the check.
       pass, up from 226. Still open below: the round-trip that keeps this true for *future*
       fieldwork.
 
-- [ ] **1.14 The field workbook has a loader.** `setup/build_visit_template.py` renders
+- [ ] **1.14 The field workbook has a loader.** ⚠️ **HIGHEST-PRIORITY OPEN ITEM.**
+      Deferred 2026-08-25 on Felipe's call — the next salida is not scheduled and the
+      `Visitas` sheet holds **0 filled rows**, so nothing is waiting for it and it earns a
+      proper design pass rather than a rushed one. It expires the day terreno returns.
+
+      **THE SHAPE DECISION IS MADE (Felipe, 2026-08-25): take the clean route.**
+      `field_notes.csv` becomes the NEW 20-column form shape, the 107 legacy rows are
+      migrated into it, and `FieldRecord` is rewired off `clock_state` and
+      `camera_replaced` — the two columns it reads today that the new form deliberately
+      refuses to collect. Rejected alternative: keep the legacy 28-column shape and bolt
+      the three new columns on. Safer and uglier, and it would leave the form and its
+      target permanently disagreeing.
+
+      **Three things the loader must do that are not obvious from the form:**
+      1. Snapshot the current `field_notes.csv` as a legacy document before reshaping it,
+         named in the `(HISTORICO ... )` style, and put it in `data/campaigns/legacy/`
+         beside the old workbook.
+      2. The new form has `camera_working`, `clock_adjusted`, `camera_datetime_after`,
+         which `field_notes.csv` has never had; it does NOT have `clock_state`,
+         `clock_action`, `clock_offset_hours`, `sd_out`, `sd_in`, `waypoint`,
+         `gps_device`, `source_sheet`. Both directions have to be handled.
+      3. `camera_datetime_observed` is **0 / 107** today (see 1.7). It is the column the
+         whole form was redesigned around, so the loader's fixture must prove a filled
+         value survives the round trip.
+
+      The rest of the original item still stands: `setup/build_visit_template.py` renders
       `Registro de visitas CT.xlsx` and **nothing reads it back**;
       `setup/build_field_notes.py` is the one-time legacy migration from the old workbook, not
       this. So a filled form is a spreadsheet somebody must transcribe by hand, and every
@@ -123,14 +159,77 @@ because that is where nobody owns the check.
 
 ---
 
+### 0-quater. Third stamp, 2026-08-25 — the PRODUCER side is closed
+
+Scope was set deliberately: **everything from the boundary INWARDS** — the field record
+coming in, the gates, the canonical table, the published contract. The consumer side
+(data-pipeline, platform, pehuen, the annual report's figures) was declared out of scope
+for the day and is untouched.
+
+**Closed: 1.4, 1.7 (re-stated), 1.8, C1, C2, C3, and the §0 entry condition.** What remains
+inside the boundary is **1.14 alone** — the loader — whose shape is now decided and whose
+deferral is deliberate.
+
+**Four of this document's own statements were wrong, and all four were measured, not
+argued:**
+
+| where | this doc said | measured 2026-08-25 |
+|---|---|---|
+| §0 cond. 3 / 1.1 | `pv_2025_2026` "kept as provenance" | **deleted** in `c295999` on 2026-08-20, disk and git. The doc asserted the opposite for three sessions |
+| **1.4** | two stations lack folder evidence | ordering evidence exists for **3 / 4 / 4** stations of 21 / 26 / 27. A manifest FILE covers 21 of 21 otoño 2025 stations, but hand-made folder names are not ordering evidence (3.4) — two different measurements were being conflated |
+| **1.7** | field record "audited for coordinates only" | **23** date-flagged rows against **2** coordinate-flagged. The real gap is six columns never collected, `camera_datetime_observed` at **0 / 107** |
+| **1.8** | `provenance.py` needs re-running / is unwired | already wired as **flatten precondition #4**, fatal, pre-move. Re-run anyway: **0** multi-story stations |
+
+**And one fact from outside the repo inverted a module's founding assumption.** Felipe
+checked the NAS: otoño 2025's five image-less deployments were not idle. **Four were
+recording video**, stored in a separate tree, and only CT21 recorded nothing — its own
+field note says `"SD vacía"`. So `has_media=false` never meant "the camera saw nothing",
+and `deployments.py` had been publishing that sentence for four stations out of five.
+
+**The dangerous shape this created, and it is the reason the fix is a reason code rather
+than a boolean:** those four cameras contribute REAL effort while their detections sit
+outside the pipeline. Put their camera-days in a stills-based denominator and every otoño
+2025 rate is biased downward by a plausible-looking amount — 6.3's "a plausible number
+from two mistakes", which is worse than the visible 26-vs-21 it replaced. `media_status`
+now names the reason per station, and effort is reported as two denominators, neither
+default: **3,816 camera-days over 21 stations for anything read from
+`observations.parquet`**, 4,318 over 25 for anything that counts video.
+
+**The pattern from §0-bis held for a third time.** Every defect closed today sat at a
+boundary or in the documentation OF a boundary; nothing in the middle of the chain needed
+touching. And the two field-record facts that mattered most — CT21's dead card and four
+cameras' video — were already written down in `field_notes.csv`'s free-text `notes`
+column, which nothing reads. That is this project's own rule failing in practice: *si un
+dato importa para el análisis, pedir una columna en vez de escribirlo aquí.*
+
+**Declined, not deferred:** a standalone `python -m camtrap.provenance` runner. The check
+already runs fatally at the flatten, before any file moves; a second entry point onto the
+same function adds an interface without adding knowledge.
+
+**Verified after every change:** 241 tests pass (235 before), the export gate returns
+`full_category_sweep` for all three campaigns from the repo, and
+`python -m camtrap.canonical_state` exits 0. Re-running `timestamps.py` on all three
+campaigns produced **byte-identical** `observations.parquet` files — the only contract
+change in `CANONICAL_STATE.json` is three `deployments_sha256` values. No number moved.
+
+⚠️ **One handoff, stated rather than reached across:** `deployments.csv` changed, so the
+warehouse is now stale by design. `python run_fetch.py --ct` in data-pipeline is the fix,
+and it is consumer-side work for another session.
+
+---
+
 ## 1. Camera-traps — the review
 
 Each item is a check with a stated pass condition, not a task to eyeball.
 
 - [x] **1.1 The campaign set is exactly three** — **DONE 2026-08-19.** `pv_2025_2026`
       removed from `CAMPAIGN_ORDER` (`camtrap/observations.py`) and `REPORT_CAMPAIGNS`
-      (`Anual-reports/2025/py/01_data_prep.py`); directory and parquet kept as
-      provenance, and `read_campaigns('pv_2025_2026')` now raises `UnorderedCampaign`.
+      (`Anual-reports/2025/py/01_data_prep.py`), and `read_campaigns('pv_2025_2026')` now
+      raises `UnorderedCampaign`.
+      WRONG, corrected 2026-08-25: this item said "directory and parquet kept as
+      provenance". They were not -- both were deleted in `c295999` on 2026-08-20. See the
+      entry condition in section 0. Nothing was lost that mattered: pv's rows are
+      primavera's rows under an earlier review.
       The stated order was followed: primavera's new parquet was written first.
       **This was more urgent than the note implied.** While pv sat in `CAMPAIGN_ORDER` it
       OUTRANKED primavera, so the moment primavera was re-ingested its fresh review was
@@ -166,7 +265,12 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       emits** — the `empty`/`person` vs `blank`/`human` mismatch on 2026-08-11 cost 584
       uncounted `human` rows — and it now rests on a checked fact rather than an
       assumption.
-      **Two items still open, deliberately:**
+      **Both remaining items were DECIDED 2026-08-25 (Felipe): drop them.** Neither file
+      exists in the repo any more — verified by search, no `addaxai-*` and no
+      `CamtrapDB_*` anywhere — so the file set is now identical across all three
+      campaigns, which is what this item asked for. Recorded as a decision rather than
+      left as a question, because "not to be quietly deleted meanwhile" was the standing
+      instruction and it has been overtaken. The originals, for the record:
       - **The `addaxai-*` files** (`addaxai-detections.csv` 2.7 MB, `addaxai-files.csv`
         4.2 MB, `addaxai-run-info.txt`), primavera only. New with the AddaxAI update;
         Felipe has not decided what role they play. No module reads them. Not required
@@ -228,11 +332,35 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       *Colaptes pitius* is in the catalogue but will not appear in the annual report —
       `taxonomic_group: ave` and rule 4 drops every bird.
 
-- [ ] **1.4 DCIM manifest coverage is stated per campaign**, including the stations
-      that legitimately have none. Coverage must be **total within a described
-      deployment** or `establish_order` refuses it — partial coverage is worse than
-      none. Known: CT15 (1,331 frames) and CT08 (1,129) in otoño 2026 have no folder
-      evidence anywhere and never will; that is a limit, not a gap to fill.
+- [x] **1.4 DCIM manifest coverage is stated per campaign** — **DONE 2026-08-25.**
+      `timestamps_audit.log` now carries a **"Capture-order evidence, all N station(s)"**
+      section listing every station by evidence tier, not only the failing ones. The tier
+      was already computed for every station and then discarded for the ones that passed,
+      so "this station has no manifest" and "nobody looked" were indistinguishable in the
+      record — 4E.3's refusal-recording rule applied to structure instead of anchors.
+
+      **This item's own numbers were wrong by an order of magnitude.** It named two
+      stations; measured 2026-08-25:
+
+      | campaign | manifest+counter | counter alone | none | order NOT established |
+      |---|---|---|---|---|
+      | `otono_2025` | **3** (CT04, CT14, CT20) | 18 | 0 | CT04 |
+      | `primavera_2025` | **4** (CT02, CT08, CT11, CT14) | 21 | 1 (CT22) | CT22, CT23 |
+      | `otono_2026` | **4** (CT14, CT20, CT23, CT24) | 23 | 0 | CT08, CT15, CT27 |
+
+      **Two distinct measurements were being conflated, and only one of them matters.**
+      A manifest FILE exists for 21 of 21 otoño 2025 stations — but ordering evidence
+      exists for only **3**, because that campaign's folders carry hand-made names (`M7`,
+      `M5`) and `dcim_folder_key()` accepts only camera-created DCF names. The manual's
+      own corollary to 3.4 says exactly this — *only a camera-created folder is ordering
+      evidence* — so the manifest row count was never the number to quote.
+
+      **And the gap is not a defect.** Per 4B.3, failing to order does not condemn a
+      camera: `establish_order` falls back to the filename counter and succeeds unless the
+      counter collides. Six station-campaigns fail to order and every one has a clean
+      clock. Nothing needs re-downloading. Video is unaffected: primavera's and otoño
+      2026's manifests log MOV and MP4 alongside the stills, and for every station a
+      manifest covers, its still count equals the canonical table's row count exactly.
 
 - [x] **1.5 Anchors are complete or explicitly refused** — **CT27 DONE 2026-08-24.**
       Install `2025-12-11`, confirmed by Felipe, recorded in
@@ -309,13 +437,56 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       (`344` above is wrong — the canonical table holds **315** CT27 rows.)
       </details>
 
-- [ ] **1.7 `field_notes.csv` audited beyond coordinates.** The 2026-08-17 pass
-      repaired the coordinate column and nothing else; no other column has been checked
-      for the same class of error. 57 of 106 rows carry a `data_flags` entry.
+- [x] **1.7 `field_notes.csv` audited beyond coordinates** — **RE-STATED 2026-08-25;
+      the premise was wrong.** This item said the 2026-08-17 pass "repaired the coordinate
+      column and nothing else". The flags in the file disprove it. Of **58 flagged rows of
+      107** (this item said 57 of 106 — the CT27 work added one of each):
 
-- [ ] **1.8 `provenance.py` re-run across all campaigns** — one deployment, one capture
-      story. Last validated 2026-08-14 on 28,178 files with 0 false positives; the
-      re-ingested primavera is data it has not seen.
+      | flag class | rows |
+      |---|---|
+      | date-related (`date_ambiguous_source`, `date_swapped`, corrected install/revision) | **23** |
+      | clock / DST sheet notes | 29 |
+      | `height_m` approximate | 19 |
+      | `camera_replaced` inferred from a remark | 5 |
+      | coordinate-related (`coord_*`) | **2** |
+
+      Dates were audited an order of magnitude harder than coordinates. Coordinates were
+      the HEADLINE because CT26's error had escaped to the platform and returned as a
+      19 km displacement, not because they were the only column checked. Felipe's point,
+      and it is the right one: the date column is the one that gets contrasted against
+      image data, which is why its errors surface at all.
+
+      **What has genuinely never been audited is the sparse columns, and there the answer
+      is "never collected" rather than "wrong":**
+
+          camera_datetime_observed    0 / 107   <- the raw clock-offset reading
+          camera_unit_id              2 / 107
+          camera_replaced             5 / 107
+          moved                       7 / 107
+          height_m                   19 / 107
+          observers                  26 / 107
+
+      `camera_datetime_observed` being empty in **every one of 107 rows** is the whole
+      justification for the new form: the legacy workbook asked for a VERDICT
+      (`clock_state`, `clock_action`, `clock_offset_hours` — 26 rows carry those) and the
+      observation behind it was lost. Nothing here is repairable by re-reading the sheet,
+      so what remains of 1.7 is one sentence per column stating what was never recorded
+      and what it costs — folded into 1.14, since the new form closes all six going
+      forward.
+
+- [x] **1.8 `provenance.py` re-run across all campaigns** — **DONE 2026-08-25.**
+      `multiple_capture_stories` over all three canonical tables: **0 stations with more
+      than one capture story, across all 35,807 rows**, the re-ingested primavera
+      included. (Previously validated 2026-08-14 on 28,178 files, also 0 false positives.)
+
+      **The 2026-08-25 audit's framing of this as an unwired check was wrong.** It IS
+      wired, and fatally: `setup/flatten_for_camtrapdp.py` calls it as the FOURTH flatten
+      precondition and `sys.exit`s before a single file moves — the check runs at the one
+      moment it can still prevent the damage, which is what caught TC23's 2,460 frames
+      nested inside TC22. A standalone `python -m camtrap.provenance` re-run was designed
+      and **declined by Felipe 2026-08-25**: it would only re-examine attributions already
+      made, and a second entry point onto the same function is a shallow module. The
+      one-off verification above is recorded here instead of shipped as code.
 
 - [ ] **1.9 Dead and stale code removed.** Full list in §3.
 
@@ -623,14 +794,14 @@ covering only two campaigns.
 | Location | What rots |
 |---|---|
 | ~~`data-pipeline/scripts/dedup_primavera_2025.py`~~ | **deleted 2026-08-20** (2.6) |
-| `camtrap/observations.py:70–79, 185` | `CAMPAIGN_ORDER` entry + both precedence comments (396 overlap / 31 conflicts) |
+| ~~`camtrap/observations.py:70–79, 185`~~ | **done 2026-08-25.** Both precedence comments rewritten: the 396/31 overlap was primavera-vs-pv and is gone. Measured now — **0 duplicate `DEDUP_KEY` rows across all 35,807**, and the 31 recurring `(camera_num, file_name)` pairs share no datetime, so they are counter recycling between years and must NOT be deduplicated (3.5) |
 | `camtrap/observations.py:7–9` | per-campaign export quirks — `filePath` populated in primavera_2025, `timestamp` only there. A fresh export has different quirks |
 | `Anual-reports/2025/py/01_data_prep.py:6, 71` | `REPORT_CAMPAIGNS` |
 | ~~`Anual-reports/2025/py/list_ciervo_guina_images.py:34–44, 122`~~ | **fixed 2026-08-20** — reads otoño 2025 / primavera 2025 / otoño 2026; pv dropped |
-| `Anual-reports/2025/py/apply_verdicts.py:143` | comment on primavera→pv survival |
-| `data/campaigns/label_conflicts_primavera_vs_pv_2026-05-27.csv` | a conflict that no longer has two sides |
-| `Anual-reports/2025/data/manual_review_ciervo_guina.md` | every row keyed to `TC*_M*.2` paths and a `pv_2025_2026` column |
-| `exports/Primavera-verano 2025-2026/` | thumbnail tree named for the old station convention |
+| ~~`Anual-reports/2025/py/apply_verdicts.py:143`~~ | **done 2026-08-25.** The key is justified by what it actually is — a verdict adjudicates one PHOTOGRAPH, so it applies wherever that photograph appears — instead of by pv survival |
+| ~~`data/campaigns/label_conflicts_primavera_vs_pv_2026-05-27.csv`~~ | **deleted 2026-08-25**, with its reader: `load_conflicts()`, `CONFLICTS_CSV` and the two output columns are gone from `list_ciervo_guina_images.py`. It had a live consumer, so deleting the file alone would have left pv logic running against an absent input |
+| ~~`Anual-reports/2025/data/manual_review_ciervo_guina.md`~~ | **deleted 2026-08-25** (Felipe: stale). The regenerable `.csv` beside it stays — it is this script's output, not the frozen markdown |
+| ~~`exports/Primavera-verano 2025-2026/`~~ | **already gone.** Verified 2026-08-25: `exports/` holds only `Otoño 2025`. The 2026-08-24 session log listed this as open; it was not |
 
 ### Pre-existing defects the re-ingest will expose
 

@@ -58,13 +58,6 @@ SPANISH = {
     "Leopardus guigna": "Güiña",
 }
 
-# Historical record of the primavera-vs-pv label disagreements, resolved 2026-08-19 in
-# primavera's favour (the later review supersedes). Kept as provenance for rows whose
-# label changed; it is not an input to any decision here.
-CONFLICTS_CSV = (
-    CAMPAIGNS / "label_conflicts_primavera_vs_pv_2026-05-27.csv"
-)
-
 CT_RE = re.compile(r"^(?:CT|TC)0*(\d+)(?:_M.*)?$", re.IGNORECASE)
 
 
@@ -161,22 +154,6 @@ def thumbnail_path(row) -> tuple[str, bool]:
     return (str(candidate), False)
 
 
-def load_conflicts() -> dict[tuple[str, str], tuple[str, str]]:
-    """Return {(deployment, filename): (primavera_label, pv_label)} for label-conflict images."""
-    if not CONFLICTS_CSV.exists():
-        return {}
-    df = pd.read_csv(CONFLICTS_CSV, low_memory=False, encoding="utf-8")
-    df.columns = [c.strip().lstrip("﻿") for c in df.columns]
-    out: dict[tuple[str, str], tuple[str, str]] = {}
-    for _, r in df.iterrows():
-        key = (str(r["camera"]).strip(), str(r["fileName"]).strip())
-        out[key] = (
-            str(r.get("primavera_2025_label", "")).strip(),
-            str(r.get("pv_label", "")).strip(),
-        )
-    return out
-
-
 def main() -> None:
     print("=" * 78)
     print("list_ciervo_guina_images.py — Manual review for ciervo & güiña")
@@ -198,20 +175,6 @@ def main() -> None:
     df["thumbnail_path"] = [p[0] for p in paths]
     df["thumbnail_on_disk"] = [p[1] for p in paths]
 
-    # Conflict flag (with the other-pass label for context)
-    conflicts = load_conflicts()
-    df["label_conflict_pv_vs_primavera"] = [
-        (dep, fn) in conflicts for dep, fn in zip(df["Deployments"], df["File"])
-    ]
-    df["conflict_other_label"] = [
-        (
-            f"primavera={conflicts[(dep, fn)][0]} | pv={conflicts[(dep, fn)][1]}"
-            if (dep, fn) in conflicts
-            else ""
-        )
-        for dep, fn in zip(df["Deployments"], df["File"])
-    ]
-
     # Order columns for review
     cols = [
         "campaign",
@@ -227,8 +190,6 @@ def main() -> None:
         "thumbnail_on_disk",
         "observationComments",
         "reviewOutcome",
-        "label_conflict_pv_vs_primavera",
-        "conflict_other_label",
     ]
     out = df[cols].sort_values(
         ["scientificName", "camera_num", "timestamp_corrected"]
@@ -257,9 +218,9 @@ def main() -> None:
             continue
         header = (
             "| Campaign | CT | Deployment | Date (corrected) | File | Thumbnail (on Windows) | "
-            "Source filePath | Review | Conflict? |"
+            "Source filePath | Review |"
         )
-        sep = "|" + "|".join(["---"] * 9) + "|"
+        sep = "|" + "|".join(["---"] * 8) + "|"
         print(header)
         print(sep)
         mapped = sub[sub["camera_num"].notna()]
@@ -272,14 +233,11 @@ def main() -> None:
                 if pd.notna(r["timestamp_corrected"])
                 else "n/a"
             )
-            conflict = (
-                f"⚠️ {r['conflict_other_label']}" if r["label_conflict_pv_vs_primavera"] else ""
-            )
             fix_note = "" if r["date_fix"] == "none" else f" ({r['date_fix']})"
             print(
                 f"| {r['campaign']} | CT{int(r['camera_num']):02d} | {r['Deployments']} | "
                 f"{ts}{fix_note} | `{r['File']}` | `{thumb}` {on_disk} | "
-                f"`{r['filePath']}` | {r['reviewOutcome']} | {conflict} |"
+                f"`{r['filePath']}` | {r['reviewOutcome']} |"
             )
         if not unmapped.empty:
             print(

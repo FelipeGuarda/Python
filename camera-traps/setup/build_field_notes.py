@@ -57,11 +57,17 @@ from camtrap import stations, visit_schema  # noqa: E402
 from camtrap.anchors import FIELD_NOTES_FILENAME  # noqa: E402
 
 CAMPAIGNS_DIR = Path('data/campaigns')
-# Renamed 2026-08-17 so the filename itself retires the file. Its successor is
+#: Everything superseded but kept for provenance. Nothing in `camtrap/` reads from it.
+LEGACY_DIR = CAMPAIGNS_DIR / 'legacy'
+# Renamed 2026-08-17 so the filename itself retires the file, and moved into legacy/
+# on 2026-08-25 so it stops sitting beside the live data. Its successor is
 # `Registro de visitas CT.xlsx`, which is the one terreno fills from now on; nothing
 # is ever added to this one again. This script has already run and its output is
-# committed, so the rename breaking it is the intended end state, not a regression.
-WORKBOOK = CAMPAIGNS_DIR / 'Registro de monitoreo CT (HISTORICO 2024-2026 - NO LLENAR).xlsx'
+# committed, so the move breaking it is the intended end state, not a regression.
+# A second, byte-divergent copy lived at `Anual-reports/Registro de monitoreo CT.xlsx`
+# and was deleted the same day: its `Registro de instalacion` sheet was verified
+# identical, so it was a duplicate that could only ever drift.
+WORKBOOK = LEGACY_DIR / 'Registro de monitoreo CT (HISTORICO 2024-2026 - NO LLENAR).xlsx'
 # The consumer names this file; restating it here is how a rename would silently
 # produce a CSV nobody reads.
 OUT_CSV  = CAMPAIGNS_DIR / FIELD_NOTES_FILENAME

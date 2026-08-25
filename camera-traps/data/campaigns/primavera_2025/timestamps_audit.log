@@ -63,6 +63,13 @@ Reviewed rows:                      744
 Stations with a clean clock (22): CT01, CT02, CT03, CT04, CT05, CT06, CT07, CT09, CT10, CT11, CT12, CT13, CT14, CT15, CT19, CT20, CT21, CT22, CT23, CT24, CT25, CT26
   of which 2 could not be ordered but show no clock failure (CT22, CT23) — every frame is in-window and agrees with its own filename, so there is no reset to attribute
 
+── Capture-order evidence, all 26 station(s) ────────────────────────────────────────
+  dcim_manifest+counter    4 station(s)  CT02, CT08, CT11, CT14
+  counter                 21 station(s)  CT01, CT03, CT04, CT05, CT06, CT07, CT09, CT10, CT12, CT13, CT15, CT16, CT17, CT18, CT19, CT20, CT21, CT23, CT24, CT25, CT26
+  none                     1 station(s)  CT22
+  DCIM manifest covers 4 of 26 station(s); the rest are ordered from the filename counter alone, which is sufficient unless it collides
+  order NOT established for 2: CT22, CT23 — see scripts/verify_order.py, and 4B.3: this does not condemn a camera
+
 Notes and warnings:
   ! CT08: 5 filename/DateTime mismatch(es) forgiven as day-boundary naming artefacts (within 120s of midnight) — the clock crossed a day while writing the file, which is not a corrupt date register
   ! CT08: 2/2434 frame(s) disagree between filename MMDD and DateTime — the date registers are corrupt, so the clock may not tick coherently even within a segment

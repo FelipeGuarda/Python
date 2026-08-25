@@ -256,6 +256,12 @@ Reviewed rows:                      830
 Stations with a clean clock (15): CT01, CT02, CT03, CT04, CT05, CT06, CT07, CT09, CT11, CT12, CT14, CT17, CT18, CT20, CT23
   of which 1 could not be ordered but show no clock failure (CT04) — every frame is in-window and agrees with its own filename, so there is no reset to attribute
 
+── Capture-order evidence, all 21 station(s) ────────────────────────────────────────
+  dcim_manifest+counter    3 station(s)  CT04, CT14, CT20
+  counter                 18 station(s)  CT01, CT02, CT03, CT05, CT06, CT07, CT08, CT09, CT10, CT11, CT12, CT13, CT15, CT16, CT17, CT18, CT19, CT23
+  DCIM manifest covers 3 of 21 station(s); the rest are ordered from the filename counter alone, which is sufficient unless it collides
+  order NOT established for 1: CT04 — see scripts/verify_order.py, and 4B.3: this does not condemn a camera
+
 Notes and warnings:
   ! CT03: 3 filename/DateTime mismatch(es) forgiven as day-boundary naming artefacts (within 120s of midnight) — the clock crossed a day while writing the file, which is not a corrupt date register
   ! CT04: 723 frame(s) have no DCIM folder while others do — the manifest describes this deployment only partially, so capture order cannot be trusted

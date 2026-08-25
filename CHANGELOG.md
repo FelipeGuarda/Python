@@ -6,6 +6,126 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-08-25 — the producer boundary closes: a reason where there was a boolean, and four corrected claims
+
+Scope: everything from the camera-traps boundary **inwards**. The consumer side was declared out
+of scope for the day and is untouched. Producer-side debt is now one item (the visit-form
+loader, V2-REVIEW 1.14, deferred with its shape decided).
+
+### Changed — `camtrap/deployments.py`: `media_status`, because a boolean was asserting something false
+
+`deployments.csv` carried `has_media: bool` plus a hand-built note that read *"deployed per the
+field record, no images in the canonical table"* for otoño 2025's five image-less deployments.
+
+Felipe checked the NAS: **four of the five were recording the whole time.** Their media is
+video, held for that campaign in a separate tree
+(`.../CAMPAÑAS DE RECOLECCION DE IMAGENES/Otoño 2025/Videos`). Only **CT21** recorded nothing,
+and its own field note said so a year ago — *"La cámara encendió luz led pero no prendió la
+pantalla, SD vacía. Se instaló otra cámara trampa."* Two more, CT22 and CT25, were found failed
+at retrieval from interior humidity.
+
+**`has_media` is a measurement; the reason it is false is a separate fact and only the reason
+decides a denominator.** Those four cameras contribute REAL effort while their detections are
+unreadable from `observations.parquet` — put their camera-days in a stills-based denominator and
+every otoño 2025 rate is biased downwards by a plausible-looking amount, which is
+`DATA-HEALTH-MANUAL` §6.3's "a plausible number from two mistakes" and strictly worse than the
+visible 26-vs-21 it replaces.
+
+- New `media_status`: `in_canonical` · `video_only_offline` · `card_failure` · `unexplained` ·
+  `no_field_dates`, each documented with the denominator it licenses.
+- New declared data file **`data/campaigns/media_absence.csv`** — reason, evidence (the field
+  note verbatim), media location on the NAS, who checked and when. The verdict lives with its
+  evidence rather than in code.
+- **Two denominators, both published, neither default:** otoño 2025 is **3,816 camera-days over
+  21 stations** for anything read from the canonical table, 4,318 over 25 for anything counting
+  video. `CANONICAL_STATE.json`'s `camera_days` is the first, deliberately — it is the one that
+  pairs with `n_rows`.
+- Fail-visible in both directions: a station with no stills and no declaration reports
+  `unexplained` (an unexplained gap is a question nobody asked, and absorbing it into an effort
+  figure is how a wrong denominator looks right — §4E.3 applied to media), and a misspelled
+  reason **raises** rather than reading as a licence to count the days.
+
+**Residual, stated rather than silently corrected:** CT22 and CT25 stopped sampling at an
+unknown point before their recorded end dates. Felipe's ruling — the field dates stand as
+registered, the video is not re-read to second-guess them. For those two, `field_days` is a
+ceiling, not a measurement.
+
+### Added — capture-order evidence for every station (V2-REVIEW 1.4 / manual B6)
+
+`timestamps.py` gained a *"Capture-order evidence, all N station(s)"* section in
+`timestamps_audit.log`. The evidence tier was already computed for every station and then
+**discarded for the ones that passed**, so "this station has no manifest" and "nobody looked for
+one" were indistinguishable in the record.
+
+**The review's own figures were wrong in both directions, because two measurements were being
+conflated.** Ordering evidence exists for **3 / 4 / 4** stations of 21 / 26 / 27 — while a
+manifest FILE covers **21 of 21** otoño 2025 stations. The difference is §3.4's corollary: that
+campaign's folders carry hand-made names (`M7`, `M5`) and only a camera-created DCF folder is
+ordering evidence, so the manifest row count was never the number to quote. The gap is not a
+defect (§4B.3): six station-campaigns fail to order and every one has a clean clock.
+
+### Fixed — four claims in `V2-REVIEW.md` that were false, all measured
+
+| claim | reality |
+|---|---|
+| `pv_2025_2026` "kept as provenance" (§0 cond. 3, 1.1) | **deleted** in `c295999`, 2026-08-20, disk and git. Asserted otherwise for three sessions. Deletion confirmed as the decision |
+| field record "audited for coordinates only" (1.7) | **23** date-flagged rows against **2** coordinate-flagged. Real gap: six columns never *collected*, `camera_datetime_observed` at **0 / 107** |
+| two stations lack folder evidence (1.4) | 3 / 4 / 4 of 21 / 26 / 27, per above |
+| `provenance.py` needs re-running / is unwired (1.8) | it is the **fourth flatten precondition**, fatal, pre-move. Re-run anyway: **0** multi-story stations over 35,807 rows |
+
+### Removed — the last of `pv_2025_2026`, and one duplicate workbook
+
+- `data/campaigns/label_conflicts_primavera_vs_pv_2026-05-27.csv` **and its live reader** —
+  `load_conflicts()`, `CONFLICTS_CSV` and two output columns in `list_ciervo_guina_images.py`.
+  Deleting the file alone would have left pv logic running against an absent input.
+- `Anual-reports/2025/data/manual_review_ciervo_guina.md` (stale; keyed to `TC*_M*.2` and a pv
+  column). The regenerable `.csv` beside it stays.
+- `Anual-reports/Registro de monitoreo CT.xlsx` — an undeclared second copy of the legacy
+  workbook, not marked NO LLENAR, cited by `Anual-reports/2025/README.md` as the install-date
+  source. Its `Registro de instalacion` sheet was verified **identical** to the original, so it
+  was a duplicate that could only ever drift.
+- Two stale precedence comments rewritten (`camtrap/observations.py`,
+  `Anual-reports/2025/py/apply_verdicts.py`). Measured while rewriting: **0 duplicate
+  `DEDUP_KEY` rows across all 35,807**, and the 31 recurring `(camera_num, file_name)` pairs
+  share no datetime — counter recycling between years, which must NOT be deduplicated (§3.5).
+
+### Changed — legacy consolidation, and one hand-maintained list labelled as such
+
+- `data/campaigns/legacy/` created; the historic workbook moved into it. Code impact was one
+  line (`setup/build_field_notes.py`).
+- `scripts/verify_order.py`'s `UNVERIFIED` renamed **`UNVERIFIED_LEGACY_2026_08`** and
+  documented as a frozen historical record, not the live state. Felipe's call, and the new audit
+  section immediately proved it necessary: the two **already disagree** — order is not
+  established for otoño 2025 CT04, primavera CT22 and otoño 2026 CT27, none of which is on the
+  list. It is not wrong (it asks a narrower question), but anyone reading it as current would be.
+
+### Closed-rejected — a standalone `python -m camtrap.provenance` runner
+
+Designed and declined. The check already runs fatally at the flatten, before a single file
+moves, which is the one moment it can prevent the damage; a post-hoc run can only re-examine
+attributions already made, and a second entry point onto the same function is a shallow module.
+The one-off verification is recorded in V2-REVIEW 1.8 instead of shipped as code.
+
+### Deferred — the visit-form loader (V2-REVIEW 1.14), highest-priority open item
+
+The `Visitas` sheet has **0 filled rows** and the next salida is unscheduled, so the loader
+earns a proper design pass rather than a rushed one. **It expires the day terreno returns.**
+Shape decided: `field_notes.csv` moves to the new 20-column form shape, the 107 legacy rows
+migrate into it, `FieldRecord` is rewired off `clock_state` / `camera_replaced`, and the current
+CSV is snapshotted into `legacy/` first.
+
+### Verification
+
+241 camera-traps tests pass (was 235). Export gate `full_category_sweep` on all three campaigns
+from the repo; `python -m camtrap.canonical_state` exits 0. Re-running `timestamps.py` on all
+three campaigns produced **byte-identical `observations.parquet` files** — the only change in
+`CANONICAL_STATE.json` is three `deployments_sha256` values. No number moved.
+
+⚠️ **Consequence for data-pipeline:** `deployments.csv` changed, so the warehouse is stale by
+design and `run_fetch.py --ct-check` will refuse. Consumer-side work for another session.
+
+---
+
 ## 2026-08-24 — the consumer boundary closes: one station registry, the `ct_*` rebuild, and a contract that is finally read
 
 Eight of the fifteen open items from the 2026-08-20 re-audit are closed, and they are **every

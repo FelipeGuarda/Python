@@ -81,7 +81,7 @@
       "n_deployments": 26,
       "n_deployments_with_media": 21,
       "camera_days": 3816,
-      "deployments_sha256": "d55b6fadaad7e5ad8788491cecfd65d5b2350e329e54c01af6cb44c0c59cc02b"
+      "deployments_sha256": "8942f5dd3b2e4e810d41bd3fde6bab47d044884bce5e740ea5128476d0d1299f"
     },
     "primavera_2025": {
       "n_rows": 16904,
@@ -132,7 +132,7 @@
       "n_deployments": 26,
       "n_deployments_with_media": 26,
       "camera_days": 5178,
-      "deployments_sha256": "b3972d71ee4deeb1758ac1c53f73144f3d7a3dfc07ed77e25f092f3ed8266477"
+      "deployments_sha256": "f677af24b99adb963b3ccce74fcb49a905d790cb18a4db50055a98f02c288b1b"
     },
     "otono_2026": {
       "n_rows": 9906,
@@ -184,7 +184,7 @@
       "n_deployments": 27,
       "n_deployments_with_media": 27,
       "camera_days": 3981,
-      "deployments_sha256": "3b6302973c730ca9f11d5df14da9970789c2ca5ef458323f0f81d7d1632439ce"
+      "deployments_sha256": "a7230c09687e770d2b164591569efa89c7b4ad7cc7d94003d929998c2f45eca7"
     }
   },
   "n_rows_total": 35807,

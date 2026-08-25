@@ -553,6 +553,32 @@ is blind to misattribution (§3.3). Both checks are needed, and they check diffe
 > some time. It resolved exactly as 16,904 stills plus 1,663 `.mp4` plus 955 `.mov` —
 > nothing had ever been missing.*
 
+> **Rule, added 2026-08-25.** Video is stored **beside the stills, inside the campaign's
+> own tree**, so the sidecar manifest logs it and the file inventory is complete in one
+> place. If a campaign's video lives anywhere else, that location is recorded as data, not
+> remembered.
+>
+> **Break point.** Video held in a separate tree makes a working camera indistinguishable
+> from a dead one. Otoño 2025's video was stored outside the campaign folder, so **CT22,
+> CT24, CT25 and CT26 appeared in no manifest, no image data and no reviewed CSV** — about
+> 500 camera-days that read as stations that never fired. The pipeline was not wrong about
+> anything it could see; the evidence was in another directory.
+>
+> **And the recovery is worse than the loss it replaces.** Once those stations are known to
+> have been recording, their camera-days are real effort while their detections are outside
+> the pipeline. Counting that effort in a stills-based rate biases every rate downwards by
+> a plausible-looking amount — §6.3's two mistakes cancelling. So the reason has to be
+> recorded per station and the denominators kept separate; see §6.2.
+>
+> **Recovery.** Bring the video into the campaign tree at the next re-download, or record
+> its location. The location is recorded today in
+> `data/campaigns/media_absence.csv`; otoño 2025's video is on the NAS under
+> `.../CAMPAÑAS DE RECOLECCION DE IMAGENES/Otoño 2025/Videos`.
+>
+> Primavera 2025 and otoño 2026 already do this correctly: their manifests log `.MOV` and
+> `.MP4` beside the stills, and for every station a manifest covers, the still count equals
+> the canonical table's row count exactly.
+
 ### 3.8 Establish the sync direction as a fact
 
 > **Rule.** Before deleting anything locally, establish from evidence — logs, not setting
@@ -1467,6 +1493,35 @@ distinct failures:
 > **Failure to avoid, two.** Keeping a station in the denominator when its operating period
 > is unknown. It contributes trap-nights during which detection was impossible.
 
+> **Failure to avoid, three — added 2026-08-25, and it is the subtlest of the three.**
+> Keeping a station in the denominator when it WAS sampling but its media is not in the
+> table you are counting from. The camera-days are real, the detections are real, and the
+> detections are somewhere else — so the numerator misses them and the rate comes out low
+> with nothing looking broken.
+>
+> *Observed: four otoño 2025 stations recorded video into a separate tree (§3.7). Their
+> ~500 camera-days are genuine effort and their detections are unreadable from
+> `observations.parquet`.*
+>
+> **So there is no single effort number, and `deployments.csv` publishes the reason rather
+> than a boolean.** `media_status` per station-campaign:
+>
+> | status | in a stills-based denominator? | in a presence/occupancy denominator? |
+> |---|:--:|:--:|
+> | `in_canonical` | **yes** | yes |
+> | `video_only_offline` | **NO** | yes — the camera was watching |
+> | `card_failure` | no | no — it recorded nothing |
+> | `unexplained` | **no**, and ask why before using the campaign | no |
+>
+> Otoño 2025 therefore has two published figures: **3,816 camera-days over 21 stations**
+> for anything read from the canonical table, and 4,318 over 25 for anything that counts
+> the video. `CANONICAL_STATE.json`'s `camera_days` is the first of these, deliberately —
+> it is the one that pairs with `n_rows`.
+>
+> An `unexplained` gap is not a synonym for the others. It is a question nobody has asked,
+> and absorbing it into an effort figure is how a wrong denominator comes to look right —
+> the §4E.3 refusal-recording rule, applied to media.
+
 ### 6.3 Detection rates and relative abundance
 
 **Needs:** both of the above — a clean numerator (§6.4) and a defensible denominator (§6.2).
@@ -1585,6 +1640,12 @@ episodes, not images.
 Two rows deserve a second look. **Presence requires nothing** — that is the point of keeping
 flags rather than deleting bad dates. And **every count-based row requires episodes** —
 there is no analysis in this table for which counting images is correct.
+
+**A fourth column is implied by every `valid_effort` cell above and is not in the table:
+`media_status`.** The three flags describe whether a station's CLOCK can be trusted. They
+say nothing about whether its media is in the table at all — a station recording video into
+a separate tree has a perfect clock and no rows. Every **R** in the `valid_effort` column
+therefore also requires `media_status == in_canonical`; see §6.2, failure three.
 
 ---
 ## Part 7 — Verification, as distinct from gating
@@ -1799,6 +1860,50 @@ known defect with a known fix; (C) housekeeping.**
 > suite at all. Designed in `data-pipeline/docs/TEST-PLAN.md`. A check nobody runs is a
 > comment, which is the sentence this entire manual is built around.
 
+> ### Re-audited again 2026-08-25 — the PRODUCER side is closed; A3 is all that is left
+>
+> Scope was the boundary **INWARDS**: the field record coming in, the gates, the canonical
+> table, the published contract. The consumer side was deliberately untouched.
+>
+> - **B4** — the premise was FALSE. The field record was not audited "for coordinates
+>   only": **23** rows carry date flags against **2** carrying coordinate flags. The real
+>   finding is different and worse — six columns were never *collected*, and
+>   `camera_datetime_observed`, the raw clock reading the whole form was redesigned
+>   around, is empty in **all 107 rows**. Nothing there is repairable by re-reading; the
+>   new form closes all six going forward.
+> - **B5** — closed. **0** stations with more than one capture story across all 35,807
+>   rows. And the check was never unwired: it is the FOURTH flatten precondition and it
+>   `sys.exit`s before a file moves.
+> - **B6** — closed. `timestamps_audit.log` now states the ordering evidence for **every**
+>   station, not only the failing ones. The figures the review quoted were wrong in both
+>   directions: ordering evidence exists for 3 / 4 / 4 stations of 21 / 26 / 27, while a
+>   manifest FILE covers 21 of 21 in otoño 2025 — because that campaign's folders are
+>   hand-made names, and per §3.4 only a camera-created folder is ordering evidence.
+>   The gap is not a defect (§4B.3): six station-campaigns fail to order and every one has
+>   a clean clock.
+> - **C1, C2** — closed. Both superseded files deleted, with the reader that consumed one
+>   of them; the stale precedence comments rewritten.
+> - **C3 — closed, and it was the most consequential finding of the day.** Otoño 2025's
+>   video EXISTS. It is on the NAS in a separate tree, and it is why four stations looked
+>   empty. See §3.7 and §6.2, failure three.
+> - **A3 remains, and it is now the only open item inside this boundary.** Its shape was
+>   decided (the clean reshape, not the bolt-on) and its deferral is deliberate: the
+>   `Visitas` sheet has 0 filled rows and the next salida is unscheduled. It expires the
+>   day terreno returns.
+>
+> **What inverted a founding assumption.** `deployments.py` was built on "a station with a
+> window and no images is a discrepancy to resolve". Four of otoño 2025's five such
+> stations were recording the whole time. So `has_media=false` never meant "the camera saw
+> nothing" — and the module had been publishing that sentence for four stations out of
+> five. Fixed by separating the MEASUREMENT (`has_media`) from the REASON
+> (`media_status`), because only the reason decides a denominator.
+>
+> **The rule this keeps proving.** Both facts that mattered most today — CT21's dead card
+> and the four cameras' video — were already written down, in `field_notes.csv`'s
+> free-text `notes` column, which nothing reads. §2.2 says it in Spanish and the record
+> broke the rule anyway: *si un dato importa para el análisis, pedir una columna en vez de
+> escribirlo aquí.*
+
 ### Tier A — guarantees in this manual that are not yet enforced
 
 **A1. The station registry still disagrees with itself.** §1.3 states the rule and the test.
@@ -1850,14 +1955,19 @@ join looks like an effect of the re-ingest.
 **B4. The field record is audited for coordinates only.** One column was checked and
 repaired; no other column has been checked for the same class of error. 57 of 106 rows carry
 a data-quality flag.
+*FALSE, measured 2026-08-25 — see the stamp above. Dates were audited harder than
+coordinates (23 flagged rows against 2). The real gap is six columns never collected.*
 
 **B5. The capture-story check has not been re-run** on the freshly re-ingested campaign —
 data it has not seen.
+*CLOSED 2026-08-25: 0 multi-story stations over 35,807 rows. It also runs automatically as
+the fourth flatten precondition, fatally, which this entry did not know.*
 
 **B6. Manifest coverage is not stated per campaign**, including the stations that
 legitimately have none. Without that statement, "no manifest" and "manifest not looked for"
 are indistinguishable — the §4E.3 refusal-recording rule, applied to structure instead of
 anchors.
+*CLOSED 2026-08-25: stated per station in `timestamps_audit.log`, by evidence tier.*
 
 **B7. One recoverable install date is not recorded.** A GPS waypoint file dates a station's
 install to the minute and resolves a day/month ambiguity. It should be recorded as evidence
@@ -1892,14 +2002,29 @@ Both are real, both larger than the current review, and neither blocks it:
 
 ### Honest summary
 
-Of the guarantees described in this manual: **Parts 3, 4B, 4C, 4D, 4E and 4F are enforced in
-code and covered by tests.** Part 2's form exists but its loader does not (A3). Part 1's
-registry rule is stated and not enforced (A1). Part 4F's contract is published but not
-verified downstream (A2). Part 6's effort denominators are correct in the analysis scripts
-and wrong in the dashboard (A4).
+*Rewritten 2026-08-25.*
 
-The chain from card to canonical table is sound. The two ends — the field record going in,
-and the consumers coming out — are where the remaining work is.
+Of the guarantees described in this manual: **Parts 1, 3, 4B, 4C, 4D, 4E and 4F are enforced
+in code and covered by tests** — 241 of them. Part 4F's contract is published AND verified
+downstream. Part 6's effort denominators are now correct on both sides, and Part 6 gained a
+third named failure that no version of this manual had: a station that was sampling into
+media this pipeline cannot read.
+
+**One guarantee remains unenforced, and it is the same one: Part 2.** The form exists, it is
+correct, and nothing reads a filled copy back (A3). Every visit still reaches
+`field_notes.csv` by hand transcription. The shape of the fix is decided; the work is
+deferred because the sheet is empty and the next salida is unscheduled.
+
+The chain from card to canonical table is sound and now says out loud what it cannot
+establish — which order it could not verify, which media is missing and why. **The producer
+side is closed.** What is left is one loader at the field-record end, and the consumer end,
+which this manual does not own.
+
+**The finding worth carrying forward.** Three sessions of auditing have now closed defects
+at both boundaries, and in every case the evidence needed was already in the record — in a
+free-text column, a Spanish field note, a folder on the NAS. Not one defect required data
+that did not exist. The failure mode of this project is not missing information; it is
+information recorded somewhere nothing reads.
 
 ---
 

@@ -71,14 +71,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from camtrap import clocks, exports
 
-# The closed set this script exists for. Not discovered at runtime: a station that
-# acquires a manifest should drop off this list by an edit, so the list itself records
-# which cases were ever affected.
-UNVERIFIED = [
+# ── LEGACY HISTORICAL LIST — NOT the live state ───────────────────────────────
+#
+# This is a FROZEN record of the three station-campaigns this script was written for
+# in August 2026: colliding filename counters and no DCIM manifest. It is kept
+# hand-maintained on purpose -- a station that later acquires a manifest should drop
+# off it by a deliberate edit, so the list goes on recording which cases were ever
+# affected. That makes it a historical record and NOT an answer to "which stations
+# lack order evidence today".
+#
+# THE LIVE STATE IS `timestamps_audit.log`, section "Capture-order evidence, all N
+# station(s)", regenerated on every `python timestamps.py --campaign <name>` run.
+# Read that, never this, when you want the current picture.
+#
+# The two ALREADY DISAGREE, which is why the distinction is labelled rather than
+# assumed. Measured 2026-08-25, order not established for:
+#     otono_2025      CT04              (has a manifest, partially -- not in this list)
+#     primavera_2025  CT22, CT23        (CT22 not in this list)
+#     otono_2026      CT08, CT15, CT27  (CT27 not in this list)
+# Those extra three are a different question from the one this script asks, so the
+# list is not wrong -- but anyone reading it as the live state would be.
+UNVERIFIED_LEGACY_2026_08 = [
     ("primavera_2025", "CT23"),
     ("otono_2026", "CT15"),
     ("otono_2026", "CT08"),
 ]
+UNVERIFIED = UNVERIFIED_LEGACY_2026_08   # name kept so the CLI below is unchanged
 # Stations WITH a manifest, used to check the method against ground truth.
 CONTROLS = [
     ("primavera_2025", "CT14"),

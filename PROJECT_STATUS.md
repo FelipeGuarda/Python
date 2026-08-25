@@ -1,6 +1,50 @@
 # FMA Project Status
 
-**Last updated:** 2026-08-24 — **the consumer boundary is closed.** `estaciones.csv` now owns
+**Last updated:** 2026-08-25 — **the PRODUCER boundary is closed, and a NAS check inverted a
+module's founding assumption.** Scope was set deliberately: everything from the camera-traps
+boundary INWARDS — the field record coming in, the gates, the canonical table, the published
+contract. The consumer side (data-pipeline, platform, pehuén, the annual report's figures) was
+declared out of scope and is untouched.
+
+`camtrap/deployments.py` was built on "a station with a field window and no images is a
+discrepancy to resolve", and published exactly that for otoño 2025's five image-less
+deployments. **Four of the five were recording the whole time** — their media is video, stored
+for that campaign in a separate tree on the NAS. Only CT21 recorded nothing, and its own field
+note had said so for a year (*"SD vacía"*). So `has_media=false` never meant "the camera saw
+nothing", and it had been read that way four times out of five.
+
+**That made things more dangerous, not less:** those four cameras contribute real effort while
+their detections sit outside the pipeline, so counting their ~500 camera-days in a stills-based
+denominator biases every otoño 2025 rate downwards by a plausible-looking amount — the manual's
+own §6.3 failure. Fixed by separating the MEASUREMENT (`has_media`) from the REASON (new
+`media_status`, sourced from a new declared data file `media_absence.csv` carrying reason,
+evidence, NAS location and who checked when). **Effort is now two published denominators,
+neither the default:** 3,816 camera-days over 21 stations for anything read from
+`observations.parquet`, 4,318 over 25 for anything counting video. An undeclared gap reports
+`unexplained`; a misspelled reason raises.
+
+**Capture-order evidence is now stated for every station**, not only failing ones — the tier was
+already computed and then discarded on the way past. Four of V2-REVIEW's own claims were
+measured false and corrected in place: `pv_2025_2026` was asserted "kept as provenance" for
+three sessions but was deleted on 2026-08-20 (now confirmed as the decision, last artefact and
+its live reader removed); the field record was said to be audited "for coordinates only" when
+dates carry 23 flags against coordinates' 2; ordering evidence covers 3/4/4 stations of
+21/26/27 rather than the two the review named; and `provenance.py` was said to be unwired when
+it is the fourth flatten precondition, fatal, pre-move.
+
+**The pattern, third session running:** every defect closed sat at a boundary or in the
+documentation of one, nothing in the middle of the chain needed touching, and both facts that
+mattered most were already written down in `field_notes.csv`'s free-text `notes` column, which
+nothing reads. This project's failure mode is not missing information — it is information
+recorded somewhere nothing reads.
+
+**241 camera-traps tests pass** (was 235); re-running the ingest on all three campaigns produced
+byte-identical parquets, so no number moved. **Producer-side debt is now one item:** the field
+workbook still has no loader (V2-REVIEW 1.14), deferred because the sheet has 0 filled rows and
+the next salida is unscheduled — it expires the day terreno returns. ⚠️ The warehouse is stale
+by design (`deployments.csv` changed its hash); `run_fetch.py --ct` is consumer-side.
+
+**Prior (2026-08-24) — the consumer boundary is closed.** `estaciones.csv` now owns
 station identity and the platform's two station files are generated from it, with a test that
 fails if either is hand-edited; this ends the class of defect that put CT26 19 km outside the
 reserve and left CT27's 315 images without coordinates. Stations are spelled `CT01`..`CT27`

@@ -139,11 +139,12 @@ def main() -> None:
     print(f"Loaded verdicts file        : {len(verdicts):,} verdicts")
 
     # ── Join verdicts to records on (camera_num, File).
-    #    Campaign is deliberately NOT part of the key: cross-campaign dedup means a
-    #    record reviewed under primavera_2025 may now survive under pv_2025_2026, and
-    #    a verdict on that image applies to it either way. `camera_num` replaces the
-    #    old `deployment_raw` so verdicts written against any historical station
-    #    spelling (including the unrenamed `100EK113`) still match.
+    #    Campaign is deliberately NOT part of the key: a verdict is an adjudication of
+    #    one PHOTOGRAPH, so it applies wherever that photograph appears. `camera_num`
+    #    replaces the old `deployment_raw` so verdicts written against any historical
+    #    station spelling (including the unrenamed `100EK113`) still match.
+    #    (This comment used to justify the key by pv_2025_2026 survival. pv was retired
+    #    2026-08-19 and deleted 2026-08-20 — the reason above is the one that holds.)
     def _key(camera_num, file_name) -> pd.Series:
         return camera_num.astype("Int64").astype(str) + "|" + file_name.astype(str)
 

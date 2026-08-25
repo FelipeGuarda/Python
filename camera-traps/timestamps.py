@@ -664,6 +664,8 @@ def render_report(report: RepairReport) -> str:
             )
         lines.append('')
 
+    lines.extend(_render_order_evidence(report))
+
     if report.warnings:
         lines.append('Notes and warnings:')
         for w in report.warnings:
@@ -671,6 +673,62 @@ def render_report(report: RepairReport) -> str:
         lines.append('')
 
     return '\n'.join(lines)
+
+
+def _render_order_evidence(report: RepairReport) -> list[str]:
+    """State the ordering evidence for EVERY station, not only the failing ones.
+
+    Why this section exists (V2-REVIEW 1.4 / DATA-HEALTH-MANUAL B6): the evidence tier
+    was already computed for every station and then discarded for the ones that
+    passed, so "this station has no DCIM manifest" and "nobody looked for one" were
+    indistinguishable in the record. That is 4E.3's refusal-recording rule -- record
+    what could NOT be established, not only what could -- applied to structure.
+
+    It also corrects a live understatement: V2-REVIEW named two stations as lacking
+    folder evidence when the real figure, measured 2026-08-25, is 22 of 26 in
+    primavera_2025 and 23 of 27 in otono_2026. That is not a defect -- `establish_order`
+    falls back to the filename counter and succeeds unless counters collide (4B.3:
+    failing to order does not condemn a camera) -- but it has to be a stated fact
+    rather than a surprise to whoever measures it next.
+    """
+    if not report.per_station:
+        return []
+
+    by_tier: dict[str, list] = {}
+    for sd in report.per_station.values():
+        by_tier.setdefault(sd.diagnosis.order_evidence, []).append(sd)
+
+    n = len(report.per_station)
+    n_manifest = sum(1 for sd in report.per_station.values()
+                     if sd.diagnosis.order_evidence == clocks.ORDER_MANIFEST)
+    lines = [f'── Capture-order evidence, all {n} station(s) ' + '─' * 40]
+    # Strongest first, so the top line is the good news and the tail is the caveat.
+    for tier in (clocks.ORDER_MANIFEST, clocks.ORDER_COUNTER, clocks.ORDER_NONE):
+        group = by_tier.pop(tier, [])
+        if not group:
+            continue
+        labels = sorted(sd.station_label for sd in group)
+        lines.append(f'  {tier:<22} {len(group):>3} station(s)  {", ".join(labels)}')
+    for tier, group in sorted(by_tier.items()):          # any tier added later
+        labels = sorted(sd.station_label for sd in group)
+        lines.append(f'  {tier:<22} {len(group):>3} station(s)  {", ".join(labels)}')
+
+    lines.append(
+        f'  DCIM manifest covers {n_manifest} of {n} station(s); the rest are ordered '
+        f'from the filename counter alone, which is sufficient unless it collides'
+    )
+
+    unordered = sorted(sd.station_label for sd in report.per_station.values()
+                       if not sd.diagnosis.ordered)
+    if unordered:
+        lines.append(
+            f'  order NOT established for {len(unordered)}: {", ".join(unordered)} '
+            f'— see scripts/verify_order.py, and 4B.3: this does not condemn a camera'
+        )
+    else:
+        lines.append('  order established for every station')
+    lines.append('')
+    return lines
 
 
 # =============================================================================

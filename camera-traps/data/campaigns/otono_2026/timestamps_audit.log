@@ -36,7 +36,12 @@ Reviewed rows:                      1785
 
 Stations with a clean clock (26): CT01, CT02, CT03, CT04, CT05, CT06, CT07, CT08, CT09, CT10, CT11, CT12, CT13, CT14, CT15, CT16, CT17, CT19, CT20, CT21, CT22, CT23, CT24, CT25, CT26, CT27
   of which 3 could not be ordered but show no clock failure (CT08, CT15, CT27) — every frame is in-window and agrees with its own filename, so there is no reset to attribute
-  ! 1 of these had NO deployment window (CT27), so a forward clock jump would not have been detected. Their clean verdict is UNVERIFIED. Record the install and retrieval dates in field_notes.csv to close it
+
+── Capture-order evidence, all 27 station(s) ────────────────────────────────────────
+  dcim_manifest+counter    4 station(s)  CT14, CT20, CT23, CT24
+  counter                 23 station(s)  CT01, CT02, CT03, CT04, CT05, CT06, CT07, CT08, CT09, CT10, CT11, CT12, CT13, CT15, CT16, CT17, CT18, CT19, CT21, CT22, CT25, CT26, CT27
+  DCIM manifest covers 4 of 27 station(s); the rest are ordered from the filename counter alone, which is sufficient unless it collides
+  order NOT established for 3: CT08, CT15, CT27 — see scripts/verify_order.py, and 4B.3: this does not condemn a camera
 
 Notes and warnings:
   ! CT08: 88 colliding filename counter(s) and no DCIM manifest — the counter is per-folder and wraps at 999, so capture order is not recoverable from filenames alone
@@ -49,4 +54,4 @@ Notes and warnings:
   ! CT18: segment(s) [0, 1, 2, 3, 4] have unknown dates, so the station contributes no effort at all — exclude it from rate denominators, not just numerators
   ! CT18: 55.5 day(s) of the deployment window are unaccounted for by any segment (diagnostic only)
   ! CT27: 1 filename(s) do not match the MMDD+counter grammar, so no counter order can be derived from them
-  ! CT27: capture order not established, but no clock failure is detectable: every filename agrees with its own stamp. NOTE: no deployment window was available, so a forward jump would NOT have been detected — this is unverified, not verified clean
+  ! CT27: capture order not established, but no clock failure is detectable: every frame is in-window and agrees with its own filename

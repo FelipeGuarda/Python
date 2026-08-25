@@ -89,8 +89,14 @@ python py/03_compute_proximity.py  # (diagnóstico) imprime distancias CT→cami
   (una fila por imagen del barrido, no sólo las revisadas; `observation_type` ya resuelto).
   `pv_2025_2026` se eliminó el 2026-08-20: es una segunda revisión de primavera, no una campaña.
   Otoño 2026 queda fuera a propósito — este informe cubre oct 2024 – mar 2026.
-- **Registro de instalación de CTs** — `camera-traps/Anual-reports/Registro de monitoreo CT.xlsx`, hoja *Registro de instalacion*
-- **Ubicaciones de CTs** — `plataforma-territorial/data/camera_trap_stations.geojson` (26 puntos)
+- **Registro de instalación de CTs** — `camera-traps/data/campaigns/legacy/Registro de monitoreo CT (HISTORICO 2024-2026 - NO LLENAR).xlsx`, hoja *Registro de instalacion*.
+  Repuntado el 2026-08-25: este README apuntaba a `Anual-reports/Registro de monitoreo CT.xlsx`,
+  una copia duplicada que se eliminó ese día. Se verificó que su hoja *Registro de instalacion*
+  era idéntica a la del original, así que la única diferencia posible era la deriva.
+  En la práctica no se lee el .xlsx a mano: `camera-traps/data/campaigns/field_notes.csv`
+  es la versión canónica del registro (107 visitas), producida una sola vez por
+  `setup/build_field_notes.py`.
+- **Ubicaciones de CTs** — `plataforma-territorial/data/camera_trap_stations.geojson` (27 puntos, ids `CT01`..`CT27`)
 - **Polígono de Bosque Pehuén** — `plataforma-territorial/data/boundary.geojson` (versión canónica vigente desde 2026-05-12)
 - **Catálogo de especies** — `data-pipeline/species.yaml`
 - **Capas de contexto geográfico** — `plataforma-territorial/data/basemap/` (generadas por `py/00_prepare_basemap.py` a partir de los ZIPs entregados en `Anual-reports/Curvas de nivel_BP-*.zip`, `Anual-reports/Figura 5_Sistema hídrico SN BP-*.zip` y `Anual-reports/Red senderos y Caminos-*.zip`)

@@ -9,7 +9,9 @@ nothing else. It is written once at ingest, so the Timelapse2 export quirks are
 resolved in one place rather than re-derived per consumer:
 
     * `filePath` is populated in otono_2025 / primavera_2025 and empty in
-      pv_2025_2026 / otono_2026 -> `rel_path` is always resolved here.
+      otono_2026 -> `rel_path` is always resolved here. These are the quirks of the
+      exports on disk TODAY; a fresh export has different ones, so the guarantee is
+      "resolved in one place", not this particular list.
     * `timestamp` is populated only in primavera_2025; `DateTime` everywhere -> the
       repaired `datetime_corrected` from timestamps.py is the only time column here.
     * A camera clock can fail three separable ways -> `valid_date`,
@@ -93,9 +95,7 @@ DEDUP_KEY = ["camera_num", "file_name", "datetime"]
 # Chronological order of review. When the same image was reviewed in two campaigns the
 # LATER review supersedes the earlier one — the same reason `reviewOutcome=corrected`
 # exists. This is NOT alphabetical order, and getting it wrong silently reverts
-# adjudicated labels: primavera_2025 and pv_2025_2026 overlap by 396 records, 31 of
-# which carry different species, and `label_conflicts_primavera_vs_pv_2026-05-27.csv`
-# records pv as the resolution already loaded into DuckDB.
+# adjudicated labels.
 #
 # `pv_2025_2026` was REMOVED 2026-08-19. It was never a campaign — it is a second
 # review pass over primavera_2025, which the field record settles outright. While it sat
@@ -568,10 +568,18 @@ def read_campaigns(
     """Concatenated canonical tables — the common case for any analysis.
 
     With dedup=True (default), records appearing in more than one campaign are
-    collapsed, keeping the one from the LATEST campaign in CAMPAIGN_ORDER. This is not
-    hypothetical: primavera_2025 and pv_2025_2026 overlap by 396 records — the same SD
-    cards were partly re-ingested, including one camera-5 card that appears in
-    primavera under the unrenamed folder name `100EK113`.
+    collapsed, keeping the one from the LATEST campaign in CAMPAIGN_ORDER.
+
+    THE CURRENT THREE CAMPAIGNS DO NOT OVERLAP, measured 2026-08-25: 0 duplicate
+    DEDUP_KEY rows across all 35,807. The 396-record overlap this docstring used to
+    cite was primavera_2025 against pv_2025_2026, and pv was retired 2026-08-19.
+    31 `(camera_num, file_name)` pairs do recur across campaigns, and NONE share a
+    datetime — that is `MMDDnnnn.JPG` counter recycling between years, which the key
+    separates correctly and which must NOT be deduplicated (3.5: two files with the
+    same name in the same station are both kept).
+
+    So dedup is a no-op today and stays because a partial re-ingest reintroduces the
+    overlap the moment one happens. It is cheap insurance, not dead code.
 
     Any dropped record whose species label DIFFERS from the kept one is reported
     individually. Silent label changes are the one failure mode this must not have.
