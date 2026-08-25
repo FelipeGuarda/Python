@@ -22,6 +22,62 @@ camera clock. **New debt:** `data-pipeline` has no test suite at all while now h
 modules that guard this boundary — designed in `data-pipeline/docs/TEST-PLAN.md`, deferred.
 226 camera-traps tests pass.
 
+**Later the same day — the rebuild carried the rows but dropped the adjudication.** Asked
+whether the warehouse is now safe for a project that was not in these sessions to call —
+an annual report, say — the answer was no, and the reason was one omission at the same
+boundary: `valid_date`, `valid_time_of_day`, `valid_effort` and `repair_method` existed in
+the canonical parquet and in **no `ct_*` column**, so every clock verdict camera-traps had
+adjudicated was destroyed at ingest. 4,094 rows are inadmissible on at least one axis and a
+consumer could recover only 4,013 of them (`timestamp IS NULL`). The other **81 carry an
+ordinary-looking timestamp with an untrustworthy time of day** — repaired by offset from a
+neighbouring segment, which recovers a date but not a clock — and **33 were animal rows in
+the platform's hourly activity histogram.** The four flags are now columns on
+`ct_observations`, `ct_observations_time_admissible` (**31,713 of 35,807 rows**) is the view
+any time-of-day analysis reads, and the rebuild asserts the invariant the view rests on.
+Deliberately *not* a general `_admissible` view: 419 animal rows have no timestamp at all and
+are valid presence records, so a view that filtered all three flags would silently
+under-report every species list. `ensure_columns()` gained a boolean branch — pandas'
+nullable `boolean` had been falling through to TEXT. **Three facts that are not code defects
+but will produce wrong numbers if a consumer guesses** are now documented in
+`data-pipeline/README.md` → *Reading the camera-trap tables*: `campaign` is a retrieval batch
+with heavily overlapping date ranges and not a season; deployment windows are observed-media,
+not field-recorded, and 9 of 74 have none at all, so **camera-day denominators remain
+uncomputable** (blocked on V2-REVIEW 1.14); and `eventID`/`count` are NULL for every row, so
+`ct_*` counts images, not independent events. **Also verified while answering:** the
+cross-campaign duplication flagged in earlier notes does not exist — 31 `(station, file_name)`
+collisions, **0 sharing a datetime**, all `MMDDnnnn.JPG` recycling across years, correctly
+separated by the rebuild's key.
+
+**Third pass the same day — camera effort becomes a published number, and CT27's field record
+is repaired.** The remaining blocker on any detection *rate* turned out not to be missing data:
+`field_notes.csv` had dated both ends of nearly every deployment since the legacy migration and
+**nothing ever read them**, so consumers inferred watch time from the first and last photograph
+— circular, because a camera whose battery died after two months looks like it was *deployed*
+for two months. CT12 was in the ground **219 days** and photographed across **61** of them, a
+**3.6× overstatement**; CT08 and CT10 have no observed window at all while the field record
+dates both. New `camtrap/deployments.py` publishes
+`data/campaigns/<campaign>/deployments.csv` — **26 / 26 / 27 deployments, 12,975 camera-days**
+across the stations that have images — and `CANONICAL_STATE.json` moves to **`schema_version:
+3`**, carrying `n_deployments`, `camera_days` and a SHA-256 per file, because a wrong
+denominator silently rescales every rate in a report while nothing looks broken. The gate
+needed no new checking logic: `fingerprint()` already hashes the whole campaign description, so
+the bump made `--ct-check` refuse the live database until it was rebuilt, which is the
+deliberate-read the constant exists to force. **CT27 was the one deployment of 74 with no field
+window** — absent from every install sheet and omitted from *Registro de revisión Mayo 2026* —
+so its opening was corrected 2025-11-12 → **2025-12-11** (the transposition resolved earlier
+the same day in `deployment_anchors.csv` had never propagated back to the field record) and its
+closing reconstructed as **2026-05-14** from retrieval-trip order, flagged `(reconstructed)`.
+**74 of 74 now carry a field window.** Two silent failure modes are held by fixtures: the ±3 d
+anchor tolerance must not reach effort, and camera-days are date-scale — subtracting visit
+datetimes truncated CT01 to 168 days because its install carries a recorded time and its
+retrieval does not. **235 tests pass**, up from 226. ⚠️ **Open, and not a code question:**
+otoño 2025 records **CT21, CT22, CT24, CT25, CT26** as installed 2025-02-04/05 and collected in
+June, and none appears in that campaign's DCIM manifest, image data or reviewed CSV — ~623
+camera-days unaccounted, published with `has_media=false`. "The grid grew over time" does not
+explain otoño 2025's 21-vs-26. Felipe is checking the NAS. **Also still pending:**
+`data-pipeline` does not read `deployments.csv` yet, so `ct_deployments` keeps observed-media
+windows and the warehouse cannot serve a rate — a separate, small pass.
+
 **Prior — 2026-08-19** (camera-traps: **the reviewer's verdict now reaches the canonical table, and `pv_2025_2026` was silently reverting the new review.** The primavera 2025 re-review finished, making all three campaigns comparable for the first time — and that comparison exposed the largest data defect of the V2 pass: **815 rows across the three campaigns were typed `animal` while the reviewer had written in `observationComments` that the frame holds no animal.** The review pass wrote its correction into free text while the typed column kept the classifier's guess, so every consumer counted the classifier. Primavera's animal count was overstated by 50.6% — 744 against 494 — and counted 10 people and 4 vehicles as animals. `resolve_review()` in `camtrap/observations.py` now owns the resolution and is fail-closed: it refused the otoño 2026 ingest outright until a `Pitio}` typo was fixed. **A second defect was worse because it was invisible:** `pv_2025_2026` is not a campaign but a second review pass over primavera, and while it sat in `CAMPAIGN_ORDER` it OUTRANKED primavera — so the moment primavera was re-ingested, `read_campaigns` returned **169** of its 744 rows, with 606 overlapping keys restoring April labels over the brand-new review. Anyone re-ingesting primavera without dropping pv in the same session would have gotten a quietly wrong table. **Also:** video is now excluded from every export by policy — otoño 2026 had been carrying 2,162 videos swept as `blank` with zero `animal`, while primavera excluded its 2,618 at source, making the two campaigns' denominators different in kind; the export gate now refuses video and cannot be overridden. Animal counts: otoño 2025 830→706, otoño 2026 1,785→1,320, primavera 744→494, and **zero rows are now `animal` with an empty species**. All three campaigns pass the export gate from the repo for the first time. 179 tests pass, up from 152. **Second pass the same day closed the row-set defect underneath all of this:** the canonical table described only reviewed rows, so a station that recorded no animal was absent from it entirely — seven station-campaigns were missing (CT23 in otoño 2025; CT01/CT06/CT17/CT22 in primavera, with 6, 21, 7 and 18 frames each; CT02/CT12 in otoño 2026). Absent is indistinguishable from never-deployed, which is fine as a detection numerator and wrong as a trap-effort denominator. The table now holds **one row per still**: 3,359 → **35,807 rows** and the station gap is **0 in all three campaigns**. **The annual report moved by exactly one record and the cause is named** — diffed at row level, 1 added and 0 removed, CT04 01130013.JPG *Oryctolagus cuniculus*, which is the `conejo?` adjudication, not the rebuild; the rebuild moved nothing because no swept-only row is ever typed `animal`, and a test asserts it. Felipe also settled the two deferred label questions (a comment that cannot name a species stays `unknown`; `conejo` and `pitío` were adjudicated as real animals and added to species.yaml), and `timestamps.py` no longer aborts before writing anything on a cp1252 console. **190 tests pass**, up from 152.)
 
 **✅ 2026-08-20 — the stale-code sweep: the re-ingest finally reaches the documents.**

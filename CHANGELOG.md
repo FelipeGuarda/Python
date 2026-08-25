@@ -137,6 +137,151 @@ and deferred by Felipe so documentation could catch up first. stdlib `unittest`,
 dependencies — **pytest is installed in neither environment**, which is the same gap that let a
 claimed "152 tests" go unverified on 2026-08-18.
 
+### Added — the clock verdicts cross the boundary: four columns and one view
+
+The question that produced this: *is the warehouse now clean for a project that was not in
+these sessions — an annual report — to call, without ifs or buts?* It was not, and the reason
+sat at the same boundary everything else did. The rebuild carried the **rows** and dropped the
+**adjudication**. `valid_date`, `valid_time_of_day`, `valid_effort` and `repair_method` are in
+the canonical parquet and were in no `ct_*` column, so the entire output of the clock-repair
+work was destroyed at ingest.
+
+- **4,094 of 35,807 rows** are inadmissible on at least one axis. A consumer could recover
+  4,013 of them from `timestamp IS NULL` and had no way at all to find the other **81**:
+  `repair_method = 'offset_from_last_real_proxy'` recovers a trustworthy *date* from a
+  neighbouring segment but cannot recover the *time of day*, so those rows carry an
+  ordinary-looking timestamp. **33 are animal rows**, and they were being bucketed into the
+  platform's hourly activity histogram. `eventStart IS NOT NULL` was never a sufficient test.
+- `ct_observations` gains `validDate`, `validTimeOfDay`, `validEffort`, `repairMethod` —
+  **copied, never re-derived**, the same rule that governs the rest of `canonical_ct.py`.
+- `ct_observations_time_admissible` (**31,713 rows**, 2,070 of them animal) is the view any
+  time-of-day or seasonal analysis must read. Created by the rebuild rather than declared in
+  `schema.sql`, because `init_schema()` runs on every connection and a view cannot reference
+  columns the current database does not have yet.
+- **It is deliberately not a general `_admissible` view**, which is what was first proposed and
+  is wrong: **419 animal rows have no timestamp at all** and are perfectly valid *presence*
+  records. Filtering all three flags would silently under-report every species list. The flags
+  are exposed individually so each analysis picks its own predicate; the view covers only the
+  case that was actually being got wrong.
+- `_reconcile()` gained the invariant the view rests on: no row may claim `validTimeOfDay`
+  with a NULL `eventStart`. It fails the rebuild rather than letting the view admit rows it
+  cannot order.
+
+### Fixed — `ensure_columns()` would have stored the flags as strings
+
+`db.py::_sql_type()` had no boolean branch, so pandas' nullable `boolean` fell through to
+`TEXT` and stored `'true'`/`'false'`. It *looked* correct because DuckDB implicitly casts a
+VARCHAR inside `WHERE`; `typeof()` and any arithmetic aggregate told the truth. The datetime
+branch was left alone on purpose — `ensure_columns` is shared with `weather_station`, whose
+timestamps are genuinely tz-aware.
+
+### Fixed — the platform's two time-of-day charts
+
+`/diel-activity` and `/overlap`'s hourly query now read the view. The histogram moves from
+2,103 to 2,070 rows; hour 09 loses 13. Species totals, `last_seen` and occupancy stay on the
+full table — presence does not need a clock, and `validDate` is true for all 81 rows, so a
+date-scale `MAX(eventStart)` is unaffected.
+
+### Added — `data-pipeline/README.md` → *Reading the camera-trap tables*
+
+Three things about `ct_*` are not code defects but will produce wrong numbers if a consumer
+guesses, so they are now written down where a consumer will look — in **data-pipeline**, not in
+camera-traps' manual, because camera-traps must not learn that DuckDB exists:
+
+- **`campaign` is a retrieval batch, not a season.** The ranges overlap heavily (otoño 2025
+  runs 2024-10-09 → 2025-06-10; primavera 2025 runs 2025-05-14 → 2026-01-14; otoño 2026 runs
+  2025-11-21 → 2026-05-15) and **2,887 otoño-2026 rows predate primavera-2025's last frame**.
+  Group by campaign to describe fieldwork; slice on `eventStart` to describe a year.
+- **Effort denominators are not in the database.** Deployment windows are observed-media, not
+  field-recorded, and **9 of 74 deployments have none at all**. Camera-days are biased low and
+  undefined for those 9. Blocked on V2-REVIEW 1.14.
+- **Rows are images, not events.** `eventID` and `count` are NULL for all 35,807 rows.
+  "2,522 animal detections" counts *photographs*.
+
+### Corrected — the cross-campaign duplication does not exist
+
+Earlier notes carried a warning that image counts were roughly doubled by cards read across two
+campaigns. Measured: **31 `(station, file_name)` collisions, 0 of which share a datetime.** They
+are `MMDDnnnn.JPG` filenames recycling across years — `10280073.JPG` is Oct 28 2024 in one
+campaign and Oct 28 2025 in another — and the rebuild's `(campaign, station, file_name)` key
+separates them correctly. The warning is withdrawn.
+
+### Added — `camera-traps/camtrap/deployments.py`: effort becomes a published number
+
+`field_notes.csv` has dated both ends of nearly every deployment since the legacy migration,
+and **nothing ever read them**. Every consumer inferred "how long was this camera watching"
+from its first and last photograph, which is circular — a camera whose battery died after two
+months looks like it was *deployed* for two months. Measured: CT12 was in the ground **219
+days** and photographed across **61** of them (a 3.6× overstatement of its detection rate),
+and CT08 and CT10 have no observed window at all because their clocks failed, while the field
+record dates both.
+
+`camtrap/deployments.py` pairs the visit that put a card in the ground with the visit that
+pulled it out and writes `data/campaigns/<campaign>/deployments.csv`:
+
+| campaign | deployments | with images | camera-days |
+|---|---|---|---|
+| otono_2025 | 26 | 21 | 3,816 |
+| primavera_2025 | 26 | 26 | 5,178 |
+| otono_2026 | 27 | 27 | 3,981 |
+
+Two silent failure modes are held by fixtures rather than by care:
+
+- **`FieldRecord.window()` must not be used here.** It returns `[opening − 3 d, closing + 3 d]`
+  so a clock anchor can be validated against a window it may sit just outside of. Applied to
+  effort it adds six days to every camera in the reserve, and it is the obvious method to reach
+  for.
+- **Camera-days are date-scale.** `FieldRecord` stamps a visit with no recorded time at
+  `ASSUMED_VISIT_HOUR`, so subtracting datetimes truncates whenever the two ends disagree about
+  the hour — CT01's install is timed 15:13 and its retrieval is not, which read as 168 days
+  instead of 169. Caught during implementation; 33 camera-days across the three campaigns.
+
+Stations deployed with **no** images are published with `has_media = false` rather than
+dropped, so the effort stays visible while the discrepancy is resolved.
+
+### Fixed — CT27 had no deployment window at all
+
+CT27 appears on no install sheet (it entered the grid late) and was **omitted from *Registro de
+revisión Mayo 2026***, which holds 26 rows — so the field record opened its deployment and
+never closed it, and it was the one deployment out of 74 that would have fallen back to an
+observed window.
+
+- **Opening: 2025-11-12 → 2025-12-11.** Not a new judgement — the day/month transposition was
+  resolved earlier the same day and recorded in `otono_2026/deployment_anchors.csv`, but the
+  adjudication never propagated back to the field record, which still carried the ambiguous
+  date flagged `VERIFY`. Corroborated by CT27's own first frame at 2025-12-11 12:49:01.
+- **Closing: 2026-05-14**, reconstructed from retrieval-trip order — CT27's last frame
+  (14:32:04) falls between CT17's (14:07:45) and CT21's (15:15:15), both retrieved that day.
+  Marked `source_sheet = (reconstructed)` rather than attributed to a sheet it is not on.
+
+**74 of 74 deployments with images now carry a field window**, asserted by a test.
+
+### Changed — `CANONICAL_STATE.json` is `schema_version: 3`
+
+Each campaign now also describes its published effort: `n_deployments`,
+`n_deployments_with_media`, `camera_days`, and a SHA-256 of `deployments.csv`. A wrong row
+count is visible because a species appears or does not; a wrong denominator silently rescales
+every rate in a report and nothing looks broken, so effort belongs *inside* the thing consumers
+verify rather than beside it.
+
+Nothing in `data-pipeline/src/canonical_gate.py` had to change to *check* it — `fingerprint()`
+already hashes the whole campaign description, so a hand-edited `deployments.csv` moves its
+sha256, moves the fingerprint, and the gate reports the database stale. Only
+`SUPPORTED_SCHEMA_VERSION` moved, 2 → 3, which is the deliberate-read the constant exists to
+force: the bump made `--ct-check` refuse the live database until it was rebuilt, exactly as
+designed.
+
+235 camera-traps tests pass, up from 226.
+
+### Known — five otoño 2025 stations are deployed and have no images
+
+`field_notes.csv` records **CT21, CT22, CT24, CT25 and CT26** as installed 2025-02-04/05 and
+collected 2025-06-05/11 — roughly **623 camera-days** — and not one appears in that campaign's
+`dcim_manifest.csv`, `ImageData_total.csv` or reviewed CSV; the manifest's deployment list is
+CT01–CT20 plus CT23. So "the grid grew over time" does not explain otoño 2025's 21-vs-26.
+Felipe is checking the NAS (2026-08-24); the working hypothesis is that the cameras were added
+late and the folders are empty. Published with `has_media = false` pending that.
+
 ### Known, and flagged rather than fixed
 
 - **`exports/Primavera-verano 2025-2026/`** still names its station directories `TC10_M3_2`.

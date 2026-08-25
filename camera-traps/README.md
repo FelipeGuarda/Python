@@ -108,7 +108,37 @@ is UTC, not a 3 h-slow camera, proved by its last frame landing in correct seque
 retrieval trip between CT17 and CT21. Downstream, `data-pipeline` rebuilt `ct_*` from the
 canonical parquets (**35,807 rows, 74 deployments**) and now verifies `CANONICAL_STATE.json`
 before reading — the gate that was missing when the tables went 3,359 → 35,807 without one
-consumer erroring. **226 tests pass.**
+consumer erroring.
+
+**Later the same day — camera effort becomes a published number.** `field_notes.csv` had dated
+both ends of nearly every deployment since the legacy migration and **nothing ever read them**,
+so every consumer inferred "how long was this camera watching" from its first and last
+photograph. That is circular: a camera whose battery died after two months looks like it was
+*deployed* for two months. Measured — CT12 was in the ground 219 days and photographed across
+61 of them, a **3.6× overstatement**, and CT08 and CT10 have no observed window at all because
+their clocks failed, while the field record dates both. New `camtrap/deployments.py` publishes
+`data/campaigns/<campaign>/deployments.csv`: **26 / 26 / 27 deployments, 12,975 camera-days**
+across the stations that have images. `CANONICAL_STATE.json` is now **`schema_version: 3`**,
+carrying `n_deployments`, `camera_days` and a SHA-256 per file — effort is a denominator, and a
+wrong denominator silently rescales every rate in a report while nothing looks broken, so it
+belongs inside the thing consumers verify. **CT27's field record was repaired to make this
+complete:** it appears on no install sheet and was omitted from *Registro de revisión Mayo
+2026*, so it had no window at all. Opening corrected 2025-11-12 → **2025-12-11** (the
+transposition resolved earlier that day), closing reconstructed as **2026-05-14** from
+retrieval-trip order and flagged `(reconstructed)` rather than attributed to a sheet it is not
+on. **74 of 74 deployments with images now carry a field window.** Two silent failure modes are
+held by fixtures: the ±3 d anchor tolerance must not reach effort, and camera-days are
+date-scale — subtracting visit datetimes truncated CT01 to 168 days because its install carries
+a recorded time and its retrieval does not. **235 tests pass**, up from 226.
+
+**Integration Status:** `In Progress [REMAINING: V2-REVIEW 1.4, 1.7–1.11, 1.14 round-trip, §3
+cleanup]`. **Blockers/Notes:** `deployments.csv` is published but **`data-pipeline` does not
+read it yet** — `ct_deployments` still carries observed-media windows until that pass lands, so
+the warehouse cannot yet serve a detection rate. ⚠️ **otoño 2025 records CT21, CT22, CT24, CT25
+and CT26 as installed 2025-02-04/05 and collected in June, and none of them appears in that
+campaign's DCIM manifest, image data or reviewed CSV** — ~623 camera-days unaccounted. They are
+published with `has_media=false` rather than dropped. Felipe is checking the NAS (2026-08-24);
+the working hypothesis is that the cameras were added late and the folders are empty.
 
 **Prior (2026-08-19)** — **the reviewer's verdict now reaches the canonical table, and `pv_2025_2026` was silently reverting the new review.** Primavera 2025's re-review finished, making all three campaigns comparable for the first time, and that comparison found the largest data defect of the V2 pass: **815 rows were typed `animal` while the reviewer had written in `observationComments` that the frame holds no animal** — the review wrote its correction into free text while the typed column kept the classifier's guess. Primavera's animal count was overstated by 50.6% (744 against 494) and counted 10 people and 4 vehicles as animals. `resolve_review()` now owns the resolution, fail-closed: it refused the otoño 2026 ingest until a `Pitio}` typo was fixed. Precedence, agreed with Felipe: an identified animal beats vehicle beats human where the review NAMES a species (37 rows — 13 Perro, 23 Caballo, 1 Vaca); the review wins outright where it NEGATES the animal. The sweep is not an input, and its `human` labels stay untouched in `ImageData_total.csv` where `anchor_candidates.py` reads them. **The second defect was worse for being invisible:** pv is not a campaign but a second review pass over primavera, and while it sat in `CAMPAIGN_ORDER` it outranked primavera — `read_campaigns` returned **169** of its 744 rows, 606 overlapping keys restoring April labels over the new review. Dropped from `CAMPAIGN_ORDER` and `REPORT_CAMPAIGNS`, kept as provenance. **Video is now excluded from every export by policy** (see Step 2a): otoño 2026 carried 2,162 videos swept `blank` with zero `animal` while primavera excluded its 2,618 at source, so their denominators differed in kind; the gate now refuses video, non-overridable, and the removal was proven byte-identical for the clock chain. Animal counts: otoño 2025 830→706, otoño 2026 1,785→1,320, primavera 744→494; **zero rows are `animal` with an empty species**. All three pass the gate from the repo for the first time. **A second pass the same day closed the row-set defect underneath all of it.** The canonical table described only reviewed rows, so a station that recorded no animal was absent from it — seven station-campaigns were missing (CT23 in otoño 2025; CT01/CT06/CT17/CT22 in primavera at 6, 21, 7 and 18 frames; CT02/CT12 in otoño 2026), and absent is indistinguishable from never-deployed: fine as a detection numerator, wrong as a trap-effort denominator. The table is now **one row per still** — 3,359 → **35,807 rows**, station gap **0 in all three**. Consumers must filter on `observation_type`; `01_data_prep.py` already did. **The annual report moved by exactly one record and the cause is named:** diffed at row level, 1 added and 0 removed — CT04 `01130013.JPG` *Oryctolagus cuniculus*, the `conejo?` adjudication, **not** the rebuild, which moved nothing because no `sweep_only` row is ever typed `animal` (asserted in a test). Felipe settled the two deferred label questions: a comment that cannot name a species stays `unknown` (`ave`, `roedor`, `churrete`), while `conejo` → *Oryctolagus cuniculus* and `pitío` → *Colaptes pitius* were adjudicated as real animals and added to `species.yaml`. Step 2a now records **how** to exclude video (Custom Selection → filter `fileMediatype`), and `timestamps.py` no longer aborts before writing anything on a cp1252 console. **190 tests pass** (152 at the start of the day) — via `python -m unittest discover -s tests`, since pytest is not in the env.
 

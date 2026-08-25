@@ -87,6 +87,30 @@ the defect was one missing row and the absence of any check to keep it from recu
 canonical table is enforced and tested. Defects survive where responsibility changes hands,
 because that is where nobody owns the check.
 
+- [x] **1.14a The deployment windows are published.** — **DONE 2026-08-24.** The half of
+      1.14 that blocks every effort calculation is closed without waiting for the Excel
+      round-trip: `field_notes.csv` already dated both ends of almost every deployment, and
+      nothing read them. New `camtrap/deployments.py` pairs the visit that put a card in the
+      ground with the visit that pulled it out and publishes
+      `data/campaigns/<campaign>/deployments.csv` — **26 / 26 / 27 deployments, 12,975
+      camera-days across the stations that have images.** Two traps are guarded by fixtures:
+      `FieldRecord.window()` pads by ±3 d for anchor validation and would add six days to
+      every camera, and subtracting visit *datetimes* truncates whenever one end carries a
+      recorded time and the other is stamped at `ASSUMED_VISIT_HOUR` (CT01 read 168 days
+      instead of 169). **The contract now covers effort:** `CANONICAL_STATE.json` is
+      `schema_version: 3`, carrying `n_deployments`, `camera_days` and a SHA-256 of each
+      `deployments.csv`. A wrong row count is visible because a species appears or does not;
+      a wrong denominator silently rescales every rate in a report, so it belongs inside the
+      thing consumers verify. **Prerequisite fixed in the same pass:** CT27 had no window at
+      all — it never appeared on an install sheet and was omitted from *Registro de revisión
+      Mayo 2026* (26 rows). Its opening was corrected from 2025-11-12 to **2025-12-11** (the
+      day/month transposition you resolved on 2026-08-24, corroborated by its own first frame
+      at 12:49:01) and its closing reconstructed as **2026-05-14** from retrieval-trip order,
+      flagged `(reconstructed)` rather than attributed to a sheet it is not on. Result: **74
+      of 74 deployments with images now have a field window**, asserted by a test. 235 tests
+      pass, up from 226. Still open below: the round-trip that keeps this true for *future*
+      fieldwork.
+
 - [ ] **1.14 The field workbook has a loader.** `setup/build_visit_template.py` renders
       `Registro de visitas CT.xlsx` and **nothing reads it back**;
       `setup/build_field_notes.py` is the one-time legacy migration from the old workbook, not

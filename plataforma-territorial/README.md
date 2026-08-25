@@ -1,7 +1,23 @@
 # Plataforma Territorial FMA
 
 **Owner:** Felipe Guarda — Fundación Mar Adentro
-**Last Updated:** 2026-06-02 — added piso-vegetacional GeoJSON layer to Observatorio
+**Last Updated:** 2026-08-24 — the dashboard's camera-trap numbers are real, and its two time-of-day charts stopped inventing activity
+**What Changed:** Three fixes at the DuckDB boundary. (1) **Occupancy divides by the deployed
+grid, not the station registry.** A species seen at 12 of the 21 stations actually deployed
+in a campaign was being reported as 12/27. The denominator is now one function,
+`_n_stations_deployed()`, and **every endpoint that returns an occupancy count also returns
+its own denominator**, so the frontend never picks one — `CamarasTab.jsx` had been dividing
+by `geo.camera_trap_count` and disagreeing with its own tooltip. The dead `totalStations`
+prop is gone. (2) **`/diel-activity` and `/overlap` read `ct_observations_time_admissible`**,
+not `ct_observations`: 33 animal rows carry a trustworthy date and an untrustworthy time of
+day, and bucketing them by `HOUR()` placed activity at hours nothing was photographed. Species
+totals, `last_seen` and occupancy stay on the full table — presence does not need a clock.
+(3) **`bootstrap_windows_db.py` deleted** — it carried an inline copy of the schema that was
+wrong in both columns and types, and `CREATE TABLE IF NOT EXISTS` meant running it first on a
+fresh machine would have silently poisoned the real schema. Superseded by
+`data-pipeline/src/recovery.py`. Stations are spelled `CT01`..`CT27` throughout; the `TC-01`
+dialect is gone.
+**Prior — 2026-06-02** — added piso-vegetacional GeoJSON layer to Observatorio
 **What Changed:** New toggleable Leaflet layer on Observatorio: photointerpretation of Bosque Pehuén's vegetational floor (48 polygons, colored by BIOTOPO across 3 semantic groups — greens for Bosque, ochres for Renoval, blues/violets for Matorral/Pradera/Estepa). Layer is **off by default**; click a polygon for `BIOTOPO / Distrito / Superficie`. Self-contained component (`PisoVegetacionalLayer.jsx`) — adding more GIS layers later follows the same shape. Conversion is reproducible via `scripts/convert_piso_vegetacional.py` (shapefile → GeoJSON, UTM 18S → WGS84, latin-1/utf-8 quirks handled).
 **Integration Status:** Ready [Observatorio map + piso vegetacional overlay; 26 TCs from canonical stations.yaml; species classification via API; modular frontend per W41; CSS-Modules styling per W44; schema-drift visible at boot per S49] | Pending [`battery_voltage` curation in `ALLOWED_COLS` — surfaced by S49 drift check; cámaras trampa dashboard tab polish; fauna tab real data; Asistente real Claude API]
 **Blockers/Notes:** Piso-vegetacional palette approved visually but Bosque Achaparrado / Bosque Abierto may need a stronger split if it blurs in field use — colors live at the top of `PisoVegetacionalLayer.jsx`, single edit. Deferred items unchanged: S58 needs Felipe's field records (TC-11 vs TC-18 SD-card duplication in stations.yaml); S76 re-opens when CI lands.

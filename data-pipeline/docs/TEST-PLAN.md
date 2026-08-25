@@ -80,6 +80,17 @@ Everything else in these files is assertions, not structure. Do not build a fram
 - **`ct_media` and `ct_observations` are 1:1.**
 - **A station whose clock failed entirely still gets a deployment row** — NaT window, not
   dropped. It was still deployed.
+- **The clock verdicts are carried, not re-derived.** `validDate` / `validTimeOfDay` /
+  `validEffort` / `repairMethod` equal the parquet's values row for row. A test that computes
+  the expected flag from anything other than the input column is testing the wrong thing.
+- **The flags land as BOOLEAN, not TEXT.** `ensure_columns` mapped pandas' nullable `boolean`
+  to TEXT until 2026-08-24, and `WHERE validDate` still returned the right answer because
+  DuckDB casts implicitly — so the assertion must be on `typeof()`, not on a row count.
+- **`TIME_ADMISSIBLE_VIEW_SQL` excludes a row with a timestamp but `valid_time_of_day` false.**
+  The 81-row case the view exists for. A test asserting only "nulls are excluded" would pass
+  against a view defined as `eventStart IS NOT NULL` and miss the entire defect.
+- **The view does not exclude a null-timestamp row from a species *list*.** Guards the
+  over-filtering failure: 419 animal rows have no clock and are valid presence records.
 - **The regression that matters — the 815-row defect class.** Given a row typed `blank` but
   still carrying a stale `species_latin`, the output must **not** resurrect the species.
   This is the property that made the previous implementation wrong on 515 live rows, and it
@@ -106,6 +117,11 @@ Everything else in these files is assertions, not structure. Do not build a fram
 - Partitioning actually splits by year, and re-exporting an unchanged year is a no-op.
 
 ## `test_ingest.py`
+
+- **`_reconcile()` raises when a row claims `validTimeOfDay` with a NULL `eventStart`.** The
+  invariant `ct_observations_time_admissible` rests on.
+- **The view is created only after reconciliation passes** — a view named for admissibility
+  must not appear over a table that failed its own row-count check.
 
 - `_reconcile` raises on a per-campaign count mismatch and on `ct_media` ≠ `ct_observations`.
 - `_read_canonical` refuses a parquet whose row count disagrees with the contract, and one
