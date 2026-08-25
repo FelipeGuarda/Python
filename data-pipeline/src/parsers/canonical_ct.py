@@ -50,6 +50,23 @@ WINDOW_OBSERVED = "observed_media"
 
 _MEDIATYPE = "image/jpeg"
 
+#: The one query a warehouse consumer must use before reasoning about WHEN something
+#: happened. Not `eventStart IS NOT NULL`: 81 rows in otono_2025 were repaired by
+#: `offset_from_last_real_proxy`, which recovers a trustworthy DATE from a neighbouring
+#: segment but cannot recover the time of day. Those rows carry an ordinary-looking
+#: timestamp and are the reason this view exists -- 33 of them are animal rows and were
+#: being bucketed into an hourly activity histogram.
+#:
+#: Deliberately NOT filtered on validEffort, and deliberately not named `_admissible`.
+#: Admissibility is per-question: a species inventory needs neither a date nor a clock,
+#: so the 419 animal rows with no timestamp at all are legitimate presence records and
+#: must not be filtered out of a species list by a view that sounds general.
+TIME_ADMISSIBLE_VIEW_SQL = """
+CREATE OR REPLACE VIEW ct_observations_time_admissible AS
+SELECT * FROM ct_observations
+WHERE eventStart IS NOT NULL AND validDate AND validTimeOfDay
+"""
+
 
 def _row_id(kind: str, campaign: str, station: str, file_name: str) -> str:
     """A stable, content-free identifier for one still.
@@ -184,5 +201,14 @@ def _observations(df: pd.DataFrame) -> pd.DataFrame:
         "observationComments": _blank_to_none(df["observation_comments"]),
         "reviewOutcome": _blank_to_none(df["review_outcome"]),
         "reviewResolution": _blank_to_none(df["review_resolution"]),
+        # The clock verdicts, CARRIED across the warehouse boundary, never re-derived.
+        # camera-traps decided all of this; without these four columns the decision is
+        # destroyed at ingest and no consumer can reconstruct it from the table alone.
+        # `validTimeOfDay` implies `validDate` implies a non-null timestamp -- measured
+        # across all 35,807 rows, and asserted by _reconcile() on every rebuild.
+        "validDate": df["valid_date"].astype("boolean"),
+        "validTimeOfDay": df["valid_time_of_day"].astype("boolean"),
+        "validEffort": df["valid_effort"].astype("boolean"),
+        "repairMethod": _blank_to_none(df["repair_method"]),
         "source": SOURCE,
     })

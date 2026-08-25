@@ -65,6 +65,12 @@ def ensure_columns(con: duckdb.DuckDBPyConnection, table: str, df: pd.DataFrame)
     existing = {row[0] for row in con.execute(f"DESCRIBE {table}").fetchall()}
 
     def _sql_type(dtype) -> str:
+        # Tested BEFORE the integer branch. pandas' nullable `boolean` is not an integer
+        # dtype and used to fall through to TEXT, which stored 'true'/'false' strings
+        # that merely looked correct because DuckDB implicitly casts them inside WHERE;
+        # typeof() and any arithmetic aggregate told the truth.
+        if pd.api.types.is_bool_dtype(dtype):
+            return "BOOLEAN"
         if pd.api.types.is_integer_dtype(dtype):
             return "BIGINT"
         if pd.api.types.is_float_dtype(dtype):

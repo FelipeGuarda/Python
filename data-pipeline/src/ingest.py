@@ -83,6 +83,15 @@ def ingest_all_ct_campaigns(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         print(f"  {table}: {written[table]} rows.")
 
     _reconcile(con, state)
+    # Created only after the rebuild reconciles: a view whose name promises admissibility
+    # must never appear over a table that just failed its own row-count check.
+    con.execute(canonical_ct.TIME_ADMISSIBLE_VIEW_SQL)
+    timed = con.execute(
+        "SELECT COUNT(*) FROM ct_observations_time_admissible"
+    ).fetchone()[0]
+    print(f"  ct_observations_time_admissible: {timed} of "
+          f"{written['ct_observations']} rows carry a trustworthy clock.")
+
     canonical_gate.record(con, state)
     return written
 
@@ -121,6 +130,18 @@ def _reconcile(con: duckdb.DuckDBPyConnection, state: dict) -> None:
         problems.append(
             f"ct_media has {media} rows and ct_observations {obs}; these are "
             f"media-level observations and must be 1:1"
+        )
+
+    # The invariant the time-admissible view rests on. If a row ever claims a trustworthy
+    # time of day while carrying no timestamp, the flags and the clock disagree and the
+    # view silently starts admitting rows it cannot order.
+    stray = con.execute(
+        "SELECT COUNT(*) FROM ct_observations WHERE validTimeOfDay AND eventStart IS NULL"
+    ).fetchone()[0]
+    if stray:
+        problems.append(
+            f"{stray} observation rows claim validTimeOfDay with a NULL eventStart; "
+            f"the clock verdicts and the timestamps disagree"
         )
 
     if problems:

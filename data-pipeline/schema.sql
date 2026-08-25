@@ -93,6 +93,15 @@ CREATE TABLE IF NOT EXISTS ct_observations (
     observationComments       TEXT,   -- the reviewer's verbatim text
     reviewOutcome             TEXT,   -- 'confirmed' | 'corrected' | NULL for sweep-only rows
     reviewResolution          TEXT,   -- which rule decided this row's verdict
+    -- Clock verdicts, decided upstream by camera-traps and carried here verbatim.
+    -- validTimeOfDay implies validDate implies eventStart IS NOT NULL. Query the
+    -- ct_observations_time_admissible view rather than restating that predicate; the
+    -- view is created by the rebuild, not here, because it cannot exist before these
+    -- columns do. See src/parsers/canonical_ct.py.
+    validDate                 BOOLEAN,-- the calendar date is trustworthy
+    validTimeOfDay            BOOLEAN,-- the time of day is trustworthy
+    validEffort               BOOLEAN,-- the row counts toward camera-days
+    repairMethod              TEXT,   -- how the timestamp got here, or why it did not
     source                    TEXT NOT NULL
 );
 

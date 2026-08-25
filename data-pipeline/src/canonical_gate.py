@@ -42,7 +42,12 @@ _DEFAULT_PATH = (
 
 #: Bump when this module learns to read a new contract shape. Refusing an unknown
 #: schema_version is the point: a producer that changed shape must be read deliberately.
-SUPPORTED_SCHEMA_VERSION = 2
+#:
+#: 3 (2026-08-24) adds each campaign's published deployment windows -- n_deployments,
+#: camera_days and a hash of deployments.csv. Nothing here had to change to CHECK them:
+#: fingerprint() hashes the whole campaign description, so a hand-edited deployments.csv
+#: moves its sha256, moves the fingerprint, and the gate reports the database stale.
+SUPPORTED_SCHEMA_VERSION = 3
 
 
 class CanonicalGateError(RuntimeError):
@@ -135,8 +140,8 @@ def check(con: duckdb.DuckDBPyConnection, path: Path | None = None) -> list[str]
         if mine["fingerprint"] != fingerprint(declared):
             findings.append(
                 f"{name}: the published description changed since ingest even though "
-                f"the row and station counts still agree — species, observation types "
-                f"or the date range moved. Rebuild."
+                f"the row and station counts still agree — species, observation types, "
+                f"the date range or the deployment windows moved. Rebuild."
             )
 
     for name in set(have) - set(published["campaigns"]):
