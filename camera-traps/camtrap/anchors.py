@@ -69,14 +69,14 @@ DATE-ONLY VISITS
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, time, timedelta
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 
-from camtrap import clocks, stations
+from camtrap import clocks, stations, visit_schema
 from camtrap.clocks import (
     ALL_ANCHOR_TYPES,
     ANCHOR_TYPES_APPROXIMATE,
@@ -225,13 +225,11 @@ class Visit:
     revision swaps the card, so one visit CLOSES one campaign and OPENS the next.
     """
     station_id: str
-    visit_type: str                 # install | revision | unrecorded
-    campaign_closed: str
+    visit_type: str                 # visit_schema.VISIT_TYPES, or legacy 'unrecorded'
+    campaign_closed: str            # DERIVED, never read from the file — see _derive_closings
     campaign_opened: str
     visit_date: Optional[datetime]  # date at midnight, or None
     visit_time_recorded: bool       # False => the hour is ASSUMED_VISIT_HOUR
-    clock_state: str                # unknown | wrong
-    camera_replaced: bool
     flags: str
     source_sheet: str
 
@@ -255,6 +253,52 @@ class Visit:
         return 'date_ambiguous' in self.flags or 'date_conflict' in self.flags
 
 
+#: Retired 2026-08-26. Present only in a pre-reshape `field_notes.csv`.
+RECORDED_CLOSE_COLUMN = 'campaign_closed'
+
+
+def _derive_closings(visits: list[Visit]) -> list[Visit]:
+    """Fill `campaign_closed` from each station's own visit sequence.
+
+    The field form deliberately does not collect it: a visit always closes the
+    campaign the previous visit to that station opened, so recording it a second time
+    only creates a cell that can disagree with the rest of the sheet. Measured
+    against the 107 legacy rows before the column was dropped, the derivation
+    reproduced 105 of the 106 dated values. The single exception was CT27's
+    2025-12-11 row, which claimed to close `primavera_2025` for a station that has no
+    primavera deployment in `deployments.csv`, none in the canonical table and no
+    prior visit at all — i.e. the derivation was right and the recorded value wrong.
+
+    An undated visit cannot be placed in the sequence, so it closes nothing and does
+    not advance the carry. CT27's `unrecorded` placeholder is the live case.
+
+    `retiro` resets the carry because the card comes out for good: without the reset,
+    a station lifted and later reinstalled would derive its reinstall as closing the
+    campaign that ended before the gap. There are no `retiro` rows in the record yet,
+    so this branch is held by a fixture rather than by data.
+    """
+    closed = [''] * len(visits)
+    by_station: dict[str, list[int]] = {}
+    for i, v in enumerate(visits):
+        by_station.setdefault(v.station_id, []).append(i)
+
+    for idxs in by_station.values():
+        ordered = sorted(idxs, key=lambda i: (visits[i].visit_date is None,
+                                              visits[i].visit_date or datetime.min,
+                                              i))
+        in_ground = ''
+        for i in ordered:
+            v = visits[i]
+            if v.visit_type in visit_schema.CLOSES_CAMPAIGN:
+                closed[i] = in_ground
+            if v.visit_type in visit_schema.OPENS_CAMPAIGN:
+                in_ground = v.campaign_opened
+            elif v.visit_type in visit_schema.CLOSES_CAMPAIGN:
+                in_ground = ''          # retiro: nothing left in the ground
+
+    return [replace(v, campaign_closed=c) for v, c in zip(visits, closed)]
+
+
 class FieldRecord:
     """Every visit in `field_notes.csv`, queryable by station and campaign.
 
@@ -268,11 +312,25 @@ class FieldRecord:
     @classmethod
     def load(cls, path: Path) -> 'FieldRecord':
         """Returns an empty record if the file does not exist, so a campaign with no
-        field notes degrades to the anchor-derived window rather than failing."""
+        field notes degrades to the anchor-derived window rather than failing.
+
+        Refuses a file that still carries `campaign_closed`. That column was
+        authoritative until 2026-08-26 and is now derived, so a file holding it is
+        either a pre-reshape copy or a `build_field_notes.py` run that reverted the
+        curated rows — and reading it while ignoring the column would reinterpret it
+        silently. `setup/reshape_field_notes.py` performs the one-time conversion.
+        """
         if not path.exists():
             return cls([])
 
         df = pd.read_csv(path, dtype=str, keep_default_na=False)
+        if RECORDED_CLOSE_COLUMN in df.columns:
+            raise ValueError(
+                f'{path} still carries the retired `{RECORDED_CLOSE_COLUMN}` column. '
+                'The campaign a visit closes is derived from the station\'s visit '
+                'sequence since 2026-08-26; a file that records it is a pre-reshape '
+                'copy. Run setup/reshape_field_notes.py, or fix the fixture.'
+            )
         visits: list[Visit] = []
         for _, r in df.iterrows():
             raw_date = (r.get('visit_date') or '').strip()
@@ -289,16 +347,14 @@ class FieldRecord:
             visits.append(Visit(
                 station_id=(r.get('station_id') or '').strip(),
                 visit_type=(r.get('visit_type') or '').strip(),
-                campaign_closed=(r.get('campaign_closed') or '').strip(),
+                campaign_closed='',        # filled by _derive_closings below
                 campaign_opened=(r.get('campaign_opened') or '').strip(),
                 visit_date=when,
                 visit_time_recorded=has_time,
-                clock_state=(r.get('clock_state') or 'unknown').strip(),
-                camera_replaced=(r.get('camera_replaced') or '').strip().lower() == 'yes',
                 flags=(r.get('data_flags') or '').strip(),
                 source_sheet=(r.get('source_sheet') or '').strip(),
             ))
-        return cls(visits)
+        return cls(_derive_closings(visits))
 
     def __len__(self) -> int:
         return len(self._visits)

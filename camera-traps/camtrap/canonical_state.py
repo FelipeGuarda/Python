@@ -55,7 +55,13 @@ from camtrap.observations import (
 #   appears or does not, while a wrong denominator silently rescales every rate in a
 #   report and nothing looks broken. It therefore belongs inside the thing consumers
 #   verify, not beside it.
-SCHEMA_VERSION = 3
+#
+#   3 -> 4 (2026-08-26): new column `episode_30min` -- the independence rule, moved
+#   upstream. It had been implemented three times downstream and two of the three
+#   disagreed (523 events against 696, a 33% undercount in the script that writes
+#   events_clean.parquet). A rule that lives in its consumers drifts, because nothing
+#   compares the copies. See camtrap/episodes.py.
+SCHEMA_VERSION = 4
 
 STATE_FILENAME = "CANONICAL_STATE.json"
 DEFAULT_STATE_PATH = CAMPAIGNS_ROOT.parent / STATE_FILENAME

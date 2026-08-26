@@ -76,6 +76,23 @@ SI_NO = ('si', 'no')
 SI_NO_NS = ('si', 'no', 'no se sabe')
 VISIT_TYPES = ('instalacion', 'revision', 'retiro', 'mantencion')
 
+# Which campaign a visit CLOSES is never written down — the form collects only the
+# campaign it opens, because the one it closes is always the one the previous visit
+# to that same station opened (see `campaign_opened`'s `why`). Deriving it is what
+# makes it impossible for the sheet to contradict itself, so the derivation needs to
+# know which visit types touch the card:
+#
+#   instalacion  no card was in the ground        closes nothing, opens one
+#   revision     the card is swapped              closes one, opens the next
+#   retiro       the card comes out for good      closes one, opens nothing
+#   mantencion   the card is NOT touched          closes nothing, opens nothing
+#
+# `mantencion` is the reason this cannot be read off `campaign_opened` alone: the
+# technician writes the campaign that is still open, and reading that as "opened
+# again" would close a campaign that never ended.
+CLOSES_CAMPAIGN = ('revision', 'retiro')
+OPENS_CAMPAIGN = ('instalacion', 'revision')
+
 # Bumped when a column is added, removed or redefined. Stamped on the glossary so a
 # filled workbook can be dated without opening a diff.
 SCHEMA_VERSION = '1.0'

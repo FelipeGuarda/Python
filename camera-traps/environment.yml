@@ -1,19 +1,24 @@
-name: species-classifier
+# The ingest and analysis chain: camtrap/, timestamps.py, setup/, scripts/, tests/.
+#
+# Deliberately lean. Nothing in this chain imports torch, PIL, streamlit or tqdm — those
+# belong to the classifier half of the repo (phase1_labeling/, classify_campaign/,
+# run_classification.py, export_best_images.py), which has its own file:
+# environment-classifier.yml. Splitting them 2026-08-26 because this file had declared
+# neither pandas nor pyarrow while declaring a 7.5 GB CUDA stack, so a fresh clone could
+# not run `python timestamps.py` and could run nothing at all without the GPU download.
+#
+#   conda env create -f environment.yml
+#   conda activate camtrap
+#   python -m pytest -q          # or: python -m unittest discover -s tests -p 'test_*.py'
+name: camtrap
 channels:
   - conda-forge
   - defaults
 
 dependencies:
   - python=3.11
-  - pip
-
-  - pip:
-      - torch
-      - torchvision
-      - transformers>=4.40.0
-      - Pillow>=10.3.0
-      - streamlit>=1.40.0
-      - tqdm>=4.66.0
-      - pyyaml>=6.0
-      - openpyxl>=3.1        # reads the monitoring workbook; writes the visit template
-      # setup/megadetector_campaigns.py requires wildlife-detector — install separately if using that script
+  - pandas>=2.0          # every module in the chain
+  - pyarrow>=15          # observations.parquet — the canonical table's format
+  - openpyxl>=3.1        # reads a filled visit workbook; writes the template
+  - pyyaml>=6.0          # stations.yaml — build_station_registry.py emits and re-parses it
+  - pytest>=8            # the suite is plain unittest; pytest is for running it

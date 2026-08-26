@@ -264,6 +264,10 @@ A visit is a **physical event**, not a property of a campaign. At Bosque Pehuén
 servicing visit swaps the card, so one visit *closes* one campaign and *opens* the next.
 Recording it that way means the closing campaign never has to be typed — it is derived
 from the previous visit to the same station, and therefore cannot contradict the record.
+Since 2026-08-26 that is how the code reads it (`anchors._derive_closings`) rather than a
+convention the sheet was trusted to follow: the column is gone from the record, and a file
+that still carries it is refused rather than reinterpreted. The derivation reads the visit
+type, because a `mantencion` does not touch the card and therefore closes nothing.
 
 ### 2.2 Record readings, never conclusions
 
@@ -420,6 +424,40 @@ At each station, before leaving:
 - [ ] **Camera unit ID** noted, distinguishable from the station ID
 - [ ] Card and battery change noted
 - [ ] Nothing on the form is a conclusion — every entry is something you *observed*
+
+### 2.11 Getting the sheet into the record
+
+> **Rule.** The filled workbook is read by `python -m camtrap.visit_form <workbook>`. It is
+> never transcribed by hand, and the record is never edited to make a load succeed.
+>
+> **Break point.** Hand transcription is an undocumented step that every guarantee in this
+> part silently depends on. It was the state of this project until 2026-08-26, and what it
+> costs is invisible: a mistyped clock reading is indistinguishable from a camera that was
+> genuinely an hour out.
+>
+> **Recovery.** Full, while the paper sheet exists. None, once it does not.
+
+Three properties of the loader are worth knowing before the first salida, because each one
+will look like an obstacle at the moment it fires:
+
+**It refuses the whole workbook, not the bad row.** Half a salida in the record is worse than
+none — the missing half is invisible, while a refused file is a message. Run it with
+`--check` first: same validation, writes nothing, prints every problem at once.
+
+**It refuses a visit that is already there.** A visit is one station on one date at one time,
+so re-running the same workbook is refused rather than duplicated. That makes "did that run
+land?" a question you answer by running it again.
+
+**It never rewrites an existing row.** The 107 rows migrated from the legacy workbook carry
+corrections that exist nowhere else — CT27's retrieval date was deduced from where its last
+frame falls in the retrieval trip and appears on no field sheet at all. Appending is the only
+write the loader performs, in either direction.
+
+The record it appends to (`data/campaigns/field_notes.csv`) has exactly the form's columns
+plus `source_sheet` and `data_flags`, which the loader writes: the workbook a row came from,
+and anything that could be read but not settled — an out-of-range coordinate, a date Excel had
+already reparsed. When the record and the form disagree about a column, the record is wrong by
+definition, and `setup/reshape_field_notes.py` is the record of the one time they did.
 
 ---
 ## Part 3 — From the card to storage
@@ -1193,6 +1231,19 @@ Two properties make this work across separate projects:
 > *Observed: seven station-campaigns were missing from the canonical tables for exactly
 > this reason — between 6 and 21 frames each, all real deployments with real trap-nights.*
 
+#### 4F.1b Decisions travel in the table, conventions do not
+
+> **Rule.** A preprocessing decision that every consumer needs — what a deployment window
+> is, which rows are admissible, what counts as one event — is computed at ingest and
+> carried as a column. Consumers copy published numbers; they do not re-decide.
+>
+> **Break point.** A rule stated in prose and implemented per consumer drifts, and the
+> drift is silent because nothing compares the implementations. Two of three copies of the
+> episode rule had already diverged by 33% before anyone looked.
+>
+> **Recovery.** Full, at the cost of a re-ingest and a schema bump — which is itself the
+> point: a consumer written against the old shape is refused rather than quietly wrong.
+
 #### 4F.2 Keys, not attributes
 
 > **Rule.** The table carries the species **key** (the scientific name) and nothing else
@@ -1559,6 +1610,31 @@ dozens of images from one visit.
 >
 > **Break point.** Two projects reporting different episode counts from the same canonical
 > table, with the difference being a convention nobody documented.
+
+**Since 2026-08-26 this is a column, not a convention.** `episode_30min` in the canonical
+table carries an episode id per row — `campaign|station|species|n` — so a consumer counts
+`nunique()` and never implements the rule. `camtrap/episodes.py` owns it.
+
+*This did not move upstream on principle. It moved because the break point above had already
+happened and nobody had noticed:* the rule existed three times downstream — twice in the
+annual report's scripts and once in pehuén's R — and two of the three disagreed.
+`01_data_prep.py` had been corrected to the last-retained rule on 2026-08-20;
+`apply_verdicts.py` still compared each row against its predecessor. Over the same canonical
+animal rows that is **523 events against 696, a 33% undercount**, in the script that writes
+`events_clean.parquet`. Nothing compared the copies, because nothing could.
+
+Three properties of the column, each one a decision:
+
+- **The threshold is in the name.** A different gap is a different column
+  (`episode_60min`), never a parameter at read time, so two analyses cannot compare figures
+  built on different definitions of one event.
+- **An episode never crosses a clock segment.** A segment boundary is a reset, so an
+  interval measured across it is arithmetic on two different clocks. This is also why the
+  rule cannot live downstream: `clock_segment` is known at ingest and is not in the table.
+- **A row with no clock has no episode** (`pd.NA`, 419 animal rows). It is still a valid
+  presence record. Rows whose *absolute* time-of-day is untrustworthy DO get episodes — 33
+  rows, repaired by a whole-segment offset, which preserves the relative spacing the rule
+  actually uses.
 
 ### 6.5 Activity patterns and nocturnality
 

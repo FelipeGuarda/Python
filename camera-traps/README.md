@@ -89,7 +89,98 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-08-25 — **the producer side of the boundary is closed, and one NAS
+**Last Updated:** 2026-08-26 (second pass) — **the producer-side queue is empty.** The
+environment, the last stale comment, the two missing regression fixtures, and the 30-minute
+event rule.
+
+**The environment was describing a different project.** `environment.yml` was named
+`species-classifier` and declared torch, transformers and streamlit while declaring **neither
+pandas nor pyarrow** — so a fresh clone could not run `timestamps.py`, and could run nothing
+without a 7.5 GB CUDA download. It also needed **pyyaml**, imported inside a function in
+`build_station_registry.py:230`, which is why an import scan missed it and a declared env
+caught it immediately. Now split: **`camtrap`** (695 MB) for the ingest chain,
+`environment-classifier.yml` keeping the `species-classifier` name so the existing env still
+matches a file. Verified on pandas 3.0.5 / pyarrow 25 / numpy 2.4.6 — ahead of what the code
+was written against, nothing pinned.
+
+**`episode_30min` — the independence rule, moved upstream (schema_version 3 → 4).** It existed
+three times downstream and **two of the three disagreed**: `01_data_prep.py` measures the gap
+from the last retained detection, `apply_verdicts.py` still compares each row against its
+predecessor. That is **523 events against 696, a 33% undercount**, in the script that writes
+`events_clean.parquet`. A rule living in its consumers drifts because nothing compares the
+copies. Now `camtrap/episodes.py` owns it and the table carries an episode id per row.
+
+Measured before designing it: the campaign-local key gives the identical 696 (no two campaigns
+at one station fall within 30 minutes), which matters because `timestamps.py` writes one
+campaign at a time and a cross-campaign key is not computable at ingest. 419 animal rows have
+no clock and get `pd.NA` — presence without a time. The 33 offset-repaired rows **do** get
+episodes: a whole-segment offset preserves the relative spacing the rule uses. And an episode
+never crosses a clock segment, which is the other reason a consumer cannot do this —
+`clock_segment` is not in the table.
+
+Rebuilt all three campaigns: **174 + 225 + 297 = 696 episodes**, exactly the pre-implementation
+figure, with every other number in all three tables unmoved (diffed field by field).
+**304 tests pass.**
+
+⚠️ **The warehouse now refuses, correctly** — `schema_version 4; this pipeline was written
+against 3`. The fix is a deliberate consumer-side read of `CANONICAL_COLUMNS`, not a bumped
+number. Also flagged for that session: the three downstream copies of the event rule must be
+retired onto the column, and `--ct-check` surfaces the mismatch as a traceback rather than a
+clean exit.
+
+**Prior (2026-08-26, first pass)** — **the field record now has the shape of the form that feeds
+it, and the loader that reads it back exists.** V2-REVIEW 1.14, the last producer-side item,
+is closed. Two measurements taken before writing anything shrank it and one enlarged it.
+
+**`clock_state` and `camera_replaced` were never read.** Both were loaded onto `anchors.Visit`
+and consumed by nothing, in any module or script — so "rewire `FieldRecord` off them" was a
+deletion, not a rewire.
+
+**`campaign_closed` is derived, and the derivation is more correct than the column was.**
+The form deliberately does not collect it (*"es siempre la que abrió la visita anterior a esa
+misma estación, así que se deduce sola y nunca puede contradecir al registro"*). Tested against
+the 107 legacy rows before dropping it: **105 of 106 dated values reproduced**. The single
+mismatch was CT27's 2025-12-11 row claiming to close `primavera_2025` — a deployment absent
+from `deployments.csv`, absent from the canonical table, and with no earlier visit that could
+have opened it. Felipe's call: the assertion is wrong, delete it. The row records what was
+dropped and why, in `data_flags`.
+
+**One consequence worth naming: a closing with no opening stopped being possible.** It used to
+be a state the code refused; now the carry that produces a closing can only come from an
+earlier opening at that station, so `deployments.py`'s half-open case is one-directional.
+
+**`build_field_notes.py` could already revert two days of curation.** Rebuilding
+`field_notes.csv` from the historic workbook and diffing found **three differing CT27 rows**:
+the install date reverting from the confirmed 2025-12-11 to the ambiguous 2025-11-12, and the
+reconstructed 2026-05-14 retrieval row — deduced from where CT27's last frame falls in the
+retrieval trip, present in no field sheet — **missing entirely**. That would silently return
+CT27 to an observed-media window. The script is now frozen: `--out` is required and the live
+record is refused as a target, with no `--force`, because a flag that overwrites the record
+exists to be typed by mistake.
+
+**What was built.**
+- **`camtrap/visit_form.py`** — the loader. `read()` validates a filled workbook and raises
+  with *every* problem; `ingest()` appends all-or-nothing and refuses a visit already in the
+  file, so re-running answers "did that land?" instead of duplicating. It never rewrites or
+  reorders an existing row: the 107 legacy rows hold curation that exists nowhere else.
+  Obligations come from `visit_schema`, including the two the requirement column cannot
+  express — a dead camera may leave the screen reading blank, and a `retiro` must leave
+  `campaign_opened` empty.
+- **`setup/reshape_field_notes.py`** — the one-time conversion, run once on 2026-08-26 and
+  guarded against a second run. 28 columns → **22** (the form's 20 plus `source_sheet` and
+  `data_flags`, both written by the loader and both read by `Visit`). It refuses to write
+  unless `notes`, `data_flags` and `source_sheet` come through verbatim, which is where the
+  curated corpus lives — 17 distinct flag types over 58 rows.
+- **`anchors.FieldRecord`** derives the closing campaign and refuses any file that still
+  records it, so a pre-reshape copy fails loudly instead of being reinterpreted.
+
+**This was not an analytical change, by design.** The five new columns are blank in all 107
+rows because that information was never collected. **277 tests pass** (was 241), the contract
+gate exits 0, all three `deployments.csv` hashes are unchanged, and re-running `timestamps.py`
+on all three campaigns produced **byte-identical** parquets. The warehouse was re-stamped
+first and is current.
+
+**Prior (2026-08-25)** — **the producer side of the boundary was closed, and one NAS
 check inverted a module's founding assumption.** Scope was set deliberately: everything from
 the boundary INWARDS — the field record coming in, the gates, the canonical table, the
 published contract. The consumer side is untouched.
@@ -189,19 +280,19 @@ held by fixtures: the ±3 d anchor tolerance must not reach effort, and camera-d
 date-scale — subtracting visit datetimes truncated CT01 to 168 days because its install carries
 a recorded time and its retrieval does not. **235 tests pass**, up from 226.
 
-**Integration Status:** `In Progress [REMAINING: V2-REVIEW 1.9–1.11 and 1.14 on the producer
-side; the whole consumer side]`. **Producer-side scope is closed except 1.14.**
+**Integration Status:** `In Progress [REMAINING: the whole consumer side]`. **The
+producer-side queue is empty** — 1.9's producer entries, 1.10's fixtures and 1.15 all closed
+2026-08-26; 1.11 (figures) was scoped as consumer-side. The field-record round trip is
+complete: the form is rendered from `visit_schema`, filled in the field, read back by
+`visit_form`, and the record it lands in has the same shape it does.
 
 **Blockers/Notes.**
-⚠️ **1.14 — the field workbook has no loader, and it is the highest-priority open item.**
-Nothing reads a filled `Registro de visitas CT.xlsx` back into `field_notes.csv`; that
-transcription is done by hand. Deferred 2026-08-25 because the `Visitas` sheet has **0 filled
-rows** and the next salida is unscheduled — **it expires the day terreno returns.** The shape
-is decided: `field_notes.csv` moves to the new 20-column form shape, the 107 legacy rows
-migrate in, and `FieldRecord` is rewired off `clock_state` / `camera_replaced`.
-⚠️ **The warehouse is stale by design.** `deployments.csv` changed, so its SHA-256 in
-`CANONICAL_STATE.json` moved and `data-pipeline`'s gate will correctly refuse. `python
-run_fetch.py --ct` is the fix and it is consumer-side work.
+**The loader has never seen a real filled workbook.** The `Visitas` sheet holds 0 rows, so
+every guarantee rests on fixtures. The first salida after 2026-08-26 is the real test — run
+`python -m camtrap.visit_form <workbook> --check` before ingesting, and expect the refusals to
+be about missing obligatory cells rather than about the code.
+**The warehouse was re-stamped on 2026-08-26** and `run_fetch.py --ct-check` reports current.
+Nothing published moved during the reshape, so it stays current.
 `deployments.csv` is published but **`data-pipeline` does not read it yet** — `ct_deployments`
 still carries observed-media windows, so the warehouse cannot yet serve a detection rate.
 **Otoño 2025's five image-less deployments are resolved** (see above): four were recording
@@ -845,7 +936,7 @@ all-images export, splits it into **segments** at each reset, and applies a
 **separate offset per segment** from the field anchors.
 
 ```bash
-conda activate species-classifier
+conda activate camtrap
 cd C:\Users\USUARIO\Dev\Python\camera-traps
 
 # Audit only (no files written)
@@ -1011,10 +1102,31 @@ the previous campaign.
 
 ## Environment Setup
 
+**Two environments, split 2026-08-26.** The ingest and analysis chain needs pandas, pyarrow,
+openpyxl and pyyaml; the classifier needs a 7.5 GB CUDA stack. Until they were split, one file
+declared the second and not the first — so a fresh clone could not run `timestamps.py` at all,
+and could run nothing without downloading torch.
+
 ```bash
+# The ingest chain: camtrap/, timestamps.py, setup/, scripts/, tests/  (~700 MB)
 conda env create -f environment.yml
+conda activate camtrap
+python -m pytest -q                                       # 277 tests
+python -m unittest discover -s tests -p 'test_*.py'       # same suite, no pytest needed
+```
+
+```bash
+# The classifier: phase1_labeling/, classify_campaign/, run_classification.py,
+# export_best_images.py  (~7.5 GB, needs the GPU)
+conda env create -f environment-classifier.yml
 conda activate species-classifier
 ```
+
+Verified 2026-08-26: the whole ingest chain runs in the lean env — 277 tests under both
+runners, `python -m camtrap.canonical_state` exits 0, `timestamps.py --dry-run` and
+`deployments.build()` reproduce their numbers — on **pandas 3.0.5 / pyarrow 25 / numpy 2.4.6**,
+newer than the 2.3.3 / 23 / 2.4.2 the code was written against. Nothing is pinned below a major
+version because nothing needed to be.
 
 ### GPU Requirements
 

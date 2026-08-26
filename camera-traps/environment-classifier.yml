@@ -1,0 +1,31 @@
+# The classifier half of the repo: phase1_labeling/, classify_campaign/,
+# run_classification.py, export_best_images.py.
+#
+# Keeps the name `species-classifier` on purpose — the 7.5 GB env of that name already
+# exists on this machine and should not have to be rebuilt to be described correctly.
+# The ingest chain does NOT need any of this; see environment.yml.
+#
+#   conda env create -f environment-classifier.yml
+#   conda activate species-classifier
+name: species-classifier
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.11
+  - pip
+
+  - pip:
+      - torch
+      - torchvision
+      - transformers>=4.40.0
+      - Pillow>=10.3.0
+      - streamlit>=1.40.0
+      - tqdm>=4.66.0
+      - pyyaml>=6.0
+      # The review UI and the export scripts read the Timelapse2 CSVs and the workbook.
+      - pandas>=2.0
+      - openpyxl>=3.1
+      # setup/megadetector_campaigns.py requires wildlife-detector — install separately
+      # if using that script.

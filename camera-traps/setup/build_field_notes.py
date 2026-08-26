@@ -1,4 +1,22 @@
-"""Convert the legacy monitoring workbook into `data/campaigns/field_notes.csv`.
+"""Convert the legacy monitoring workbook into a `field_notes.csv`-shaped file.
+
+FROZEN 2026-08-26 — IT CAN NO LONGER WRITE THE LIVE RECORD
+    `--out` is required and `data/campaigns/field_notes.csv` is refused as a target.
+    Two independent reasons, and either alone is enough:
+
+    1. The live record no longer has this shape. `setup/reshape_field_notes.py`
+       converted it to the visit form's 22 columns; the frame built below is the old
+       28.
+    2. The live record carries curation this script cannot reproduce. Rebuilding it
+       on 2026-08-26 differed on three CT27 rows: the install date reverted from the
+       confirmed 2025-12-11 to the ambiguous 2025-11-12, and the reconstructed
+       2026-05-14 retrieval row — deduced from where CT27's last frame falls in the
+       retrieval trip, and present in no field sheet at all — disappeared entirely.
+       That would silently return CT27 to an observed-media window.
+
+    So this stays runnable against a scratch path, which is what it is for:
+    reproducing the August 2026 migration for inspection. There is deliberately no
+    --force; a flag that overwrites the record exists to be typed by mistake.
 
 WHAT THIS OWNS
     How the four heterogeneous sheets of `Registro de monitoreo CT.xlsx` map onto
@@ -399,8 +417,15 @@ def add_missing_station_gaps(rows: list[dict]) -> list[dict]:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--workbook', type=Path, default=WORKBOOK)
-    ap.add_argument('--out', type=Path, default=OUT_CSV)
+    ap.add_argument('--out', type=Path, required=True,
+                    help='where to write. The live field_notes.csv is refused; '
+                         'see the module docstring.')
     args = ap.parse_args(argv)
+
+    if args.out.resolve() == OUT_CSV.resolve():
+        ap.error(f'{OUT_CSV} is the live record and is not a legal target for this '
+                 f'script — it would revert CT27\'s two reconstructed dates and '
+                 f'write the retired 28-column shape. Frozen 2026-08-26.')
 
     book = pd.ExcelFile(args.workbook)
     rows = build_installs(book)

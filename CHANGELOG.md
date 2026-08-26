@@ -6,6 +6,101 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-08-26 (second pass) — the producer-side queue empties: env split, and the event rule moves upstream
+
+### Added
+- **`camera-traps/camtrap/episodes.py` + canonical column `episode_30min`**
+  (`schema_version` **3 → 4**). The independence rule — 30 minutes, per campaign/station/
+  species, measured from the last *retained* detection, never crossing a clock segment.
+  `pd.NA` for a row with no identified species or no clock. 19 tests.
+- **`camera-traps/environment-classifier.yml`** — the GPU half, keeping the
+  `species-classifier` name so the existing env still matches a declared file.
+- 7 fixtures for the two 2026-08-18 recoveries (V2-REVIEW 1.10 / B8): manifest completeness
+  and the size-matched deletion ledger. **304 camera-traps tests total** (was 277).
+
+### Changed
+- **`camera-traps/environment.yml` is now `camtrap`** (695 MB): pandas, pyarrow, openpyxl,
+  pyyaml, pytest. It had declared neither pandas nor pyarrow while declaring a 7.5 GB CUDA
+  stack, so a fresh clone could not run `timestamps.py` at all. Verified on pandas 3.0.5 /
+  pyarrow 25 / numpy 2.4.6; nothing needed pinning below a major version.
+- All three canonical tables rebuilt and re-published: **696 episodes** (174 / 225 / 297),
+  exactly the figure measured before the column existed, with every other number unmoved.
+
+### Fixed
+- **`camtrap/observations.py:7–9`** — both claims were false. `filePath` and `timestamp` are
+  present as columns and empty in **every row of all three** exports; the comment described
+  exports that were later re-made.
+
+### Deferred — flagged for the consumer-side session
+- ⚠️ **The episode rule still exists three times downstream, and one copy is wrong.**
+  `Anual-reports/2025/py/apply_verdicts.py:85` uses the predecessor comparison and
+  undercounts events by 33% (523 against 696); `01_data_prep.py:124` is correct but
+  duplicated; pehuén's `R/00_admissibility.R` is the third. All three should read
+  `episode_30min` and delete their own `build_events`.
+- ⚠️ **The warehouse refuses, correctly:** `schema_version 4; this pipeline was written
+  against 3`. Fix is a deliberate read of `CANONICAL_COLUMNS` plus
+  `data-pipeline/src/parsers/canonical_ct.py`, not a bumped number.
+- `run_fetch.py --ct-check` surfaces that refusal as an unhandled traceback rather than a
+  message and exit 1.
+
+---
+
+## 2026-08-26 — the field record takes the form's shape, and the round trip closes
+
+Scope: the warehouse re-stamp first (the handoff left open on 2026-08-25), then V2-REVIEW 1.14
+— the last item inside the camera-traps boundary. Nothing analytical moved: byte-identical
+parquets, unchanged `deployments.csv` hashes, contract gate 0.
+
+### Added
+- **`camera-traps/camtrap/visit_form.py`** — reads a filled `Registro de visitas CT.xlsx` back
+  into `field_notes.csv`. `read()` validates and raises with every problem at once; `ingest()`
+  appends all-or-nothing, refuses a visit already in the file, and never rewrites or reorders an
+  existing row. Obligations come from `visit_schema`, including the two its requirement column
+  cannot express: a dead camera may leave the clock reading blank, and a `retiro` must leave
+  `campaign_opened` empty. CLI: `python -m camtrap.visit_form <workbook> [--check]`.
+- **`camera-traps/setup/reshape_field_notes.py`** — the one-time conversion of the record from
+  28 columns to the form's 22 (20 form columns plus `source_sheet` and `data_flags`). Snapshots
+  to `data/campaigns/legacy/`, refuses a second run, and refuses to write at all unless `notes`,
+  `data_flags` and `source_sheet` survive verbatim.
+- **`visit_schema.CLOSES_CAMPAIGN` / `OPENS_CAMPAIGN`** — which visit types touch the card, so
+  the closing-campaign derivation reads the vocabulary rather than restating it.
+- 36 tests (277 total, was 241), including `tests/test_visit_form.py` and a fixture proving a
+  filled `camera_datetime_observed` survives the round trip — the column the form was
+  redesigned around, and 0 / 107 in the legacy record.
+
+### Changed
+- **`campaign_closed` is derived, not recorded** (`anchors._derive_closings`). Measured against
+  the 107 legacy rows before dropping the column: **105 of 106** dated values reproduced.
+  `FieldRecord.load` now refuses any file that still carries the column, so a pre-reshape copy
+  fails loudly instead of being silently reinterpreted.
+- **`anchors.Visit` lost `clock_state` and `camera_replaced`** — both were write-only, loaded
+  and read by nothing.
+- **`setup/build_field_notes.py` is frozen.** `--out` is required and the live record is refused
+  as a target, with no `--force`. Rebuilding it and diffing showed it differed on three CT27
+  rows — the install date reverting to the ambiguous 2025-11-12 and the reconstructed 2026-05-14
+  retrieval row missing entirely — which would silently return CT27 to an observed-media window.
+- **`data-pipeline` warehouse re-stamped** (`run_fetch.py --ct`). Before/after dumps are
+  identical on every count, per-campaign breakdown, flag total and species count; the staleness
+  was contract metadata only.
+
+### Fixed
+- **CT27's `campaign_closed=primavera_2025` deleted** (Felipe's call). The station has no
+  primavera deployment in `deployments.csv`, none in the canonical table, and no earlier visit
+  that could have opened it. The dropped value and the reason are recorded in that row's
+  `data_flags`.
+- List cells now match case-insensitively and return the declared spelling, so an overtyped
+  dropdown cannot create a second dialect.
+
+### Closed
+- **V2-REVIEW 1.14 / audit A3.** The producer side of the boundary has nothing open; what
+  remains is 1.9–1.11 and the consumer side.
+
+### Deferred
+- The loader has never seen a real filled workbook — the `Visitas` sheet holds 0 rows, so every
+  guarantee rests on fixtures. The first salida is the first real test; `--check` is for it.
+
+---
+
 ## 2026-08-25 — the producer boundary closes: a reason where there was a boolean, and four corrected claims
 
 Scope: everything from the camera-traps boundary **inwards**. The consumer side was declared out

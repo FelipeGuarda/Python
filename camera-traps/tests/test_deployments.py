@@ -59,10 +59,10 @@ class TestWindowIsTheFieldWindow(unittest.TestCase):
             root = Path(tmp)
             with open(root / FIELD_NOTES_FILENAME, "w", encoding="utf-8", newline="") as fh:
                 w = csv.writer(fh)
-                w.writerow(["campaign_closed", "campaign_opened", "station_id",
+                w.writerow(["campaign_opened", "station_id",
                             "visit_type", "visit_date", "visit_time"])
                 # Opens otono_2025 and is never closed.
-                w.writerow(["", "otono_2025", "CT99", "install", "2025-01-01", ""])
+                w.writerow(["otono_2025", "CT99", "instalacion", "2025-01-01", ""])
             frame = deployments.build("otono_2025", root=root)
         self.assertEqual(len(frame), 0, "a station with one dated end is not a deployment")
 
@@ -129,6 +129,19 @@ class TestAgreementWithTheCanonicalTable(unittest.TestCase):
         self.assertEqual(row["field_end"], "2026-05-14")
         self.assertTrue(row["has_media"])
 
+    def test_ct27_still_carries_the_reason_for_both_dates(self):
+        """The dates were pinned above from 2026-08-24; the reasoning was not, and it
+        is the half that cannot be recovered. `2026-05-14` appears on no field sheet
+        at all -- it was deduced from where CT27's last frame falls in the retrieval
+        trip -- so if the argument is ever dropped the date becomes unexplainable and
+        the next reader has no way to tell it from a transcription error."""
+        notes = pd.read_csv(FIELD_NOTES, dtype=str, keep_default_na=False)
+        flags = notes[notes["station_id"] == "CT27"]["data_flags"]
+        reconstructed = flags[flags.str.contains("date_reconstructed 2026-08-24")]
+        self.assertEqual(len(reconstructed), 2, "both reconstructions must keep a reason")
+        self.assertTrue(any("day/month transposition" in f for f in reconstructed))
+        self.assertTrue(any("NOT taken from any field sheet" in f for f in reconstructed))
+
     def test_stations_deployed_without_images_are_published(self):
         """otono_2025 records five cameras installed in February 2025 and collected in
         June that appear in no image data at all. Dropping them would erase ~620
@@ -189,9 +202,9 @@ class TestMediaStatusIsAReasonNotAMeasurement(unittest.TestCase):
             with (root / FIELD_NOTES_FILENAME).open("w", encoding="utf-8", newline="") as fh:
                 w = csv.writer(fh)
                 w.writerow(["station_id", "visit_type", "visit_date", "visit_time",
-                            "campaign_opened", "campaign_closed"])
-                w.writerow(["CT99", "install", "2025-02-04", "", "otono_2025", ""])
-                w.writerow(["CT99", "revision", "2025-06-05", "", "", "otono_2025"])
+                            "campaign_opened"])
+                w.writerow(["CT99", "instalacion", "2025-02-04", "", "otono_2025"])
+                w.writerow(["CT99", "revision", "2025-06-05", "", ""])
             frame = deployments.build("otono_2025", root=root)
             row = frame[frame["station_id"] == "CT99"].iloc[0]
             self.assertEqual(row["media_status"], deployments.STATUS_UNEXPLAINED)
@@ -206,9 +219,9 @@ class TestMediaStatusIsAReasonNotAMeasurement(unittest.TestCase):
             with (root / FIELD_NOTES_FILENAME).open("w", encoding="utf-8", newline="") as fh:
                 w = csv.writer(fh)
                 w.writerow(["station_id", "visit_type", "visit_date", "visit_time",
-                            "campaign_opened", "campaign_closed"])
-                w.writerow(["CT99", "install", "2025-02-04", "", "otono_2025", ""])
-                w.writerow(["CT99", "revision", "2025-06-05", "", "", "otono_2025"])
+                            "campaign_opened"])
+                w.writerow(["CT99", "instalacion", "2025-02-04", "", "otono_2025"])
+                w.writerow(["CT99", "revision", "2025-06-05", "", ""])
             with (root / deployments.MEDIA_ABSENCE_FILENAME).open(
                     "w", encoding="utf-8", newline="") as fh:
                 w = csv.writer(fh)

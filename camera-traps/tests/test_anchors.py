@@ -78,12 +78,13 @@ def field_csv(rows) -> anchors.FieldRecord:
     return anchors.FieldRecord.load(tmp)
 
 
-def visit(station=STATION, *, opened='', closed='', date='', time='',
+def visit(station=STATION, *, opened='', date='', time='',
           flags='', kind='revision'):
+    """There is no `closed=`: which campaign a visit closes is derived from the
+    station's own sequence, so a closing is expressed by putting an opener before it."""
     return {'station_id': station, 'visit_type': kind,
-            'campaign_closed': closed, 'campaign_opened': opened,
-            'visit_date': date, 'visit_time': time, 'clock_state': 'unknown',
-            'camera_replaced': '', 'data_flags': flags,
+            'campaign_opened': opened,
+            'visit_date': date, 'visit_time': time, 'data_flags': flags,
             'source_sheet': 'test'}
 
 
@@ -91,11 +92,98 @@ def both_ends(open_date='2025-11-14', close_date='2026-05-15',
               open_time='', close_time='12:10:00', flags=''):
     return field_csv([
         visit(opened=CAMPAIGN, date=open_date, time=open_time, flags=flags),
-        visit(closed=CAMPAIGN, date=close_date, time=close_time),
+        visit(date=close_date, time=close_time),
     ])
 
 
 # ── the deployment window ─────────────────────────────────────────────────────
+
+class TestTheClosingCampaignIsDerived(unittest.TestCase):
+    """Since 2026-08-26 `campaign_closed` is not recorded. Measured against the 107
+    legacy rows the derivation reproduced 105 of 106 dated values; the exception was
+    an assertion the rest of the project already contradicted."""
+
+    def test_a_revision_closes_what_the_previous_visit_opened(self):
+        record = field_csv([
+            visit(kind='instalacion', opened='otono_2025', date='2025-02-04'),
+            visit(kind='revision', opened='primavera_2025', date='2025-06-05'),
+        ])
+        self.assertIsNotNone(record.closing(STATION, 'otono_2025'))
+        self.assertIsNotNone(record.opening(STATION, 'primavera_2025'))
+
+    def test_an_installation_closes_nothing(self):
+        """There was no card in the ground to close."""
+        record = field_csv([visit(kind='instalacion', opened='otono_2025',
+                                 date='2025-02-04')])
+        self.assertIsNone(record.closing(STATION, 'otono_2025'))
+
+    def test_a_mantencion_closes_nothing(self):
+        """The card is not touched, so the campaign it belongs to is still open. This
+        is why the derivation reads the visit type and not `campaign_opened` alone."""
+        record = field_csv([
+            visit(kind='instalacion', opened='otono_2025', date='2025-02-04'),
+            visit(kind='mantencion', opened='otono_2025', date='2025-04-01'),
+            visit(kind='revision', opened='primavera_2025', date='2025-06-05'),
+        ])
+        closing = record.closing(STATION, 'otono_2025')
+        self.assertIsNotNone(closing)
+        self.assertEqual(closing.visit_date.date().isoformat(), '2025-06-05')
+
+    def test_a_retiro_leaves_nothing_in_the_ground(self):
+        """Without the reset, a station lifted and later reinstalled would derive its
+        reinstall as closing the campaign that ended before the gap. No `retiro` row
+        exists in the record yet, so this branch is held here rather than by data."""
+        record = field_csv([
+            visit(kind='instalacion', opened='otono_2025', date='2025-02-04'),
+            visit(kind='retiro', date='2025-06-05'),
+            visit(kind='instalacion', opened='otono_2026', date='2025-11-24'),
+            visit(kind='revision', opened='primavera_2026', date='2026-05-14'),
+        ])
+        self.assertIsNotNone(record.closing(STATION, 'otono_2025'))
+        self.assertEqual(record.closing(STATION, 'otono_2025')
+                         .visit_date.date().isoformat(), '2025-06-05')
+        self.assertEqual(record.closing(STATION, 'otono_2026')
+                         .visit_date.date().isoformat(), '2026-05-14')
+
+    def test_the_sequence_is_the_dates_not_the_file_order(self):
+        """A workbook transcribed out of order must derive the same closings."""
+        record = field_csv([
+            visit(kind='revision', opened='primavera_2025', date='2025-06-05'),
+            visit(kind='instalacion', opened='otono_2025', date='2025-02-04'),
+        ])
+        self.assertIsNotNone(record.closing(STATION, 'otono_2025'))
+
+    def test_an_undated_visit_closes_nothing(self):
+        """CT27's placeholder row: the station exists, the install was never written
+        down. It cannot be placed in the sequence, so it closes nothing and does not
+        advance the carry."""
+        record = field_csv([
+            visit(kind='unrecorded'),
+            visit(kind='revision', opened='otono_2026', date='2025-12-11'),
+        ])
+        self.assertIsNone(record.closing(STATION, 'otono_2025'))
+        self.assertIsNone(record.closing(STATION, 'otono_2026'))
+
+    def test_stations_do_not_leak_into_each_other(self):
+        record = field_csv([
+            visit(station='CT01', kind='instalacion', opened='otono_2025',
+                  date='2025-02-04'),
+            visit(station='CT02', kind='revision', opened='primavera_2025',
+                  date='2025-06-05'),
+        ])
+        self.assertIsNone(record.closing('CT02', 'otono_2025'))
+
+    def test_a_file_that_still_records_the_closing_is_refused(self):
+        """A pre-reshape copy, or a `build_field_notes.py` run that reverted the
+        curated rows. Reading it while ignoring the column would reinterpret it."""
+        tmp = Path(tempfile.mkdtemp()) / anchors.FIELD_NOTES_FILENAME
+        pd.DataFrame([{'station_id': STATION, 'visit_type': 'revision',
+                       'campaign_closed': 'otono_2025', 'campaign_opened': '',
+                       'visit_date': '2025-06-05'}]).to_csv(tmp, index=False)
+        with self.assertRaises(ValueError) as cm:
+            anchors.FieldRecord.load(tmp)
+        self.assertIn(anchors.RECORDED_CLOSE_COLUMN, str(cm.exception))
+
 
 class TestDeploymentWindow(unittest.TestCase):
 
@@ -112,8 +200,14 @@ class TestDeploymentWindow(unittest.TestCase):
         which reads as a check while being none."""
         only_open = field_csv([visit(opened=CAMPAIGN, date='2025-11-14')])
         self.assertIsNone(only_open.window(STATION, CAMPAIGN))
-        only_close = field_csv([visit(closed=CAMPAIGN, date='2026-05-15')])
-        self.assertIsNone(only_close.window(STATION, CAMPAIGN))
+
+    def test_a_closing_cannot_exist_without_an_opening(self):
+        """The other half-open shape stopped being reachable on 2026-08-26. A closing
+        is derived from the carry left by an earlier visit to the same station, so a
+        lone revision closes nothing rather than closing a campaign nobody opened."""
+        lone = field_csv([visit(date='2026-05-15')])
+        self.assertIsNone(lone.closing(STATION, CAMPAIGN))
+        self.assertIsNone(lone.window(STATION, CAMPAIGN))
 
     def test_field_record_preferred_over_anchors(self):
         two = [

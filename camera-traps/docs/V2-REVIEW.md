@@ -57,7 +57,7 @@ code does not enforce**, and one of those four had no numbered item here at all.
 |---|---|---|---|
 | **A1** | station registry disagrees: `stations.yaml` **26** · geojson **27** · `estaciones.csv` **27**; CT27's files ingest coordinateless | 1.6 | ~~open~~ **CLOSED 2026-08-24** |
 | **A2** | contract published, consumer-side freshness check absent (`grep -r CANONICAL_STATE data-pipeline/` → nothing) | §4 | ~~open~~ **CLOSED 2026-08-24** |
-| **A3** | **the field form has no loader** — `build_visit_template.py` writes the workbook, nothing reads it back | **1.14** | open — **shape decided 2026-08-25**, deferred; highest priority |
+| **A3** | **the field form has no loader** — `build_visit_template.py` writes the workbook, nothing reads it back | **1.14** | ~~open~~ **CLOSED 2026-08-26** — `camtrap/visit_form.py`; the record reshaped to the form's 22 columns |
 | **A4** | `occupancy_pct` divides by all 27 stations | 1.6 / §2.5 | ~~open~~ **CLOSED 2026-08-24** (per-campaign filtering still open) |
 | **B1** | the `ct_*` rebuild | 2.1–2.3, 2.5, 2.8 | ~~open~~ **CLOSED 2026-08-24** |
 | **B2** | pehuén's absolute Windows paths | 1.11 | ~~open~~ **CLOSED 2026-08-24** — and it was more than two lines, see below |
@@ -66,7 +66,9 @@ code does not enforce**, and one of those four had no numbered item here at all.
 | **B5** | `provenance.py` not re-run on the re-ingested primavera | 1.8 | ~~open~~ **CLOSED 2026-08-25** — 0 multi-story stations over 35,807 rows; and it was already wired as flatten precondition #4 |
 | **B6** | manifest coverage not stated per campaign | 1.4 | ~~open~~ **CLOSED 2026-08-25** — stated per station in `timestamps_audit.log`; the item's own figures were wrong both ways |
 | **B7** | CT27 install datable from `CT 27.kml` (2025-12-11 15:52:56), unrecorded | 1.5 | ~~open~~ **CLOSED 2026-08-24** |
-| **B8** | three regression fixtures | 1.10 | **1 of 3 done** — the registry-agreement check exists; manifest rebuild and deletion accounting still missing |
+| **B9** | **the episode rule exists three times downstream and two copies disagree** — `01_data_prep.py:124` uses last-retained (correct), `apply_verdicts.py:85` still uses the predecessor comparison (523 events against 696, a 33% undercount), pehuén's `R/00_admissibility.R` is the third | new 1.15 | **producer half DONE 2026-08-26** (`episode_30min` in the canonical table). ⚠️ **FLAGGED FOR THE CONSUMER-SIDE SESSION:** all three copies must be retired onto the column, and until they are, `events_clean.parquet` keeps undercounting |
+| **B10** | `run_fetch.py --ct-check` reports a schema mismatch as an unhandled `CanonicalGateError` traceback rather than a message and exit 1 | §4 | **open, consumer-side.** The verdict is right; for a scheduled poll it lands in a log as a crash |
+| **B8** | three regression fixtures | 1.10 | ~~1 of 3~~ **3 of 3 DONE 2026-08-26** — registry agreement (2026-08-24), manifest completeness and the size-matched deletion ledger (`tests/test_flatten.py`) |
 | **C1–C5** | two superseded data files on disk · stale pv comment `apply_verdicts.py:143` · otoño 2025 video existence unconfirmed · `count` empty · seasonal puma orphan | §3 | **C1, C2, C3 CLOSED 2026-08-25.** C3 is the interesting one: otoño 2025's video EXISTS, on the NAS, in a separate tree — and it is why four stations look empty. C4, C5 remain (both consumer-side) |
 
 ### 0-ter. Second re-audit stamp, 2026-08-24 — the consumer boundary is closed
@@ -122,7 +124,38 @@ because that is where nobody owns the check.
       pass, up from 226. Still open below: the round-trip that keeps this true for *future*
       fieldwork.
 
-- [ ] **1.14 The field workbook has a loader.** ⚠️ **HIGHEST-PRIORITY OPEN ITEM.**
+- [x] **1.14 The field workbook has a loader.** — **CLOSED 2026-08-26.**
+      `camtrap/visit_form.py` reads a filled `Registro de visitas CT.xlsx` back into
+      `field_notes.csv`: `read()` validates and raises with every problem at once,
+      `ingest()` appends all-or-nothing and refuses a visit already in the file.
+      `setup/reshape_field_notes.py` converted the record to the form's shape once —
+      28 columns → 22, the form's 20 plus `source_sheet` and `data_flags` — and refuses
+      to run again. 36 new tests (277 total). Nothing analytical moved: byte-identical
+      parquets, unchanged `deployments.csv` hashes, contract gate 0.
+
+      **Three things measured while closing it, two of which changed the work:**
+
+      1. `clock_state` and `camera_replaced` were **write-only** — loaded onto `Visit`,
+         read by nothing anywhere. The planned "rewire" was a deletion.
+      2. `campaign_closed` reproduced **105 of 106** dated legacy values by derivation.
+         The one mismatch was CT27's 2025-12-11 row claiming `primavera_2025`, a
+         deployment absent from `deployments.csv` and from the canonical table, with no
+         earlier visit to have opened it. Felipe 2026-08-26: the assertion is wrong,
+         delete it. The reason is kept in that row's `data_flags`.
+      3. **`build_field_notes.py` could already revert curated data.** Rebuilt to a
+         scratch path and diffed, it differed on three CT27 rows — install reverting to
+         the ambiguous 2025-11-12 and the reconstructed 2026-05-14 retrieval row gone
+         entirely. Now frozen: `--out` required, the live record refused as a target, no
+         `--force`.
+
+      **A side effect worth recording:** a closing with no opening is no longer
+      reachable. The carry that produces a closing can only come from an earlier opening
+      at that station, so `deployments.py`'s both-ends requirement is now one-directional
+      in practice, and `test_a_closing_cannot_exist_without_an_opening` says so.
+
+      <details><summary>The deferral and the shape decision, as they stood 2026-08-25</summary>
+
+      ⚠️ **HIGHEST-PRIORITY OPEN ITEM.**
       Deferred 2026-08-25 on Felipe's call — the next salida is not scheduled and the
       `Visitas` sheet holds **0 filled rows**, so nothing is waiting for it and it earns a
       proper design pass rather than a rushed one. It expires the day terreno returns.
@@ -156,6 +189,47 @@ because that is where nobody owns the check.
       named this as "not yet built" — it never became an item, which is why it went unnoticed
       for three sessions. Pass: a filled template round-trips to `field_notes.csv` rows,
       with a fixture.
+
+      </details>
+
+- [x] **1.15 The 30-minute event rule reaches the canonical table.** — **DONE 2026-08-26.**
+      New `camtrap/episodes.py` + column **`episode_30min`** (schema_version **3 -> 4**).
+      Agreed on 2026-08-24 — "a column in the canonical table named for its threshold, not
+      an `eventID` in DuckDB, because the annual report and pehuén read the parquet and
+      would never see a DuckDB view" — and built now.
+
+      **It did not move on principle. The drift had already happened:** the rule existed
+      three times downstream and two copies disagreed. `01_data_prep.py:124` measures the
+      gap from the last RETAINED detection (corrected 2026-08-20 to match camtrapR and
+      pehuén); `apply_verdicts.py:85` still compares each row against its predecessor. Over
+      the same canonical animal rows: **523 events against 696 — a 33% undercount** in the
+      script that writes `events_clean.parquet`. Nothing compared the copies because nothing
+      could.
+
+      **Three measurements settled the design before it was written:**
+
+      | question | measured 2026-08-26 |
+      |---|---|
+      | does the key need the campaign? | keyed with it **696**, without it **696** — identical, because no two campaigns at one station fall within 30 minutes. So the campaign-local key, the only one computable at ingest where one campaign's table is written alone, costs nothing. Under the stale rule the two keys differ (479 vs 523), which is another symptom of it being wrong |
+      | which rows are eligible? | of 2,522 animal rows, **419** have no datetime (presence without a clock -> `pd.NA`) and 2,103 have one, of which exactly **33** have an untrustworthy time-of-day, all `offset_from_last_real_proxy` |
+      | could a consumer do this itself? | **no.** `clock_segment` is in `new_labeled_data_corrected.csv` and NOT in the parquet, so a consumer cannot stop an episode from spanning a clock reset |
+
+      **Felipe's decision on the 33 rows: they get episodes.** A whole-segment offset is
+      constant, so relative spacing — all the rule uses — survives even though absolute
+      time-of-day does not. Excluding them would drop real detections from every count to
+      protect a property the rule never reads.
+
+      Result: **174 + 225 + 297 = 696 episodes**, exactly the figure measured before the
+      column existed. Every other number in all three tables is unmoved — row counts,
+      observation types, species counts, all three validity flags, datetime ranges and
+      repair-method breakdowns, diffed field by field. 19 new tests; **304 total**.
+
+      ⚠️ **Two handoffs, both consumer-side, both stated rather than reached across.** The
+      warehouse now refuses with `schema_version 4; this pipeline was written against 3` —
+      correct, and the fix is a deliberate read of `CANONICAL_COLUMNS` plus
+      `src/parsers/canonical_ct.py`, not a bumped number. And the three downstream copies of
+      the rule must be retired onto the column; until they are, `apply_verdicts.py` keeps
+      undercounting by a third. See **B9** and **B10**.
 
 ---
 
@@ -214,7 +288,74 @@ change in `CANONICAL_STATE.json` is three `deployments_sha256` values. No number
 
 ⚠️ **One handoff, stated rather than reached across:** `deployments.csv` changed, so the
 warehouse is now stale by design. `python run_fetch.py --ct` in data-pipeline is the fix,
-and it is consumer-side work for another session.
+and it is consumer-side work for another session. **Taken 2026-08-26** — see below.
+
+---
+
+### 0-quinquies. Fourth stamp, 2026-08-26 — the producer side has nothing open
+
+**The handoff above was taken first.** `run_fetch.py --ct` re-stamped the warehouse and
+`--ct-check` reports current. Measured before and after: identical row counts (35,807 /
+35,807 / 74 / 31,713 in the view), identical per-campaign × `observationType` across all
+fifteen cells, identical flag totals and species counts, weather untouched (264,943 rows,
+mean `AirTC_Max` 7.767345). The staleness was contract metadata only — `n_deployments`,
+`camera_days` and `deployments_sha256` entering the gate fingerprint — exactly as §0-quater
+predicted, and the fingerprints now equal the published ones.
+
+**Then 1.14, the last item inside the boundary.** Closed; see the item for what was built.
+
+**Two of this document's assumptions about 1.14 were wrong, and one danger it never
+mentioned turned out to be live:**
+
+| where | this doc said | measured 2026-08-26 |
+|---|---|---|
+| **1.14** | `FieldRecord` must be *rewired* off `clock_state` / `camera_replaced` | both were **write-only** — loaded onto `Visit`, read by nothing in any module, script or test |
+| **1.14** | the loader must handle `campaign_closed` in "both directions" | the column is **derived**, and the derivation reproduced **105 of 106** dated legacy values; the exception was a wrong assertion the rest of the project already contradicted |
+| *(not in this doc)* | — | **`build_field_notes.py` could revert two days of curation.** Rebuilt and diffed, it differed on three CT27 rows: the install date reverting to the ambiguous 2025-11-12, and the reconstructed 2026-05-14 retrieval row — present in no field sheet — missing entirely |
+
+**The pattern from §0-bis held a fourth time, and this is now four for four.** Every defect
+closed today sat at a boundary or in the tooling of one: the record's shape against the
+form's, and a migration script that could still write the record it no longer describes.
+Nothing in the middle of the chain needed touching, and no published number moved.
+
+**What the boundary now looks like, in both directions.** The form is rendered from
+`visit_schema`, filled in the field, read back by `visit_form`, and lands in a record whose
+columns are the form's. Inward: `FieldRecord` → `deployments.py` → `observations.parquet` →
+`CANONICAL_STATE.json`. Outward: the gate in data-pipeline. The one thing no fixture can
+supply is a real filled workbook — the `Visitas` sheet still holds 0 rows, so the first
+salida is the first real test, and `--check` exists for exactly that moment.
+
+**Verified after every change:** 277 tests pass (241 before), `python -m camtrap.canonical_state`
+exits 0, all three `deployments.csv` SHA-256s unchanged, and re-running `timestamps.py` on all
+three campaigns produced **byte-identical** `observations.parquet` files. The contract did not
+change at all this time, so the warehouse re-stamped at the start of the session is still
+current at the end of it.
+
+**Second half of the same session — the queue emptied.**
+
+- **The environment was declaring the wrong project.** `environment.yml` named
+  `species-classifier` and listed torch, transformers and streamlit while listing **neither
+  pandas nor pyarrow** — so a fresh clone could not run `timestamps.py` at all, and could
+  run nothing without a 7.5 GB CUDA download. It also needed **pyyaml**
+  (`build_station_registry.py:230` imports it inside a function, which is why an import scan
+  missed it and the declared env caught it on first run). Split: `environment.yml` is now
+  `camtrap` at 695 MB for the ingest chain; `environment-classifier.yml` keeps the
+  `species-classifier` name so the existing env still matches a file. Verified on **pandas
+  3.0.5 / pyarrow 25 / numpy 2.4.6** — newer than the code was written against, and nothing
+  needed pinning.
+- **1.9's last producer-side entry, and both its claims were false.**
+  `camtrap/observations.py:7–9` described `filePath` and `timestamp` as selectively
+  populated; measured, both are present as columns and **empty in every row of all three
+  exports**. It described exports that were later re-made.
+- **1.10 / B8: three of three fixtures now exist.** Neither the flatten log nor the restored
+  Synology tree is in the repo, so what is pinned is the invariant each 2026-08-18 recovery
+  depended on, through the code that produces it — manifest completeness and the
+  size-matched deletion ledger.
+- **1.15: the episode rule moved upstream.** See the item. **The producer queue is now
+  empty.**
+
+**What is left is all consumer-side**, plus producer item 1.11 (figures re-rendered), which
+was scoped as consumer-side on 2026-08-25 anyway.
 
 ---
 
@@ -488,17 +629,40 @@ Each item is a check with a stated pass condition, not a task to eyeball.
       made, and a second entry point onto the same function is a shallow module. The
       one-off verification above is recorded here instead of shipped as code.
 
-- [ ] **1.9 Dead and stale code removed.** Full list in §3.
+- [ ] **1.9 Dead and stale code removed.** Full list in §3. **Producer-side: complete as of
+      2026-08-26** — the last entry inside the boundary was `camtrap/observations.py:7–9`,
+      whose two claims were both false when measured. What remains in §3 is entirely
+      consumer-side: pehuén's `PATH_PV` and `^TC(\d+)_` station parsing, `data-pipeline`'s
+      `config.yaml` camera-trap paths, and `01_data_prep.py`'s `REPORT_CAMPAIGNS`.
 
 - [ ] **1.10 Test suite extended.** **226 pass as of 2026-08-24** in camera-traps
       (190 on 2026-08-19, +19 through 2026-08-20, +17 for the station registry).
-      Run them with `python -m unittest discover -s tests` — **pytest is not installed in
-      the `camera-traps` env**, which is why the 152 figure went unverified on 2026-08-18.
+      Run them with `python -m pytest -q` or `python -m unittest discover -s tests`. Until
+      2026-08-26 pytest was not installed and `environment.yml` declared neither pandas nor
+      pyarrow while declaring a 7.5 GB CUDA stack — which is why the 152 figure went
+      unverified on 2026-08-18. The env is now split (`environment.yml` for the ingest chain,
+      `environment-classifier.yml` for the GPU half) and both runners work.
       **226 pass as of 2026-08-24** (+17: `tests/test_station_registry.py`).
-      Of the three regression fixtures, **one is done**: the registry-agreement check from
-      1.6, written as "the committed artifacts equal a fresh render" rather than the
-      three-way comparison this document specified. Still missing: the manifest rebuild
-      from a flatten log, and the size-matched deletion accounting.
+      **All three regression fixtures now exist** — the last two added 2026-08-26, on real
+      temp trees. The registry-agreement check (2026-08-24) was written as "the committed
+      artifacts equal a fresh render" rather than the three-way comparison this document
+      specified.
+
+      **The other two are not the ad-hoc procedures re-run, and that is deliberate.**
+      Neither `flatten_log_20260616_100329.csv` nor the restored Synology tree is in this
+      repository, so a fixture that replayed either would be testing a file nobody has.
+      What is pinned instead is the invariant each recovery depended on, through the code
+      that produces it:
+      * **manifest completeness** — one row per file including the already-flat ones, the
+        camera-created-folder rule (`M5` is not evidence), a 999-wrap keeping both frames
+        and both folders, and the emitted keys equal to `clocks.DCIM_MANIFEST_COLUMNS`. A
+        rebuild has to reproduce exactly this document; now it has a specification.
+      * **the deletion ledger** — every manifest row resolves to a real file of the
+        recorded `size_bytes`, and both a missing file and a size mismatch are detected.
+        The mismatch case is the one that matters: a truncated file still exists under the
+        right name, which a presence check reads as success.
+      **284 camera-traps tests pass as of 2026-08-26** (277 before the fixtures, 241 before
+      1.14).
       **`data-pipeline` has no test suite at all** — 1,642 lines, zero tests, while it now
       carries four modules whose guarantees rest on having been run once by hand. Designed
       and deferred 2026-08-24: `data-pipeline/docs/TEST-PLAN.md`.
@@ -795,7 +959,7 @@ covering only two campaigns.
 |---|---|
 | ~~`data-pipeline/scripts/dedup_primavera_2025.py`~~ | **deleted 2026-08-20** (2.6) |
 | ~~`camtrap/observations.py:70–79, 185`~~ | **done 2026-08-25.** Both precedence comments rewritten: the 396/31 overlap was primavera-vs-pv and is gone. Measured now — **0 duplicate `DEDUP_KEY` rows across all 35,807**, and the 31 recurring `(camera_num, file_name)` pairs share no datetime, so they are counter recycling between years and must NOT be deduplicated (3.5) |
-| `camtrap/observations.py:7–9` | per-campaign export quirks — `filePath` populated in primavera_2025, `timestamp` only there. A fresh export has different quirks |
+| ~~`camtrap/observations.py:7–9`~~ | **done 2026-08-26.** Both bullets were false: measured across all three exports, `filePath` and `timestamp` are present as columns and empty in **every row of all three** (0/8,997 · 0/16,904 · 0/9,906), while `RelativePath` and `DateTime` are complete. The comment described the exports it was written against; they were re-made. Rewritten to state the guarantee (`rel_path` is resolved, never read) plus the measurement and its date. |
 | `Anual-reports/2025/py/01_data_prep.py:6, 71` | `REPORT_CAMPAIGNS` |
 | ~~`Anual-reports/2025/py/list_ciervo_guina_images.py:34–44, 122`~~ | **fixed 2026-08-20** — reads otoño 2025 / primavera 2025 / otoño 2026; pv dropped |
 | ~~`Anual-reports/2025/py/apply_verdicts.py:143`~~ | **done 2026-08-25.** The key is justified by what it actually is — a verdict adjudicates one PHOTOGRAPH, so it applies wherever that photograph appears — instead of by pv survival |

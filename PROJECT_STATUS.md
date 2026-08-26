@@ -1,6 +1,56 @@
 # FMA Project Status
 
-**Last updated:** 2026-08-25 — **the PRODUCER boundary is closed, and a NAS check inverted a
+**Last updated:** 2026-08-26 — **the producer-side queue is empty.** Two passes. The first
+closed the field-record round trip (V2-REVIEW 1.14); the second cleared everything else inside
+the boundary: the environment, the last stale comment, the two missing regression fixtures, and
+the 30-minute event rule.
+
+**The environment was describing a different project.** `camera-traps/environment.yml` was
+named `species-classifier` and declared a 7.5 GB CUDA stack while declaring **neither pandas
+nor pyarrow** — a fresh clone could not run `timestamps.py` at all. Split into **`camtrap`**
+(695 MB: pandas, pyarrow, openpyxl, pyyaml, pytest) and `environment-classifier.yml`, which
+keeps the old name so the existing env still matches a file. It runs on pandas 3.0.5 / pyarrow
+25 / numpy 2.4.6, ahead of what the code was written against, with nothing pinned.
+
+**`episode_30min` — the independence rule moved into the canonical table** (`schema_version`
+3 → 4). It existed three times downstream and **two of the three disagreed**: 523 events
+against 696, a 33% undercount, in the script that writes `events_clean.parquet`. Rebuilt all
+three campaigns to 696 episodes — the exact figure measured before the column existed — with
+every other number unmoved. **304 camera-traps tests pass.**
+
+⚠️ **Two consumer-side handoffs, stated not reached across.** The warehouse now refuses with
+`schema_version 4; this pipeline was written against 3` — the fix is a deliberate read of
+`CANONICAL_COLUMNS` plus `data-pipeline/src/parsers/canonical_ct.py`, not a bumped number. And
+the three downstream copies of the event rule must be retired onto the column; until they are,
+`apply_verdicts.py` keeps undercounting by a third.
+
+**Prior (2026-08-26, first pass)** — **the field-record round trip closes, and the producer side
+had nothing open but the queue below.** The warehouse handoff left open yesterday was taken first: `run_fetch.py --ct`
+re-stamped it and `--ct-check` reports current, with before/after dumps identical on every row
+count, per-campaign breakdown, flag total and species count — the staleness was contract
+metadata only. Then V2-REVIEW 1.14, the last item inside the camera-traps boundary.
+
+`camtrap/visit_form.py` now reads a filled `Registro de visitas CT.xlsx` back into
+`field_notes.csv`, which `setup/reshape_field_notes.py` converted once from 28 columns to the
+form's 22. **Two measurements shrank the work and one enlarged it.** `clock_state` and
+`camera_replaced` turned out to be write-only, so the planned rewire was a deletion.
+`campaign_closed` is now derived and reproduced **105 of 106** dated legacy values — the one
+mismatch, CT27 claiming to close `primavera_2025`, was an assertion `deployments.csv` and the
+canonical table already contradicted, and Felipe's call was to delete it. And
+`setup/build_field_notes.py` could still revert two days of curation: rebuilt and diffed it
+differed on three CT27 rows, including the reconstructed 2026-05-14 retrieval date that appears
+on no field sheet at all. It is now frozen — `--out` required, the live record refused, no
+`--force`.
+
+**277 camera-traps tests pass** (was 241); re-running the ingest on all three campaigns produced
+byte-identical parquets, all three `deployments.csv` hashes are unchanged and the contract gate
+exits 0, so nothing published moved and the warehouse is still current at the end of the
+session. Producer-side debt is now **V2-REVIEW 1.9–1.11 only** (dead-code sweep, two regression
+fixtures, figures re-rendered); everything else open is consumer-side. ⚠️ The loader has never
+seen a real filled workbook — the `Visitas` sheet holds 0 rows, so the first salida is the first
+real test and `python -m camtrap.visit_form <workbook> --check` exists for that moment.
+
+**Prior (2026-08-25)** — **the PRODUCER boundary is closed, and a NAS check inverted a
 module's founding assumption.** Scope was set deliberately: everything from the camera-traps
 boundary INWARDS — the field record coming in, the gates, the canonical table, the published
 contract. The consumer side (data-pipeline, platform, pehuén, the annual report's figures) was

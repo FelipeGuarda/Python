@@ -14,7 +14,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from camtrap import canonical_state, observations
+from camtrap import canonical_state, episodes, observations
 
 
 def _frame(**over) -> pd.DataFrame:
@@ -27,6 +27,7 @@ def _frame(**over) -> pd.DataFrame:
         "review_outcome": "confirmed", "review_resolution": "species_named",
         "file_name": "01010001.JPG", "rel_path": "CT05/01010001.JPG",
         "observation_comments": "Puma", "classification_probability": 0.91,
+        "episode_30min": "otono_2025|CT05|Puma concolor|1",
     }
     row.update(over)
     return pd.DataFrame([row])
@@ -43,6 +44,12 @@ class TestSchemaIsTheContract(unittest.TestCase):
         cols = list(observations.CANONICAL_COLUMNS)
         self.assertIn("observation_comments", cols)
         self.assertIn("classification_probability", cols)
+
+    def test_the_episode_column_is_in_the_contract(self):
+        """Added 2026-08-26 (schema 4). It carries the independence rule, which existed
+        three times downstream and had already drifted between two of the copies."""
+        self.assertIn(episodes.COLUMN, list(observations.CANONICAL_COLUMNS))
+        self.assertEqual(canonical_state.SCHEMA_VERSION, 4)
 
     def test_retired_campaign_is_not_in_the_published_state(self):
         """pv_2025_2026 is a review pass, not a campaign.

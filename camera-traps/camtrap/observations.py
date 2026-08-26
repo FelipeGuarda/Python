@@ -8,12 +8,16 @@ Every consumer (annual report, pehuen, data-pipeline, platform) reads this shape
 nothing else. It is written once at ingest, so the Timelapse2 export quirks are
 resolved in one place rather than re-derived per consumer:
 
-    * `filePath` is populated in otono_2025 / primavera_2025 and empty in
-      otono_2026 -> `rel_path` is always resolved here. These are the quirks of the
-      exports on disk TODAY; a fresh export has different ones, so the guarantee is
-      "resolved in one place", not this particular list.
-    * `timestamp` is populated only in primavera_2025; `DateTime` everywhere -> the
-      repaired `datetime_corrected` from timestamps.py is the only time column here.
+    * `rel_path` is always resolved here rather than read. Measured 2026-08-26 across
+      all three `ImageData_total.csv` files: `filePath` and `timestamp` are present as
+      columns and **empty in every row of all three** (0 / 8,997 · 0 / 16,904 ·
+      0 / 9,906), while `RelativePath` and `DateTime` are complete. This comment used
+      to say `filePath` was populated in two campaigns and `timestamp` in one; that
+      was true of the exports it was written against and stopped being true when they
+      were re-made. Which is the point: the guarantee is "resolved in one place", not
+      any particular list of quirks, and a list of quirks in a comment decays.
+    * The repaired `datetime_corrected` from timestamps.py is the only time column
+      here — never a raw export timestamp, whatever a future export populates.
     * A camera clock can fail three separable ways -> `valid_date`,
       `valid_time_of_day` and `valid_effort` travel with every row rather than one
       usable/not-usable flag. A pure year error preserves time-of-day exactly, so
@@ -48,6 +52,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from camtrap import exports, stations
+from camtrap import episodes
 from classify_campaign.species import spanish_to_latin
 
 CAMPAIGNS_ROOT = Path(__file__).resolve().parents[1] / "data" / "campaigns"
@@ -88,6 +93,12 @@ CANONICAL_COLUMNS: dict[str, str] = {
     # is real per-row data and unrecoverable once the Timelapse export is gone. NaN on
     # sweep-only rows — CLIP never saw them.
     "classification_probability": "Float64",
+    # The independence rule, decided upstream and carried rather than re-derived:
+    # `campaign|station|species|n`, one id per detection episode, `pd.NA` where the row
+    # has no identified species or no clock. Named for its threshold on purpose — a
+    # different gap is a different column, so two analyses cannot compare counts built
+    # on different definitions of one event. See camtrap/episodes.py.
+    "episode_30min":     "string",
 }
 
 DEDUP_KEY = ["camera_num", "file_name", "datetime"]
@@ -536,6 +547,14 @@ def to_canonical(corrected: pd.DataFrame, campaign: str) -> pd.DataFrame:
     tally = resolved["review_resolution"].value_counts()
     for rule, n in tally.items():
         print(f"    {rule}: {n}")
+
+    # Computed here and not by a consumer for two reasons: the rule had already drifted
+    # between the two copies that existed downstream (523 events against 696), and
+    # `clock_segment` is not in this table, so a consumer cannot keep an episode from
+    # spanning a clock reset even if it wanted to.
+    out[episodes.COLUMN] = episodes.label(out, segments=src.get("clock_segment"))
+    print(f"    {episodes.COLUMN}: {out[episodes.COLUMN].nunique(dropna=True)} episode(s) "
+          f"over {int(out[episodes.COLUMN].notna().sum())} row(s)")
 
     # Reindexed, not just cast: CANONICAL_COLUMNS declares an order and the written
     # table should match it, so the contract can be asserted as written rather than as

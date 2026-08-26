@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "columns": [
     "campaign",
     "camera_num",
@@ -16,7 +16,8 @@
     "file_name",
     "rel_path",
     "observation_comments",
-    "classification_probability"
+    "classification_probability",
+    "episode_30min"
   ],
   "dtypes": {
     "campaign": "string",
@@ -34,7 +35,8 @@
     "file_name": "string",
     "rel_path": "string",
     "observation_comments": "string",
-    "classification_probability": "Float64"
+    "classification_probability": "Float64",
+    "episode_30min": "string"
   },
   "campaigns": {
     "otono_2025": {
