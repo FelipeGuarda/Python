@@ -5,3 +5,6 @@ exports/
 __pycache__/
 *.pyc
 *.pyo
+
+# Generated from docs/MANUAL-SALUD-DATOS.md by docs/pandoc/render.sh — do not commit
+MANUAL-SALUD-DATOS.docx

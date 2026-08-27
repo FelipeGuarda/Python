@@ -1,6 +1,42 @@
 # FMA Project Status
 
-**Last updated:** 2026-08-26 — **the producer-side queue is empty.** Two passes. The first
+**Last updated:** 2026-08-27 — **the camera-traps manual is Spanish, phase-structured, and the producer side is verified.**
+
+`camera-traps/docs/MANUAL-SALUD-DATOS.md` (1,673 lines) is now authoritative; the English
+edition is frozen with a stamp saying so, deliberately not synced. The chain is restated as **11
+phases** (0 identity → 10 the consumer's admission check), each with a five-column vigilance
+table naming the error watched, the analysis that breaks, the script that checks, and the
+fixtures that hold it. **308 tests are 75 classes**, and the manual says so — the class is the
+conceptual unit, the tests inside it are its cases.
+
+The format forces the holes into the open, which is the point: Phase 1 is a person filling
+paper, clock error classes 7 and 8 leave no signature in the data, and **Phase 10 has no test
+suite** (`data-pipeline/tests/` does not exist; `SUPPORTED_SCHEMA_VERSION` is 3 against a
+published 4, so the gate refuses — correctly, but as a traceback).
+
+Verified, not asserted: 69 cited test-class names all exist, 14 per-file counts all match, 21
+quantitative claims all check out against the published tables. Word output is landscape via
+`docs/pandoc/render.sh`.
+
+**Prior — 2026-08-27 (first pass):** **camera-traps producer side verified; no defects found.**
+
+Two claims that had been made but never asserted are now measured. **The ingest is
+reproducible**: all three campaigns rebuilt from raw inputs into an isolated copy come back
+identical — 35,807 rows, 17 columns compared value-by-value, zero differences, and both sidecar
+files byte-identical per campaign. **The visit-form loader works on the real template**: it had
+never read a filled workbook, and filling the committed `Registro de visitas CT.xlsx` round-trips
+through `ingest()` into `FieldRecord`. That second one existed only in a transcript, so
+`TestTheRenderedTemplateLoads` now holds it — 4 tests, 8 subtests, mutation-checked against four
+separate template corruptions. **308 camera-traps tests pass** (was 304), under both runners.
+
+Also reconciled: `camera_days` equals the `has_media` subset in all three campaigns, and otoño
+2025's 623-day gap decomposes exactly as documented (3,816/21 stills, 4,318/25 presence, CT21's
+121 `card_failure` days in neither).
+
+**Integration Status:** camera-traps producer side `Ready`. Zero producer-side items open;
+**B3**, **B9** and **B10** are all consumer-side.
+
+**Prior — 2026-08-26:** **the producer-side queue is empty.** Two passes. The first
 closed the field-record round trip (V2-REVIEW 1.14); the second cleared everything else inside
 the boundary: the environment, the last stale comment, the two missing regression fixtures, and
 the 30-minute event rule.

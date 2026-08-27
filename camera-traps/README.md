@@ -89,7 +89,84 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-08-26 (second pass) — **the producer-side queue is empty.** The
+**Last Updated:** 2026-08-27 (second pass) — **the manual is now in Spanish, restructured by phase.**
+
+`docs/MANUAL-SALUD-DATOS.md` (1,673 lines) is the **authoritative** data-health manual.
+`docs/DATA-HEALTH-MANUAL.md` is frozen and carries a stamp saying so — it is deliberately not
+kept in sync, because two hand-maintained copies of one body of knowledge is the §4G
+duplicated-decision failure, and the stale copy is the one people read.
+
+**What changed in the restructure.** The chain is now stated as **11 phases** (0 identity → 10
+the consumer's admission check), each opening with *qué es esta fase, y qué no es* and a
+where-it-sits table, and each closing with a **five-column vigilance table**: the error watched
+· what it means · the analysis that breaks · what checks it · the fixtures that hold it.
+
+Two things the format forces into the open:
+
+- **The 308 tests are 75 classes.** The class is the conceptual unit — one agreed rule — and the
+  tests inside it are its cases. §0.6 says so and works an example.
+- **Where nothing checks.** Rows read *"nada revisa esto"* where that is true: Phase 1 is a
+  person filling paper, clock error classes 7 and 8 leave no signature in the data, and Phase 10
+  has no test suite at all (`data-pipeline/tests/` does not exist). Stating the holes beats a
+  table that looks complete.
+
+Verified rather than asserted: all 69 cited test-class names exist, all 14 per-file test/class
+counts match, and all 21 quantitative claims were checked against the published tables. The
+class count started as 82 and is 75 — the first figure counted helper classes with no tests.
+
+Word output is wired up and landscape, because a five-column table is unreadable on a portrait
+page: `./docs/pandoc/render.sh` → 32 tables, 94 headings, TOC, mermaid dropped via a Lua filter
+(the §0.2 table says the same thing). The generated `MANUAL-SALUD-DATOS.docx` is gitignored — it
+is an artefact, and the Markdown is the source. PDF is not automated — no LaTeX engine here.
+
+§6.3(4) also answers the question a reader hits immediately: *if the EXIF stamp is written
+first, why not just trust it?* Because we do — `camera_datetime` **is** the EXIF `DateTime`, and
+the filename never becomes a date (verified: `_mmdd` is used only for sorting and for the
+coherence comparison, and no MMDD-derived column is in the contract). The filename is a check
+digit, not a rival candidate; its whole value is independence. And "written first" is not
+authority: both are reads of the same register, so when they disagree there is no way to know
+which is closer to true — which is precisely why the segment is irreparable rather than
+repairable-from-the-EXIF.
+
+**Integration Status:** `Ready` (producer side).
+
+---
+
+**Prior — 2026-08-27 (first pass):** **verification pass; no defects found, one fixture added.**
+
+**What Changed.** Nothing in the ingest. The producer side was re-verified end to end and two
+things were proven that the suite had never asserted:
+
+1. **The ingest is reproducible.** All three campaigns rebuilt from the raw inputs into an
+   isolated copy of `data/campaigns/` come back identical: 8,997 / 16,904 / 9,906 rows, all 17
+   columns compared value-by-value with NaN-aware equality, zero differences, and both
+   `new_labeled_data_corrected.csv` and `timestamps_audit.log` byte-identical in every campaign.
+2. **The rendered visit template loads.** The loader had never read a filled workbook. Filling
+   the committed `Registro de visitas CT.xlsx` and reading it back works: all 20 headers match
+   the declared labels, every dropdown offers exactly the loader's vocabulary, `si` → `yes`
+   normalises, the screen reading survives, and `FieldRecord.load()` derives the window from
+   the appended rows.
+
+`tests/test_visit_form.py` gained `TestTheRenderedTemplateLoads` — 4 tests, 8 subtests — because
+(2) was true only in a transcript. The other 26 loader tests build workbooks from
+`visit_schema`, which is also where the loader resolves labels, so they stay green even if the
+file technicians actually receive stops matching. Mutation-checked: renaming a header, renaming
+the sheet, dropping `mantencion` from a dropdown, and leaving a stray row in the committed
+template each fail the test whose job it is, and no others. **308 tests pass** (was 304), under
+both `pytest` and `unittest`.
+
+Also reconciled, since effort is a denominator: `CANONICAL_STATE.json`'s `camera_days` equals
+the `has_media` subset in all three campaigns, and otoño 2025's 623-day gap decomposes exactly
+as §6.2 of the manual claims — 3,816 over 21 `in_canonical`, plus 502 over 4
+`video_only_offline` for the 4,318 / 25 presence figure, plus CT21's 121 `card_failure` days
+that belong in neither.
+
+**Integration Status:** `Ready` (producer side). Zero producer-side items open in V2-REVIEW; the
+two that remain (**B3**, **B10**) are both consumer-side, as is **B9**.
+
+---
+
+**Prior — 2026-08-26 (second pass):** **the producer-side queue is empty.** The
 environment, the last stale comment, the two missing regression fixtures, and the 30-minute
 event rule.
 

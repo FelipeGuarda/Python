@@ -6,6 +6,7 @@ is 0 / 107 in the legacy record, so nothing until now has ever proven that a fil
 value reaches `field_notes.csv` at all.
 """
 
+import shutil
 import sys
 import tempfile
 import unittest
@@ -14,13 +15,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
+from openpyxl.utils import get_column_letter
 
 from camtrap import visit_form, visit_schema
 from camtrap.anchors import FieldRecord
 
 LIVE_CSV = (Path(__file__).resolve().parents[1] / 'data' / 'campaigns'
             / 'field_notes.csv')
+TEMPLATE = (Path(__file__).resolve().parents[1] / 'data' / 'campaigns'
+            / 'Registro de visitas CT.xlsx')
 
 #: A complete, valid revision. Every test below is this row with one thing changed.
 GOOD = {
@@ -253,6 +257,93 @@ class TestAppending(unittest.TestCase):
         visit_form.ingest(workbook(changed(visit_date='2027-05-14',
                                            campaign_opened='primavera_2027')), first)
         self.assertTrue(first.read_text(encoding='utf-8').startswith(before))
+
+
+class TestTheRenderedTemplateLoads(unittest.TestCase):
+    """The one seam the fixtures above cannot reach: the file a technician receives.
+
+    `workbook()` builds its header row from `visit_schema`, which is also where the
+    loader resolves labels — so every test above stays green even if the rendered
+    workbook stops matching. Only the committed template can fail this class, and it
+    fails it the moment `build_visit_template.py` renames the sheet, reorders row 1 or
+    narrows a dropdown.
+
+    The template is blank by design and stays blank: the fill happens on a temp copy.
+    Structure is what is being asserted, and the empty form carries all of it.
+    """
+
+    def setUp(self):
+        self.wb = load_workbook(TEMPLATE)
+
+    def _offered(self):
+        """Column -> the options that column's dropdown actually offers a technician.
+
+        Resolved through the data validations rather than hardcoded cell ranges, so
+        the sheet layout of `Listas` remains `build_visit_template.py`'s business.
+        """
+        by_letter = {get_column_letter(i): f
+                     for i, f in enumerate(visit_schema.VISIT_FIELDS, start=1)}
+        lists = self.wb['Listas']
+        offered = {}
+        for dv in self.wb[visit_form.SHEET].data_validations.dataValidation:
+            formula = str(dv.formula1 or '')
+            if 'Listas' not in formula:
+                continue
+            span = formula.split('!')[-1].replace('$', '')
+            values = [c.value for (c,) in lists[span] if c.value not in (None, '')]
+            for rng in dv.sqref.ranges:
+                field = by_letter.get(get_column_letter(rng.min_col))
+                if field is not None:
+                    offered[field.column] = values
+        return offered
+
+    def test_the_template_headers_are_the_declared_labels(self):
+        ws = self.wb[visit_form.SHEET]
+        n = len(visit_schema.VISIT_FIELDS)
+        rendered = tuple(str(c.value).strip() for c in ws[1][:n])
+        self.assertEqual(rendered, tuple(f.label for f in visit_schema.VISIT_FIELDS))
+
+    def test_every_dropdown_offers_exactly_what_the_loader_accepts(self):
+        """An equality, because both directions are defects. An option the loader
+        refuses is a trap the technician cannot see -- the cell validates and the
+        ingest rejects it. An option the loader accepts but the list omits cannot be
+        entered at all, which is how `camera_datetime_observed` reached 0 / 107.
+        """
+        offered = self._offered()
+        for f in visit_schema.VISIT_FIELDS:
+            if not f.has_list:
+                continue
+            with self.subTest(column=f.column):
+                self.assertEqual(offered.get(f.column), list(f.options))
+
+    def test_a_row_filled_into_the_real_template_reads_back(self):
+        """End to end: the committed blank form, filled only with values its own
+        dropdowns permit, read by the loader that will meet it after the next salida.
+        """
+        path = Path(tempfile.mkdtemp()) / TEMPLATE.name
+        shutil.copy(TEMPLATE, path)
+        wb = load_workbook(path)
+        ws = wb[visit_form.SHEET]
+        for i, f in enumerate(visit_schema.VISIT_FIELDS, start=1):
+            if GOOD[f.column] != '':
+                ws.cell(row=2, column=i, value=GOOD[f.column])
+        wb.save(path)
+
+        rows = visit_form.read(path)
+        self.assertEqual(len(rows), 1)
+        got = rows[0]
+        self.assertEqual(got['station_id'], 'CT01')
+        self.assertEqual(got['visit_type'], 'revision')
+        # The two things the form was redesigned around: a raw screen reading, and
+        # Spanish answers arriving as the vocabulary the CSV is read in.
+        self.assertEqual(got['camera_datetime_observed'], '2026-11-20 08:40')
+        self.assertEqual(got['camera_working'], 'yes')
+
+    def test_the_committed_template_stays_empty(self):
+        """It is a blank form under version control. A filled row reaching it would be
+        both a data leak into the template and a row every future ingest re-appends.
+        """
+        self.assertEqual(visit_form.read(TEMPLATE), [])
 
 
 if __name__ == '__main__':

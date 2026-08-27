@@ -359,6 +359,67 @@ was scoped as consumer-side on 2026-08-25 anyway.
 
 ---
 
+### 0-sexies. Fifth stamp, 2026-08-27 — the producer side is verified, not merely closed
+
+The queue emptied on 2026-08-26. This pass asked the different question: **is any of it true?**
+No defects found, and two properties that had been claimed but never asserted are now measured.
+
+**1. The ingest is reproducible.** All three campaigns rebuilt from the raw inputs into an
+isolated copy of `data/campaigns/` (real copy, not hardlinks — a hardlinked copy would let
+`open(w)` truncate the published parquets through the shared inode):
+
+| campaign | rows × cols | column diffs | corrected CSV | audit log |
+|---|---|---|---|---|
+| `otono_2025` | 8,997 × 17 | none | byte-identical | byte-identical |
+| `primavera_2025` | 16,904 × 17 | none | byte-identical | byte-identical |
+| `otono_2026` | 9,906 × 17 | none | byte-identical | byte-identical |
+
+Every column compared value-by-value with NaN-aware equality. **Nothing in the suite asserted
+this**, and it is the property the whole contract rests on: `deployments_sha256` and the gate
+fingerprint only mean something if a rebuild from source lands in the same place.
+
+**2. The rendered visit template loads — 1.14's one remaining unknown.** The loader had never
+read a filled workbook, and the deferral note said so. Filling the committed
+`Registro de visitas CT.xlsx` and reading it back: all 20 headers match the declared labels,
+every dropdown offers exactly the loader's vocabulary (unaccented `instalacion`, `si` / `no` /
+`no se sabe`), booleans normalise, `camera_datetime_observed` survives, `ingest()` appends in
+the 22-column shape and `FieldRecord.load()` derives the window from the appended rows.
+
+That existed only in a transcript, so `tests/test_visit_form.py::TestTheRenderedTemplateLoads`
+now holds it — 4 tests, 8 subtests. **The gap it closes:** the other 26 loader tests build
+their header from `visit_schema`, which is also where the loader resolves labels, so they are
+structurally blind to the rendered file drifting. Mutation-checked, because a fixture that
+cannot fail is decoration:
+
+| mutation to the template | caught by |
+|---|---|
+| rename `camera_datetime_observed`'s header | headers (+ read-back, fail-closed) |
+| drop `mantencion` from the visit-type dropdown | dropdowns, and only dropdowns |
+| rename the `Visitas` sheet | all four |
+| leave a stray filled row in the committed template | stays-empty, and only that |
+
+Template↔loader drift remains structurally impossible in the other direction —
+`build_visit_template.py:72` imports `VISIT_FIELDS`, and the dropdown assertion reads
+`VisitField.options` rather than restating a vocabulary.
+
+**3. Effort reconciles.** `CANONICAL_STATE.json`'s `camera_days` equals the `has_media` subset
+in all three campaigns. Otoño 2025's 623-day gap against the raw window sum decomposes exactly
+as §6.2 of DATA-HEALTH-MANUAL claims: 3,816 over 21 `in_canonical`, plus 502 over 4
+`video_only_offline` giving the 4,318 / 25 presence figure, plus CT21's 121 `card_failure` days
+that belong in neither denominator.
+
+**4. Row-level invariants.** 0 duplicates on `(campaign, camera_num, file_name)`.
+`episode_30min` is null exactly where the rule says — 2,103 labelled rows, 696 distinct
+episodes. Every station appearing in the canonical table has a deployment window. All three
+validity axes are `boolean` with zero nulls. 308 tests and 93 subtests pass under both runners;
+`python -m camtrap.canonical_state` exits 0.
+
+**Still standing:** the loader has now been proven against a workbook *I* filled, not one a
+technician filled. The residual risk is data-entry variance, not code — and `_text()` plus the
+Excel-retyping fixtures are what cover that. The first salida is still the real test.
+
+---
+
 ## 1. Camera-traps — the review
 
 Each item is a check with a stated pass condition, not a task to eyeball.

@@ -2,6 +2,17 @@
 
 ### An end-to-end manual: from the field to the figure
 
+> ⚠️ **FROZEN, 2026-08-27. This is not the authoritative edition.**
+>
+> The maintained manual is **`MANUAL-SALUD-DATOS.md`** (Spanish), which is the working
+> language of the people this document is for. This English edition is kept for reference
+> and is **not updated**; where the two disagree, the Spanish one is right.
+>
+> It is deliberately not kept in sync. Two hand-maintained copies of the same knowledge is
+> the duplicated-decision failure §4G exists to warn about — the correction reaches one copy
+> and not the other, and the stale copy is the one someone reads. If an English edition is
+> ever actually needed, it should be generated from the Spanish one as it stands that day.
+
 **Programme:** Reserva Natural Bosque Pehuén · Fundación Mar Adentro
 **Version:** 1.0 · 2026-08-20
 **Scope:** one camera-trap campaign, from the decision to install a camera to the number printed in a report.
@@ -1806,9 +1817,15 @@ This also constrains how scenarios are encoded. A taxonomy of five field scenari
 become **five fixtures**, not five code branches — five branches is a structure organised by
 circumstance rather than by knowledge, and it grows a sixth branch every campaign.
 
-*Current state: 209 tests, run with the standard library test runner. That choice was
-deliberate — the alternative framework is not installed in one of the two environments, and
-the fixtures must run on both machines without adding a dependency.*
+*Current state: **308 tests in 75 classes**, across 14 files. The class is the conceptual
+unit — one agreed rule — and the tests inside it are that rule's cases, which is why the
+count is much larger than the number of things anyone has to hold in mind.*
+
+*They run under both `unittest` and `pytest`. The suite was written against the standard
+library runner because `pytest` was absent from the only declared environment; since the
+2026-08-26 environment split it is declared in `camtrap`, so that constraint no longer
+applies — but nothing depends on pytest-only features, and the fixtures still run on a bare
+Python install.*
 
 ### 7.5 What to re-run when anything changes
 

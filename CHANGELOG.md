@@ -6,6 +6,86 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-08-27 (second pass) — the data-health manual becomes Spanish and phase-structured
+
+### Added
+- **`camera-traps/docs/MANUAL-SALUD-DATOS.md`** (1,673 lines) — now the authoritative manual.
+  The chain restated as **11 phases** (0 identity → 10 the consumer's admission check). Every
+  phase opens with *qué es esta fase, y qué no es* plus a where-it-sits table, and closes with a
+  **five-column vigilance table**: error watched · what it means · the analysis that depends ·
+  what checks it · the fixtures that hold it.
+- **§0.2 el mapa completo** — a mermaid flowchart plus an 11-row in/out/who-owns-the-decision
+  table, up front, because the practical failure of a document this size is losing the map.
+- **§0.5 the boundary** — why the manual stops at the consumer's first step, and the three
+  concrete benefits, each of which was actually lost once.
+- **§0.6** — how to read the vigilance tables, including that **308 tests are 75 classes** and
+  the class is the conceptual unit.
+- **§6.3(4) rewritten at Felipe's request** — the filename/timestamp comparison explained from
+  the mechanism: both readings come from one clock, so a merely wrong clock produces two
+  identically wrong readings that *agree* (this test cannot see resets or offsets), and
+  disagreement therefore means the date register is not returning a stable value. Plus why the
+  three EXIF fields are one witness and not three, and that `MMDD` carries no year.
+- **`camera-traps/docs/pandoc/`** — `render.sh`, an A4-landscape `reference-landscape.docx`
+  (five-column tables are unreadable portrait), and `drop-mermaid.lua`. 32 tables render.
+
+### Changed
+- **`camera-traps/docs/DATA-HEALTH-MANUAL.md` is FROZEN** with a stamp at the top naming the
+  Spanish edition as authoritative. Deliberately not synced: two hand-maintained copies is the
+  §4G duplicated-decision failure, and the stale copy is the one someone reads.
+- §7.4 said *"209 tests"* and justified the runner choice with *"pytest is not installed in one
+  of the two environments"*. Both false — now 308 in 75 classes, and the constraint lifted with
+  the environment split.
+- Terminology, per Felipe: `fotograma` → `foto` (film vocabulary, 16 occurrences), `compuerta` →
+  `control de admisión`, `barrido` → `revisión`.
+
+### Verified
+- All **69** cited test-class names exist in the suite; all **14** per-file test/class counts
+  match; all **21** quantitative claims checked against the published tables.
+- The class count was corrected **82 → 75**: the first figure counted helper classes holding no
+  tests.
+- Honest gaps recorded rather than smoothed over: Phase 1 is largely human, clock error classes
+  7 and 8 leave no data signature, and **Phase 10 has no tests** — `data-pipeline/tests/` does
+  not exist and `SUPPORTED_SCHEMA_VERSION` is 3 against a published 4.
+
+---
+
+## 2026-08-27 — the producer side is verified rather than asserted
+
+### Added
+- **`camera-traps/tests/test_visit_form.py::TestTheRenderedTemplateLoads`** — 4 tests, 8
+  subtests, opening the committed `Registro de visitas CT.xlsx` instead of a synthetic
+  workbook. The other 26 loader tests build their header from `visit_schema`, which is also
+  where the loader resolves labels, so none of them can see the rendered file drift. Asserts
+  the 20 headers, that every dropdown offers exactly `VisitField.options` (an equality — an
+  option the loader refuses is an invisible trap, one it accepts but the list omits cannot be
+  entered), that a row filled into the real template reads back, and that the committed
+  template stays empty. **308 camera-traps tests total** (was 304).
+
+### Verified (no code changed)
+- **The ingest is reproducible.** All three campaigns rebuilt from raw inputs into an isolated
+  copy: 8,997 / 16,904 / 9,906 rows, 17 columns compared value-by-value, zero differences, and
+  `new_labeled_data_corrected.csv` + `timestamps_audit.log` byte-identical in each. Nothing in
+  the suite had asserted this.
+- **The visit-form round trip works on the real template** — 20/20 labels match, dropdowns
+  match the loader's vocabulary, `si` → `yes`, the screen reading survives, `ingest()` appends
+  in the 22-column shape and `FieldRecord.load()` derives the window from it.
+- **`camera_days` reconciles exactly** to the `has_media` subset in all three campaigns.
+  Otoño 2025's 623-day gap decomposes as the manual claims: 3,816 / 21 `in_canonical` + 502 / 4
+  `video_only_offline` = 4,318 / 25 for presence, plus CT21's 121 `card_failure` days in
+  neither denominator.
+- Row-level invariants: 0 duplicates on `(campaign, camera_num, file_name)`; `episode_30min`
+  null exactly where the rule says (2,103 labelled rows, 696 episodes); every station in the
+  canonical table has a deployment window; all three validity axes `boolean` with no nulls.
+- The new fixtures were mutation-checked — four separate corruptions of the template each fail
+  the assertion whose job it is, and no others.
+
+### Open (all consumer-side)
+- **B3** figures not re-rendered · **B9** three downstream copies of the event rule, one
+  undercounting 523 against 696 · **B10** `--ct-check` surfacing a correct verdict as a
+  traceback.
+
+---
+
 ## 2026-08-26 (second pass) — the producer-side queue empties: env split, and the event rule moves upstream
 
 ### Added
