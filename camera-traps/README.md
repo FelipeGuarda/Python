@@ -89,7 +89,51 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-08-27 (second pass) — **the manual is now in Spanish, restructured by phase.**
+**Last Updated:** 2026-09-03 — **the manual respects its own boundary, and reads in our Spanish.**
+
+`docs/MANUAL-SALUD-DATOS.md` (1,708 lines) was audited against one directive: phases 0–9
+describe the producer, phase 10 describes the checks *any* consumer runs, and no other
+project's files are named anywhere. Ten leaks were found and fixed — the Phase 0 row that
+guarded another project's YAML (`TestYamlSplice`, deleted), two watch-table rows written from
+the consumer's side (Phase 5 and Phase 8, one deleted, one reframed as the producer guarantee
+it actually is), the platform named in the CT26 case, the `data-pipeline` entry point and its
+B9/B10 status table in Phase 10 (now generic: what a consumer's admission control must have to
+count as one), and the subtitle, which promised "la figura" when the manual stops at the
+contract. Narrative *Observado* cases stay: they are anonymous and they motivate producer
+decisions. One person's name was removed so the Word version can be shared.
+
+**Vocabulary pass**, at Felipe's request: `grafía` → `nomenclatura`, `libro` → `planilla`,
+`cuadro` → `foto`, `grueso` → `genérico`, `corrimiento` → `desplazamiento`, `época de fábrica`
+→ `fecha de fábrica`, and a dozen literal translations (`falla cerrado`, `horneados`,
+`decayeron`, `reclama`, `des-sacar`, `corchete`, `huella`, `traza`) replaced with plain words.
+`fixture` and `join` stay, with a one-line gloss for *fixture* in §0.6.
+
+Verified: 74 cited fixture names all exist in the suite; a term sweep over the file returns
+zero hits for project names, consumer scripts, and every replaced word. **302 of 303 tests
+pass on Windows** — the one failure (`test_flatten.py:253`, `M5\01230001.JPG` vs
+`M5/01230001.JPG`) is a pre-existing path-separator assertion that fails on HEAD without this
+change, and is logged, not fixed.
+
+**Integration Status:** `Ready` (producer side). The manual is shareable as written.
+
+**The one producer-side boundary violation is closed.** `setup/build_station_registry.py`
+used to splice a `camera_traps:` section into `plataforma-territorial/data/stations.yaml` and
+write a GeoJSON beside it — the producer knew a consumer's path and file layout, which §10F.2
+of its own manual forbids. Now the producer publishes `data/campaigns/estaciones.geojson`
+next to the registry and knows nobody; the platform's `backend/stations.py` reads
+`estaciones.csv` directly (its YAML keeps only `reserve` and `weather`), and the 2025 annual
+report scripts point at the new GeoJSON. The splice, its emitter and `TestYamlSplice` are
+gone: **303 tests in 74 classes** (was 308 / 75). Verified: the regenerated GeoJSON is
+feature-identical to the deleted one, and the platform's `tc_coords()` reproduces the old
+YAML's 27 coordinates exactly. Four cross-references inherited from the English edition
+(§7.4, "la Parte 5", §2.9, §5.3) now point at the Spanish sections they meant.
+
+**Blockers/Notes.** The Windows path-separator failure in `test_flatten.py:253` is the only
+open item from this session; it fails on HEAD and predates everything above.
+
+---
+
+**Prior — 2026-08-27 (second pass):** **the manual is now in Spanish, restructured by phase.**
 
 `docs/MANUAL-SALUD-DATOS.md` (1,673 lines) is the **authoritative** data-health manual.
 `docs/DATA-HEALTH-MANUAL.md` is frozen and carries a stamp saying so — it is deliberately not
@@ -558,9 +602,10 @@ sheet and loaded by `stations.registry()`. This is the registry `camtrap/station
 has been asking for since the module was written: `M15.2` holds cameras 11 and 18, so
 the grid identifies a place rather than a camera and never belonged in a station name.
 
-**As of 2026-08-24 that file owns station identity outright.** The platform's
-`stations.yaml` and `camera_trap_stations.geojson` are rendered from it by
-`setup/build_station_registry.py`; edit the CSV and re-run, never the artifacts.
+**As of 2026-08-24 that file owns station identity outright.** `estaciones.geojson`, beside
+it, is rendered from it by `setup/build_station_registry.py`; edit the CSV and re-run, never
+the artifact. Consumers read the CSV or the GeoJSON from here; since 2026-09-03 nothing in
+this project writes into another project's tree.
 `python setup/build_station_registry.py --check` reports drift and writes nothing.
 A visit row carries `lat`/`lon`/`height_m` only when the camera actually moved.
 

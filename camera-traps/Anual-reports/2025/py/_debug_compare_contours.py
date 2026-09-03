@@ -45,7 +45,7 @@ NEW_ZIP = next(ZIPS_DIR.glob("Curvas de nivel_BP-*.zip"))
 TMP_DIR = Path("C:/Users/USUARIO/AppData/Local/Temp/curvas_15m_BP")
 
 BOUNDARY_GEOJSON = REPO / "plataforma-territorial" / "data" / "boundary.geojson"
-STATIONS_GEOJSON = REPO / "plataforma-territorial" / "data" / "camera_trap_stations.geojson"
+STATIONS_GEOJSON = REPO / "camera-traps" / "data" / "campaigns" / "estaciones.geojson"
 EXISTING_THRESHOLD = REPO / "plataforma-territorial" / "data" / "basemap" / "bp_threshold_contour.geojson"
 
 OUT_GEOJSON = REPO / "plataforma-territorial" / "data" / "basemap" / "bp_threshold_contour_15m.geojson"

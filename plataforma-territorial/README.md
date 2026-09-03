@@ -92,9 +92,10 @@ Logs: `journalctl --user -u fma-platform -f`
 ## Real Data
 
 - `data/boundary.geojson` — Bosque Pehuén reserve boundary (86 vertices)
-- `data/camera_trap_stations.geojson` — 26 cameras with real coordinates
 - `data/piso_vegetacional.geojson` — photointerpretation of vegetational floor (48 polygons, BIOTOPO + DISTRITO + Supe). Regenerable from the source shapefile (`data/piso_vegetacional_source/veg_foto_BP.*`) via `scripts/convert_piso_vegetacional.py`.
-- `data/stations.yaml` — single source of truth for all monitoring stations
+- `data/stations.yaml` — reserve metadata and the weather station. Camera-trap stations are
+  read straight from `camera-traps/data/campaigns/estaciones.csv` by `backend/stations.py`;
+  that file owns them and this project keeps no copy (since 2026-09-03)
 - **NOTE:** BP boundary delimitation under review — confirm which polygon to use
 
 ---
@@ -136,4 +137,5 @@ GET  /api/detections/stations
 3. **FastAPI serves the built frontend** — single process, single port, no proxy needed
 4. **Methodology transparency** — every computed answer cites its formula and data source
 5. **Spanish throughout** — all UI, AI outputs, and reports in Spanish
-6. **Station coordinates in flat files** — `data/stations.yaml` is the single source of truth
+6. **Station coordinates in flat files** — `data/stations.yaml` for reserve and weather;
+   camera-trap stations come from the producer's registry in `camera-traps`, never copied here

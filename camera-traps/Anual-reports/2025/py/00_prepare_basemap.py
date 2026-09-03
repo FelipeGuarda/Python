@@ -65,7 +65,7 @@ HYDRIC_ZIP = next(ZIPS_DIR.glob("Figura 5_Sistema h*drico SN BP-*.zip"))
 ROADS_ZIP = next(ZIPS_DIR.glob("Red senderos y Caminos-*.zip"))
 
 BOUNDARY_GEOJSON = REPO / "plataforma-territorial" / "data" / "boundary.geojson"
-STATIONS_GEOJSON = REPO / "plataforma-territorial" / "data" / "camera_trap_stations.geojson"
+STATIONS_GEOJSON = REPO / "camera-traps" / "data" / "campaigns" / "estaciones.geojson"
 OUT_DIR = REPO / "plataforma-territorial" / "data" / "basemap"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 

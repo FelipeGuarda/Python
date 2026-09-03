@@ -1,9 +1,9 @@
 # Salud de los Datos de Cámaras Trampa
 
-### Manual de extremo a extremo: del terreno a la figura
+### Manual de extremo a extremo: del terreno al contrato
 
 **Fundación Mar Adentro · Bosque Pehuén**
-Documento vigente. Edición 2026-08-27.
+Documento vigente. Edición 2026-09-03.
 
 > Este es el documento autoritativo. Existe una edición en inglés
 > (`DATA-HEALTH-MANUAL.md`) que **no se mantiene al día** y que sólo debe usarse como
@@ -64,7 +64,7 @@ En forma de tabla, con lo que entra, lo que sale, y **de quién es la decisión*
 |---|---|---|---|---|
 | **0** | Identidad decidida una vez | — | registro de estaciones, alias | Cómo se llama una estación, y dónde está |
 | **1** | La visita a terreno | el sitio | la hoja de visita llena | Qué se observó, en palabras crudas |
-| **2** | **Ingreso del registro de terreno** | el libro Excel | `field_notes.csv` | Que lo escrito en terreno entre sin perderse ni reinterpretarse |
+| **2** | **Ingreso del registro de terreno** | la planilla Excel | `field_notes.csv` | Que lo escrito en terreno entre sin perderse ni reinterpretarse |
 | **3** | De la tarjeta al almacenamiento | tarjeta SD | carpetas por estación + manifiesto | Integridad estructural: conservación, orden de captura, atribución |
 | **4** | Detección y revisión humana | imágenes | una categoría por imagen | Que **ninguna** imagen quede sin categoría |
 | **5** | Revisión de especies y resolución | categorías | identificaciones | Qué es una especie identificada y qué no |
@@ -96,7 +96,7 @@ Cada regla se enuncia en cuatro partes, siempre en este orden:
 > hipotética.
 
 **"Qué se rompe" es la columna con la que hay que discutir.** Si es vaga, la regla
-probablemente es ceremonia y hay que borrarla.
+probablemente es puro trámite y hay que borrarla.
 
 ### 0.4 El principio único del que se deriva todo
 
@@ -112,7 +112,7 @@ Tres consecuencias, y ordenan todo lo demás:
 
 1. **Rechazar temprano.** Un defecto es barato en el borde donde los datos entran y caro en
    todas partes después.
-2. **Rechazar fuerte, nunca adivinar en silencio.** Una cadena que descarta una fila mala
+2. **Rechazar de forma visible, nunca adivinar en silencio.** Una cadena que descarta una fila mala
    sin decir nada produce un conjunto más chico y sin mensaje de error — el peor resultado
    posible, porque se parece al éxito.
 3. **Un registro canónico, y todos los consumidores lo leen.** Cada vez que un proyecto
@@ -124,9 +124,9 @@ Tres consecuencias, y ordenan todo lo demás:
 El manual cubre las Fases 0 a 10. **Termina en el primer paso del consumidor** — la
 control de admisión que verifica el contrato — y no sigue.
 
-Eso significa que el manual **no** cubre: cómo `data-pipeline` construye sus tablas DuckDB,
-cómo la plataforma dibuja un mapa, cómo se arma una figura del informe anual, ni qué modelo
-de ocupancia es apropiado. Todo eso está aguas abajo de la frontera.
+Eso significa que el manual **no** cubre: cómo un consumidor construye sus propias tablas,
+cómo dibuja un mapa, cómo arma una figura, ni qué modelo de ocupancia es apropiado. Todo
+eso está aguas abajo de la frontera.
 
 **Por qué la frontera está ahí.** Porque es el último punto donde una sola persona puede
 responder "¿son correctos estos datos?" sin abrir otro proyecto. Antes de la Fase 10 la
@@ -174,11 +174,11 @@ quien no va a leerlo completo, y tiene cinco columnas:
 | **Qué significa** | Qué pasó en el mundo real para que los datos se vean así |
 | **Análisis que depende** | Qué medición se vuelve falsa si esto pasa sin detectarse |
 | **Qué lo revisa** | El script o la función que decide, con nombre de archivo |
-| **Fixtures que lo sostienen** | La clase de test que impide que la regla se pierda |
+| **Fixtures que lo sostienen** | La clase de test que impide que la regla se pierda. *Fixture* es el nombre técnico del dato de ejemplo fijo sobre el que corre un test |
 
 Un punto sobre la última columna, porque el número asusta y conviene desarmarlo.
 
-**Hay 308 tests. No hay 308 preocupaciones distintas.** Los 308 tests viven en **75 clases**
+**Hay 303 tests. No hay 303 preocupaciones distintas.** Los 303 tests viven en **74 clases**
 repartidas en 14 archivos. La unidad conceptual es la **clase**, no el test: una clase es
 *una* regla acordada, y los tests dentro de ella son los casos de esa regla. Por eso la
 tabla nombra clases y no cuenta tests.
@@ -189,8 +189,7 @@ que hay que separar (dentro de la tolerancia, fuera de ella, exactamente en el b
 lado benigno, del lado corrupto). Nadie tiene que llevar cinco cosas en la cabeza: tiene que
 llevar una.
 
-La razón de que las reglas vivan en tests y no en párrafos es la §7.4 del manual, y es
-corta: **una convención documentada se degrada; una ejecutable no.** Una regla escrita en un
+La razón de que las reglas vivan en tests y no en párrafos es corta: **una convención documentada se degrada; una ejecutable no.** Una regla escrita en un
 documento se vuelve a discutir cada vez que alguien tiene un motivo; una regla con test falla
 visiblemente el día que se rompe.
 
@@ -239,7 +238,7 @@ primera y se heredan.
 esa es exactamente la razón de que se subestime.
 
 **Por qué es una fase y no un anexo.** Porque todo lo demás se une por estas cadenas de
-texto. Un identificador que cambia de grafía entre campañas no produce un error: produce un
+texto. Un identificador que cambia de nomenclatura entre campañas no produce un error: produce un
 `join` que devuelve menos filas. Nadie ve nunca un mensaje. El conjunto simplemente se
 achica.
 
@@ -251,7 +250,7 @@ achica.
 | | |
 |---|---|
 | **Entra** | Nada. Es el punto de partida |
-| **Sale** | `data/campaigns/estaciones.csv` (el registro), `station_aliases.csv`, y los artefactos generados desde ellos |
+| **Sale** | `data/campaigns/estaciones.csv` (el registro), `station_aliases.csv`, y `estaciones.geojson`, generado desde el registro y publicado a su lado |
 | **Quién lo hace** | `setup/build_station_registry.py`, y `camtrap/stations.py` para leerlo |
 | **Qué decide** | El identificador canónico, la coordenada, y qué cuenta como campaña |
 
@@ -261,14 +260,14 @@ achica.
 a la izquierda para que ordene. Sin variantes de prefijo, sin guiones bajos, sin sufijos.
 
 > **Qué se rompe.** Cada campaña se une a las otras, y a las coordenadas, por esta cadena. Si
-> la grafía deriva entre campañas, los `join` devuelven silenciosamente menos filas — nunca
+> la nomenclatura deriva entre campañas, los `join` devuelven silenciosamente menos filas — nunca
 > un error, sólo un conjunto más chico.
 >
-> **Recuperación.** Una tabla de traducción de grafías históricas, guardada como **dato** y no
+> **Recuperación.** Una tabla de equivalencias de nomenclaturas históricas, guardada como **dato** y no
 > como código. Barata pero es deuda permanente: hay que arrastrarla para siempre y leerla en
 > cada carga.
 >
-> *Observado: cuatro grafías históricas de los mismos 27 sitios (`CT01`, `TC10_M3.2`, `CT_18`,
+> *Observado: cuatro nomenclaturas históricas de los mismos 27 sitios (`CT01`, `TC10_M3.2`, `CT_18`,
 > `100EK113`) en cuatro campañas, que obligaron a una tabla de alias de unas 80 filas.*
 
 **2. La celda de la grilla no va en el identificador.** Es una propiedad del *lugar*, y vive
@@ -294,7 +293,8 @@ distinta al de la estación — un prefijo `CAM-` alcanza.
 
 **4. Un solo registro de estaciones, y sólo uno.** Exactamente un archivo es autoritativo
 para los datos permanentes del sitio — coordenadas, elevación, celda, altura de montaje,
-azimut. Todas las otras copias se **generan** desde él.
+azimut. Todas las otras copias se **generan** desde él, y los consumidores leen el
+registro — no una copia mantenida por el productor dentro del proyecto del consumidor.
 
 > **Qué se rompe.** Con varias copias mantenidas a mano, divergen — y la divergencia es
 > invisible, porque cada archivo es internamente consistente. Una estación presente en una
@@ -308,10 +308,10 @@ Chile. Signo y formato validados donde el valor se escribe.
 
 > **Qué se rompe.** Un error de coordenada no se detecta por inspección — una coordenada
 > equivocada sigue siendo un número perfectamente plausible. Se propaga a todo mapa, todo
-> análisis espacial y toda plataforma, y vuelve con aspecto de resultado biológico: una
+> análisis espacial y todo producto aguas abajo, y vuelve con aspecto de resultado biológico: una
 > especie que aparentemente ocurre donde no ocurre.
 >
-> **Recuperación.** Sólo re-midiendo en terreno, o desde una traza GPS.
+> **Recuperación.** Sólo re-midiendo en terreno, o desde un registro GPS.
 
 El límite estrecho hace un segundo trabajo, y es la razón de que sea estrecho y no generoso:
 permite distinguir una coordenada tipeada en grados-minutos-segundos de una decimal. Con
@@ -319,7 +319,7 @@ límites de país, **las dos lecturas de `39.25447` caen dentro del rango** y la
 decidir nada. A escala de reserva, sólo una de las dos es posible.
 
 *Observado: CT26 estuvo un año a 19 km fuera de la reserva porque una celda con `39°25'44.7"`
-se tipeó como si fuera decimal. Se diagnosticó y se reparó en la plataforma en abril de 2026,
+se tipeó como si fuera decimal. Se diagnosticó y se reparó en una copia aguas abajo en abril de 2026,
 pero un script escrito en agosto volvió a leer la misma celda mala, así que la reparación
 nunca llegó a un consumidor que todavía no existía.*
 
@@ -343,14 +343,13 @@ que traiga.
 
 | Error vigilado | Qué significa | Análisis que depende de que no ocurra | Qué lo revisa | Fixtures que lo sostienen |
 |---|---|---|---|---|
-| Deriva de grafía entre campañas | La misma estación escrita `CT18` y `CT_18` | Todo `join` entre campañas: devuelve menos filas, sin error | `stations.canonical_id()` + `station_aliases.csv` | `TestCanonicalSpelling` |
-| Las copias del registro divergen | El GeoJSON dice 27 estaciones y el YAML 26 | Todo producto espacial; una estación se cae sin señal | `setup/build_station_registry.py` genera todas las copias | `TestArtifactsMatchRegistry`, `TestGeoJSON`, `TestRoundTrip` |
-| El YAML pierde lo que estaba sobre `camera_traps:` | La regeneración sobrescribe configuración ajena | La plataforma completa, que lee ese archivo | El empalme reescribe sólo desde `camera_traps:` hacia abajo | `TestYamlSplice` |
+| Deriva de nomenclatura entre campañas | La misma estación escrita `CT18` y `CT_18` | Todo `join` entre campañas: devuelve menos filas, sin error | `stations.canonical_id()` + `station_aliases.csv` | `TestCanonicalSpelling` |
+| Las copias del registro divergen | El GeoJSON publicado dice 26 estaciones y el registro 27 | Todo producto espacial; una estación se cae sin señal | El GeoJSON se compara con una construcción fresca desde el registro; los consumidores leen el registro directamente | `TestArtifactsMatchRegistry`, `TestRoundTrip` |
 | Coordenada sin signo o en grados-minutos-segundos | `39.45183` en vez de `-39.45183`; Bosque Pehuén en China | Todo mapa y análisis espacial; vuelve como resultado biológico | `visit_schema.read_coordinate()` con límites de reserva | `TestCoordinateRule` (9 casos) |
 | La grilla metida en el identificador | `TC11_M15.2` codifica una agrupación dentro de una identidad | La identidad misma: dos cámaras colapsan en una | La grilla vive en el registro, no en el ID | `TestCanonicalSpelling` |
 | Una pasada de revisión tratada como campaña | Las mismas fotos entran dos veces con dos nombres | Tamaño de muestra, tasas, todo lo que divida por esfuerzo | `canonical_state.PUBLISHED_CAMPAIGNS` es explícito | `test_retired_campaign_is_not_in_the_published_state` |
 
-17 tests en 5 clases (`tests/test_station_registry.py`), más los 9 de la regla de coordenadas
+12 tests en 4 clases (`tests/test_station_registry.py`), más los 9 de la regla de coordenadas
 en `tests/test_visit_schema.py`.
 
 ---
@@ -398,7 +397,7 @@ El formulario pide **dos lecturas de reloj**: la hora verdadera (de una fuente c
 que dice la pantalla de la cámara en ese mismo momento. **No ofrece ningún campo para un
 diagnóstico** — no hay "estado del reloj", no hay "desfase en horas".
 
-> **Qué se rompe.** Una conclusión no se puede des-sacar. Si se le pide un veredicto, la
+> **Qué se rompe.** Una conclusión no se puede revertir. Si se le pide un veredicto, la
 > persona lo entrega honestamente, y las dos lecturas crudas que había detrás se perdieron —
 > así que después nadie puede ni verificarlo ni usarlo para algo que no se anticipó.
 >
@@ -426,13 +425,13 @@ noche.
 > sobreviven.
 >
 > *Observado: 27 de 27 visitas de instalación de otoño 2026 no anotaron hora, y todas
-> decayeron a anclas aproximadas.*
+> quedaron como anclas aproximadas.*
 
 **2. Una foto de la persona, en cada visita.** Gatille la cámara a propósito para que
 fotografíe a quien la está atendiendo, y anote la hora de reloj cuando lo hace.
 
 > **Qué se rompe.** Una foto con una persona, a una hora de trabajo plausible, es el **único
-> testigo** que ata un reloj de pared a un reloj de cámara. Sin una, un reloj fallado se puede
+> testigo** que vincula un reloj de pared a un reloj de cámara. Sin una, un reloj fallado se puede
 > a lo más *acotar* por la ventana de instalación — nunca reparar a un instante.
 
 **3. En cada visita, aunque nada parezca raro.** Sin condiciones.
@@ -493,7 +492,7 @@ relacionadas.
 
 | Error vigilado | Qué significa | Análisis que depende de que no ocurra | Qué lo revisa | Fixtures que lo sostienen |
 |---|---|---|---|---|
-| Visita sin hora, sólo fecha | No se puede atar el reloj de la cámara a un instante | Hora del día, nocturnalidad, solapamiento entre especies — permanente | El formulario declara `visit_time` obligatorio | `TestSchema` |
+| Visita sin hora, sólo fecha | No se puede vincular el reloj de la cámara a un instante | Hora del día, nocturnalidad, solapamiento entre especies — permanente | El formulario declara `visit_time` obligatorio | `TestSchema` |
 | Se anotó un veredicto en vez de dos lecturas | "desfase −1 h" en vez de las dos pantallas | La verificación misma: el veredicto no se puede auditar ni rehacer | El formulario **no tiene** campo de veredicto, por diseño | `TestSchema` (declara las 20 columnas y ninguna es un juicio) |
 | No se gatilló foto de la persona | No hay testigo que ate reloj de pared a reloj de cámara | Toda reparación de reloj queda en "acotada", no "reparada" | **Nada. Ningún script puede revisar esto** | *Sin fixture — es costumbre de terreno* |
 | No se anotó si funcionaba al llegar | Fecha de muerte desconocida | El **denominador**: los días-cámara de esa estación salen enteros | `camera_working` obligatorio | `TestSchema`, `TestTheFormsObligations` |
@@ -513,7 +512,7 @@ se midió.
 
 ### 2F.0 Qué es esta fase, y qué no es
 
-**Qué es.** Convertir el libro Excel lleno en filas de `field_notes.csv`, sin transcripción
+**Qué es.** Convertir la planilla Excel llena en filas de `field_notes.csv`, sin transcripción
 manual y sin reinterpretar nada.
 
 **Qué no es.** No decide nada sobre relojes ni sobre esfuerzo. Sólo traslada, valida y anota.
@@ -532,12 +531,12 @@ un paso. Todas las garantías de la Fase 1 dependían silenciosamente de él.
 |---|---|
 | **Entra** | `Registro de visitas CT.xlsx`, hoja `Visitas`, llenada en terreno |
 | **Sale** | Filas nuevas en `data/campaigns/field_notes.csv` (22 columnas) |
-| **Quién lo hace** | `python -m camtrap.visit_form <libro>` |
-| **Qué decide** | Si el libro es admisible. Nada más |
+| **Quién lo hace** | `python -m camtrap.visit_form <planilla>` |
+| **Qué decide** | Si la planilla es admisible. Nada más |
 
 ### 2F.2 La regla, y la prohibición que la acompaña
 
-> **Regla.** El libro lleno se lee con `python -m camtrap.visit_form <libro>`. **Nunca se
+> **Regla.** La planilla llena se lee con `python -m camtrap.visit_form <planilla>`. **Nunca se
 > transcribe a mano**, y el registro **nunca se edita para que una carga funcione**.
 >
 > **Recuperación.** Total, mientras exista la hoja de papel. Ninguna, una vez que no exista.
@@ -584,7 +583,7 @@ afirmación equivocada que el resto del proyecto ya contradecía, y se borró.*
 dos fechas de CT27, ninguna de las cuales aparece en una hoja de terreno. La de apertura salió
 de resolver una transposición día/mes; la de cierre se dedujo del orden del viaje de retiro.
 
-> **Regla.** El script que construyó el registro desde el libro antiguo (`build_field_notes.py`)
+> **Regla.** El script que construyó el registro desde la planilla antigua (`build_field_notes.py`)
 > **no puede volver a escribir el registro vivo.** `--out` es obligatorio, el archivo vivo se
 > rechaza como destino, y no existe ningún `--force`.
 >
@@ -606,7 +605,7 @@ no tiene cómo distinguirla de un error de tipeo.
 | La plantilla generada deja de cargar | Se renombra la hoja o se reordena la fila 1 | Toda la salida de terreno siguiente | La plantilla y el lector leen la misma declaración | `TestTheRenderedTemplateLoads` |
 | Un campo obligatorio queda vacío y pasa | Reloj ajustado sin pantalla posterior | Reparación de reloj, esfuerzo, geometría | `_check_obligations()`, reporta **todos** los problemas | `TestTheFormsObligations` (10 casos) |
 | Coordenada en grados-minutos-segundos o sin signo | `39.45183` en vez de `-39.45183` | Todo mapa; y en instalación se **rechaza**, no se marca | `visit_schema.read_coordinate()` | `TestCoordinateRule` |
-| El mismo libro se carga dos veces | Filas duplicadas en el registro | Ventanas de instalación, esfuerzo | La clave `(estación, fecha, hora)` rechaza el duplicado | `TestAppending` |
+| La misma planilla se carga dos veces | Filas duplicadas en el registro | Ventanas de instalación, esfuerzo | La clave `(estación, fecha, hora)` rechaza el duplicado | `TestAppending` |
 | Una fila `campaign_closed` contradice la hoja | Se afirma un cierre que ninguna apertura sostiene | Ventanas de instalación, y por lo tanto el esfuerzo | Se **deriva**, no se lee del archivo | `TestTheClosingCampaignIsDerived` (8 casos) |
 | Una reconstrucción curada se revierte | CT27 vuelve a su fecha ambigua | El esfuerzo de otoño 2026 y su denominador | `build_field_notes.py` no puede escribir el archivo vivo | `test_ct27_still_carries_the_reason_for_both_dates` |
 | Una carga se "arregla" editando el CSV | El control de admisión se vuelve decoración | Todo, y sin dejar rastro | **Nada. Es disciplina** | *Sin fixture — por eso `--check` existe* |
@@ -734,7 +733,7 @@ registre y el inventario esté completo en un solo lugar.
 Antes de borrar algo localmente, establezca **desde evidencia — registros, no nombres de
 opciones —** para qué lado corre la sincronización.
 
-> **Qué se rompe.** Dos errores opuestos. Si el espejo es de *bajada* en un sentido, los
+> **Qué se rompe.** Dos errores opuestos. Si la sincronización es de *bajada* en un sentido, los
 > borrados locales son seguros pero cualquier reorganización local se vuelve a bajar para
 > siempre, y la copia almacenada **no es un respaldo de su trabajo local**. Si es de dos vías,
 > un borrado local se propaga y destruye el original.
@@ -747,7 +746,7 @@ opciones —** para qué lado corre la sincronización.
 | Pérdida silenciosa en el traslado | Entraron 10.808 archivos y salieron menos | Nada lo detecta aguas abajo: el conjunto es consistente y más chico | La revisión de conservación **aborta**, no advierte | `TestTheManifestDescribesEveryFile` |
 | Deduplicar por nombre de archivo | Se borra la evidencia de un reinicio de reloj | Detección de fallas de reloj, y el conteo baja sin señal | No se deduplica nunca; la carpeta distingue | `TestResolveDest`, `TestPrefixCandidates` |
 | Manifiesto con cobertura parcial | Unos archivos tienen carpeta y otros no | Orden de captura: afirma un orden sin evidencia | `establish_order()` rechaza el manifiesto incompleto | `TestTheManifestDescribesEveryFile` |
-| Se borra el árbol original sin registro | La única copia con estructura desaparece | Toda reconstrucción futura de orden | El manifiesto funciona como libro de borrado, con tamaños | `TestTheManifestIsADeletionLedger` |
+| Se borra el árbol original sin registro | La única copia con estructura desaparece | Toda reconstrucción futura de orden | El manifiesto funciona como registro de borrados, con tamaños | `TestTheManifestIsADeletionLedger` |
 | Renombrar agregando el prefijo de carpeta | Las etiquetas ya asignadas quedan huérfanas | Todo el trabajo de revisión previo | Se escribe manifiesto, no se renombra | `TestPrefixCandidates` |
 | Video dentro de la exportación | Filas infladas; en algunas estaciones el video es la mayoría | El denominador de toda tasa | `camtrap/exports.py` rechaza video de plano | `TestStillsOnly` (7 casos) |
 | Video guardado fuera del árbol de la campaña | Una cámara grabando se lee como una cámara muerta | El denominador: ~500 días-cámara mal clasificados | `media_absence.csv` lo declara como dato | `TestMediaStatusIsAReasonNotAMeasurement` |
@@ -764,7 +763,7 @@ opciones —** para qué lado corre la sincronización.
 ### 4F.0 Qué es esta fase, y qué no es
 
 **Qué es.** Dos pasos que van juntos. Primero un detector automático dice **dónde** hay algo
-en cada imagen y de qué tipo grueso (animal / persona / vehículo / vacío). Después una persona
+en cada imagen y de qué tipo genérico (animal / persona / vehículo / vacío). Después una persona
 recorre la campaña y asigna una categoría a **cada imagen**.
 
 **Qué no es.** No identifica especies — eso es la Fase 5. No mira relojes. No decide qué
@@ -793,7 +792,7 @@ vacía se ven iguales.**
 > Si la plantilla de etiquetado usa un mismo valor para "vacío" y para "todavía no lo miré",
 > entonces un archivo que contiene sólo `{animal, unclassified}` **parece** etiquetado cuando
 > en realidad no se decidió nada — y cada fila que nunca se examinó se trata en silencio como
-> un cuadro vacío confirmado.
+> una foto vacía confirmada.
 >
 > **Recuperación.** Total, pero hay que volver a hacer la pasada.
 
@@ -811,7 +810,7 @@ el detector no asigna y que la persona sólo anota a propósito.
 > pasada humana**. En la práctica: `human` o `vehicle`.
 >
 > **Qué se rompe.** Bajo el protocolo de terreno de la Fase 1 — se gatilla la cámara en cada
-> visita — una campaña **siempre** debería tener un cuadro con una persona. Así que su
+> visita — una campaña **siempre** debería tener una foto con una persona. Así que su
 > ausencia es en sí misma un hallazgo por el cual vale la pena detenerse.
 
 Verifíquelo en el momento de exportar, no en el momento de ingresar:
@@ -849,7 +848,7 @@ la fecha y la razón, y se rechaza si falta cualquiera de las tres.
 | Exención sin quién, cuándo o por qué | Nadie puede reconstruir si fue deliberado | La auditabilidad de la campaña completa | Se rechaza el archivo si falta cualquiera de los tres | `TestOverride` |
 | Video en la exportación | Filas infladas; el denominador se corrompe | Toda tasa de detección | Se rechaza video de plano | `TestStillsOnly` (7 casos) |
 | La exportación no cubre todas las imágenes | Filas revisadas que no existen en la exportación total | El ingreso completo: no se puede diagnosticar lo que no está | `timestamps.py` aborta salvo `--allow-unmatched` | `TestReviewedRowsMustBeCovered` |
-| Ausencia de cuadros con persona no investigada | O nadie gatilló la cámara, o la revisión no ocurrió | Ambas cosas importan, y son distintas | El control se detiene y obliga a distinguirlas | `TestTheRule`, `TestReadTotalExport` |
+| Ausencia de fotos con persona no investigada | O nadie gatilló la cámara, o la revisión no ocurrió | Ambas cosas importan, y son distintas | El control se detiene y obliga a distinguirlas | `TestTheRule`, `TestReadTotalExport` |
 
 26 tests en 4 clases (`tests/test_exports.py`).
 
@@ -861,7 +860,7 @@ la fecha y la razón, y se rechaza si falta cualquiera de las tres.
 
 **Qué es.** Dos cosas, y la segunda es la que sorprende. Primero, una persona identifica
 especies donde se puede. Segundo — y esto es la **resolución** — se reconcilia lo que la
-categoría gruesa dice con lo que la misma persona escribió en el comentario de la fila.
+categoría genérica dice con lo que la misma persona escribió en el comentario de la fila.
 
 **Qué no es.** No vuelve a mirar imágenes. No corrige relojes. No decide esfuerzo.
 
@@ -903,12 +902,12 @@ Cada fila registra **de dónde salió su veredicto** (`review_resolution`), no s
 | # | Regla | Qué gana | Por qué |
 |---|---|---|---|
 | **R1** | Especie nombrada | La especie, sea cual sea la categoría | La persona identificó algo concreto |
-| **R2** | Comentario que niega | El comentario, sobre un `animal` grueso | Miró y no hay animal: la categoría es el falso positivo que se corrige |
+| **R2** | Comentario que niega | El comentario, sobre un `animal` genérico | Miró y no hay animal: la categoría es el falso positivo que se corrige |
 | **R3** | Especie desde el comentario | La vía "Otro (especificar)" | Sólo vía `species.yaml`, en ningún otro lugar |
-| **R4** | Comentario grueso o de nota | `unknown`, pero etiquetado según de qué tipo | Demasiado grueso para nombrar una especie, pero no es nada |
+| **R4** | Comentario genérico o de nota | `unknown`, pero etiquetado según de qué tipo | Demasiado genérico para nombrar una especie, pero no es nada |
 | **R5** | Comentario no reconocido | **Nada: se detiene el ingreso** | No se adivina |
 
-Cuando hay varios sujetos en el cuadro: cualquier animal identificado, después vehículo,
+Cuando hay varios sujetos en la foto: cualquier animal identificado, después vehículo,
 después persona.
 
 **R5 es la que hace que esto funcione.** Un comentario que el sistema no conoce **no se ignora
@@ -928,13 +927,12 @@ exactamente el modo de falla del §0.4: un conjunto más chico, sin mensaje de e
 |---|---|---|---|---|
 | Dos archivos dicen ser el registro revisado | Cada consumidor elige uno, y cuál es invisible | Dos proyectos reportan números distintos de "los mismos datos" | Se borra el ambiguo; no se documenta | `RowSetIsTheExport` |
 | Categoría y comentario se contradicen y nadie resuelve | La fila afirma dos cosas | Todo conteo de especies | Precedencia explícita R1–R5 | `NamedSpeciesWins`, `NegationWins` |
-| Un `animal` grueso sobrevive a su propia negación | La persona escribió "es una rama" y quedó como animal | Conteos, tasas, riqueza de especies | R2: el comentario que niega gana | `NegationWins` (4 casos) |
+| Un `animal` genérico sobrevive a su propia negación | La persona escribió "es una rama" y quedó como animal | Conteos, tasas, riqueza de especies | R2: el comentario que niega gana | `NegationWins` (4 casos) |
 | Un comentario desconocido se trata como vacío | El vocabulario creció y nadie lo notó | Conteos, en silencio y a la baja | **R5: aborta el ingreso.** No adivina | `FailClosed` (5 casos) |
 | Una especie nombrada se pierde por la categoría | El menú decía otra cosa | Riqueza, presencia, todo lo taxonómico | R1: la especie nombrada gana siempre | `NamedSpeciesWins` |
-| Un comentario grueso se promueve a especie | "un ave" se convierte en una especie concreta | Riqueza de especies, inflada | R4: queda `unknown`, etiquetado por tipo | `CoarseAndNoteComments` |
+| Un comentario genérico se promueve a especie | "un ave" se convierte en una especie concreta | Riqueza de especies, inflada | R4: queda `unknown`, etiquetado por tipo | `CoarseAndNoteComments` |
 | No se registra de dónde salió el veredicto | No se puede auditar ninguna decisión | La auditabilidad de la campaña | `review_resolution` es una columna publicada | `WhereTheVerdictComesFrom` (6 casos) |
 | Las filas se desalinean al resolver | El veredicto se aplica a la fila equivocada | Todo | Invariantes de alineación | `FrameShape`, `RowSetIsTheExport` |
-| Un consumidor vuelve a resolver por su cuenta | Una segunda implementación de la misma regla | Discrepó en 515 filas la vez que se midió | Se publica `review_outcome` y `review_resolution` | *Consumidor: ver §0.5* |
 
 20 tests en 6 clases (`tests/test_review_resolution.py`), 11 en 2
 (`tests/test_ingest_frame.py`).
@@ -979,7 +977,7 @@ Si estos cuatro términos no están claros, el resto de la fase no se entiende. 
 no más.
 
 **Reloj de cámara.** Un contador libre, sin referencia externa. Se pone a mano una vez,
-deriva, y se reinicia a una época de fábrica cada vez que pierde energía sin respaldo. **No
+deriva, y se reinicia a una fecha de fábrica cada vez que pierde energía sin respaldo. **No
 tiene zona horaria ni autoridad**: el número que estampa es una *lectura*, no un hecho. Todo
 lo demás en esta fase se sigue de tomarse eso en serio.
 
@@ -999,7 +997,7 @@ veces tiene cinco.
 > que nadie vuelve a mirar porque las fechas se ven bien.
 >
 > *Observado: una cámara tratada como un reinicio eran en realidad cinco segmentos — 10, 32,
-> 40, 3 y 227 fotos — con cuatro reinicios a época de fábrica.*
+> 40, 3 y 227 fotos — con cuatro reinicios a fecha de fábrica.*
 
 **Coherencia.** Un segmento es coherente si la fecha que el propio **nombre de archivo**
 trae codificada concuerda con la **marca de tiempo** de esa misma foto. Es una prueba
@@ -1020,7 +1018,7 @@ captura**, y no se puede ver mirando las fechas.
 Cada entrada: **firma** (cómo se ve en los datos) · **detección** · **qué bloquea** ·
 **recuperabilidad**.
 
-**1. Reinicio a época de fábrica.**
+**1. Reinicio a fecha de fábrica.**
 *Firma:* las marcas saltan hacia atrás a una fecha fija implausible, típicamente años antes
 del inicio del programa, mientras el orden de captura sigue hacia adelante.
 *Detección:* discontinuidad entre el orden del reloj y el de captura; fotos fuera de la
@@ -1174,7 +1172,7 @@ consistente.
 *Detección:* sólo contra evidencia externa — un ancla, o la ventana de instalación. No tiene
 ninguna firma interna.
 *Bloquea:* nada, una vez conocido. La hora del día es exactamente recuperable.
-*Recuperable:* **totalmente.** Éste es el caso benigno, y la Parte 5 explica por qué
+*Recuperable:* **totalmente.** Éste es el caso benigno, y §1F.6 explica por qué
 deliberadamente dejamos los relojes en este estado en vez de "arreglarlos".
 
 **7. Desfase por tramos.**
@@ -1186,11 +1184,11 @@ prueba de coherencia, ninguna de orden, ninguna de ventana.
 tamaño del cambio estén ambos registrados.
 *Recuperable:* **sólo desde el registro de terreno.** No desde los datos.
 
-**8. Corrimiento sistemático de todo un período.**
+**8. Desplazamiento sistemático de todo un período.**
 *Firma:* ninguna, en los datos.
 *Detección:* imposible internamente. La única ruta es el registro de terreno más el
 conocimiento de eventos externos, como un cambio de hora oficial.
-*Bloquea:* el análisis de hora del día para el tramo afectado, a la escala del corrimiento.
+*Bloquea:* el análisis de hora del día para el tramo afectado, a la escala del desplazamiento.
 *Recuperable:* sí si el evento y sus fechas se conocen — la corrección es aritmética.
 *Observado: los relojes de una campaña se atrasaron una hora en una visita de mantención
 mientras el país ya había cambiado la hora semanas antes, produciendo unos 40 días de
@@ -1211,7 +1209,7 @@ bloque GPS **no trae componente de hora**, así que tampoco es una vía de recup
 planifique una recuperación en torno a los metadatos sin probarlo en su propio hardware —
 acá se probó y no sirve.
 
-### 6.4 Las dos precondiciones, ambas fallan cerrado
+### 6.4 Las dos precondiciones, ambas rechazan si falta algo
 
 Antes de emitir cualquier veredicto de reloj, dos cosas tienen que cumplirse. Si alguna
 falla, la cadena **rechaza en vez de adivinar**.
@@ -1227,7 +1225,7 @@ Y el corolario que la gente entiende al revés, repetido por eso mismo:
 > **localizar**. Que P2 pase, más una ventana de instalación limpia, significa que no
 > **ocurrió** ninguna falla.
 
-**Una excepción deliberada:** una cámara de un solo segmento **reclama todas sus filas**,
+**Una excepción deliberada:** una cámara de un solo segmento **se queda con todas sus filas**,
 incluidos videos y fotos con marcas indescifrables. Una cámara que nunca se reinició no
 tiene ninguna división a la cual atribuir una foto, así que no hay forma de ubicar una
 foto mal. En una cámara multi-segmento la regla es contención estricta y una fila que no
@@ -1258,7 +1256,7 @@ La regla que lo reemplazó es una sola frase, y es el resumen ejecutable de toda
 
 De ahí sale una segunda regla que vale enunciar aparte, porque aplica a todo control de admisión de
 este manual: **una regla se deriva de una premisa enunciada, no se enumera de los casos que
-hemos visto.** Un control que lista las tres grafías que nos tocaron no va a atrapar la
+hemos visto.** Un control que lista las tres variantes que nos tocaron no va a atrapar la
 cuarta. Un control que dice *una instalación tiene una historia de captura — dos
 gramáticas de nombre formando cada una su propia corrida de contador son dos cámaras* atrapa
 casos que nadie anticipó, incluida una carpeta inocentemente llamada `Camara 23`.
@@ -1267,26 +1265,26 @@ casos que nadie anticipó, incluida una carpeta inocentemente llamada `Camara 23
 
 | Error vigilado | Qué significa | Análisis que depende de que no ocurra | Qué lo revisa | Fixtures que lo sostienen |
 |---|---|---|---|---|
-| Reinicio a época de fábrica no detectado | La cámara perdió energía y volvió a una fecha de fábrica; el orden de captura sigue bien | Toda serie temporal, actividad horaria, esfuerzo por fecha | `clocks.diagnose()` compara orden de reloj contra orden de captura | `TestScenarioA`, `TestScenarioB`, `TestScenarioC` |
+| Reinicio a fecha de fábrica no detectado | La cámara perdió energía y volvió a una fecha de fábrica; el orden de captura sigue bien | Toda serie temporal, actividad horaria, esfuerzo por fecha | `clocks.diagnose()` compara orden de reloj contra orden de captura | `TestScenarioA`, `TestScenarioB`, `TestScenarioC` |
 | Salto hacia adelante no detectado | El reloj saltó adelante y sigue con fechas modernas y creíbles | Lo mismo que arriba, y es peor: nada se ve mal en una inspección visual | La misma prueba de discontinuidad; **no** un umbral de año | `TestForwardJump` |
 | Un desfase por estación aplicado a una cámara con varios reinicios | Se trató como un reinicio algo que eran cinco segmentos | Fechas verosímiles y falsas en la mayoría de los segmentos | El diagnóstico es por segmento por construcción (`Segment.index`) | `TestScenarioD`, `TestScenarioG`, `TestSegmentForRows` |
 | Reloj incoherente aceptado como reparable | El reloj no avanza parejo; hay meses `00` y `16` | Todo lo temporal, y ninguna ancla lo arregla | P2: nombre `MMDD` contra su propia marca | `TestPrecondition2Coherence` |
 | Artefacto de medianoche tratado como corrupción | Un archivo se escribió cruzando el límite del día | **Falso negativo caro:** se descarta una temporada completa de una cámara sana | Tolerancia de 120 s a medianoche, que **sólo perdona** | `TestMidnightTolerance` (5 casos) |
-| Orden de captura asumido en vez de demostrado | El contador `nnnn` da la vuelta en 9999 y no hay manifiesto | La detección de reinicios completa: sin orden no hay discontinuidad que ver | P1: `clocks.establish_order()`, falla cerrado | `TestPrecondition1Ordering`, `TestDcimFolderKey` |
+| Orden de captura asumido en vez de demostrado | El contador `nnnn` da la vuelta en 9999 y no hay manifiesto | La detección de reinicios completa: sin orden no hay discontinuidad que ver | P1: `clocks.establish_order()`, rechaza si no puede demostrarlo | `TestPrecondition1Ordering`, `TestDcimFolderKey` |
 | Dos cámaras tratadas como una instalación | Dos gramáticas de nombre, cada una con su propia corrida de contador | Atribución: fotos asignadas a la estación equivocada | `clocks.parse_filename()` + la regla de una historia de captura | `TestFilenameGrammar`, `TestDcimFolderKey` |
 | Una fila sin segmento asignada por adivinanza | Un video o una marca indescifrable en una cámara multi-segmento | Contención: una foto ubicada en el tramo equivocado | `clocks.segment_for_rows()` rechaza en vez de ubicar | `TestSegmentForRows`, `TestVideosExcluded` |
 | Un ancla ambigua aceptada | El testigo de terreno podría pertenecer a más de un segmento | La reparación de la Fase 7 se aplica al tramo equivocado | `clocks.assign_anchors()` | `TestAmbiguousAnchor`, `TestUnrepairablePending` |
 | Un diagnóstico usado como control de admisión | "Días sin explicar" es una descripción, no un veredicto | Admitiría datos malos con un número de confianza adjunto | `unaccounted_days` es informativo y nada lo lee para decidir | `TestUnaccountedDaysIsDiagnosticOnly` |
-| **Desfase por tramos** (clase 7) | Alguien ajustó el reloj a mitad de instalación | Hora del día a través del punto de cambio | **Nada en los datos lo puede ver.** Sólo la Fase 2 | *Sin fixture de datos — por eso §2.9 es obligatoria* |
-| **Corrimiento sistemático** (clase 8) | Cambio de hora oficial, o ajuste en visita | Hora del día para todo el tramo | **Nada en los datos lo puede ver.** Sólo la Fase 2 | *Sin fixture de datos — ver §5.3* |
+| **Desfase por tramos** (clase 7) | Alguien ajustó el reloj a mitad de instalación | Hora del día a través del punto de cambio | **Nada en los datos lo puede ver.** Sólo el registro de terreno (Fases 1 y 2) | *Sin fixture de datos — por eso §1F.6 es obligatoria* |
+| **Desplazamiento sistemático** (clase 8) | Cambio de hora oficial, o ajuste en visita | Hora del día para todo el tramo | **Nada en los datos lo puede ver.** Sólo el registro de terreno (Fases 1 y 2) | *Sin fixture de datos — ver §1F.6* |
 
 Las dos últimas filas son las importantes de esta tabla, y están al final a propósito.
 **Son las dos clases de error que ninguna cantidad de código puede atrapar**, porque no
 dejan firma en los datos. La única defensa es que el registro de terreno esté completo, y
-por eso la Fase 2 tiene el peso que tiene.
+por eso las Fases 1 y 2 tienen el peso que tienen.
 
 40 tests en 18 clases sostienen esta fase (`tests/test_clocks.py`). Siete de esas clases son
-los siete escenarios de terreno que Felipe enumeró — se convirtieron en siete fixtures y no
+los siete escenarios de terreno que el equipo de terreno enumeró — se convirtieron en siete fixtures y no
 en siete ramas de código, por la razón de §0.6.
 
 ### 6.7 Qué se publicó, en números
@@ -1390,7 +1388,7 @@ Las ventanas derivadas de visitas usan **3 días**. La tolerancia de medianoche 
 **120 segundos**, y se derivó de las mediciones reales: los casos benignos estaban a 32 y 60
 segundos, los genuinos a 3, 11 y 14 horas.
 
-### 7F.6 La ventana de instalación es un corchete, no una banda
+### 7F.6 La ventana de instalación son dos límites, no una franja
 
 > **Regla.** Una foto anterior a la visita de apertura o posterior a la de cierre es imposible;
 > un tramo tranquilo *dentro* de la ventana no es evidencia de nada. **Sólo se prueban los dos
@@ -1411,7 +1409,7 @@ segundos, los genuinos a 3, 11 y 14 horas.
 > **Qué se rompe.** Sin esto, un retiro sin testigo en la tarjeta retirada se da por perdido —
 > y con él todas las fotos del último segmento.
 >
-> *Observado: dos cuadros de borde confirmados, a 33 minutos uno del otro en estaciones vecinas
+> *Observado: dos fotos de borde confirmadas, a 33 minutos uno del otro en estaciones vecinas
 > (a distancia de caminata, así que cada uno corrobora al otro), recuperaron 33 registros de
 > animales.*
 
@@ -1465,7 +1463,7 @@ buena por una razón que no aplica a todas las preguntas.
 > nada revalida.
 >
 > **Qué se rompe.** La alternativa — una capa de compatibilidad que tolere para siempre toda
-> gramática histórica — es decadencia con un nombre bonito. Cada campaña nueva agrega una
+> gramática histórica — es deterioro con un nombre bonito. Cada campaña nueva agrega una
 > variante, todo consumidor tiene que conocer todas, y el conjunto sólo crece.
 
 ### 8F.3 Las decisiones viajan en la tabla; las convenciones no
@@ -1531,10 +1529,10 @@ tiempo**. Es reciclaje del contador `MMDDnnnn.JPG` entre años, y **no se debe d
 |---|---|---|---|---|
 | La tabla cambia de columnas sin aviso | Se agrega o reordena una columna | Todo consumidor, en silencio | `CANONICAL_COLUMNS` declara nombres **y orden** | `TestSchemaIsTheContract` |
 | Los tres ejes de validez colapsados en uno | "Válido" o "inválido" | Se pierde la actividad de cámaras con sólo el año malo | Tres columnas independientes | `TestConsumerGuard` |
-| Atributos de especie horneados en la tabla | Nombre en español dentro del parquet | Una corrección al catálogo no se propaga | Sólo la clave científica viaja | `TestSchemaIsTheContract` |
+| Atributos de especie incrustados en la tabla | Nombre en español dentro del parquet | Una corrección al catálogo no se propaga | Sólo la clave científica viaja | `TestSchemaIsTheContract` |
 | Una pasada de revisión le gana a su campaña | 606 filas recién revisadas revertidas | Conteos de toda la campaña | La precedencia se define sobre campañas | `test_retired_campaign_is_not_in_the_published_state` |
 | Se deduplican colisiones legítimas de nombre | El contador recicla entre años; 31 casos, 0 con misma hora | Conteos, a la baja y sin señal | La clave incluye la marca de tiempo | `TestThePublishedTables` |
-| La regla de eventos implementada aguas abajo | Dos copias ya discrepaban un 33 % | Todo conteo de eventos independientes | Se calcula acá, en `episode_30min` | `TestTheGapIsMeasuredFromTheLastRetainedDetection`, `TestTheKey` |
+| La regla de eventos no viaja en la tabla | Cada lector la reimplementa; dos copias ya discrepaban un 33 % | Todo conteo de eventos independientes | Se calcula acá, en `episode_30min` | `TestTheGapIsMeasuredFromTheLastRetainedDetection`, `TestTheKey` |
 | Un evento cruza un segmento de reloj | Se agrupan detecciones cuyo orden no es comparable | Conteos de eventos, inflados a la baja | El segmento corta el episodio | `TestAnEpisodeCannotCrossAClockSegment` |
 | Un episodio asignado a una fila sin especie o sin hora | Se cuenta como evento algo que no lo es | Conteos de eventos | `pd.NA` explícito para esas filas | `TestWhatGetsNoEpisode` |
 | El resultado depende del orden de las filas | La misma tabla da conteos distintos | La reproducibilidad completa | Etiquetado independiente del orden | `TestOrderIndependence` |
@@ -1609,9 +1607,9 @@ canónica, y 4.318 sobre 25 para cualquier cosa que cuente el video.
 | Un cambio de filas pasa desapercibido | 3.359 filas se volvieron 35.807 y nadie lo notó | Toda cifra publicada. **Ya ocurrió** | `diff()` compara campo por campo | `TestDiffDetectsRealChanges` (6 casos) |
 | Una columna agregada o reordenada | El orden es parte del contrato | Cualquier consumidor que lea por posición | `diff()` detecta agregado **y** reorden | `TestDiffDetectsRealChanges` |
 | `deployments.csv` editado a mano | Es generado, no mantenido | El denominador de esfuerzo | Se compara con una construcción fresca | `TestPublishedFiles` |
-| `media_absence.csv` con una declaración huérfana | Se licencia esfuerzo de una estación ya ingresada | El denominador | Toda fila declarada tiene que corresponder a un vacío real | `test_the_declared_absences_match_the_committed_file` |
+| `media_absence.csv` con una declaración huérfana | Se excusa esfuerzo de una estación ya ingresada | El denominador | Toda fila declarada tiene que corresponder a un vacío real | `test_the_declared_absences_match_the_committed_file` |
 | Una razón de ausencia mal escrita | `video_only_ofline` se lee como permiso | El denominador, con un typo como causa | Se **rechaza**, no se ignora | `test_a_misspelled_reason_is_refused_not_ignored` |
-| Un vacío sin explicar absorbido en el esfuerzo | Nadie escribió por qué esa estación no tiene fotos | El denominador, y nadie hizo la pregunta | `media_status = unexplained`, no una nota tranquilizadora | `test_an_undeclared_gap_reports_unexplained_rather_than_nothing` |
+| Un vacío sin explicar contado como esfuerzo | Nadie escribió por qué esa estación no tiene fotos | El denominador, y nadie hizo la pregunta | `media_status = unexplained`, no una nota tranquilizadora | `test_an_undeclared_gap_reports_unexplained_rather_than_nothing` |
 
 15 tests en 4 clases (`tests/test_canonical_state.py`), 16 en 4 (`tests/test_deployments.py`).
 
@@ -1636,13 +1634,11 @@ fuera de alcance, por las razones de §0.5.
 |---|---|
 | **Entra** | `CANONICAL_STATE.json` y las tablas canónicas |
 | **Sale** | Seguir, o negarse con una razón |
-| **Quién lo hace** | `data-pipeline/src/canonical_gate.py`, vía `run_fetch.py --ct-check` |
+| **Quién lo hace** | El consumidor, en su propia carga, antes de escribir nada |
 | **Qué decide** | Si los datos que tiene son los que el productor declaró |
 
-```bash
-python run_fetch.py --ct-check    # informa y no escribe nada
-python run_fetch.py --ct          # reconstruye desde las tablas canónicas
-```
+El control corre primero en un modo que sólo informa y no escribe nada. Recién cuando pasa,
+la carga escribe.
 
 ### 10F.2 Qué verifica, exactamente
 
@@ -1653,8 +1649,8 @@ Tres cosas, y el orden importa:
 2. **Que la versión de esquema sea la que este consumidor sabe leer.** Si el productor publicó
    4 y el consumidor entiende 3, el consumidor se niega — **no adivina** que las columnas
    nuevas no le importan.
-3. **Que la huella coincida.** Un `sha256` de la descripción completa de la campaña, no sólo el
-   número de filas.
+3. **Que el `sha256` coincida.** Se calcula sobre la descripción completa de la campaña, no
+   sólo sobre el número de filas.
 
 > **Regla.** El productor publica; los consumidores verifican. **El productor no debe saber que
 > un consumidor determinado existe.**
@@ -1671,7 +1667,7 @@ equivocado:
 - interpretar o normalizar identificadores de estación
 - reparar, desplazar o reinterpretar marcas de tiempo
 - traducir nombres de especies, o decidir qué cuenta como especie
-- decidir si un cuadro tiene un animal
+- decidir si una foto tiene un animal
 - filtrar cadenas de relleno o "no identificable"
 - convertir zonas horarias
 - decidir qué cuenta como un evento independiente
@@ -1680,38 +1676,33 @@ equivocado:
 Las dos últimas se agregaron el 26 de agosto de 2026, cuando se midió que dos de tres copias de
 la regla de eventos ya discrepaban.
 
-### 10F.4 Estado actual, dicho con honestidad
+### 10F.4 Qué tiene que tener el control para contar como control
 
-Esta fase es la **menos protegida de las once**, y conviene que quede escrito:
+Tres cosas, y ninguna es opcional:
 
-| | Estado |
-|---|---|
-| El control existe y funciona | Sí. `canonical_gate.check()` |
-| Verifica esquema, huella y presencia | Sí |
-| **Tiene tests propios** | **No.** `data-pipeline/tests/` no existe todavía |
-| Reporta un desajuste de forma limpia | **No.** Sale como traza de error, no como mensaje y código 1 |
-| Los consumidores leen `episode_30min` | **No todavía.** Tres copias de la regla siguen vivas aguas abajo |
-
-`SUPPORTED_SCHEMA_VERSION` en el consumidor es **3**; el productor publica **4**. **Eso
-significa que el control hoy se niega, y se niega correctamente** — pero la negativa llega como
-una traza de error, que en una tarea programada se lee como una caída y no como un veredicto.
-
-Esas tres filas en "no" son trabajo pendiente conocido, del lado del consumidor, y están
-anotadas en `docs/V2-REVIEW.md` como B9 y B10.
+1. **Tests propios.** Un control sin tests es una convención documentada, y §0.6 dice qué les
+   pasa a ésas: se degradan. El consumidor tiene que poder demostrar, sobre un contrato de
+   prueba, que su control se niega cuando corresponde.
+2. **Una negativa con forma de veredicto.** Un mensaje que diga qué no coincidió, y un código
+   de salida distinto de cero. Un error sin manejar es el veredicto correcto con la forma
+   equivocada: en una tarea programada se lee como una caída, y una caída se reinicia mientras
+   que un rechazo se investiga.
+3. **Leer sólo la tabla canónica y el contrato.** Ninguna exportación, ningún archivo de
+   revisión, ningún intermedio de otro consumidor. Es la regla de §0.5, y acá es donde se
+   aplica.
 
 ### 10F.5 Tabla de vigilancia — Fase 10
 
 | Error vigilado | Qué significa | Análisis que depende de que no ocurra | Qué lo revisa | Fixtures que lo sostienen |
 |---|---|---|---|---|
-| El almacén sirve datos que el contrato ya no describe | Se reconstruyó arriba y abajo no se enteró | Toda figura, mapa y cifra del consumidor | `canonical_gate.check()` compara la huella | *Sin tests propios todavía* |
-| Contrato ausente o ilegible tratado como "seguir" | No se puede verificar, así que se asume que está bien | Todo, y sin ninguna señal | Ausente ⇒ **negarse** | *Sin tests propios todavía* |
-| Versión de esquema distinta y se sigue igual | El consumidor asume que las columnas nuevas no le importan | Depende de la columna; puede ser silencioso | `SUPPORTED_SCHEMA_VERSION` compara explícito | *Sin tests propios todavía* |
-| Un desajuste correcto se ve como una caída | El veredicto es correcto y llega con la forma equivocada | La operación: nadie distingue un rechazo de un error | **Nada todavía.** Es el pendiente B10 | *Pendiente* |
-| El consumidor vuelve a decidir algo del productor | Una segunda implementación de una regla | Discrepó en 515 filas y en un 33 % de eventos, medido | La lista de §10F.3 es la prueba a aplicar | *Pendiente: B9* |
-| El consumidor lee un intermedio en vez de la tabla | Lee la exportación revisada, o un CSV corregido | Números distintos "de los mismos datos" | Se borra la ruta alternativa, no se documenta | *Pendiente* |
+| El consumidor sirve datos que el contrato ya no describe | Se reconstruyó arriba y abajo no se enteró | Toda figura, mapa y cifra del consumidor | Comparar el `sha256` publicado contra el calculado | Del consumidor |
+| Contrato ausente o ilegible tratado como "seguir" | No se puede verificar, así que se asume que está bien | Todo, y sin ninguna señal | Ausente ⇒ **negarse** | Del consumidor |
+| Versión de esquema distinta y se sigue igual | El consumidor asume que las columnas nuevas no le importan | Depende de la columna; puede ser silencioso | Comparar la versión publicada contra la única que el consumidor declara saber leer | Del consumidor |
+| Un rechazo correcto se ve como una caída | El veredicto es correcto y llega con la forma equivocada | La operación: nadie distingue un rechazo de un error | Mensaje y código de salida, nunca un error sin manejar | Del consumidor |
+| El consumidor vuelve a decidir algo del productor | Una segunda implementación de una regla | Discrepó en 515 filas y en un 33 % de eventos, medido | La lista de §10F.3 es la prueba a aplicar | Del consumidor |
+| El consumidor lee un intermedio en vez de la tabla | Lee la exportación revisada, o un CSV corregido | Números distintos "de los mismos datos" | Se borra la ruta alternativa, no se documenta | Del consumidor |
 
-**Cómo leer esta tabla.** Es la única del manual donde la columna de fixtures está casi vacía,
-y eso no es un descuido de redacción: **es el estado real del proyecto al 27 de agosto de
-2026.** El lado del productor está verificado; el primer paso del consumidor está implementado
-y **no** verificado. Decirlo es más útil que dejar la tabla incompleta y que parezca que
-alguien la revisó.
+**Cómo leer esta tabla.** Es la única del manual donde la columna de fixtures no nombra ninguna
+clase, y es a propósito: los tests de esta fase le pertenecen a cada consumidor, y este manual
+no puede nombrarlos sin nombrar a un consumidor — que es exactamente lo que §10F.2 prohíbe. Lo
+que sí puede decir es qué tiene que probar cada uno, y eso es la columna "Qué lo revisa".

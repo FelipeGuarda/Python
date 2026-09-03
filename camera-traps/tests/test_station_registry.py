@@ -1,16 +1,19 @@
-"""What must stay true of station identity, in the registry and in both artifacts.
+"""What must stay true of station identity, in the registry and in its GeoJSON.
 
-The check that earns this file is `test_committed_artifacts_match_the_registry`: the
-platform's two station files must equal a fresh render of `estaciones.csv`. V2-REVIEW 1.6
-asked instead for a test that the three files "agree on station count and coordinates to 5
-decimal places", and that is the weaker check -- it restates the projection in a second
-place, and it passes vacuously on any field it does not happen to enumerate. `sd_card`
-lived in the artifacts and in no test for five months precisely that way.
+The check that earns this file is `test_committed_artifact_matches_the_registry`: the
+published GeoJSON must equal a fresh render of `estaciones.csv`. V2-REVIEW 1.6 asked
+instead for a test that the files "agree on station count and coordinates to 5 decimal
+places", and that is the weaker check -- it restates the projection in a second place, and
+it passes vacuously on any field it does not happen to enumerate. `sd_card` lived in the
+artifacts and in no test for five months precisely that way.
 
-The defect being locked out: on 2026-08-24 `stations.yaml` held 26 stations and the other
-two held 27, so CT27's otono_2026 images ingested with no coordinates. Nothing failed.
-That is the same shape as the CT26 coordinate error which reached the platform and came
-back as a 19 km displacement.
+The defect being locked out: on 2026-08-24 one downstream copy held 26 stations and the
+other two files held 27, so CT27's otono_2026 images ingested with no coordinates. Nothing
+failed. That is the same shape as the CT26 coordinate error which reached a downstream copy
+and came back as a 19 km displacement.
+
+Since 2026-09-03 the producer publishes only its own GeoJSON; the downstream copy that used
+to be spliced from here no longer exists, and its reader takes the registry directly.
 """
 
 from __future__ import annotations
@@ -22,24 +25,19 @@ import unittest
 from contextlib import contextmanager
 from pathlib import Path
 
-import yaml
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from camtrap import stations
 from setup.build_station_registry import (
     RegistryArtifactError,
     _GEOJSON_REL,
-    _REPO_ROOT,
-    _YAML_REL,
-    _spliced_yaml,
+    _PROJECT_ROOT,
     render_camera_traps,
     render_geojson,
     write_artifacts,
 )
 
-YAML_PATH = _REPO_ROOT / _YAML_REL
-GEOJSON_PATH = _REPO_ROOT / _GEOJSON_REL
+GEOJSON_PATH = _PROJECT_ROOT / _GEOJSON_REL
 
 
 @contextmanager
@@ -64,35 +62,34 @@ def _registry_csv(text: str):
 
 class TestArtifactsMatchRegistry(unittest.TestCase):
 
-    def test_committed_artifacts_match_the_registry(self):
+    def test_committed_artifact_matches_the_registry(self):
         """The one check. If this fails, someone hand-edited a generated file."""
         drifted = write_artifacts(check=True)
         self.assertEqual(
             drifted, [],
-            f"{[str(p.relative_to(_REPO_ROOT)) for p in drifted]} differ from "
+            f"{[str(p.relative_to(_PROJECT_ROOT)) for p in drifted]} differ from "
             f"{stations._REGISTRY_CSV.name}. Do not edit them by hand -- edit the "
             f"registry and run: python setup/build_station_registry.py",
         )
 
-    def test_all_three_files_hold_the_same_stations(self):
+    def test_the_geojson_holds_the_same_stations_as_the_registry(self):
         registry_ids = set(stations.registry())
-        yaml_ids = {c["id"] for c in yaml.safe_load(YAML_PATH.read_text("utf-8"))["camera_traps"]}
         geojson_ids = {
             f["properties"]["id"]
             for f in json.loads(GEOJSON_PATH.read_text("utf-8"))["features"]
         }
-        self.assertEqual(registry_ids, yaml_ids)
         self.assertEqual(registry_ids, geojson_ids)
 
     def test_ct27_is_present_everywhere(self):
         """The station whose absence started this. Named, so the regression is legible."""
         self.assertIn("CT27", stations.registry())
-        ids = {c["id"] for c in yaml.safe_load(YAML_PATH.read_text("utf-8"))["camera_traps"]}
+        ids = {f["properties"]["id"]
+               for f in json.loads(GEOJSON_PATH.read_text("utf-8"))["features"]}
         self.assertIn("CT27", ids)
 
 
 class TestCanonicalSpelling(unittest.TestCase):
-    """One spelling everywhere (Felipe, 2026-08-24). The artifacts used to say `TC-01`."""
+    """One spelling everywhere (agreed 2026-08-24). The artifacts used to say `TC-01`."""
 
     def test_every_id_is_canonical(self):
         for entry in render_camera_traps():
@@ -105,11 +102,11 @@ class TestCanonicalSpelling(unittest.TestCase):
         for entry in render_camera_traps():
             self.assertEqual(entry["id"], stations.canonical_id(entry["tc"]))
 
-    def test_no_artifact_still_spells_a_station_tc_dash(self):
-        for path in (YAML_PATH, GEOJSON_PATH):
-            self.assertNotIn("TC-0", path.read_text("utf-8"))
-            self.assertNotIn("TC-1", path.read_text("utf-8"))
-            self.assertNotIn("TC-2", path.read_text("utf-8"))
+    def test_the_artifact_does_not_spell_a_station_tc_dash(self):
+        text = GEOJSON_PATH.read_text("utf-8")
+        self.assertNotIn("TC-0", text)
+        self.assertNotIn("TC-1", text)
+        self.assertNotIn("TC-2", text)
 
 
 class TestGeoJSON(unittest.TestCase):
@@ -138,39 +135,10 @@ class TestGeoJSON(unittest.TestCase):
                 render_geojson()
 
     def test_an_empty_registry_is_refused(self):
-        """Otherwise a truncated file regenerates both artifacts with zero stations."""
+        """Otherwise a truncated file regenerates the artifact with zero stations."""
         with _registry_csv("station_id,grid_id,lat,lon,elevation_m,notes\n"):
             with self.assertRaises(RegistryArtifactError):
                 render_camera_traps()
-
-
-class TestYamlSplice(unittest.TestCase):
-    """The splice rewrites from `camera_traps:` down, so what sits above it must survive."""
-
-    def test_reserve_and_weather_survive(self):
-        doc = yaml.safe_load(YAML_PATH.read_text("utf-8"))
-        self.assertIn("reserve", doc)
-        self.assertIn("weather", doc)
-        self.assertEqual(doc["weather"][0]["id"], "WS-01")
-        self.assertEqual(doc["reserve"]["timezone"], "America/Santiago")
-
-    def test_header_comments_survive(self):
-        self.assertIn("Fuente: CT ID and coordinates.xlsx", YAML_PATH.read_text("utf-8"))
-
-    def test_registry_notes_render_as_comments(self):
-        """CT26's coordinate-error note is provenance; it must not be lost on a rebuild."""
-        self.assertIn("19 km fuera de la reserva", YAML_PATH.read_text("utf-8"))
-
-    def test_a_top_level_key_after_the_section_is_refused(self):
-        """Otherwise the splice would silently delete it."""
-        existing = "reserve:\n  zoom: 14\n\ncamera_traps:\n  - id: CT01\n\nfootpaths:\n  - a\n"
-        with self.assertRaises(RegistryArtifactError) as cm:
-            _spliced_yaml(existing, render_camera_traps())
-        self.assertIn("footpaths", str(cm.exception))
-
-    def test_a_missing_section_is_refused(self):
-        with self.assertRaises(RegistryArtifactError):
-            _spliced_yaml("reserve:\n  zoom: 14\n", render_camera_traps())
 
 
 class TestRoundTrip(unittest.TestCase):
@@ -179,23 +147,21 @@ class TestRoundTrip(unittest.TestCase):
         """Running the generator twice must not produce a third state."""
         self.assertEqual(write_artifacts(check=True), [])
 
-    def test_emitted_yaml_parses_back_to_the_registry(self):
+    def test_a_fresh_render_parses_back_to_the_registry(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / _YAML_REL.parent).mkdir(parents=True)
-            (root / _YAML_REL).write_text(YAML_PATH.read_text("utf-8"), encoding="utf-8")
-            (root / _GEOJSON_REL).write_text("{}", encoding="utf-8")
+            (root / _GEOJSON_REL.parent).mkdir(parents=True)
             write_artifacts(root=root)
-
-            doc = yaml.safe_load((root / _YAML_REL).read_text("utf-8"))
+            doc = json.loads((root / _GEOJSON_REL).read_text("utf-8"))
             self.assertEqual(
-                [c["id"] for c in doc["camera_traps"]],
+                [f["properties"]["id"] for f in doc["features"]],
                 [e["id"] for e in render_camera_traps()],
             )
-            for c in doc["camera_traps"]:
-                row = stations.registry()[c["id"]]
-                self.assertAlmostEqual(float(row["lat"]), float(c["lat"]), places=5)
-                self.assertAlmostEqual(float(row["lon"]), float(c["lon"]), places=5)
+            for f in doc["features"]:
+                row = stations.registry()[f["properties"]["id"]]
+                lon, lat = f["geometry"]["coordinates"]
+                self.assertAlmostEqual(float(row["lat"]), lat, places=5)
+                self.assertAlmostEqual(float(row["lon"]), lon, places=5)
 
 
 if __name__ == "__main__":

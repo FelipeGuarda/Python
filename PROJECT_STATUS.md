@@ -1,6 +1,33 @@
 # FMA Project Status
 
-**Last updated:** 2026-08-27 — **the camera-traps manual is Spanish, phase-structured, and the producer side is verified.**
+**Last updated:** 2026-09-03 — **the camera-traps manual respects its own boundary.**
+
+`camera-traps/docs/MANUAL-SALUD-DATOS.md` was audited against one directive: phases 0–9 are
+the producer, phase 10 is the checks *any* consumer runs, and no other project's files are named
+anywhere. Ten leaks fixed — a Phase 0 row guarding `plataforma-territorial`'s YAML, two
+watch-table rows written from the consumer's side, the platform named in a case study, and the
+whole of Phase 10, which was `data-pipeline`'s entry point and B9/B10 status rather than a
+generic admission control. Phase 10 now says what such a control must *have* (its own tests, a
+refusal shaped as a message plus exit code, reads only the canonical table) and its fixtures
+column reads "del consumidor" by design. A vocabulary pass replaced words that read as
+translations (`grafía`, `libro`, `cuadro`, `grueso`, `corrimiento`, `falla cerrado`, …) with
+the project's usual Spanish, and one person's name was anonymised so the Word file can go out.
+
+**Second pass, same day: the last producer-side boundary violation is closed.** The registry
+builder no longer writes into `plataforma-territorial`; it publishes
+`camera-traps/data/campaigns/estaciones.geojson` beside the registry and knows no consumer.
+The platform reads `estaciones.csv` directly (`backend/stations.py`, new
+`paths.ct_station_registry()`), its YAML keeps only `reserve` + `weather`, and the 2025 report
+scripts point at the new GeoJSON. GeoJSON feature-identical before/after; platform coordinates
+identical to the old YAML. The four stale cross-references are fixed. **303 tests in 74
+classes**, 302 passing on Windows — the one failure is a pre-existing `\` vs `/` assertion in
+`test_flatten.py` that fails on HEAD too.
+
+**Integration Status:** camera-traps producer side `Ready`; the manual is shareable; the
+platform needs the sibling `camera-traps` checkout (or `CT_STATION_REGISTRY`) to start, as it
+already did for exports. **Open:** the Windows path failure. B3/B9/B10 remain consumer-side.
+
+**Prior — 2026-08-27:** **the camera-traps manual is Spanish, phase-structured, and the producer side is verified.**
 
 `camera-traps/docs/MANUAL-SALUD-DATOS.md` (1,673 lines) is now authoritative; the English
 edition is frozen with a stamp saying so, deliberately not synced. The chain is restated as **11

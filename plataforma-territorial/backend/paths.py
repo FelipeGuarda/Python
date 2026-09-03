@@ -15,3 +15,14 @@ _DEFAULT_CT_EXPORTS = Path(__file__).resolve().parents[2] / "camera-traps" / "ex
 def ct_exports_dir() -> Path:
     """Camera-trap image export tree. Override with CT_EXPORTS_DIR env var."""
     return Path(os.getenv("CT_EXPORTS_DIR", str(_DEFAULT_CT_EXPORTS)))
+
+
+# The producer's station registry: identity and coordinates, owned by camera-traps.
+_DEFAULT_CT_REGISTRY = (
+    Path(__file__).resolve().parents[2] / "camera-traps" / "data" / "campaigns" / "estaciones.csv"
+)
+
+
+def ct_station_registry() -> Path:
+    """`estaciones.csv`, the file that owns station identity. Override with CT_STATION_REGISTRY."""
+    return Path(os.getenv("CT_STATION_REGISTRY", str(_DEFAULT_CT_REGISTRY)))

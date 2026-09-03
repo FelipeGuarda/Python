@@ -1,25 +1,35 @@
 """
 Station registry loader for the plataforma-territorial backend.
 
-Loads `plataforma-territorial/data/stations.yaml`, which is GENERATED from
-`camera-traps/data/campaigns/estaciones.csv` by
-`camera-traps/setup/build_station_registry.py` — that CSV owns station identity.
-Do not hand-edit the YAML: edit the registry and regenerate, or
-`camera-traps/tests/test_station_registry.py` fails.
+Two sources, one dict:
+
+- `reserve` and `weather` come from this project's own `data/stations.yaml`. They are
+  not camera-trap stations and no other project owns them.
+- `camera_traps` come from the producer's registry, `camera-traps/data/campaigns/
+  estaciones.csv`, read directly. That CSV owns station identity and coordinates; this
+  module reads it and derives nothing the producer already decided. Until 2026-09-03 the
+  producer spliced a generated `camera_traps:` section into our YAML, which meant it knew
+  our file's layout and path -- the direction of knowledge the data-health manual forbids.
+  Now the knowledge runs the right way: we know where the registry is, it does not know we
+  exist.
 
 Stations are spelled `CT01`..`CT27` here as everywhere else. They were `TC-01`
 until 2026-08-24, which gave the project two names for one thing.
 
-Override with the FMA_STATIONS_YAML env var when running outside the repo layout.
+Override the YAML with FMA_STATIONS_YAML and the registry with CT_STATION_REGISTRY when
+running outside the repo layout.
 """
 
 from __future__ import annotations
 
+import csv
 import os
 from functools import lru_cache
 from pathlib import Path
 
 import yaml
+
+from .paths import ct_station_registry
 
 _ENV_VAR = "FMA_STATIONS_YAML"
 
@@ -32,17 +42,42 @@ def stations_yaml_path() -> Path:
     return Path(override) if override else _DEFAULT_PATH
 
 
+def _camera_traps_from_registry(path: Path) -> list[dict]:
+    """One entry per registry row, in canonical order, with the numeric `tc` the map needs.
+
+    An empty coordinate cell is NOT RECORDED in the registry; a station without a
+    position cannot be a marker, so it is refused here rather than drawn at (0, 0).
+    """
+    with open(path, encoding="utf-8", newline="") as f:
+        rows = [r for r in csv.DictReader(f) if (r.get("station_id") or "").strip()]
+    entries = []
+    for r in rows:
+        sid = r["station_id"].strip()
+        if not (r.get("lat") or "").strip() or not (r.get("lon") or "").strip():
+            raise ValueError(f"{path.name}: station {sid} has no coordinates")
+        entries.append({
+            "id": sid,
+            "tc": int(sid[2:]),
+            "grid_id": (r.get("grid_id") or "").strip() or None,
+            "lat": float(r["lat"]),
+            "lon": float(r["lon"]),
+            "altitude_m": (r.get("elevation_m") or "").strip() or None,
+        })
+    entries.sort(key=lambda e: e["tc"])
+    return entries
+
+
 @lru_cache(maxsize=1)
 def load_stations() -> dict:
-    path = stations_yaml_path()
-    with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    with open(stations_yaml_path(), encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    data["camera_traps"] = _camera_traps_from_registry(ct_station_registry())
+    return data
 
 
 def tc_coords() -> dict[int, tuple[float, float]]:
     """TC camera number (1..N) → (lat, lon)."""
-    data = load_stations()
-    return {int(cam["tc"]): (float(cam["lat"]), float(cam["lon"])) for cam in data["camera_traps"]}
+    return {cam["tc"]: (cam["lat"], cam["lon"]) for cam in load_stations()["camera_traps"]}
 
 
 def weather_station() -> dict:

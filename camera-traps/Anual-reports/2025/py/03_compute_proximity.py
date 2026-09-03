@@ -38,7 +38,7 @@ HERE = Path(__file__).resolve()
 REPORT_ROOT = HERE.parents[1]
 REPO = HERE.parents[4]
 
-STATIONS_GEOJSON = REPO / "plataforma-territorial" / "data" / "camera_trap_stations.geojson"
+STATIONS_GEOJSON = REPO / "camera-traps" / "data" / "campaigns" / "estaciones.geojson"
 ROADS_GEOJSON = REPO / "plataforma-territorial" / "data" / "basemap" / "roads_main.geojson"
 HYDRIC_GEOJSON = REPO / "plataforma-territorial" / "data" / "basemap" / "hydric_main.geojson"
 

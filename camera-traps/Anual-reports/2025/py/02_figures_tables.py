@@ -5,7 +5,7 @@ Inputs
 ------
 - 2025/data/events_clean.parquet                                   (canonical post-verdict; written by apply_verdicts.py)
 - plataforma-territorial/data/boundary.geojson                     (canonical BP polygon)
-- plataforma-territorial/data/camera_trap_stations.geojson         (26 CT points)
+- camera-traps/data/campaigns/estaciones.geojson         (26 CT points)
 - plataforma-territorial/data/basemap/hydric_main.geojson          (2 main streams)
 - plataforma-territorial/data/basemap/roads_main.geojson           (vehicular roads)
 - plataforma-territorial/data/basemap/bp_high_zone.geojson         (area above 1000 m)
@@ -63,7 +63,7 @@ FIGS.mkdir(parents=True, exist_ok=True)
 
 EVENTS_PARQUET = DATA / "events_clean.parquet"
 BOUNDARY_GEOJSON = REPO / "plataforma-territorial" / "data" / "boundary.geojson"
-STATIONS_GEOJSON = REPO / "plataforma-territorial" / "data" / "camera_trap_stations.geojson"
+STATIONS_GEOJSON = REPO / "camera-traps" / "data" / "campaigns" / "estaciones.geojson"
 BASEMAP_DIR = REPO / "plataforma-territorial" / "data" / "basemap"
 HYDRIC_GEOJSON = BASEMAP_DIR / "hydric_main.geojson"
 ROADS_GEOJSON = BASEMAP_DIR / "roads_main.geojson"

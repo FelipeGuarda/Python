@@ -6,6 +6,54 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-09-03 — the manual respects its own boundary, and reads in our Spanish
+
+### Changed
+- **`camera-traps/docs/MANUAL-SALUD-DATOS.md`** audited against one directive: phases 0–9
+  describe the producer, phase 10 describes the checks *any* consumer runs, and no other
+  project's files are named anywhere. Ten fixes:
+  - Subtitle "del terreno a la figura" → "del terreno al contrato"; §0.5's out-of-scope list
+    no longer names `data-pipeline`, DuckDB, the platform or the annual report.
+  - Phase 0 table: the `TestYamlSplice` row (guarding another project's `stations.yaml`)
+    **deleted**; the registry-copies row no longer names GeoJSON/YAML and drops `TestGeoJSON`.
+  - §0F.3: "se reparó en la plataforma" → "en una copia aguas abajo".
+  - Phase 5 table: the "consumer re-resolves" row **deleted** (row 7 already carries the
+    producer guarantee). Phase 8 table: the events row reframed as "la regla de eventos no
+    viaja en la tabla".
+  - Phase 10: §10F.1 no longer names `canonical_gate.py` or `run_fetch.py`; §10F.4 rewritten
+    from a `data-pipeline` status table into three generic requirements for an admission
+    control; §10F.5's "Qué lo revisa" column is the generic check and its fixtures column
+    reads "Del consumidor" by design. B9/B10 status lives in `V2-REVIEW.md` only.
+  - §6.6: a person's name replaced with "el equipo de terreno".
+- **Vocabulary pass** (Felipe's request): `grafía`→`nomenclatura`, `libro`→`planilla`,
+  `cuadro`→`foto`, `grueso`→`genérico`, `corrimiento`→`desplazamiento`, `época de
+  fábrica`→`fecha de fábrica`, `huella`→`sha256`, and literal translations (`falla cerrado`,
+  `horneados`, `decayeron`, `reclama`, `des-sacar`, `corchete`, `traza`, `ceremonia`,
+  `decadencia`, `espejo`, `licencia`, `absorbido`, `Rechazar fuerte`, `ata/atar`) replaced.
+  `fixture` glossed in §0.6. Edition stamp → 2026-09-03.
+
+- **The producer no longer writes into a consumer's tree.** `setup/build_station_registry.py`
+  drops the YAML splice, emitter and comment wrapper (~90 lines) and renders only
+  `camera-traps/data/campaigns/estaciones.geojson` (new, committed, feature-identical to the
+  deleted `plataforma-territorial/data/camera_trap_stations.geojson`). `TestYamlSplice` and
+  the YAML halves of the other registry tests are gone: 303 tests in 74 classes.
+- **`plataforma-territorial/backend/stations.py`** reads `camera_traps` from
+  `camera-traps/data/campaigns/estaciones.csv` via new `paths.ct_station_registry()`
+  (override `CT_STATION_REGISTRY`); `data/stations.yaml` keeps only `reserve` and `weather`.
+  `tc_coords()` output verified identical to the old YAML's 27 entries.
+- **`camera-traps/Anual-reports/2025/py/`** (4 scripts) and its README point at the new GeoJSON.
+- **Manual cross-references** inherited from the English edition fixed: §7.4 dropped from
+  §0.6, "Parte 5" → §1F.6, §2.9/§5.3 → §1F.6, and "Sólo la Fase 2" → "el registro de
+  terreno (Fases 1 y 2)" in the Phase 6 table. Counts updated to 303 / 74.
+
+### Verified
+- 74 cited fixture names exist in the suite; term sweep returns zero hits.
+- 302/303 tests on Windows; the failure is pre-existing on HEAD (see Deferred).
+
+### Deferred
+- `tests/test_flatten.py:253` compares `original_relpath` against a `/` path; on Windows the
+  manifest writes `\`. Fails on HEAD.
+
 ## 2026-08-27 (second pass) — the data-health manual becomes Spanish and phase-structured
 
 ### Added
