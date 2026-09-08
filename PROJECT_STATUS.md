@@ -1,6 +1,53 @@
 # FMA Project Status
 
-**Last updated:** 2026-09-03 — **the camera-traps manual respects its own boundary.**
+**Last updated:** 2026-09-08 — **a consumer implements the handshake: pehuén crosses the camera-trap boundary cleanly.**
+
+`Research/pehuen-species-interactions` is the first downstream project to hold up its half of
+the canonical contract, following the manual's Fase 10. It needed to be: its loader pointed at
+`plataforma-territorial/data/camera_trap_stations.geojson`, **deleted on 2026-09-03** by the
+registry rework, so the project had not run against the current warehouse at all — it halted on
+a missing file before reaching its own contract check. Its check declared schema 2 against a
+published 4 and compared row counts only, which is precisely the comparison the 815-row review
+repair defeats.
+
+**New `R/00_contract.R` + `tests/test_contract.R` (25 assertions, base R).** The loader verifies
+the contract before opening anything; on success it stamps the declared block of every campaign
+it read, and all five downstream scripts refuse to run if the published contract has moved since,
+naming the field (`otono_2025.n_animal_rows: data/ built from 707, published now 712`). Refusals
+are a message plus **exit 2**, never an unhandled error — verified on real doctored contracts, not
+only fixtures.
+
+**Three ledger items close.** **B9's third episode-rule copy is retired** onto `episode_30min`
+and moved zero numbers (380 episodes both ways), which is the evidence the two rules agreed and
+that `apply_verdicts.py`'s remaining copy is wrong on its own. **B3** closes: campaign lists now
+come from the contract stamp, so otoño 2026 cannot fall out of a facet again. **C5** closes: the
+seasonal threshold is episodes rather than images, puma (12) and jabalí (18) fall under it, and
+both orphan figures were deleted rather than left stale.
+
+**Three defects the audit had not recorded, all found by reading the consumer against 10F.3.**
+`03_activity_patterns.R` fitted density curves on images while the camtrapR panels beside them
+used episodes; `05_spatial_distribution.R`'s by-campaign panel counted images under a subtitle
+claiming episodes; and `02_detection_summary.R` derived trap-nights as *days with a photograph* —
+a lower bound that rewards busy cameras — with a comment saying deployment metadata was
+unavailable, two weeks after it was published. Effort now comes from `deployments.csv`, with the
+denominator split the way `media_status` intends: stills-based rates over `in_canonical`
+camera-days at stations with `valid_effort`, occupancy over stations that were sampling
+(`in_canonical` + `video_only_offline`).
+
+**`data/` left git.** The `.rds` outputs and the contract stamp are now gitignored and
+`01_load_data.R` is a required first step. The alternative was committing the stamp beside the
+`.rds` so the derived data carried its provenance; Felipe took the cleaner branch, which removes
+the second copy of the canonical table rather than dating it.
+
+**Integration Status:** pehuén `Ready` — all six scripts run clean against schema 4, 25 gate
+tests pass, every figure re-rendered. **Open, consumer-side:** B9's two Python copies
+(`apply_verdicts.py`, `01_data_prep.py`), B10, C4. **Note:** **six of ten** overlap pairs changed
+Monterroso category against the committed 2026-08-20 table, which predated that day's CT03
+recovery (its n sums to 327 against the committed record table's 380). Guiña × Zorro culpeo
+crosses from Moderate to High. No estimator switched and the episode-rule retirement moved zero
+rows, so the delta is the recovery — but the written interpretation needs re-reading.
+
+**Prior — 2026-09-03:** **the camera-traps manual respects its own boundary.**
 
 `camera-traps/docs/MANUAL-SALUD-DATOS.md` was audited against one directive: phases 0–9 are
 the producer, phase 10 is the checks *any* consumer runs, and no other project's files are named

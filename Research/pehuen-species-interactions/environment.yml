@@ -10,9 +10,7 @@ dependencies:
   - r-ggplot2
   - r-dplyr
   - r-tidyr
-  - r-stringr
   - r-lubridate
-  - r-readr
   - r-here
   - r-patchwork
   - r-sf          # spatial features and GeoJSON reading

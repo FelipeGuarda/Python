@@ -1,8 +1,9 @@
 # 06_seasonal_detection_maps.R
 # ─────────────────────────────────────────────────────────────────────────────
 # PURPOSE
-#   For each species with >= 30 valid records, produce a single figure showing
-#   bubble detection maps for all four Southern-Hemisphere seasons side by side.
+#   For each species with >= MIN_EPISODES independent episodes, produce a single
+#   figure showing bubble detection maps for all four Southern-Hemisphere seasons
+#   side by side.
 #
 #   Seasons (Southern Hemisphere):
 #     Primavera  Sep–Nov
@@ -10,8 +11,12 @@
 #     Otoño      Mar–May
 #     Invierno   Jun–Aug
 #
-#   Date filter: 2024-10-01 → 2026-03-31.  Records from 2017 (misconfigured
-#   cameras TC-19, TC-15, TC-16) are excluded.
+#   ADMISSIBILITY. A season needs a trustworthy date, so this script uses the time
+#   rule from R/00_admissibility.R and nothing else. Until 2026-09-08 it also clipped
+#   to a hard date window with tz = "America/Santiago": the window's stated purpose
+#   (misconfigured 2017 clocks) is now handled upstream -- those rows arrive with
+#   valid_date = FALSE -- and its end date silently cut otoño 2026 six weeks short.
+#   The tz was a latent 3-4 h shift on any R with tzdata installed.
 #
 #   Bubble size is fixed on a shared scale across all four season panels so
 #   counts are directly comparable within a figure.  Stations with zero
@@ -35,22 +40,26 @@ library(lubridate)
 library(tidyr)
 
 here::i_am("R/06_seasonal_detection_maps.R")
+source(here::here("R", "00_contract.R"))
+source(here::here("R", "00_admissibility.R"))
 dir.create(here("figures"), showWarnings = FALSE)
+
+contract_assert_current()
 
 
 # ── 1. Load data ─────────────────────────────────────────────────────────────
-
-source(here::here("R", "00_admissibility.R"))
 
 records     <- readRDS(here("data", "records_all.rds"))
 stations_sf <- readRDS(here("data", "stations_sf.rds"))
 boundary_sf <- readRDS(here("data", "boundary_sf.rds"))
 
+# Species with fewer independent episodes than this get no seasonal figure: four
+# panels of a handful of bubbles read as a pattern that is not there. Episodes, not
+# images (2026-09-08; it was 30 images, which let a burst-heavy species qualify).
+MIN_EPISODES <- 30L
 
-# ── 2. Date filter & season assignment ───────────────────────────────────────
 
-VALID_START <- as.POSIXct("2024-10-01", tz = "America/Santiago")
-VALID_END   <- as.POSIXct("2026-03-31 23:59:59", tz = "America/Santiago")
+# ── 2. Season assignment ─────────────────────────────────────────────────────
 
 assign_season <- function(month) {
   dplyr::case_when(
@@ -63,23 +72,29 @@ assign_season <- function(month) {
 
 SEASON_LEVELS <- c("Primavera", "Verano", "Otoño", "Invierno")
 
-records_clean <- records %>%
-  filter(datetime >= VALID_START, datetime <= VALID_END) %>%
+records_clean <- admissible(records, "time") %>%
   mutate(season = factor(assign_season(month(datetime)), levels = SEASON_LEVELS))
 
 
-# ── 3. Species filter (>= 30 records) ────────────────────────────────────────
+# ── 3. Species filter (>= MIN_EPISODES independent episodes) ─────────────────
 
-qualifying <- records_clean %>%
-  count(species_label, name = "total") %>%
-  filter(total >= 30) %>%
+qualifying <- episode_counts(records_clean, by = "species_label", quiet = TRUE) %>%
+  rename(total = n_episodes) %>%
+  filter(total >= MIN_EPISODES) %>%
   arrange(desc(total))
 
+skipped <- episode_counts(records_clean, by = "species_label", quiet = TRUE) %>%
+  filter(n_episodes < MIN_EPISODES)
+
 message(sprintf(
-  "Qualifying species (%d): %s",
-  nrow(qualifying),
-  paste(qualifying$species_label, collapse = ", ")
+  "Qualifying species (%d, >= %d episodes): %s",
+  nrow(qualifying), MIN_EPISODES,
+  paste(sprintf("%s (%d)", qualifying$species_label, qualifying$total), collapse = ", ")
 ))
+if (nrow(skipped)) {
+  message(sprintf("  Skipped (< %d episodes): %s", MIN_EPISODES,
+                  paste(sprintf("%s (%d)", skipped$species_label, skipped$n_episodes), collapse = ", ")))
+}
 
 
 # ── 4. Shared visual constants ────────────────────────────────────────────────
@@ -115,11 +130,9 @@ for (sp in qualifying$species_label) {
   sp_color   <- SPECIES_COLORS[[sp]]
   sp_slug    <- tolower(gsub(" ", "_", sp))
 
-  # Count detections per station × season
-  # Episodes, not images. `sp_records` is already time-admissible (a season cannot
-  # be assigned without a date), so nothing further is excluded here — only the unit
-  # changes, from frames-in-a-burst to independent detections.
-  det_counts <- episode_counts(sp_records, by = c("station_id", "season")) %>%
+  # Episodes per station × season. `sp_records` is already time-admissible, so
+  # nothing further is excluded here.
+  det_counts <- episode_counts(sp_records, by = c("station_id", "season"), quiet = TRUE) %>%
     rename(n_detections = n_episodes)
 
   # Full grid: every station × every season (zeros for missing combos)
@@ -179,7 +192,7 @@ for (sp in qualifying$species_label) {
     facet_wrap(~season, nrow = 1) +
     labs(
       title    = sp,
-      subtitle = "Eventos independientes (30 min) por temporada.  × = estación sin detección.",
+      subtitle = sprintf("Eventos independientes (%d min) por temporada.  × = estación sin detección.", EPISODE_GAP_MINUTES),
       caption  = caption_txt
     ) +
     map_theme

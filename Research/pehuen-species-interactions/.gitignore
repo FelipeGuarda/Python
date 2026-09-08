@@ -1,0 +1,26 @@
+# Derived data. NOT tracked, deliberately — see README "Running the analysis".
+#
+# Everything here is rebuilt by `Rscript R/01_load_data.R` in seconds from the
+# camera-trap parquets, which are the actual source of truth. Two reasons it is not
+# committed:
+#
+#   1. An .rds is an opaque binary. Once in git, nothing in the repository answers
+#      "which upstream data is this?", which is the exact question the contract check
+#      exists to make answerable. Committing the derived data and its provenance stamp
+#      would answer it; committing the data alone answers it wrongly, by looking
+#      authoritative while being undated.
+#   2. It is a second copy of the canonical table, one commit away from disagreeing
+#      with it. The project already refuses to read a second source of truth for the
+#      observations themselves; this is the same rule applied to its own outputs.
+#
+# `contract_stamp.json` goes with them: it describes THESE files, so it is meaningless
+# beside a data/ that a fresh clone has not built yet.
+#
+# WHAT IS STILL TRACKED, and why: `data/overlap_stats.csv` and everything in
+# `figures/`. Those are results, not intermediates — readable, small, and the thing
+# you would put in a report. The line is "can a person read it", not "is it derived".
+data/*.rds
+data/contract_stamp.json
+
+# R writes this when a script plots without an explicit device.
+Rplots.pdf

@@ -1,166 +1,166 @@
 # 02_detection_summary.R
 # ─────────────────────────────────────────────────────────────────────────────
 # PURPOSE
-#   Compute basic detection metrics for the focal species and produce summary
-#   bar charts:
-#     Fig A — total detections per species, split by campaign
-#     Fig B — Detection Rate (detections per 100 trap-nights) per species
-#     Fig C — Naive occupancy (% of active stations where species was detected)
+#   Basic detection metrics for the focal species, per campaign:
+#     Fig A — independent episodes per species
+#     Fig B — detection rate: episodes per 100 camera-days
+#     Fig C — naive occupancy: share of sampling stations where the species was seen
 #
-# INPUT   data/records_all.rds   (produced by 01_load_data.R)
+# UNITS AND DENOMINATORS (R/00_admissibility.R, and deployments.rds from 01)
+#   Counts are EPISODES, never images. Effort comes from the producer's
+#   deployments.csv (field record), not from "days with a photo", which was a lower
+#   bound that this script used until 2026-09-08 and which rewarded busy cameras.
+#
+#   Two questions, two denominators, both read off `media_status`:
+#     rate       divides stills-based episodes by camera-days of stations whose stills
+#                are in the canonical table AND whose clock diagnosis allows effort
+#                (valid_effort). A station without a usable clock has no episodes, so
+#                putting its days under the line would deflate every rate.
+#     occupancy  divides stations-with-presence by stations that were SAMPLING:
+#                in_canonical plus video_only_offline. The latter were recording; their
+#                detections are just not readable here. Presence needs a station, not
+#                a clock, so clock-failed stations stay on both sides of that ratio.
+#
+# INPUT   data/records_all.rds, data/deployments.rds   (01_load_data.R)
 # OUTPUT  figures/02_detections_per_species.png
 #         figures/02_detection_rate.png
 #         figures/02_naive_occupancy.png
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-# ── 0. Libraries ─────────────────────────────────────────────────────────────
+# ── 0. Libraries and the handshake ───────────────────────────────────────────
 
 library(here)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-library(patchwork)  # combine multiple ggplot panels into one figure
-library(scales)     # comma-formatted axis labels
+library(scales)
 
 here::i_am("R/02_detection_summary.R")
+source(here::here("R", "00_contract.R"))
+source(here::here("R", "00_admissibility.R"))
 dir.create(here("figures"), showWarnings = FALSE)
 
+stamp     <- contract_assert_current()
+CAMPAIGNS <- names(stamp$campaigns)
 
-# ── 1. Load data ─────────────────────────────────────────────────────────────
 
-source(here::here("R", "00_admissibility.R"))
+# ── 1. Load ──────────────────────────────────────────────────────────────────
 
-records <- readRDS(here("data", "records_all.rds"))
-
-# Ordered species factor: native carnivores first, then invasive species.
-# This order will be used consistently in all figures in this script.
 SPECIES_ORDER <- c("Puma", "Guina", "Zorro culpeo", "Jabali", "Liebre", "Perro")
 GUILD_COLORS  <- c("Native" = "#2c7bb6", "Invasive" = "#d7191c")
 
-records <- records %>%
-  mutate(species_label = factor(species_label, levels = SPECIES_ORDER))
+records <- readRDS(here("data", "records_all.rds")) %>%
+  mutate(species_label = factor(species_label, levels = SPECIES_ORDER),
+         campaign      = factor(campaign, levels = CAMPAIGNS))
+
+deployments <- readRDS(here("data", "deployments.rds")) %>%
+  mutate(campaign = factor(campaign, levels = CAMPAIGNS))
+
+campaign_facets <- facet_wrap(~campaign, ncol = 1,
+                              labeller = labeller(campaign = campaign_label))
 
 
-# ── 2. Trap-night calculation ────────────────────────────────────────────────
-# A trap-night = one camera active for one full day.
-# We approximate it from the data: for each (campaign, station) pair, count
-# the number of distinct calendar days that appear in the records.
-# NOTE: This is a lower bound — cameras may have been active on days with no
-# animal detections.  A more precise calculation would need deployment metadata
-# (start/end dates per station), which is not available in the current CSV.
-# This is flagged for improvement when proper deployment metadata is available.
+# ── 2. Effort, from the field record ─────────────────────────────────────────
 
-trap_nights <- records %>%
-  group_by(campaign, station_id) %>%
-  summarise(n_days = n_distinct(date), .groups = "drop") %>%
+effort <- deployments %>%
   group_by(campaign) %>%
-  summarise(trap_nights = sum(n_days), .groups = "drop")
+  summarise(
+    camera_days        = sum(field_days[media_status == "in_canonical" & valid_effort %in% TRUE]),
+    n_stations_sampling = n_distinct(station_id[media_status %in% c("in_canonical", "video_only_offline")]),
+    .groups = "drop"
+  )
 
-message("Trap-nights per campaign:")
-print(trap_nights)
-
-
-# ── 3. Detections per species per campaign ────────────────────────────────────
-# Count one detection per record row (each row = one observation event in the
-# reviewed CSV).  Detections ≠ independent events — independence filtering is
-# not applied here since the goal is a presence/activity overview.
-
-# EPISODES, not images: a camera fires 2-3 frames per trigger, so an image count is
-# partly a measure of how long the animal stayed in frame.
-detections <- episode_counts(records, by = c("campaign", "species_label", "guild")) %>%
-  rename(n_detections = n_episodes) %>%
-  # Add trap-nights to compute the rate
-  left_join(trap_nights, by = "campaign")
+message("Effort per campaign (camera-days with stills and a valid clock; stations sampling):")
+print(effort)
 
 
-# ── 4. Figure A — Raw detection counts ───────────────────────────────────────
+# ── 3. Episodes per species per campaign ─────────────────────────────────────
 
-fig_A <- detections %>%
-  ggplot(aes(x = species_label, y = n_detections, fill = guild)) +
+rate_stations <- deployments %>%
+  filter(media_status == "in_canonical", valid_effort %in% TRUE) %>%
+  select(campaign, station_id)
+
+detections <- records %>%
+  semi_join(rate_stations, by = c("campaign", "station_id")) %>%
+  episode_counts(by = c("campaign", "species_label", "guild")) %>%
+  left_join(effort, by = "campaign") %>%
+  mutate(rate_per_100 = n_episodes / camera_days * 100)
+
+
+# ── 4. Figure A — episodes ───────────────────────────────────────────────────
+
+fig_A <- ggplot(detections, aes(x = species_label, y = n_episodes, fill = guild)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-  facet_wrap(~campaign, ncol = 1, labeller = labeller(
-    campaign = c(Otono_2025 = "Otoño 2025", Primavera_2025 = "Primavera 2025")
-  )) +
+  campaign_facets +
   scale_fill_manual(values = GUILD_COLORS, name = "Guild") +
   scale_y_continuous(labels = comma) +
   labs(
-    title    = "Total detections per focal species",
-    subtitle = "Each row = one reviewed observation event",
-    x        = NULL,
-    y        = "Number of detections"
+    title    = "Independent detections per focal species",
+    subtitle = sprintf("Unit: episodes (%d-min rule, decided at ingest), not images", EPISODE_GAP_MINUTES),
+    x = NULL, y = "Episodes"
   ) +
   theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 
-ggsave(here("figures", "02_detections_per_species.png"),
-       fig_A, width = 8, height = 7, dpi = 300)
+ggsave(here("figures", "02_detections_per_species.png"), fig_A, width = 8, height = 9, dpi = 300)
 message("Saved figures/02_detections_per_species.png")
 
 
-# ── 5. Figure B — Detection Rate (per 100 trap-nights) ───────────────────────
-# Detection Rate (DR) = (n_detections / trap_nights) * 100
-# This normalises counts by camera effort, making campaigns comparable.
+# ── 5. Figure B — detection rate per 100 camera-days ─────────────────────────
 
-fig_B <- detections %>%
-  mutate(detection_rate = n_detections / trap_nights * 100) %>%
-  ggplot(aes(x = species_label, y = detection_rate, fill = guild)) +
+fig_B <- ggplot(detections, aes(x = species_label, y = rate_per_100, fill = guild)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-  facet_wrap(~campaign, ncol = 1, labeller = labeller(
-    campaign = c(Otono_2025 = "Otoño 2025", Primavera_2025 = "Primavera 2025")
-  )) +
+  campaign_facets +
   scale_fill_manual(values = GUILD_COLORS, name = "Guild") +
   labs(
     title    = "Detection rate per focal species",
-    subtitle = "Detections per 100 trap-nights (approximated from active days with records)",
-    x        = NULL,
-    y        = "Detections / 100 trap-nights"
+    subtitle = "Episodes per 100 camera-days; effort from the field record (deployments.csv)",
+    caption  = "Denominator: stations with stills in the canonical table and a valid clock diagnosis.",
+    x = NULL, y = "Episodes / 100 camera-days"
   ) +
   theme_classic(base_size = 13) +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom", plot.caption = element_text(hjust = 0, colour = "grey30"))
 
-ggsave(here("figures", "02_detection_rate.png"),
-       fig_B, width = 8, height = 7, dpi = 300)
+ggsave(here("figures", "02_detection_rate.png"), fig_B, width = 8, height = 9, dpi = 300)
 message("Saved figures/02_detection_rate.png")
 
 
-# ── 6. Figure C — Naive occupancy ────────────────────────────────────────────
-# Naive occupancy = proportion of active stations where a species was detected
-# at least once.  "Naive" because it does not account for imperfect detection.
+# ── 6. Figure C — naive occupancy ────────────────────────────────────────────
+# presence() is place-admissible: a station whose clock failed still counts as
+# occupied, and it is also in the denominator because it was sampling.
 
-# How many distinct stations were active per campaign?
-n_stations_active <- records %>%
-  group_by(campaign) %>%
-  summarise(n_stations_total = n_distinct(station_id), .groups = "drop")
+occupancy <- presence(records) %>%
+  count(campaign, species_label, guild, name = "n_stations_detected") %>%
+  mutate(campaign = factor(campaign, levels = CAMPAIGNS)) %>%
+  left_join(effort, by = "campaign") %>%
+  mutate(naive_occupancy = n_stations_detected / n_stations_sampling,
+         species_label   = factor(species_label, levels = SPECIES_ORDER))
 
-# How many of those stations had at least one detection of each focal species?
-occupancy <- records %>%
-  group_by(campaign, species_label, guild) %>%
-  summarise(n_stations_detected = n_distinct(station_id), .groups = "drop") %>%
-  left_join(n_stations_active, by = "campaign") %>%
-  mutate(
-    naive_occupancy = n_stations_detected / n_stations_total,
-    species_label   = factor(species_label, levels = SPECIES_ORDER)
-  )
-
-fig_C <- occupancy %>%
-  ggplot(aes(x = species_label, y = naive_occupancy, fill = guild)) +
+fig_C <- ggplot(occupancy, aes(x = species_label, y = naive_occupancy, fill = guild)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-  facet_wrap(~campaign, ncol = 1, labeller = labeller(
-    campaign = c(Otono_2025 = "Otoño 2025", Primavera_2025 = "Primavera 2025")
-  )) +
+  campaign_facets +
   scale_fill_manual(values = GUILD_COLORS, name = "Guild") +
   scale_y_continuous(labels = percent_format(), limits = c(0, 1)) +
   labs(
     title    = "Naive occupancy per focal species",
-    subtitle = "Proportion of active stations with at least one detection",
-    x        = NULL,
-    y        = "Naive occupancy"
+    subtitle = "Share of sampling stations with at least one detection",
+    caption  = "Denominator: stations with stills or offline video in the campaign (field record). Not corrected for imperfect detection.",
+    x = NULL, y = "Naive occupancy"
   ) +
   theme_classic(base_size = 13) +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom", plot.caption = element_text(hjust = 0, colour = "grey30"))
 
-ggsave(here("figures", "02_naive_occupancy.png"),
-       fig_C, width = 8, height = 7, dpi = 300)
+ggsave(here("figures", "02_naive_occupancy.png"), fig_C, width = 8, height = 9, dpi = 300)
 message("Saved figures/02_naive_occupancy.png")
+
+message("\nEpisodes / rate / occupancy per campaign and species:")
+summary_tbl <- detections %>%
+  select(campaign, species_label, n_episodes, camera_days, rate_per_100) %>%
+  left_join(occupancy %>% select(campaign, species_label, n_stations_detected,
+                                 n_stations_sampling, naive_occupancy),
+            by = c("campaign", "species_label")) %>%
+  arrange(campaign, species_label) %>%
+  mutate(rate_per_100 = round(rate_per_100, 2), naive_occupancy = round(naive_occupancy, 2))
+print(as.data.frame(summary_tbl), row.names = FALSE)
 message("Run 03_activity_patterns.R next.")

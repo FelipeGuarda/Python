@@ -33,22 +33,42 @@
 #
 #     presence(records)   one row per (campaign, station, species) — the set of
 #                         places a species was seen. Uses "place".
-#     episodes(records)   one row per independent detection event, 30-minute rule.
-#                         Uses "time", because independence is undefined without a
-#                         clock. THIS is the unit for any count.
+#     episodes(records)   one row per independent detection event. Uses "time",
+#                         because independence is undefined without a clock. THIS
+#                         is the unit for any count.
 #
 #   Raw `records` is one row per IMAGE and should not be counted directly. If you
 #   find yourself writing count(records, ...) ask whether you meant episodes().
 #
-# REQUIRES    dplyr (for `independent()`). Source AFTER library(dplyr).
+# THE INDEPENDENCE RULE IS NOT DECIDED HERE
+#   Until 2026-09-08 this file held its own 30-minute rule (`keep_after_min_gap()`,
+#   `independent()`), the third copy of a decision that also lived in the annual
+#   report and in data-pipeline, and two of the three had already disagreed by a
+#   third of all events. camera-traps now decides it once at ingest and carries it in
+#   the canonical table as `episode_30min` (camtrap/episodes.py). It also knows what
+#   this file cannot: an episode may not cross a clock-segment boundary, and segments
+#   are not in the table. So episodes() reads the column and derives nothing.
+#   Retiring the R rule moved zero numbers: 380 episodes on the same 1,112 focal rows.
+#
+# REQUIRES    nothing beyond base R.
 # SOURCED BY  01, 02, 03, 05, 06. In 01, source it after here::i_am().
 # ─────────────────────────────────────────────────────────────────────────────
 
-# The 30-minute independence rule. DUPLICATED DECISION, deliberately named:
-# `camera-traps/Anual-reports/2025/py/01_data_prep.py` holds `EPISODE_GAP` for the
-# annual report. Two languages, so no shared constant is possible — but if one moves
-# the other must move with it, and the report is the one to match.
-EPISODE_GAP_MINUTES <- 30
+# Every timestamp in this project is a camera-clock READING labelled UTC (see
+# 01_load_data.R): a label, not an instant. Pinning the process timezone makes that
+# hold for lubridate's hour()/month() and for Sys.time() on a machine WITH tzdata,
+# where the OS zone would otherwise shift them. The conda R on the Windows box has
+# no zone database at all and warns "unknown timezone" for every name, UTC included;
+# those warnings are noise -- every conversion there is a no-op, which is the
+# behaviour this label wants.
+Sys.setenv(TZ = "UTC")
+
+# The producer puts the threshold in the column name on purpose: a different gap is a
+# different column, so two figures cannot quietly compare counts built on different
+# definitions of one event. The caption label is parsed from the name rather than
+# restated, so it cannot drift from it.
+EPISODE_COLUMN      <- "episode_30min"
+EPISODE_GAP_MINUTES <- as.integer(sub("^episode_(\\d+)min$", "\\1", EPISODE_COLUMN))
 
 
 admissible <- function(records, for_question = c("time", "place"), quiet = FALSE) {
@@ -97,56 +117,37 @@ presence <- function(records, quiet = FALSE) {
 }
 
 
-# THE independence rule, in one place.
-#
-# The gap is measured from the last RETAINED detection, not from the immediately
-# previous one. That distinction is not cosmetic: detections at 0, 20 and 40 minutes
-# are TWO independent events (0 and 40) under this rule and ONE if you compare each
-# record only against its predecessor. This is the standard camtrapR definition and
-# the one `record_table` has always used.
-keep_after_min_gap <- function(datetimes, min_delta_min) {
-  n <- length(datetimes)
-  if (n == 0) return(logical(0))
-  keep <- logical(n)
-  keep[1] <- TRUE
-  last_kept <- datetimes[1]
-  if (n >= 2) {
-    for (i in seq(2, n)) {
-      if (as.numeric(difftime(datetimes[i], last_kept, units = "mins")) >= min_delta_min) {
-        keep[i] <- TRUE
-        last_kept <- datetimes[i]
-      }
-    }
-  }
-  keep
-}
-
-
-# Grouping includes CAMPAIGN as well as station and species. Two campaigns at one
-# station are separate deployments months apart; independence within one says nothing
-# about the other.
-independent <- function(df, gap_minutes = EPISODE_GAP_MINUTES) {
-  df %>%
-    dplyr::arrange(station_id, species_label, campaign, datetime) %>%
-    dplyr::group_by(station_id, species_label, campaign) %>%
-    dplyr::mutate(.keep_event = keep_after_min_gap(datetime, gap_minutes)) %>%
-    dplyr::ungroup() %>%
-    dplyr::filter(.keep_event) %>%
-    dplyr::select(-.keep_event)
-}
-
-
-episodes <- function(records, gap_minutes = EPISODE_GAP_MINUTES, quiet = FALSE) {
+# One row per episode: the EARLIEST frame of each. The row keeps every column, so an
+# episode still knows its station, species, campaign and datetime, and time_rad is the
+# first trigger's, which is the camtrapR convention for a record table.
+episodes <- function(records, quiet = FALSE) {
   r <- admissible(records, "time", quiet = quiet)
+  if (!EPISODE_COLUMN %in% names(r)) {
+    stop("`records` has no `", EPISODE_COLUMN, "` column -- it predates the ",
+         "canonical episode rule. Re-run R/01_load_data.R.", call. = FALSE)
+  }
   if (nrow(r) == 0) return(r[0, , drop = FALSE])
-  out <- independent(r, gap_minutes)
+  # A time-admissible identified animal with no episode id would be a producer
+  # defect (camtrap/episodes.py assigns one to every row with a species and a clock).
+  # Measured 0 across all three campaigns on 2026-09-08; if it ever happens, a count
+  # would silently omit those detections, so it stops here instead.
+  orphan <- is.na(r[[EPISODE_COLUMN]])
+  if (any(orphan)) {
+    stop(sprintf("%d time-admissible record(s) carry no %s id. The canonical table ",
+                 "disagrees with its own episode rule; report upstream.",
+                 sum(orphan), EPISODE_COLUMN), call. = FALSE)
+  }
+  r <- r[order(r[[EPISODE_COLUMN]], r$datetime), , drop = FALSE]
+  out <- r[!duplicated(r[[EPISODE_COLUMN]]), , drop = FALSE]
+  out <- out[order(out$campaign, out$station_id, out$species_label, out$datetime), ,
+             drop = FALSE]
   rownames(out) <- NULL
   out
 }
 
 
-episode_counts <- function(records, by = c("station_id", "species_label"), ...) {
-  e <- episodes(records, ...)
+episode_counts <- function(records, by = c("station_id", "species_label"), quiet = FALSE) {
+  e <- episodes(records, quiet = quiet)
   if (nrow(e) == 0) {
     empty <- as.data.frame(setNames(rep(list(character()), length(by)), by))
     empty$n_episodes <- integer()

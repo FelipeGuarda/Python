@@ -1,82 +1,55 @@
 # 01_load_data.R
 # ─────────────────────────────────────────────────────────────────────────────
 # PURPOSE
-#   Read the CANONICAL observation tables published by camera-traps, join camera
-#   coordinates from the GeoJSON, optionally filter to a species subset, and save
-#   clean R objects for every downstream analysis script.
+#   Verify the camera-trap contract, read the CANONICAL observation tables and
+#   deployment windows published by camera-traps, join station coordinates, filter to
+#   the focal species, and save clean R objects for every downstream script.
 #
-# INPUT FILES
-#   - camera-traps/data/campaigns/{otono_2025, primavera_2025, otono_2026}/observations.parquet
-#   - camera-traps/data/CANONICAL_STATE.json   (the published contract; checked on load)
-#   - plataforma-territorial/data/camera_trap_stations.geojson
-#   - plataforma-territorial/data/boundary.geojson
+# INPUT FILES  (all published by camera-traps unless noted)
+#   - data/CANONICAL_STATE.json                        the contract; verified FIRST
+#   - data/campaigns/<campaign>/observations.parquet   the canonical table
+#   - data/campaigns/<campaign>/deployments.csv        field windows and effort
+#   - data/campaigns/estaciones.geojson                station coordinates
+#   - plataforma-territorial/data/boundary.geojson     reserve boundary (platform's)
 #
-# OUTPUT FILES  (written to data/ inside the project)
-#   - records_all.rds      records for the active SPECIES_FILTER, all campaigns
-#   - stations_sf.rds      spatial dataframe with camera locations
-#   - boundary_sf.rds      reserve boundary
-#   - record_table.rds     camtrapR record table
-#   - stations_ct.rds      camtrapR CTtable
+# OUTPUT FILES  (data/ inside the project)
+#   - records_all.rds        one row per IMAGE, focal species, all campaigns
+#   - deployments.rds        one row per (campaign, station): window, effort, media
+#   - stations_sf.rds        sf points, one per station
+#   - boundary_sf.rds        reserve boundary
+#   - record_table.rds       camtrapR record table, one row per EPISODE
+#   - stations_ct.rds        camtrapR CTtable
+#   - contract_stamp.json    what the above were built from; downstream scripts
+#                            refuse to run if the published contract has moved
 #
-# REWRITTEN 2026-08-20 — what changed and why it matters to the results
-#   This script used to read three `new_labeled_data_corrected.csv` files. Those
-#   carry the REVIEWED ROWS ONLY and, more seriously, an UNRESOLVED
-#   `observationType`: every row reads `animal`, including the 815 across the three
-#   campaigns where the reviewer had written in `observationComments` that the frame
-#   holds no animal. The old filter here survived that by accident — it also required
-#   a non-empty `scientificName`, and those rows are blank there — but it was luck,
-#   not a control.
-#
-#   Worse, and not survivable by luck: the "spring" campaign read here was
-#   `pv_2025_2026`, which is NOT a campaign. It is a second review pass over
-#   primavera_2025's cards, made in April and superseded by primavera's own review in
-#   August. `primavera_2025` was never read at all. Of the 606 image keys the two
-#   share, 128 carried a different species.
-#
-#   The canonical parquet fixes both: `observation_type` is resolved (see
-#   `resolve_review()` in camtrap/observations.py), the row set is every still in the
-#   gated export, and `valid_effort` marks stations whose operating period is unknown
-#   and which must therefore leave effort DENOMINATORS as well as numerators.
-#
-# WHAT THIS SCRIPT NO LONGER DOES, DELIBERATELY
-#   - Parse station IDs. Three campaigns used three grammars ("CT01", "TC10_M3.2",
-#     "CT_18") and each had its own block here. `camtrap/stations.py` owns that, and
-#     it is fail-closed: an unrecognised station stops the ingest rather than becoming
-#     a dropped row. The parquet arrives with `camera_num` already resolved.
-#   - Cross-validate the SD-card code against the GeoJSON. That check confirmed a
-#     station label had been parsed correctly. No label is parsed here any more, so
-#     the check has no subject.
-#   - Filter out `"No reconocible"` by string. The canonical table types those rows
-#     `unknown`, not `animal`, so they never reach the animal filter.
-#
-# SPECIES FILTER
-#   Set SPECIES_FILTER to a character vector of Latin names to restrict the output.
-#   Set to NULL to retain ALL identified species (for plataforma / full dataset).
+# WHAT THIS SCRIPT DOES NOT DECIDE, DELIBERATELY (manual 10F.3)
+#   Station identity, clock repair, the review verdict, the Spanish->Latin lookup,
+#   which frames are one detection event, and how many days a camera operated. Every
+#   one arrives in the table or in deployments.csv with the answer. Between
+#   2026-04 and 2026-08 this file made four of those decisions itself, each with its
+#   own grammar per campaign, and each was eventually measured wrong against the
+#   producer's. See R/00_admissibility.R and R/00_contract.R for the history.
 #
 # HOW TO RE-RUN FOR A NEW CAMPAIGN
 #   1. Re-ingest it in camera-traps:  python timestamps.py --campaign <name>
 #   2. Re-publish the contract:       python -m camtrap.canonical_state --publish
-#   3. Add its slug to CAMPAIGNS below. Nothing else in this file changes.
+#   3. Add its slug to CAMPAIGNS below, and a display name to CAMPAIGN_LABELS in
+#      R/00_contract.R. Nothing else changes.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 # ── 0. Libraries ─────────────────────────────────────────────────────────────
 
-library(here)        # reproducible relative paths (auto-detects project root)
-library(readr)       # fast CSV reading with consistent type inference
-library(dplyr)       # data manipulation
-library(stringr)     # string parsing for station ID extraction
-library(lubridate)   # datetime parsing
-library(sf)          # reading GeoJSON and spatial operations
-library(jsonlite)    # reading CANONICAL_STATE.json (the published data contract)
+library(here)        # reproducible relative paths, anchored by .here in the project
+library(dplyr)
+library(lubridate)   # hour(), minute(), second()
+library(sf)          # GeoJSON
+library(jsonlite)    # used by R/00_contract.R
 
-
-# Parquet reader. `nanoparquet` is preferred — it is tiny and has no Arrow
-# dependency; `arrow` is accepted if already installed. One of the two is REQUIRED:
-#   Rscript -e 'install.packages("nanoparquet", repos="https://cloud.r-project.org")'
-# We deliberately do NOT fall back to a CSV export of the canonical table. A second
-# published file would be a second source of truth, which is the exact failure this
-# rewrite exists to remove.
+# Parquet reader. `nanoparquet` is preferred (tiny, no Arrow runtime); `arrow` is
+# accepted if already installed. There is deliberately NO CSV fallback: a second
+# published file would be a second source of truth, which is the failure the
+# canonical table exists to remove.
 .read_parquet <- if (requireNamespace("nanoparquet", quietly = TRUE)) {
   function(path) as.data.frame(nanoparquet::read_parquet(path))
 } else if (requireNamespace("arrow", quietly = TRUE)) {
@@ -84,85 +57,28 @@ library(jsonlite)    # reading CANONICAL_STATE.json (the published data contract
 } else {
   stop(
     "No parquet reader available. Install one:\n",
-    "  install.packages(\"nanoparquet\", repos = \"https://cloud.r-project.org\")\n",
-    "camera-traps publishes observations.parquet; this script no longer reads CSVs.",
+    "  install.packages(\"nanoparquet\", repos = \"https://cloud.r-project.org\")",
     call. = FALSE
   )
 }
 
-# Announce to `here` where the project root is relative to this script.
-# This writes a tiny `.here` file in the project root on first run.
+# `.here` in the project root anchors here() to THIS directory. Without it rprojroot
+# walks up to the monorepo's .git and every here("data", ...) resolves to a top-level
+# data/ that does not exist. The 00_* modules must be sourced after this line.
 here::i_am("R/01_load_data.R")
-
-# Owns which records are admissible for which question, and the unit of analysis.
-# Sourced AFTER here::i_am(): before it, here() resolves to the monorepo root rather
-# than this project, and the path silently misses.
+source(here::here("R", "00_contract.R"))
 source(here::here("R", "00_admissibility.R"))
 
 
-# ── 1. Paths ─────────────────────────────────────────────────────────────────
-# Derived from THIS PROJECT's location, never from the machine's. `.here` in the project
-# root anchors here() to this directory (without it rprojroot walks up to the monorepo's
-# .git and every here("data", ...) below resolves to a top-level data/ that does not
-# exist). The sibling projects are two levels up, which is true on every checkout.
-#
-# These were absolute Windows paths until 2026-08-24, which is why this script could not
-# run on the Linux box. A committed absolute path is correct on exactly one machine and
-# silently wrong on every other — the same failure that made `campaign_dir` a required
-# argument in camera-traps, where a stale path kept pointing at a directory that still
-# existed and so every run looked normal.
-#
-# FMA_MONOREPO overrides, for a checkout that is not laid out as siblings.
+# ── 1. Campaigns and species ─────────────────────────────────────────────────
 
-MONOREPO <- Sys.getenv("FMA_MONOREPO", unset = NA)
-if (is.na(MONOREPO) || MONOREPO == "") {
-  MONOREPO <- normalizePath(here::here("..", ".."), winslash = "/", mustWork = TRUE)
-}
-
-CAMERA_TRAPS <- file.path(MONOREPO, "camera-traps")
-PLATAFORMA   <- file.path(MONOREPO, "plataforma-territorial")
-
-for (.p in c(CAMERA_TRAPS, PLATAFORMA)) {
-  if (!dir.exists(.p)) {
-    stop(sprintf(
-      paste0("Sibling project not found: %s\nExpected the FMA monorepo layout, with ",
-             "camera-traps/ and plataforma-territorial/ beside Research/.\nSet ",
-             "FMA_MONOREPO to the repository root if your checkout differs."), .p),
-      call. = FALSE)
-  }
-}
-
-# Campaign slugs, in chronological order of retrieval.
-#
-# `pv_2025_2026` is ABSENT ON PURPOSE and must not be added back. It is a second
-# review pass over primavera_2025, not a campaign; while this script read it in
-# primavera's place the spring data was the superseded April labels. Its files were
-# deleted on 2026-08-20 after being measured to hold no unique records.
+# Slugs as the producer names them, in order of retrieval. The slug is the campaign's
+# identity in every table this script writes; figure text goes through
+# campaign_label(). `pv_2025_2026` must never be added: it was a second review pass
+# over primavera_2025, not a campaign, and its files were deleted on 2026-08-20.
 CAMPAIGNS <- c("otono_2025", "primavera_2025", "otono_2026")
 
-# Human-readable labels used in every figure. Keys must match CAMPAIGNS.
-CAMPAIGN_LABELS <- c(
-  otono_2025     = "Otono_2025",
-  primavera_2025 = "Primavera_2025",
-  otono_2026     = "Otono_2026"
-)
-
-PATH_STATE    <- file.path(CAMERA_TRAPS, "data", "CANONICAL_STATE.json")
-PATH_GEOJSON  <- file.path(PLATAFORMA, "data", "camera_trap_stations.geojson")
-PATH_BOUNDARY <- file.path(PLATAFORMA, "data", "boundary.geojson")
-
-# Output directory
-dir.create(here("data"), showWarnings = FALSE)
-
-
-# ── 2. Species configuration ──────────────────────────────────────────────────
-# FOCAL_SPECIES maps Latin names (as in scientificName column) to figure labels.
-# NATIVE_SPECIES / INVASIVE_SPECIES drive colour coding in all figures.
-#
-# SPECIES_FILTER controls what ends up in records_all.rds:
-#   - Set to names(FOCAL_SPECIES) for the pehuen research analysis (focal 6).
-#   - Set to NULL to retain ALL identified species (plataforma / full dataset).
-
+# Latin names as they appear in `species_latin`, mapped to figure labels.
 FOCAL_SPECIES <- c(
   "Puma concolor"          = "Puma",
   "Leopardus guigna"       = "Guina",
@@ -171,349 +87,260 @@ FOCAL_SPECIES <- c(
   "Lepus europaeus"        = "Liebre",
   "Canis lupus familiaris" = "Perro"
 )
+NATIVE_SPECIES   <- c("Puma concolor", "Leopardus guigna", "Lycalopex culpaeus")
+INVASIVE_SPECIES <- c("Sus scrofa", "Lepus europaeus", "Canis lupus familiaris")
 
-NATIVE_SPECIES    <- c("Puma concolor", "Leopardus guigna", "Lycalopex culpaeus")
-INVASIVE_SPECIES  <- c("Sus scrofa", "Lepus europaeus", "Canis lupus familiaris")
-
-# ── CHANGE THIS to NULL to keep all identified species ────────────────────────
+# Set to NULL to keep every identified species (full dataset) instead of the focal 6.
 SPECIES_FILTER <- names(FOCAL_SPECIES)
 
 
-# ── 2b. Independence threshold for record_table ───────────────────────────────
-# O'Brien et al. (2003) 30-minute convention: consecutive triggers of the same
-# species at the same station within this window are collapsed to one event.
-# Applied to record_table (activity / overlap analyses); records_all keeps raw
-# triggers for date-based analyses that do not depend on event independence.
-MIN_DELTA_TIME_MIN <- EPISODE_GAP_MINUTES   # from R/00_admissibility.R
+# ── 2. The handshake: verify the contract before opening anything ────────────
+# Absent, unreadable, wrong schema or missing campaign all REFUSE here with exit
+# status 2. Nothing below runs against an unverified contract.
+
+state <- contract_load(CAMPAIGNS)
+
+CAMPAIGNS_DIR <- file.path(producer_dir(), "data", "campaigns")
+PATH_GEOJSON  <- file.path(CAMPAIGNS_DIR, "estaciones.geojson")
+PATH_BOUNDARY <- file.path(monorepo_root(), "plataforma-territorial", "data", "boundary.geojson")
+
+dir.create(here("data"), showWarnings = FALSE)
 
 
-# ── 3. Load and parse the station coordinates (GeoJSON) ───────────────────────
-# The GeoJSON is GENERATED from camera-traps/data/campaigns/estaciones.csv, which owns
-# station identity; it is not hand-maintained. It holds, per physical camera trap:
-#   id       → canonical station label "CT01", "CT02", … (was "TC-01" until 2026-08-24;
-#              one spelling is now used in the field, the pipeline and the platform)
-#   tc       → integer station number (1–27); this is the JOIN KEY
-#   geometry → WGS-84 point coordinates (lon, lat)
-# `sd_card` was dropped on 2026-08-24: it was the M## grid-module tag from the old
-# folder names, not an SD card, not unique (M15 was both CT11 and CT18), and the
-# Primavera cross-validation that once read it no longer exists.
+# ── 3. Stations ──────────────────────────────────────────────────────────────
+# Generated by camera-traps from estaciones.csv, which owns station identity; not
+# hand-maintained. `id` is the canonical label "CT01".."CT27" and is the JOIN KEY
+# against the table's `station_canonical` -- the same string on both sides, so there
+# is no integer to derive and nothing to parse.
 
 stations_sf <- st_read(PATH_GEOJSON, quiet = TRUE) %>%
-  # Rename `tc` to `tc_num` to make its role as join key explicit
-  rename(tc_num = tc) %>%
-  # Keep only the columns we need downstream
-  select(id, tc_num, altitude_m, geometry)
+  select(id, altitude_m, geometry)
 
-message(sprintf("Loaded %d camera stations from GeoJSON.", nrow(stations_sf)))
+message(sprintf("Loaded %d stations from %s", nrow(stations_sf), basename(PATH_GEOJSON)))
 
 
-# ── 4. Verify the published data contract ────────────────────────────────────
-# camera-traps publishes CANONICAL_STATE.json alongside the parquets: schema version,
-# column list, and per-campaign row/station/animal counts. We check it before reading
-# anything, because on 2026-08-19 those tables went from 3,359 rows to 35,807 and not
-# one consumer raised an error. A contract nobody verifies is a comment.
+# ── 4. The canonical tables ──────────────────────────────────────────────────
 
-state <- jsonlite::fromJSON(PATH_STATE, simplifyVector = TRUE)
-
-EXPECTED_SCHEMA_VERSION <- 2L
-if (as.integer(state$schema_version) != EXPECTED_SCHEMA_VERSION) {
-  stop(sprintf(
-    paste0("CANONICAL_STATE.json declares schema_version %s but this script was written ",
-           "against %d.\nThe canonical table has changed shape. Read ",
-           "camera-traps/camtrap/observations.py (CANONICAL_COLUMNS) and update this ",
-           "script deliberately -- do not just bump the number."),
-    state$schema_version, EXPECTED_SCHEMA_VERSION
-  ), call. = FALSE)
-}
-
-missing_campaigns <- setdiff(CAMPAIGNS, names(state$campaigns))
-if (length(missing_campaigns) > 0) {
-  stop("Campaigns requested but not present in CANONICAL_STATE.json: ",
-       paste(missing_campaigns, collapse = ", "),
-       "\nRe-ingest them in camera-traps, then re-publish the contract.", call. = FALSE)
-}
-
-message(sprintf(
-  "Canonical contract: schema_version %s, %s rows total, %s stations.",
-  state$schema_version, format(state$n_rows_total, big.mark = ","),
-  state$n_stations_total
-))
-
-
-# ── 5. Read the canonical tables ─────────────────────────────────────────────
-# One function, all campaigns. There is nothing per-campaign left to special-case:
-# station resolution, clock repair, the review resolution and the Spanish->Latin
-# lookup all happened upstream, and the parquet arrives with the answers.
+# Columns this project reads. A missing one stops the load; extra ones are ignored.
+NEEDED <- c("campaign", "station_canonical", "datetime", "valid_date",
+            "valid_time_of_day", "valid_effort", "repair_method", "observation_type",
+            "species_latin", "review_outcome", "review_resolution", EPISODE_COLUMN)
 
 read_canonical <- function(campaign) {
-  path <- file.path(CAMERA_TRAPS, "data", "campaigns", campaign, "observations.parquet")
+  path <- file.path(CAMPAIGNS_DIR, campaign, "observations.parquet")
   if (!file.exists(path)) {
     stop(sprintf("Missing canonical table: %s\nRun: cd %s && python timestamps.py --campaign %s",
-                 path, CAMERA_TRAPS, campaign), call. = FALSE)
+                 path, producer_dir(), campaign), call. = FALSE)
   }
   raw <- .read_parquet(path)
 
-  needed <- c("campaign", "camera_num", "station_canonical", "datetime", "valid_date",
-              "valid_time_of_day", "valid_effort", "repair_method", "observation_type",
-              "species_latin", "review_outcome", "review_resolution")
-  absent <- setdiff(needed, names(raw))
-  if (length(absent) > 0) {
+  absent <- setdiff(NEEDED, names(raw))
+  if (length(absent)) {
     stop(sprintf("%s: canonical table is missing column(s): %s",
                  campaign, paste(absent, collapse = ", ")), call. = FALSE)
   }
 
-  # Row count must match the published contract exactly. If someone re-ingested a
-  # campaign without re-publishing, we want to hear about it here and not in a figure.
+  # The one on-disk check kept here: the parquet must hold the rows the contract
+  # declares, or someone re-ingested without re-publishing.
   declared <- as.integer(state$campaigns[[campaign]]$n_rows)
   if (nrow(raw) != declared) {
-    stop(sprintf(
-      paste0("%s: parquet holds %d rows but CANONICAL_STATE.json declares %d.\n",
-             "The table was rebuilt without re-publishing the contract. In camera-traps: ",
+    refuse(sprintf(
+      paste0("%s: parquet holds %d rows but the contract declares %d. The table was ",
+             "rebuilt without re-publishing. In camera-traps: ",
              "python -m camtrap.canonical_state --publish"),
-      campaign, nrow(raw), declared), call. = FALSE)
+      campaign, nrow(raw), declared))
   }
 
-  clean <- raw %>%
-    # (a) Identified animals only. `observation_type` here is the RESOLVED type -- the
-    #     reviewer's verdict, not the classifier's guess -- so this filter now removes
-    #     the human, vehicle, blank and unknown rows correctly. `species_latin` is ""
-    #     rather than NA on non-animal rows, hence both tests.
-    filter(
-      observation_type == "animal",
-      !is.na(species_latin),
-      species_latin != ""
-    ) %>%
-    mutate(
-      # tz = "UTC" is a LABEL here, not a conversion, and it must stay explicit.
-      # Camera clocks are set to Chile local time and the canonical table stores that
-      # reading verbatim, so the hour is already the local hour an animal was active;
-      # tagging it UTC stops R shifting it. tz = "" would be silently
-      # machine-dependent: this conda R has no tzdata so it is a no-op here, but on a
-      # box WITH tzdata it converts by the local offset and moves every
-      # activity-pattern figure by 3-4 hours.
-      datetime = as.POSIXct(datetime, tz = "UTC"),
-      campaign = unname(CAMPAIGN_LABELS[campaign]),
-      tc_num   = as.integer(camera_num)
-    ) %>%
-    select(
-      campaign, tc_num, station_canonical, datetime,
-      valid_date, valid_time_of_day, valid_effort, repair_method,
-      species_latin, review_outcome, review_resolution
-    )
+  # Station-level effort validity for EVERY station in the table, read before the
+  # animal filter so that stations with zero focal detections are still known.
+  # valid_effort is set by the producer's clock diagnosis and is constant per station.
+  station_effort <- raw %>%
+    distinct(campaign, station_id = station_canonical, valid_effort)
 
-  message(sprintf(
-    "  [%s] %d rows in table; %d identified-animal records (%d species).",
-    campaign, nrow(raw), nrow(clean), dplyr::n_distinct(clean$species_latin)
-  ))
-  clean
+  clean <- raw %>%
+    # `observation_type` is the RESOLVED type (the reviewer's verdict, not the
+    # classifier's guess). `species_latin` is "" on non-animal rows, hence both tests.
+    filter(observation_type == "animal", !is.na(species_latin), species_latin != "") %>%
+    mutate(
+      # tz = "UTC" is a LABEL, not a conversion. Camera clocks read Chile local time
+      # and the table stores that reading verbatim, so the hour is already the hour
+      # the animal was active. tz = "" would be machine-dependent: a no-op on an R
+      # without tzdata, a 3-4 h shift on one with it.
+      datetime   = as.POSIXct(datetime, tz = "UTC"),
+      station_id = station_canonical
+    ) %>%
+    select(campaign, station_id, datetime, valid_date, valid_time_of_day, valid_effort,
+           repair_method, species_latin, review_outcome, review_resolution,
+           all_of(EPISODE_COLUMN))
+
+  message(sprintf("  [%s] %d rows in table; %d identified-animal records (%d species).",
+                  campaign, nrow(raw), nrow(clean), n_distinct(clean$species_latin)))
+  list(records = clean, station_effort = station_effort)
 }
 
 message("\nReading canonical tables...")
-records_raw <- bind_rows(lapply(CAMPAIGNS, read_canonical))
+loaded         <- lapply(CAMPAIGNS, read_canonical)
+records_raw    <- bind_rows(lapply(loaded, `[[`, "records"))
+station_effort <- bind_rows(lapply(loaded, `[[`, "station_effort"))
 
 
-# ── 6. Effort validity ───────────────────────────────────────────────────────
-# valid_effort is STATION-level: FALSE means this camera's operating period is
-# unknown, so its trap-nights are unknowable and it must leave the effort DENOMINATOR
-# as well as the numerator. Every row of such a station carries FALSE, including rows
-# whose own timestamp is fine. This script had no access to the flag before
-# 2026-08-20 and so could not have excluded those stations from an effort calculation.
-#
-# We keep the rows and surface the count: no analysis here divides by trap-nights yet.
-# Any future occupancy or detection-rate figure MUST filter on valid_effort == TRUE.
-n_no_effort <- sum(!records_raw$valid_effort, na.rm = TRUE)
-if (n_no_effort > 0) {
-  message(sprintf(
-    paste0("  NOTE: %d records sit at stations with valid_effort == FALSE. Fine for ",
-           "presence and activity; NOT usable in any trap-night denominator."),
-    n_no_effort
-  ))
+# ── 5. Deployment windows and effort ─────────────────────────────────────────
+# One row per (campaign, station) from the FIELD RECORD, so a window exists whether
+# or not the camera's clock survived. `media_status` says why a station has no
+# stills, and it decides a DENOMINATOR:
+#   in_canonical        stills are in the table. The only rows a stills-based rate
+#                       may divide by.
+#   video_only_offline  the camera WAS sampling; its media is video outside this
+#                       pipeline. Belongs in an occupancy/presence denominator, must
+#                       be excluded from any stills-based rate.
+#   card_failure        recorded nothing. No effort for any question.
+#   unexplained / no_field_dates   not an effort figure; surfaced, never absorbed.
+# `valid_effort` (producer's clock diagnosis) is joined in so a rate can restrict its
+# denominator to the stations whose numerator it can actually see.
+
+read_deployments <- function(campaign) {
+  path <- file.path(CAMPAIGNS_DIR, campaign, "deployments.csv")
+  if (!file.exists(path)) {
+    stop(sprintf("Missing deployments: %s\nIn camera-traps: python -m camtrap.deployments",
+                 path), call. = FALSE)
+  }
+  read.csv(path, stringsAsFactors = FALSE, colClasses = c(
+    campaign = "character", station_id = "character", field_start = "character",
+    field_end = "character", has_media = "character", media_status = "character",
+    note = "character")) %>%
+    mutate(
+      # tz given explicitly for the same reason as the datetime label above: a
+      # calendar date must not depend on the machine's TZ setting.
+      field_start = as.Date(field_start, format = "%Y-%m-%d", tz = "UTC"),
+      field_end   = as.Date(field_end,   format = "%Y-%m-%d", tz = "UTC"),
+      field_days  = as.integer(field_days),
+      has_media   = tolower(has_media) == "true"
+    )
 }
 
+deployments <- bind_rows(lapply(CAMPAIGNS, read_deployments)) %>%
+  left_join(station_effort, by = c("campaign", "station_id"))
 
-# ── 7. Join camera coordinates ───────────────────────────────────────────────
-# tc_num comes from the canonical table (camera_num), already resolved and validated
-# upstream, so this is a plain lookup. left_join, not inner_join, so an unmatched
-# station surfaces as NA instead of vanishing.
+unexplained <- filter(deployments, media_status %in% c("unexplained", "no_field_dates"))
+if (nrow(unexplained) > 0) {
+  warning(sprintf(
+    "%d deployment(s) with no usable effort (%s). They are in deployments.rds and out of every denominator.",
+    nrow(unexplained),
+    paste(unique(paste(unexplained$campaign, unexplained$station_id)), collapse = ", ")))
+}
 
-stations_lookup_full <- st_drop_geometry(stations_sf) %>%
-  select(tc_num, id, altitude_m)
+message(sprintf("Deployments: %d station-campaigns; camera-days with stills: %s",
+                nrow(deployments),
+                format(sum(deployments$field_days[deployments$media_status == "in_canonical"]),
+                       big.mark = ",")))
+
+
+# ── 6. Join coordinates ──────────────────────────────────────────────────────
+# left_join, so a station the registry does not know surfaces as NA rather than
+# vanishing; admissible(., "place") drops NA stations and says so.
 
 records_joined <- records_raw %>%
-  left_join(stations_lookup_full, by = "tc_num") %>%
-  rename(station_id = id)
+  left_join(st_drop_geometry(stations_sf) %>% select(id, altitude_m),
+            by = c("station_id" = "id"))
 
-unmatched <- filter(records_joined, is.na(station_id))
+unmatched <- filter(records_joined, !station_id %in% stations_sf$id)
 if (nrow(unmatched) > 0) {
   warning(sprintf(
-    "%d records have camera numbers absent from the GeoJSON: %s. The station registry is behind the campaign data.",
-    nrow(unmatched), paste(sort(unique(unmatched$tc_num)), collapse = ", ")
-  ))
+    "%d records at station(s) absent from %s: %s. The registry is behind the campaign data.",
+    nrow(unmatched), basename(PATH_GEOJSON),
+    paste(sort(unique(unmatched$station_id)), collapse = ", ")))
+  records_joined$station_id[!records_joined$station_id %in% stations_sf$id] <- NA_character_
 }
 
 
-# ── 9. Combine campaigns and filter to target species ────────────────────────
-# When SPECIES_FILTER is a character vector, only those Latin names are kept.
-# When SPECIES_FILTER is NULL, all identified species are retained.
+# ── 7. Species filter, labels, admissibility flag ────────────────────────────
 
 records_all <- records_joined %>%
-  # Apply species filter (or keep all if NULL)
   { if (!is.null(SPECIES_FILTER)) filter(., species_latin %in% SPECIES_FILTER) else . } %>%
-  # Add human-readable species label (NA for species outside FOCAL_SPECIES)
   mutate(
-    species_label = ifelse(
-      species_latin %in% names(FOCAL_SPECIES),
-      FOCAL_SPECIES[species_latin],
-      species_latin
-    ),
+    species_label = ifelse(species_latin %in% names(FOCAL_SPECIES),
+                           FOCAL_SPECIES[species_latin], species_latin),
     guild = case_when(
       species_latin %in% NATIVE_SPECIES   ~ "Native",
       species_latin %in% INVASIVE_SPECIES ~ "Invasive",
       TRUE                                ~ "Other"
     ),
-    # Derive date and time-of-day fields used in activity analyses. These are NA for
-    # records whose clock could not be repaired, which is correct — an unknown hour
-    # must not be silently imputed.
-    date      = as.Date(datetime),
-    hour      = hour(datetime),
-    # Time of day as a fraction of 24 hours, then converted to radians (0 to 2π)
-    # This is the format expected by the `overlap` package
-    time_rad  = (hour(datetime) * 3600 + minute(datetime) * 60 + second(datetime)) /
-                86400 * 2 * pi,
-    # ── ADMISSIBILITY, not a filter.
-    # This used to be `filter(!is.na(datetime))` at the end of this pipeline, which
-    # imposed the strictest rule on every downstream script whether or not it asked.
-    # Presence/absence needs a station, not a clock: puma is recorded at 8 stations
-    # and the spatial maps showed 6, because CT03's and CT18's clocks failed. The
-    # record is kept; the flag says what it may be used for. See R/00_admissibility.R.
-    #
-    # valid_date and valid_time_of_day come from the canonical table and are NOT
-    # re-derived here — camera-traps owns clock repair.
+    # NA where the clock could not be repaired; an unknown hour is never imputed.
+    date     = as.Date(datetime),
+    hour     = hour(datetime),
+    # Time of day in radians (0..2*pi), the `overlap` package's input.
+    time_rad = (hour(datetime) * 3600 + minute(datetime) * 60 + second(datetime)) /
+               86400 * 2 * pi,
+    # A FLAG, not a filter. Presence needs a station, not a clock; activity needs
+    # both. Each script asks for the rule it needs through R/00_admissibility.R.
     time_admissible = !is.na(datetime) & valid_date & valid_time_of_day
   )
 
 message(sprintf(
   "\nFinal dataset: %d records across %d stations and %d campaigns. (SPECIES_FILTER: %s)",
-  nrow(records_all),
-  n_distinct(records_all$station_id),
-  n_distinct(records_all$campaign),
-  if (is.null(SPECIES_FILTER)) "ALL" else paste(SPECIES_FILTER, collapse = ", ")
-))
+  nrow(records_all), n_distinct(records_all$station_id), n_distinct(records_all$campaign),
+  if (is.null(SPECIES_FILTER)) "ALL" else paste(SPECIES_FILTER, collapse = ", ")))
 
-# What each kind of question may use. Printed rather than assumed, because the gap
-# between the two is exactly the defect this structure exists to prevent.
-n_place <- nrow(admissible(records_all, "place", quiet = TRUE))
-n_time  <- nrow(admissible(records_all, "time",  quiet = TRUE))
-st_place <- n_distinct(admissible(records_all, "place", quiet = TRUE)$station_id)
-st_time  <- n_distinct(admissible(records_all, "time",  quiet = TRUE)$station_id)
+n_no_effort <- sum(!records_all$valid_effort, na.rm = TRUE)
+if (n_no_effort > 0) {
+  message(sprintf(
+    "  NOTE: %d records sit at stations with valid_effort == FALSE. Fine for presence and activity; out of every trap-night denominator.",
+    n_no_effort))
+}
+
+place <- admissible(records_all, "place", quiet = TRUE)
+timed <- admissible(records_all, "time",  quiet = TRUE)
 message(sprintf(
   "  admissible for PLACE (presence/absence): %d records, %d stations\n  admissible for TIME  (activity/overlap) : %d records, %d stations",
-  n_place, st_place, n_time, st_time))
-if (st_place > st_time) {
-  message(sprintf(
-    "  NOTE: %d station(s) appear ONLY in place-based analyses — their clocks could not be repaired: %s",
-    st_place - st_time,
-    paste(setdiff(unique(admissible(records_all, "place", quiet = TRUE)$station_id),
-                  unique(admissible(records_all, "time",  quiet = TRUE)$station_id)),
-          collapse = ", ")))
+  nrow(place), n_distinct(place$station_id), nrow(timed), n_distinct(timed$station_id)))
+only_place <- setdiff(unique(place$station_id), unique(timed$station_id))
+if (length(only_place)) {
+  message(sprintf("  NOTE: station(s) in place-based analyses only (clock unrepairable): %s",
+                  paste(sort(only_place), collapse = ", ")))
 }
 n_ep <- nrow(episodes(records_all, quiet = TRUE))
-message(sprintf(
-  "  independent episodes (%d-min rule)      : %d  <- the unit for any COUNT; records are images",
-  EPISODE_GAP_MINUTES, n_ep))
+message(sprintf("  independent episodes (%s)             : %d  <- the unit for any COUNT; records are images",
+                EPISODE_COLUMN, n_ep))
 print(table(records_all$species_label, records_all$campaign))
 
 
-# ── 10. Save core outputs ─────────────────────────────────────────────────────
+# ── 8. camtrapR tables ───────────────────────────────────────────────────────
+# RECORD TABLE: one row per EPISODE (the producer's rule), time-admissible only,
+# because activityDensity() and activityOverlap() read the hour. time_rad is carried
+# so 04_temporal_overlap.R's numeric and visual layers use the same rows.
 
-saveRDS(records_all,  here("data", "records_all.rds"))
-saveRDS(stations_sf,  here("data", "stations_sf.rds"))
-saveRDS(st_read(PATH_BOUNDARY, quiet = TRUE), here("data", "boundary_sf.rds"))
-
-message("\nSaved: data/records_all.rds, data/stations_sf.rds, data/boundary_sf.rds")
-
-
-# ── 11. Build camtrapR-compatible tables ──────────────────────────────────────
-# camtrapR functions (activityDensity, activityOverlap, detectionMaps) require
-# data in a specific format.  We build these tables here so downstream scripts
-# can use camtrapR directly without reformatting.
-#
-# RECORD TABLE — one row per detection event.
-#   Required columns:
-#     Station          — station ID; must match CTtable$Station
-#     Species          — species label (human-readable, used in figure legends)
-#     DateTimeOriginal — POSIXct timestamp
-#     Date             — calendar date
-#     Time             — time as character "HH:MM:SS"
-#   We also carry Campaign as an optional grouping column.
-#
-# CAMERA TRAP TABLE (CTtable) — one row per station.
-#   Required columns:
-#     Station   — station ID (must match record_table$Station)
-#     Longitude — decimal degrees, WGS-84
-#     Latitude  — decimal degrees, WGS-84
-
-# IMPORTANT: record_table is consumed by camtrapR's activityDensity() and
-# activityOverlap(), both of which use time-of-day to compute kernel density
-# estimates. Rows with valid_time_of_day == FALSE (e.g. CT-18 Otoño 2026,
-# repaired via last_real_proxy anchor) carry approximate dates but rotated
-# time-of-day — they MUST be excluded from time-of-day analyses.
-#
-# We also apply the 30-minute independence filter here (see
-# MIN_DELTA_TIME_MIN in section 2b): consecutive triggers of the same species
-# at the same station within that window collapse to one event.
-# `filter_independent_events` walks each (station, species, campaign) group in
-# datetime order and keeps a trigger only if it is at least
-# `min_delta_min` past the previous *kept* trigger (O'Brien et al. 2003
-# "against last independent record" convention).
-# MOVED 2026-08-20 to R/00_admissibility.R as `independent()` / `keep_after_min_gap()`.
-# It lived here while record_table was the only consumer; the spatial scripts now need
-# the same rule, and a second copy is how two figures come to disagree about what an
-# independent detection is. This wrapper keeps the local name.
-filter_independent_events <- function(df, min_delta_min) {
-  independent(df, gap_minutes = min_delta_min)
-}
-
-record_table <- records_all %>%
-  filter(valid_time_of_day == TRUE) %>%
-  filter_independent_events(min_delta_min = MIN_DELTA_TIME_MIN) %>%
+record_table <- episodes(records_all, quiet = TRUE) %>%
   transmute(
     Station          = station_id,
     Species          = species_label,
     DateTimeOriginal = datetime,
     Date             = date,
     Time             = format(datetime, "%H:%M:%S"),
-    # Time of day in radians — precomputed here so overlap analyses
-    # (04_temporal_overlap.R) source their numeric AND visual layers from the
-    # same independence-filtered rows. If we recomputed time_rad from
-    # records_all downstream, the numeric n would silently reflect raw
-    # triggers while the plot reflected independent events — the bug the
-    # single-source pattern here prevents.
     time_rad         = time_rad,
     Campaign         = campaign
   )
 
-message(sprintf(
-  "record_table: %d rows after filtering to valid_time_of_day == TRUE and to independent events (%d-min minimum gap; vs %d in records_all).",
-  nrow(record_table), MIN_DELTA_TIME_MIN, nrow(records_all)
-))
-
-# Extract WGS-84 coordinates from the sf geometry column.
-# st_coordinates() returns a matrix with columns X (longitude) and Y (latitude).
 coords <- st_coordinates(stations_sf)
-
 stations_ct <- stations_sf %>%
   st_drop_geometry() %>%
-  rename(Station = id) %>%
-  mutate(
-    Longitude = coords[, "X"],
-    Latitude  = coords[, "Y"]
-  ) %>%
-  select(Station, Longitude, Latitude, altitude_m)
+  transmute(Station = id, Longitude = coords[, "X"], Latitude = coords[, "Y"], altitude_m)
 
+message(sprintf("record_table: %d episodes (vs %d images in records_all).",
+                nrow(record_table), nrow(records_all)))
+
+
+# ── 9. Save, then stamp ──────────────────────────────────────────────────────
+# The stamp is written LAST. If anything above fails, no stamp is written and the
+# downstream scripts keep refusing, which is the correct state for a half-built data/.
+
+saveRDS(records_all,  here("data", "records_all.rds"))
+saveRDS(deployments,  here("data", "deployments.rds"))
+saveRDS(stations_sf,  here("data", "stations_sf.rds"))
+saveRDS(st_read(PATH_BOUNDARY, quiet = TRUE), here("data", "boundary_sf.rds"))
 saveRDS(record_table, here("data", "record_table.rds"))
 saveRDS(stations_ct,  here("data", "stations_ct.rds"))
 
-message("Saved: data/record_table.rds  (camtrapR format)")
-message("Saved: data/stations_ct.rds   (camtrapR CTtable format)")
+contract_stamp_write(state, CAMPAIGNS)
+
+message("\nSaved data/: records_all, deployments, stations_sf, boundary_sf, record_table, stations_ct, contract_stamp.json")
 message("Run 02_detection_summary.R next.")

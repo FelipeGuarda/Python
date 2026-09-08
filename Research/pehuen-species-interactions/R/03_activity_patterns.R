@@ -16,8 +16,12 @@
 #        the Fig-2 equivalent with all native carnivores on one panel we compute
 #        the densities manually and draw in ggplot2.
 #
-# INPUT   data/records_all.rds    (produced by 01_load_data.R)
-#         data/record_table.rds   (camtrapR format, produced by 01_load_data.R)
+#   BOTH outputs read record_table.rds: one row per EPISODE, time-admissible. Until
+#   2026-09-08 the ggplot curves were fitted on IMAGES while the camtrapR panels
+#   beside them used episodes, so the two halves of this script disagreed on the
+#   unit. A burst of 3 frames is one animal, not three.
+#
+# INPUT   data/record_table.rds   (camtrapR format, produced by 01_load_data.R)
 # OUTPUT  figures/activity_individual/<Species>.png  (one per species, camtrapR)
 #         figures/03_activity_native_carnivores.png  (Fig 2 equivalent, ggplot2)
 #         figures/03_activity_invasive_species.png
@@ -35,20 +39,18 @@ library(overlap)     # densityFit() for multi-species ggplot2 figures
 library(camtrapR)    # activityDensity() for per-species individual plots
 
 here::i_am("R/03_activity_patterns.R")
+source(here::here("R", "00_contract.R"))
+source(here::here("R", "00_admissibility.R"))
 dir.create(here("figures"), showWarnings = FALSE)
 dir.create(here("figures", "activity_individual"), showWarnings = FALSE)
 
+contract_assert_current()
+
 
 # ── 1. Load data ─────────────────────────────────────────────────────────────
+# Episodes, time-admissible, with time_rad precomputed in 01 from the first frame.
 
-record_table <- readRDS(here("data", "record_table.rds"))  # camtrapR format
-source(here::here("R", "00_admissibility.R"))
-
-records      <- readRDS(here("data", "records_all.rds"))   # for ggplot2 multi-species
-# Activity and overlap need a trustworthy hour, so the time rule applies. It used
-# to arrive silently from 01_load_data.R; it is now asked for here, which is what
-# lets the spatial scripts ask for something different.
-records <- admissible(records, "time")
+record_table <- readRDS(here("data", "record_table.rds"))
 
 SPECIES_ORDER   <- c("Puma", "Guina", "Zorro culpeo", "Jabali", "Liebre", "Perro")
 NATIVE_LABELS   <- c("Puma", "Guina", "Zorro culpeo")
@@ -115,16 +117,15 @@ message("Saved per-species plots to figures/activity_individual/")
 # density vector at 512 equally-spaced points from 0 to 2π.  We then convert
 # the radian grid back to hours (0–24) for a readable x-axis.
 
-activity_density <- function(records_df, species_lbl) {
-  # (a) Extract the time_rad vector for this species.
-  #     time_rad was computed in 01_load_data.R:
+activity_density <- function(record_table, species_lbl) {
+  # (a) time_rad for this species' episodes, computed in 01_load_data.R as
   #       (hour*3600 + min*60 + sec) / 86400 * 2π
-  times <- records_df %>%
-    filter(species_label == species_lbl) %>%
+  times <- record_table %>%
+    filter(Species == species_lbl) %>%
     pull(time_rad)
 
   if (length(times) < 10) {
-    warning(sprintf("Only %d records for %s — density may be unreliable.", length(times), species_lbl))
+    warning(sprintf("Only %d episodes for %s — density may be unreliable.", length(times), species_lbl))
   }
 
   # (b) Fit von Mises kernel density at 512 points spanning the full circle.
@@ -139,7 +140,7 @@ activity_density <- function(records_df, species_lbl) {
   )
 }
 
-density_list <- lapply(SPECIES_ORDER, function(sp) activity_density(records, sp))
+density_list <- lapply(SPECIES_ORDER, function(sp) activity_density(record_table, sp))
 density_df   <- bind_rows(density_list) %>%
   mutate(species_label = factor(species_label, levels = SPECIES_ORDER))
 
@@ -165,7 +166,7 @@ plot_activity <- function(df, title_text) {
     scale_colour_manual(values = SPECIES_COLORS, name = NULL) +
     labs(
       title    = title_text,
-      subtitle = "Kernel density (von Mises); shaded bands = approx. dawn/dusk",
+      subtitle = sprintf("Kernel density (von Mises) on independent episodes (%d-min rule); shaded bands = approx. dawn/dusk", EPISODE_GAP_MINUTES),
       x        = "Time of day",
       y        = "Activity density"
     ) +

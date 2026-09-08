@@ -589,17 +589,16 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
 
 ## I. Open items
 
-- [ ] Compile true per-station deployment start/end dates → build effort matrix.
-      **Deferred 2026-07-28**: raw installation/maintenance file exists but needs
-      cleanup with a field collaborator. Design decisions locked in (see
-      Changelog): upstream Python script `camera-traps/build_camera_operation.py`
-      writes per-campaign `camera_operation.csv` at
-      `camera-traps/data/campaigns/<name>/camera_operation.csv`; malfunction
-      verification uses a hybrid threshold rule (`gap > max(3 × p95_of_intervals, 7 days)`)
-      applied to both end-of-deployment and mid-deployment gaps; flagged
-      candidates written to `camera_operation_flags.csv` for human review;
-      downstream `R/00_camera_operation.R` consumes the reviewed CSV. Awaits
-      clean input file.
+- [x] Compile true per-station deployment start/end dates → build effort matrix.
+      **Done upstream, consumed 2026-09-08.** The `camera_operation.csv` design
+      deferred on 2026-07-28 was superseded by the producer's
+      `camera-traps/data/campaigns/<name>/deployments.csv` (field windows from the
+      visit record, `media_status` per station). `R/01_load_data.R` reads it into
+      `data/deployments.rds`; `02_detection_summary.R` divides by it. The
+      mid-deployment malfunction rule was never built; a station's operating window
+      is the field record's, and clock-diagnosed effort validity travels as
+      `valid_effort`. A camtrapR `cameraOperation()` matrix for formal occupancy
+      can be built directly from `deployments.rds` when needed.
 - [x] Apply 30-minute independence filter and document the choice
       **(2026-07-28: applied in `R/01_load_data.R` via `MIN_DELTA_TIME_MIN <- 30`
       and `filter_independent_events()`; `record_table.rds` is now event-filtered

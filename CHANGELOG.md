@@ -6,6 +6,115 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-09-08 — pehuén implements the consumer handshake; the crossing was broken
+
+First pass at the **consumer** side of the camera-trap boundary, declared out of scope since
+2026-08-25. Scope was one project, `Research/pehuen-species-interactions`, and one question:
+is its call on the camera-trap data clean, and is any of the code that reformats those tables
+still current? Neither was.
+
+### Fixed
+- **The crossing was broken outright.** `R/01_load_data.R` read
+  `plataforma-territorial/data/camera_trap_stations.geojson`, which the 2026-09-03 registry
+  rework deleted. Executed, not inferred: the script halts on the missing file before reaching
+  its own contract check, so pehuén had not run against the current warehouse at all. It now
+  reads the producer's `data/campaigns/estaciones.geojson` (27 features) and joins on
+  `station_canonical` — the same `CT##` string on both sides, no integer detour, nothing parsed.
+- **The contract check was two versions behind and the wrong shape.** It declared
+  `EXPECTED_SCHEMA_VERSION <- 2` against a published 4, and compared `n_rows` only — the one
+  comparison the 815-row review repair defeats, since that moves `n_animal_rows` and leaves
+  `n_rows` untouched. Downstream scripts 02–06 read the loader's `.rds` outputs with no check
+  at all.
+- **`03_activity_patterns.R` fitted its density curves on IMAGES** while the camtrapR panels
+  in the same script used episodes. Two halves of one figure set, two units.
+- **`05_spatial_distribution.R`'s by-campaign panel counted IMAGES** under a subtitle reading
+  "independent events (30-min rule)".
+- **`02_detection_summary.R` derived trap-nights as days-with-a-photograph** — a lower bound
+  that rewards busy cameras — under a comment claiming deployment metadata was unavailable,
+  two weeks after `deployments.csv` was published.
+- **`06_seasonal_detection_maps.R` clipped to a hard date window** (`2024-10-01` →
+  `2026-03-31`, `tz = "America/Santiago"`). Its stated purpose, 2017 misconfigured clocks, is
+  handled upstream by `valid_date`; its end date silently cut otoño 2026 six weeks short; and
+  the tz was a latent 3–4 h shift on any R that has tzdata (this conda R does not).
+
+### Added
+- **`Research/pehuen-species-interactions/R/00_contract.R`** — the consumer's admission control,
+  per MANUAL-SALUD-DATOS Fase 10. `contract_load()` verifies before the first file is opened;
+  `contract_stamp_write()` records the declared block of every campaign read;
+  `contract_assert_current()` runs first in 02–06 and refuses if the published contract has
+  moved since, naming the field. Refusal is a `REFUSED (...)` message plus **exit 2** — an R
+  error exits 1 and reads as a crash, and a crash gets restarted while a refusal gets
+  investigated (10F.4).
+- **`tests/test_contract.R`** — 25 assertions, base R, no new dependency. Fixtures: absent,
+  unparseable, older schema, newer schema, no campaigns, missing campaign, zero rows, moved
+  `n_animal_rows` with `n_rows` held, moved `deployments_sha256`, retired campaign, stale stamp,
+  absent stamp. Three run a real subprocess, because the exit code is the claim.
+- **`data/deployments.rds`** — the producer's field windows and `media_status`, read by the
+  loader and used as the effort source.
+
+### Changed
+- **B9's third episode-rule copy retired.** `keep_after_min_gap()` and `independent()` deleted
+  from `R/00_admissibility.R`; `episodes()` reads `episode_30min` and derives nothing. **Zero
+  numbers moved: 380 episodes before and after.** That is the check that the two rules agreed —
+  and it makes `apply_verdicts.py`'s remaining copy wrong on its own, not merely different.
+- **Effort follows `media_status`.** Stills-based rates divide by `in_canonical` camera-days at
+  stations with `valid_effort` (2,699 / 4,414 / 3,799); naive occupancy divides by stations that
+  were *sampling*, `in_canonical` + `video_only_offline` (25 / 26 / 27), which is the
+  distinction that column was added for on 2026-08-25.
+- **Campaign lists come from the contract stamp** in 02 and 05, so otoño 2026 can no longer fall
+  out of a facet, and `campaign_label()` is the single owner of display names (it was three
+  hardcoded `labeller()` calls and an `ifelse`).
+- **`06`'s species threshold is 30 EPISODES, not 30 images.** Qualifying: Zorro culpeo (161),
+  Liebre (129), Perro (46). Skipped and stated: Jabalí (18), Guiña (14), Puma (12).
+- **`readr` and `stringr` dropped** from `environment.yml` and `setup_packages.R` — the CSV
+  reading and station-label parsing they were there for no longer exist.
+- **`data/` is no longer tracked.** New `Research/pehuen-species-interactions/.gitignore`
+  covers `data/*.rds` and `data/contract_stamp.json`; six previously tracked `.rds` were
+  untracked with `git rm --cached` and stay on disk. **`01_load_data.R` becomes a required
+  first step** on every machine and after every clone, and `02`–`06` already refuse with a
+  named reason when `data/` has not been built, so it is not a step anyone has to remember.
+  Considered and rejected: committing the stamp alongside the `.rds`, which would have made
+  the derived data usable but kept an opaque second copy of the canonical table in git, one
+  commit away from disagreeing with it. `data/overlap_stats.csv` and `figures/` stay tracked —
+  the line is whether a person can read it, not whether it is derived.
+- **README rewritten.** It documented the deleted CSV loader end to end: `PATH_OTONO`/`PATH_PV`,
+  `new_labeled_data_corrected.csv`, a `TC-xx` / `TC10_M3.2` station table, the `100EK113`
+  filter. All false since 2026-08-20.
+- **`docs/methods-menu-interactions.md`** — the deferred `camera_operation.csv` design is closed
+  as superseded by `deployments.csv`, rather than left as a backlog item for work already done
+  upstream.
+
+### Verified
+- 25 gate tests pass; all six scripts exit 0 against schema 4.
+- The refusal paths were exercised against **real doctored contracts**, not only fixtures:
+  `n_animal_rows` 707→712 with `n_rows` unchanged → refuse; `schema_version` 5 → refuse;
+  contract absent → refuse. All exit 2. The undoctored run exits 0.
+- Data unchanged where it should be: 1,112 focal records, 854 time-admissible, 380 episodes,
+  24 stations, CT08 place-only — identical to 2026-08-20.
+
+### Deferred
+- **`data/overlap_stats.csv` committed on 2026-08-20 was stale** — it predated that day's CT03
+  recovery and was never re-rendered — its per-species n sums to exactly **327** against the
+  committed `record_table`'s 380, and its file timestamp is two hours before that table's.
+  Re-rendered now, and **six of ten pairs changed Monterroso category**:
+
+  | pair | was | now |
+  |---|---|---|
+  | Guiña × Perro | High (0.863) | Moderate–High (0.757) |
+  | Puma × Liebre | High (0.809) | Moderate–High (0.751) |
+  | Guiña × Liebre | Moderate–High (0.734) | Moderate (0.706) |
+  | Zorro culpeo × Perro | Low–Moderate (0.495) | Moderate (0.671) |
+  | Guiña × Zorro culpeo | Moderate (0.632) | **High (0.821)** |
+  | Puma × Zorro culpeo | Moderate (0.665) | Moderate–High (0.763) |
+
+  No pair sits in the Low band, before or after. **The delta is the CT03 recovery, not this
+  session's changes**: no estimator switched, and the episode-rule retirement moved zero rows.
+  The written interpretation needs re-reading against this table; the code is not in question.
+- **B9's Python copies** (`apply_verdicts.py:85`, `01_data_prep.py:124`), **B10**, **C4** —
+  still open, all consumer-side, none in this project.
+
+---
+
 ## 2026-09-03 — the manual respects its own boundary, and reads in our Spanish
 
 ### Changed

@@ -19,16 +19,19 @@
 #   2026-08-20 this panel inherited a time filter from 01_load_data.R and showed
 #   puma at 6 stations when the data holds 8 (CT03 and CT18 were lost).
 #
-#   Panel B asks HOW OFTEN, so it uses episodes() — the 30-minute independent-event
-#   rule — and therefore only records with a trustworthy clock. It previously counted
+#   Panel B asks HOW OFTEN, so it uses episodes() — the producer's independent-event
+#   rule, carried in the table — and therefore only records with a trustworthy clock. It previously counted
 #   IMAGES, which is a burst-length artefact: a camera fires 2-3 frames per trigger,
 #   so Bos taurus reads 579 images against 19 episodes.
 #
 #   The two panels therefore legitimately disagree about which stations appear. That
 #   is not an inconsistency to reconcile — it is the difference between "was it here"
 #   and "how often", and the captions say so.
-#        Fig B1 — all six species, both campaigns combined (faceted)
-#        Fig B2 — native carnivores, split by campaign (grid: campaign × species)
+#        Fig B1 — all six species, all campaigns combined (faceted)
+#        Fig B2 — native carnivores, split by campaign (grid: campaign × species).
+#                 The campaign grid comes from the contract stamp, so a new campaign
+#                 appears without editing this file (otoño 2026 fell out of a
+#                 hardcoded pair here until 2026-09-08).
 #
 # INPUT   data/records_all.rds   (produced by 01_load_data.R)
 #         data/record_table.rds  (camtrapR format)
@@ -50,13 +53,16 @@ library(sf)
 library(camtrapR)   # detectionMaps() — richness panel only
 
 here::i_am("R/05_spatial_distribution.R")
+source(here::here("R", "00_contract.R"))
+source(here::here("R", "00_admissibility.R"))
 dir.create(here("figures"), showWarnings = FALSE)
 dir.create(here("figures", "detection_maps"), showWarnings = FALSE)
 
+stamp     <- contract_assert_current()
+CAMPAIGNS <- names(stamp$campaigns)
+
 
 # ── 1. Load data ─────────────────────────────────────────────────────────────
-
-source(here::here("R", "00_admissibility.R"))
 
 records      <- readRDS(here("data", "records_all.rds"))
 record_table <- readRDS(here("data", "record_table.rds"))
@@ -223,8 +229,9 @@ fig_all <- ggplot() +
   facet_wrap(~species_label, ncol = 3) +
   labs(
     title    = "Spatial distribution of detections — focal species",
-    subtitle = "Both campaigns combined.  X marks = all camera stations.",
-    caption  = "Unidad: eventos independientes (30 min), no imagenes. Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia -- ver figures/detection_maps/presence_by_species.png."
+    subtitle = sprintf("%s combined.  X marks = all camera stations.",
+                       paste(campaign_label(CAMPAIGNS), collapse = ", ")),
+    caption  = sprintf("Unidad: eventos independientes (%d min), no imagenes. Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia -- ver figures/detection_maps/presence_by_species.png.", EPISODE_GAP_MINUTES)
   ) +
   map_theme
 
@@ -234,19 +241,18 @@ message("Saved figures/05_spatial_all_species.png")
 
 
 # ── 6. Figure B2 — native carnivores split by campaign ───────────────────────
-# Allows visual comparison of whether spatial detection patterns shift between
-# Otoño 2025 and Primavera 2025.
+# Whether spatial detection patterns shift between campaigns. Episodes, as in B1:
+# until 2026-09-08 this panel counted images while its subtitle claimed episodes.
 
-# Aggregate per station × species × campaign
 det_by_campaign <- records %>%
   filter(species_label %in% NATIVE_LABELS) %>%
-  count(station_id, species_label, campaign, name = "n_detections")
+  episode_counts(by = c("station_id", "species_label", "campaign")) %>%
+  rename(n_detections = n_episodes)
 
-# Full grid for native species × both campaigns
 native_combinations <- expand.grid(
   station_id    = unique(stations_sf$id),
   species_label = NATIVE_LABELS,
-  campaign      = c("Otono_2025", "Primavera_2025"),
+  campaign      = CAMPAIGNS,
   stringsAsFactors = FALSE
 )
 
@@ -261,7 +267,7 @@ det_native_sf <- native_combinations %>%
   st_as_sf() %>%
   mutate(
     species_label = factor(species_label, levels = NATIVE_LABELS),
-    campaign_lbl  = ifelse(campaign == "Otono_2025", "Oto\u00f1o 2025", "Primavera 2025")
+    campaign_lbl  = factor(campaign_label(campaign), levels = campaign_label(CAMPAIGNS))
   )
 
 fig_native <- ggplot() +
@@ -279,12 +285,12 @@ fig_native <- ggplot() +
   facet_grid(campaign_lbl ~ species_label) +
   labs(
     title    = "Spatial distribution — native carnivores by campaign",
-    subtitle = "Bubble size = independent events (30-min rule).  X marks = all camera stations.",
-    caption  = "Unidad: eventos independientes (30 min), no imagenes. Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia -- ver figures/detection_maps/presence_by_species.png."
+    subtitle = sprintf("Bubble size = independent events (%d-min rule).  X marks = all camera stations.", EPISODE_GAP_MINUTES),
+    caption  = sprintf("Unidad: eventos independientes (%d min), no imagenes. Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia -- ver figures/detection_maps/presence_by_species.png.", EPISODE_GAP_MINUTES)
   ) +
   map_theme
 
 ggsave(here("figures", "05_spatial_native_by_campaign.png"),
-       fig_native, width = 12, height = 8, dpi = 300)
+       fig_native, width = 12, height = 3 * length(CAMPAIGNS) + 2, dpi = 300)
 message("Saved figures/05_spatial_native_by_campaign.png")
 message("All scripts complete. Figures are in the figures/ directory.")

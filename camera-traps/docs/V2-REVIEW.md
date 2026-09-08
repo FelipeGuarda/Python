@@ -61,15 +61,15 @@ code does not enforce**, and one of those four had no numbered item here at all.
 | **A4** | `occupancy_pct` divides by all 27 stations | 1.6 / §2.5 | ~~open~~ **CLOSED 2026-08-24** (per-campaign filtering still open) |
 | **B1** | the `ct_*` rebuild | 2.1–2.3, 2.5, 2.8 | ~~open~~ **CLOSED 2026-08-24** |
 | **B2** | pehuén's absolute Windows paths | 1.11 | ~~open~~ **CLOSED 2026-08-24** — and it was more than two lines, see below |
-| **B3** | figures not re-rendered; otoño 2026 falls out of `05_spatial_distribution.R:249` and the `02_detection_summary.R` labellers | 1.11 + §3 | open — consumer side, out of scope 2026-08-25 |
+| **B3** | figures not re-rendered; otoño 2026 falls out of `05_spatial_distribution.R:249` and the `02_detection_summary.R` labellers | 1.11 + §3 | ~~open~~ **CLOSED 2026-09-08.** Both campaign lists now come from the contract stamp, so a campaign cannot fall out of a facet again. All figures re-rendered. See §0-septies |
 | **B4** | `field_notes.csv` audited for coordinates only, 57/106 rows flagged | 1.7 | ~~open~~ **PREMISE WAS FALSE, 2026-08-25** — dates were audited 23 rows to coordinates' 2. Real finding: six columns were never COLLECTED, `camera_datetime_observed` 0/107 |
 | **B5** | `provenance.py` not re-run on the re-ingested primavera | 1.8 | ~~open~~ **CLOSED 2026-08-25** — 0 multi-story stations over 35,807 rows; and it was already wired as flatten precondition #4 |
 | **B6** | manifest coverage not stated per campaign | 1.4 | ~~open~~ **CLOSED 2026-08-25** — stated per station in `timestamps_audit.log`; the item's own figures were wrong both ways |
 | **B7** | CT27 install datable from `CT 27.kml` (2025-12-11 15:52:56), unrecorded | 1.5 | ~~open~~ **CLOSED 2026-08-24** |
-| **B9** | **the episode rule exists three times downstream and two copies disagree** — `01_data_prep.py:124` uses last-retained (correct), `apply_verdicts.py:85` still uses the predecessor comparison (523 events against 696, a 33% undercount), pehuén's `R/00_admissibility.R` is the third | new 1.15 | **producer half DONE 2026-08-26** (`episode_30min` in the canonical table). ⚠️ **FLAGGED FOR THE CONSUMER-SIDE SESSION:** all three copies must be retired onto the column, and until they are, `events_clean.parquet` keeps undercounting |
+| **B9** | **the episode rule exists three times downstream and two copies disagree** — `01_data_prep.py:124` uses last-retained (correct), `apply_verdicts.py:85` still uses the predecessor comparison (523 events against 696, a 33% undercount), pehuén's `R/00_admissibility.R` is the third | new 1.15 | **producer half DONE 2026-08-26** (`episode_30min` in the canonical table). **pehuén's copy RETIRED 2026-09-08** — `keep_after_min_gap()`/`independent()` deleted, `episodes()` reads the column; zero numbers moved (380 episodes both ways), which is the check that the two rules agreed. ⚠️ **STILL OPEN:** `apply_verdicts.py:85` and `01_data_prep.py:124`; until they retire, `events_clean.parquet` keeps undercounting by a third |
 | **B10** | `run_fetch.py --ct-check` reports a schema mismatch as an unhandled `CanonicalGateError` traceback rather than a message and exit 1 | §4 | **open, consumer-side.** The verdict is right; for a scheduled poll it lands in a log as a crash |
 | **B8** | three regression fixtures | 1.10 | ~~1 of 3~~ **3 of 3 DONE 2026-08-26** — registry agreement (2026-08-24), manifest completeness and the size-matched deletion ledger (`tests/test_flatten.py`) |
-| **C1–C5** | two superseded data files on disk · stale pv comment `apply_verdicts.py:143` · otoño 2025 video existence unconfirmed · `count` empty · seasonal puma orphan | §3 | **C1, C2, C3 CLOSED 2026-08-25.** C3 is the interesting one: otoño 2025's video EXISTS, on the NAS, in a separate tree — and it is why four stations look empty. C4, C5 remain (both consumer-side) |
+| **C1–C5** | two superseded data files on disk · stale pv comment `apply_verdicts.py:143` · otoño 2025 video existence unconfirmed · `count` empty · seasonal puma orphan | §3 | **C1, C2, C3 CLOSED 2026-08-25.** C3 is the interesting one: otoño 2025's video EXISTS, on the NAS, in a separate tree — and it is why four stations look empty. **C5 CLOSED 2026-09-08** — the seasonal threshold moved to episodes, puma (12) and jabalí (18) fall under it, and both orphan PNGs were deleted rather than left stale. C4 remains |
 
 ### 0-ter. Second re-audit stamp, 2026-08-24 — the consumer boundary is closed
 
@@ -77,7 +77,7 @@ Eight of the fifteen items above are closed, and they are **all of the ones on t
 data-pipeline / platform side**. The pattern §0-bis identified held exactly: every defect
 sat at a boundary, and one session spent entirely at that boundary cleared it. What
 remains is the FIELD-RECORD boundary (A3, B4, B6), pehuén's Windows-side work (B2, B3),
-and cleanup (C).
+and cleanup (C). *(B3 and pehuén's half of B9 closed 2026-09-08 — see §0-septies.)*
 
 **Three of this document's own specifications were wrong and are corrected below**, each
 measured rather than argued:
@@ -417,6 +417,70 @@ validity axes are `boolean` with zero nulls. 308 tests and 93 subtests pass unde
 **Still standing:** the loader has now been proven against a workbook *I* filled, not one a
 technician filled. The residual risk is data-entry variance, not code — and `_text()` plus the
 Excel-retyping fixtures are what cover that. The first salida is still the real test.
+
+---
+
+### 0-septies. Sixth stamp, 2026-09-08 — a consumer implements Fase 10, and B3/B9 close on its side
+
+The first pass at the **consumer** boundary since it was declared out of scope on 2026-08-25.
+The consumer is `Research/pehuen-species-interactions`. Nothing in this repository changed;
+what changed is that a downstream project now holds up its half of the contract, and three
+items on this ledger close because of it.
+
+**The crossing was broken, and had been since 2026-09-03.** The loader read
+`plataforma-territorial/data/camera_trap_stations.geojson`, which the registry-builder rework
+deleted that day. Measured, not inferred: the script halts on a missing file before reaching
+its own contract check. So pehuén had not run against the current warehouse at all, and its
+committed figures are from 2026-08-20.
+
+**Its contract check was two schema versions behind and had the wrong shape.** It declared
+`EXPECTED_SCHEMA_VERSION <- 2` against a published 4 — it would have refused, which is the
+correct direction, but for the wrong reason and without ever reading the tables. It compared
+`n_rows` only, so the 815-row review repair (§1.3) — which moves `n_animal_rows` and leaves
+`n_rows` untouched — was exactly the change it could not see. And the four scripts downstream
+of the loader read its `.rds` outputs with no check at all.
+
+**What the consumer now has** (`R/00_contract.R`, `tests/test_contract.R`), against 10F.4's
+three requirements:
+
+| 10F.4 requires | what it has |
+|---|---|
+| its own tests | 25 assertions, base R, no new dependency; `Rscript tests/test_contract.R` |
+| a refusal shaped as a verdict | `REFUSED (...)` naming the mismatched field, **exit 2** — asserted on a real subprocess, not just on the reason string |
+| reads only the canonical table and the contract | parquet + `deployments.csv` + `estaciones.geojson` + the contract; no export, no reviewed CSV, no other consumer's intermediate |
+
+The stamp-and-compare half is the part worth naming: after a verified load it writes the
+declared block of each campaign it read, and every downstream script compares that against the
+contract **as published now**, refusing with the field named
+(`otono_2025.n_animal_rows: data/ built from 707, published now 712`). Verified end to end by
+publishing three doctored contracts: `n_animal_rows` moved with `n_rows` held constant → refuse;
+`schema_version 5` → refuse; contract absent → refuse. All exit 2; the undoctored run exits 0.
+
+**B9's third copy is retired.** `keep_after_min_gap()` and `independent()` are deleted from
+`R/00_admissibility.R`; `episodes()` reads `episode_30min`. **Zero numbers moved — 380 episodes
+before and after** — which is the check that the R rule and the producer's rule genuinely
+agreed, and it makes the remaining disagreement in `apply_verdicts.py` unambiguous: that copy
+is wrong on its own, not merely different.
+
+**Two defects found in the consumer that this ledger had not recorded**, both units:
+
+- `03_activity_patterns.R` fitted its ggplot density curves on **images** while the camtrapR
+  panels beside them used episodes. Two halves of one script, two units.
+- `05_spatial_distribution.R`'s by-campaign panel counted **images** under a subtitle that said
+  "independent events (30-min rule)".
+
+**And one effort defect.** `02_detection_summary.R` derived trap-nights as *days on which
+something was photographed*, a lower bound that rewards busy cameras, with a comment claiming
+deployment metadata was unavailable — it has been published as `deployments.csv` since
+2026-08-24. Rates now divide by `in_canonical` camera-days at stations with `valid_effort`;
+occupancy divides by stations that were **sampling**, which is `in_canonical` +
+`video_only_offline`, i.e. the distinction §0-quater built that column for. Every figure from
+that script moved by construction, not by data.
+
+**Not duplicated here, deliberately:** the consumer does not verify `deployments_sha256` or the
+parquets against the contract. That is `camtrap.canonical_state.verify`, and a second
+implementation is a second place a repair has to reach. It checks one narrower thing —
+is what I hold what was published — plus the per-campaign row count at read time.
 
 ---
 

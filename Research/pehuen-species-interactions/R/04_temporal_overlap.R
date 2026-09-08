@@ -41,9 +41,8 @@
 #     Native-vs-native (niche partitioning within guild):
 #       Puma × Guina,  Puma × Zorro,  Guina × Zorro
 #
-# INPUT   data/records_all.rds   (produced by 01_load_data.R)
-#         data/record_table.rds  (camtrapR format, produced by 01_load_data.R;
-#                                 already 30-min-independence-filtered)
+# INPUT   data/record_table.rds  (camtrapR format, produced by 01_load_data.R;
+#                                 one row per episode, the producer's rule)
 # OUTPUT  figures/overlap_pairs/activity_overlap_<sp1>-<sp2>_<date>.png
 #         figures/04_overlap_summary.png            (overlap dot-plot with CI)
 #         data/overlap_stats.csv                     (numeric results table)
@@ -59,8 +58,11 @@ library(overlap)    # overlapEst(), bootstrap(), bootCI()
 library(camtrapR)   # activityOverlap() for per-pair overlay plots
 
 here::i_am("R/04_temporal_overlap.R")
+source(here::here("R", "00_contract.R"))
 dir.create(here("figures"), showWarnings = FALSE)
 dir.create(here("figures", "overlap_pairs"), showWarnings = FALSE)
+
+contract_assert_current()
 
 set.seed(42)  # reproducible bootstrap
 
@@ -131,8 +133,7 @@ estimate_overlap <- function(times_A, times_B, n_boot = N_BOOT) {
 # ── 1. Load data ─────────────────────────────────────────────────────────────
 # Both the numeric layer (estimate_overlap) and the visual layer
 # (activityOverlap) source from record_table so n and shape agree. record_table
-# is already independence-filtered upstream (01_load_data.R, 30-min minimum
-# gap per station × species × campaign).
+# is one row per episode, using the rule camera-traps decided at ingest.
 
 record_table <- readRDS(here("data", "record_table.rds"))  # camtrapR format
 
