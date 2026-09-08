@@ -60,6 +60,29 @@ repair or shift timestamps, translate species names, decide whether a frame hold
 animal, decide what counts as an independent event, or compute camera-days. All of
 those arrive decided, in `observations.parquet` or `deployments.csv`.
 
+### Inputs the contract does not cover
+
+The contract describes `observations.parquet` column by column and hashes
+`deployments.csv`. Two inputs are outside it, and it is worth knowing which:
+
+| input | published by | existence | content |
+|---|---|---|---|
+| `campaigns/estaciones.geojson` | camera-traps | refused if absent | **not verified here** |
+| `plataforma-territorial/data/boundary.geojson` | the platform | refused if absent | **not verified here** |
+
+Both are read once, by `01`. A missing one refuses with exit 2 and the command that
+regenerates it, rather than dying inside `st_read` — an R error exits 1, which reads
+as a crash. Their *content* is another matter: nothing in `CANONICAL_STATE.json`
+would let this project notice a moved coordinate or a changed `altitude_m`.
+camera-traps does guard the registry against drift from `estaciones.csv`, which owns
+station identity, but that check lives upstream and is not visible from here.
+Closing it properly means adding a `stations_sha256` to the published state, which is
+a schema bump on both sides; it is logged in the producer's `V2-REVIEW.md` §0-septies.
+
+What *is* enforced from here: a station that appears in the canonical table but not in
+the registry **refuses**. It used to warn and null the station, which meant records
+could leave the analysis with a success exit code.
+
 ---
 
 ## Running the analysis
@@ -189,8 +212,16 @@ sizes. Its "Open items" list is the analysis backlog.
   the `.rds` files and the contract stamp are gitignored and `01_load_data.R` is a
   required first step, so the repository never carries an undated second copy of the
   canonical table.
+  A second pass audited the ingest procedurally: the contract is true of the
+  producer's files on disk, registry and contract agree on 27 stations, no figure is
+  older than the data, and every deployment has an explanatory `media_status` (no
+  `unexplained`, no `no_field_dates`). Two guard rails were added — the two GeoJSONs
+  now refuse with exit 2 instead of crashing with exit 1, and a station missing from
+  the registry refuses instead of warning and exiting 0.
 - **Integration Status:** `Ready` — consumer side of the camera-trap boundary is
-  closed; all six scripts run clean against schema 4.
+  closed; all six scripts run clean against schema 4. One item is upstream:
+  `estaciones.geojson` is not covered by the contract, so station coordinates and
+  `altitude_m` are unverified from here (`V2-REVIEW.md` §0-septies).
 - **Blockers/Notes:** `data/overlap_stats.csv` and `04_overlap_summary.png` committed
   on 2026-08-20 predated that day's CT03 recovery and were stale until this
   re-render — their per-species n sums to 327 against the committed record table's

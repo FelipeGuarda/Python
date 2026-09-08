@@ -24,7 +24,7 @@ reference list at the end.
 
 The limiting factor is **sample size and single-site replication, not method availability**.
 Nearly every method below is technically runnable on the data; the question is whether the
-parameters are *identifiable* and the result *defensible* at ~26 stations with
+parameters are *identifiable* and the result *defensible* at ~27 stations with
 tens-of-detections cells.
 
 Two prerequisites gate most of what follows:
@@ -188,7 +188,7 @@ Lower priority than A1–A3.
 tool and it is the wrong choice at this sample size. A simulation study of the Rota model
 found **high bias and low coverage in the natural parameters used for inference at fewer than
 400 sites**; strong co-occurrence was detected consistently only above 400 sites, and weak
-co-occurrence was never consistently detected even at 3000 sites. At 26 stations, a
+co-occurrence was never consistently detected even at 3000 sites. At 27 stations, a
 native × invasive interaction term is not defensibly estimable. Penalised likelihood mitigates
 but does not rescue this.
 
@@ -412,7 +412,7 @@ instead of hand-waving.
 
 ## D. Feasibility triage
 
-### Defensible now — single site, ~26 stations, current n
+### Defensible now — single site, ~27 stations, current n
 
 | Method | Bucket | Condition |
 |---|---|---|

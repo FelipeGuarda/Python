@@ -92,6 +92,48 @@ still current? Neither was.
 - Data unchanged where it should be: 1,112 focal records, 854 time-admissible, 380 episodes,
   24 stations, CT08 place-only — identical to 2026-08-20.
 
+### Second pass — a procedural audit of the ingest, and two guard-rail gaps
+
+Re-checked the whole crossing after the handshake landed, everything executed rather than
+read. **The chain is current and reconciles at every step**: `diff(load(), build())` in
+camera-traps returns **0 entries**, so the published contract is true of the parquets and
+`deployments.csv` on disk right now; `build_station_registry.py --check` reports the GeoJSON
+matches `estaciones.csv` at 27 stations; registry and contract agree on exactly 27 station
+labels with none missing on either side; `contract_assert_current()` passes; all 36 figure
+files and `overlap_stats.csv` are newer than the data rebuild, so **no output is stale**;
+and every deployment in all three campaigns carries an explanatory `media_status` — **zero
+`unexplained`, zero `no_field_dates`** (the 5 non-`in_canonical` rows are 4
+`video_only_offline` and 1 `card_failure`, all otoño 2025). Nothing is silently absent.
+
+#### Fixed
+- **The two GeoJSONs crossed the boundary unguarded.** `estaciones.geojson` and the
+  platform's `boundary.geojson` were read by a bare `st_read`, which on a missing file errors
+   — and **an error exits 1**, which under this project's own convention reads as a crash to
+  restart rather than a verdict to investigate. Both are now existence-checked immediately
+  after the contract and **refuse with exit 2**, naming the command that regenerates them.
+  The boundary check also moved from the end of the script to the start, so a missing
+  platform file no longer surfaces after all the work is done.
+- **A station in the table but absent from the registry warned and continued.** It nulled the
+  station and let `admissible(., "place")` drop the records, under an R `warning()` — so
+  `Rscript` exited **0**. It was the one path in the loader where data left the analysis
+  without a verdict. It now refuses. Proved on a doctored registry with CT27 removed:
+  **93 records**, refused, exit 2.
+- `docs/methods-menu-interactions.md` said "~26 stations" in three places; the array is 27.
+  The feasibility argument rests on a 400-site threshold, so nothing downstream of it moves.
+
+#### Open — and it belongs to the producer
+**`estaciones.geojson` is not in the contract.** `CANONICAL_STATE.json` hashes
+`deployments.csv` and describes `observations.parquet` column by column, but the station
+registry has no entry — its `stations` field is a list of labels observed in the table, not a
+description of the registry. Every coordinate and every `altitude_m` therefore crosses
+unverified, which will matter numerically as soon as the altitude-covariate occupancy in the
+methods menu is built. camera-traps does guard the file against drift from `estaciones.csv`,
+but **that guarantee is not visible from the consumer's side**. The fix is a
+`stations_sha256` in the published state, i.e. a `schema_version` bump to 5 on both sides;
+logged in `camera-traps/docs/V2-REVIEW.md` §0-septies rather than made from inside a
+consumer's session. `plataforma-territorial/data/boundary.geojson` has no producer contract
+to be added to at all, and is documented in the pehuén README as an unverified input.
+
 ### Deferred
 - **`data/overlap_stats.csv` committed on 2026-08-20 was stale** — it predated that day's CT03
   recovery and was never re-rendered — its per-species n sums to exactly **327** against the

@@ -482,6 +482,40 @@ parquets against the contract. That is `camtrap.canonical_state.verify`, and a s
 implementation is a second place a repair has to reach. It checks one narrower thing —
 is what I hold what was published — plus the per-campaign row count at read time.
 
+**Second pass, same day: a procedural audit of the ingest, and one gap that is this
+repository's to close.** Re-checked after the handshake landed, with everything executed
+rather than read. Green: `diff(load(), build())` returns **0 entries**, so the published
+contract is true of the parquets and `deployments.csv` on disk right now; the working tree
+is clean and contract and parquets carry the same write time; `build_station_registry.py
+--check` reports the GeoJSON matches `estaciones.csv` at 27 stations; the registry and the
+contract agree on exactly 27 station labels with none missing on either side; and every
+deployment in all three campaigns carries an explanatory `media_status` -- **zero
+`unexplained`, zero `no_field_dates`**, the 5 non-`in_canonical` rows being 4
+`video_only_offline` and 1 `card_failure`, all in otono 2025.
+
+**The gap: `estaciones.geojson` is not in the contract.** `CANONICAL_STATE.json` hashes
+`deployments.csv` and describes `observations.parquet` column by column, but the registry
+GeoJSON has no entry -- the `stations` field is a list of labels observed in the table, not a
+description of the registry. So every coordinate and every `altitude_m` crosses the boundary
+unverified. This repository does guard the file against drift from `estaciones.csv` (the
+`--check` mode and its test), but **that guarantee is not visible from the other side**: a
+consumer holding the GeoJSON cannot tell whether it is the one this project last published.
+The published file's mtime is also about three hours later than the contract's, which is
+harmless here -- it was created in `cb47337`, whose message records the coordinates were
+verified identical to the platform's -- but the fact that nothing downstream could have
+noticed had it been otherwise is the point.
+
+**Proposed, not done:** add `stations_sha256` (and probably `n_stations_registry`) to the
+published state. It is a `schema_version` bump to **5** and therefore a coordinated change on
+both sides, which is why it is logged here rather than made inside a consumer's session. The
+consumer has meanwhile done what it can from its side: the two GeoJSONs it reads are now
+existence-checked and **refused with exit 2** rather than left to `st_read`, whose error exits
+1 and reads as a crash; and a station present in the table but absent from the registry now
+refuses instead of warning, closing the one path in that loader where records could leave the
+analysis with a success exit code. `plataforma-territorial/data/boundary.geojson` has no
+producer contract to be added to at all, and is documented on the consumer's side as an
+unverified input.
+
 ---
 
 ## 1. Camera-traps — the review

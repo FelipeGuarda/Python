@@ -9,8 +9,11 @@
 #   - data/CANONICAL_STATE.json                        the contract; verified FIRST
 #   - data/campaigns/<campaign>/observations.parquet   the canonical table
 #   - data/campaigns/<campaign>/deployments.csv        field windows and effort
-#   - data/campaigns/estaciones.geojson                station coordinates
-#   - plataforma-territorial/data/boundary.geojson     reserve boundary (platform's)
+#   - data/campaigns/estaciones.geojson                station coordinates       (*)
+#   - plataforma-territorial/data/boundary.geojson     reserve boundary (platform's) (*)
+#
+#   (*) NOT covered by the contract: existence is refused here, content is not
+#       verified at all. See README, "Inputs the contract does not cover".
 #
 # OUTPUT FILES  (data/ inside the project)
 #   - records_all.rds        one row per IMAGE, focal species, all campaigns
@@ -103,6 +106,29 @@ state <- contract_load(CAMPAIGNS)
 CAMPAIGNS_DIR <- file.path(producer_dir(), "data", "campaigns")
 PATH_GEOJSON  <- file.path(CAMPAIGNS_DIR, "estaciones.geojson")
 PATH_BOUNDARY <- file.path(monorepo_root(), "plataforma-territorial", "data", "boundary.geojson")
+
+# These two GeoJSONs are the inputs the CONTRACT DOES NOT COVER. It hashes
+# deployments.csv and describes observations.parquet column by column, but it says
+# nothing about the station registry, and the boundary belongs to a second producer
+# with no contract at all. So their absence is checked here rather than left to
+# st_read, which errors -- and an error exits 1, which reads as a crash. A published
+# input that is not there is a verdict about the upstream state, so it exits 2 like
+# every other one.
+#
+# What is still unverified is their CONTENT. camera-traps guards the registry against
+# drift from estaciones.csv, which owns station identity (setup/build_station_registry.py
+# --check, and a test), but that guarantee is not visible from here: nothing in
+# CANONICAL_STATE.json would let this script notice a moved coordinate or a changed
+# altitude_m. See README, "Inputs the contract does not cover".
+spatial_missing <- c(
+  if (!file.exists(PATH_GEOJSON)) sprintf(
+    "station registry not found: %s\n    In camera-traps: python setup/build_station_registry.py",
+    PATH_GEOJSON),
+  if (!file.exists(PATH_BOUNDARY)) sprintf(
+    "reserve boundary not found: %s\n    Published by plataforma-territorial, not by camera-traps.",
+    PATH_BOUNDARY)
+)
+if (length(spatial_missing)) refuse(spatial_missing, what = "spatial inputs")
 
 dir.create(here("data"), showWarnings = FALSE)
 
@@ -236,8 +262,11 @@ message(sprintf("Deployments: %d station-campaigns; camera-days with stills: %s"
 
 
 # ── 6. Join coordinates ──────────────────────────────────────────────────────
-# left_join, so a station the registry does not know surfaces as NA rather than
-# vanishing; admissible(., "place") drops NA stations and says so.
+# left_join so that a station the registry does not know SURFACES rather than
+# vanishing, and then refuses. Until 2026-09-08 this warned and nulled the station,
+# which meant records could leave the analysis with exit 0 -- the one path in this
+# script where data was dropped without a verdict. "The registry is behind the
+# campaign data" is a statement about the upstream state, and those exit 2.
 
 records_joined <- records_raw %>%
   left_join(st_drop_geometry(stations_sf) %>% select(id, altitude_m),
@@ -245,11 +274,13 @@ records_joined <- records_raw %>%
 
 unmatched <- filter(records_joined, !station_id %in% stations_sf$id)
 if (nrow(unmatched) > 0) {
-  warning(sprintf(
-    "%d records at station(s) absent from %s: %s. The registry is behind the campaign data.",
+  refuse(sprintf(
+    paste0("%d records at station(s) absent from %s: %s.\n",
+           "    The registry is behind the campaign data. In camera-traps:\n",
+           "      python setup/build_station_registry.py"),
     nrow(unmatched), basename(PATH_GEOJSON),
-    paste(sort(unique(unmatched$station_id)), collapse = ", ")))
-  records_joined$station_id[!records_joined$station_id %in% stations_sf$id] <- NA_character_
+    paste(sort(unique(unmatched$station_id)), collapse = ", ")),
+    what = "station registry")
 }
 
 
