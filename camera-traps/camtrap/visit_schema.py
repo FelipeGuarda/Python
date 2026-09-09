@@ -128,7 +128,24 @@ STATION_IDS = (tuple(stations.registry())
 REQ_ALWAYS = 'siempre'
 REQ_IF_MOVED = 'sólo si "¿Se movió o reinstaló?" = si, o si es instalación'
 REQ_IF_ADJUSTED = 'sólo si "¿Se ajustó el reloj?" = si'
+REQ_IF_NOT_WORKING = 'sólo si "¿Funcionaba al llegar?" = no'
 REQ_OPTIONAL = 'opcional'
+
+# Why a camera stopped, AS OBSERVED at the visit. Never inferred afterwards: by the
+# time anyone reads the images the site has been visited again and the evidence is
+# gone. These are the field witness behind the `card_failure` / `video_only_offline`
+# verdicts that `camtrap/deployments.py` lets `media_absence.csv` declare -- that
+# declaration decides whether a station's camera-days enter a denominator, and until
+# now nothing in the chain recorded the observation it rests on.
+STOP_REASONS = (
+    'pilas agotadas',
+    'tarjeta llena',
+    'tarjeta defectuosa',
+    'dano fisico',
+    'humedad',
+    'apagada al llegar',
+    'no se sabe',
+)
 
 # Formats are stated as the technician must type them, not as a strftime pattern.
 FMT_DATE = 'AAAA-MM-DD'
@@ -259,6 +276,54 @@ VISIT_FIELDS: tuple[VisitField, ...] = (
         why='Una cámara muerta deja de muestrear sin avisar: la CT19 estuvo 91 días '
             'apagada antes del retiro. Es lo que separa "no pasó ningún animal" de '
             '"no había cámara", y por tanto el denominador del esfuerzo.',
+    ),
+    VisitField(
+        column='aim_intact',
+        label='¿Apuntaba donde corresponde?',
+        fmt='lista',
+        options=SI_NO_NS,
+        example='no',
+        width=17,
+        why='En una instalación: que se verificó el encuadre después de montarla. '
+            'En cualquier otra visita: que seguía mirando la escena que se instaló a '
+            'vigilar. Cubre ángulo, altura, vegetación que creció sobre el lente y '
+            'cámara movida por un animal o una persona. Es el único error que NO '
+            'rompe ningún control aguas abajo: no pierde archivos, no falla las '
+            'precondiciones de reloj y no descuadra ningún conteo. Sólo baja la tasa '
+            'de detección de esa estación en silencio, y contamina toda comparación '
+            'entre estaciones. Si dice no, explique qué pasaba en Observaciones.',
+    ),
+    VisitField(
+        column='stop_reason',
+        label='Si no funcionaba, ¿por qué?',
+        fmt='lista',
+        options=STOP_REASONS,
+        required=REQ_IF_NOT_WORKING,
+        example='pilas agotadas',
+        width=20,
+        why='Una cámara detenida no aporta los mismos días-cámara según por qué se '
+            'detuvo: una tarjeta defectuosa no aportó esfuerzo a ninguna pregunta, '
+            'mientras que una tarjeta llena estuvo muestreando hasta que se llenó. '
+            'Sin esta respuesta las dos se ven igual en los datos, y la estación '
+            'entra al denominador con un período de operación desconocido y más '
+            'corto, lo que sesga toda tasa. `no se sabe` es una respuesta legítima: '
+            'lo que no lo es, es no preguntar.',
+    ),
+    VisitField(
+        column='last_known_working',
+        label='Última evidencia de que grababa',
+        fmt=FMT_DATE,
+        required=REQ_OPTIONAL,
+        example='2026-03-14',
+        width=20,
+        is_text=True,
+        length=10,
+        why='La fecha de muerte de la cámara, cuando se puede establecer — la última '
+            'foto en la pantalla, la última fecha con archivos, el nivel de las '
+            'pilas. Opcional porque muchas veces no hay forma de saberlo; anotada '
+            'cuando la hay, convierte un período de operación desconocido en uno '
+            'medido, que es la diferencia entre sacar la estación entera del '
+            'denominador y contarla hasta esa fecha.',
     ),
     VisitField(
         column='camera_datetime_observed',

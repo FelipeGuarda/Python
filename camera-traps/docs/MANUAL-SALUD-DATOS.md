@@ -3,7 +3,7 @@
 ### Manual de extremo a extremo: del terreno al contrato
 
 **Fundación Mar Adentro · Bosque Pehuén**
-Documento vigente. Edición 2026-09-03.
+Documento vigente. Edición 2026-09-09.
 
 > Este es el documento autoritativo. Existe una edición en inglés
 > (`DATA-HEALTH-MANUAL.md`) que **no se mantiene al día** y que sólo debe usarse como
@@ -178,7 +178,7 @@ quien no va a leerlo completo, y tiene cinco columnas:
 
 Un punto sobre la última columna, porque el número asusta y conviene desarmarlo.
 
-**Hay 303 tests. No hay 303 preocupaciones distintas.** Los 303 tests viven en **74 clases**
+**Hay 311 tests. No hay 311 preocupaciones distintas.** Los 311 tests viven en **76 clases**
 repartidas en 14 archivos. La unidad conceptual es la **clase**, no el test: una clase es
 *una* regla acordada, y los tests dentro de ella son los casos de esa regla. Por eso la
 tabla nombra clases y no cuenta tests.
@@ -442,14 +442,24 @@ fotografíe a quien la está atendiendo, y anote la hora de reloj cuando lo hace
 >
 > **Recuperación.** Ninguna. Esto *es* el seguro.
 
-**4. Si funcionaba al llegar, y cualquier evidencia de cuándo dejó de funcionar.** Pilas
-muertas, tarjeta llena, daño físico, humedad.
+**4. Si funcionaba al llegar, POR QUÉ se detuvo, y cuándo se le vio grabando por última
+vez.** Las tres cosas, no sólo la primera.
 
 > **Qué se rompe.** Ésta es sobre el **denominador**, y por eso se subestima. Si no se conoce
 > la fecha de muerte de una cámara, no se conoce su período de operación, así que no se
 > conocen sus días-cámara — y tiene que salir del denominador de esfuerzo por completo, no
 > sólo de los conteos. Una estación que se deja en silencio en el denominador con un período
 > de operación desconocido y más corto sesga toda tasa.
+>
+> Y la razón importa tanto como el hecho, porque **no todas las detenciones aportan el mismo
+> esfuerzo**. Una tarjeta defectuosa no aportó días-cámara a ninguna pregunta; una tarjeta
+> llena estuvo muestreando hasta que se llenó. En los datos las dos se ven idénticas: una
+> estación sin imágenes. La única cosa en el universo que las separa es lo que anotó la
+> persona que abrió la caja.
+>
+> *Esto es lo que sostiene, aguas abajo, la declaración de `media_absence.csv` que la Fase 8
+> convierte en `media_status`. Hasta ahora esa declaración no tenía ningún testigo de terreno
+> detrás: se escribía desde la memoria de alguien, meses después.*
 
 **5. Azimut y distancia de detección, en cada instalación y cada re-apunte.**
 
@@ -485,7 +495,57 @@ después. **Mejor todavía: no lo ajuste.**
 Esto se conecta directamente con la clase de error 7 de la Fase 6, y es la razón de que esa
 fila de la tabla diga *"nada en los datos lo puede ver"*.
 
-### 1F.7 Tabla de vigilancia — Fase 1
+### 1F.7 El chequeo de mal funcionamiento
+
+Hay una clase de falla que **no rompe absolutamente nada aguas abajo**, y por eso es la más
+peligrosa que queda en la cadena: la cámara funcionó todo el período, grabó, sus archivos
+están completos, su reloj pasa las dos precondiciones de la Fase 6 y sus conteos cuadran. Sólo
+que estuvo mirando el tronco de un árbol.
+
+Ningún control de este manual la puede ver. No se pierden archivos, no falla ninguna
+precondición, no se descuadra ningún total. Lo único que pasa es que la tasa de detección de
+esa estación baja en silencio, y toda comparación entre estaciones queda contaminada sin que
+nada lo delate.
+
+> **Regla.** El chequeo se hace **en el sitio, antes de retirarse**, y se anota aunque todo
+> esté bien. Las tres columnas del formulario — `aim_intact`, `stop_reason` y
+> `last_known_working` — son el registro; lo que no cabe en ellas va a Observaciones.
+>
+> **Qué se rompe.** Sin el chequeo, la única defensa es que a alguien se le ocurra
+> mencionarlo. Eso ya pasó dos veces y las dos veces el dato se salvó por casualidad: una
+> tarjeta defectuosa quedó anotada **en el nombre de una carpeta**, y una cámara encontrada
+> apuntando hacia arriba quedó en un comentario. Ninguna de las dos habría sobrevivido a que
+> otra persona hiciera la salida.
+>
+> **Recuperación.** Ninguna. Una vez que la cámara se toca, el estado en que se la encontró
+> dejó de existir.
+
+La lista, para leerla en el sitio. Los cuatro primeros afectan el **numerador** — detecciones
+que no ocurrieron; los tres siguientes afectan el **denominador** — días-cámara que no fueron
+lo que parecen:
+
+| | Qué mirar | Dónde se anota |
+|---|---|---|
+| 1 | ¿Apuntaba donde se instaló? Ángulo, altura, encuadre | `aim_intact` |
+| 2 | ¿Vegetación creciendo sobre el lente o en el campo de visión? | `aim_intact` = no, y Observaciones |
+| 3 | ¿La movió un animal o una persona? | `aim_intact` = no, y `moved` si cambió de sitio |
+| 4 | ¿Estaba encendida? | `camera_working`, `stop_reason` = apagada al llegar |
+| 5 | ¿Pilas agotadas, y desde cuándo si se puede saber? | `stop_reason`, `last_known_working` |
+| 6 | ¿Tarjeta llena, bloqueada o defectuosa? | `stop_reason` |
+| 7 | ¿Daño físico o humedad dentro de la caja? | `stop_reason`, y Observaciones |
+| 8 | ¿El flash o el infrarrojo respondían? | Observaciones |
+
+**Y una revisión que se hace después, no en terreno:** el primer y el último archivo de cada
+despliegue se abren y se comparan contra la fila de la visita. Es el control de atribución más
+barato que existe — una cámara cuyo primer archivo muestra a la persona que la instaló, a la
+hora que dice la hoja, está demostrablemente bien atribuida y bien programada. Hoy lo hacemos
+de forma indirecta, a través de las anclas de la Fase 7; hacerlo explícito no cuesta nada.
+
+`stop_reason` sólo es obligatorio si `camera_working = no`. **`no se sabe` es una respuesta
+legítima; no preguntar no lo es.** Un formulario que exige una razón en cada visita entrena a
+la persona a contestarlo mecánicamente, que es exactamente cómo un formulario deja de leerse.
+
+### 1F.8 Tabla de vigilancia — Fase 1
 
 Ésta es la tabla más importante del manual y la que tiene menos código, y las dos cosas están
 relacionadas.
@@ -496,13 +556,17 @@ relacionadas.
 | Se anotó un veredicto en vez de dos lecturas | "desfase −1 h" en vez de las dos pantallas | La verificación misma: el veredicto no se puede auditar ni rehacer | El formulario **no tiene** campo de veredicto, por diseño | `TestSchema` (declara las 20 columnas y ninguna es un juicio) |
 | No se gatilló foto de la persona | No hay testigo que ate reloj de pared a reloj de cámara | Toda reparación de reloj queda en "acotada", no "reparada" | **Nada. Ningún script puede revisar esto** | *Sin fixture — es costumbre de terreno* |
 | No se anotó si funcionaba al llegar | Fecha de muerte desconocida | El **denominador**: los días-cámara de esa estación salen enteros | `camera_working` obligatorio | `TestSchema`, `TestTheFormsObligations` |
+| Se anotó que no funcionaba, pero no por qué | Una tarjeta muerta y una tarjeta llena se ven idénticas en los datos | El **denominador**, y la declaración de `media_absence.csv` queda sin testigo | `stop_reason` obligatorio si `camera_working = no` | `TestTheMalfunctionChecks` (7 casos) |
+| Una razón inventada entra al registro | El vocabulario creció y nadie lo declaró | Se contaría como vacío, en silencio | La lista de `STOP_REASONS` es cerrada y rechaza lo que no conoce | `TestTheMalfunctionChecks` |
+| Cámara mal apuntada durante toda una campaña | Grabó bien, pero no la escena que se instaló a vigilar | La tasa de detección de esa estación, y toda comparación entre estaciones. **No rompe ningún otro control** | `aim_intact` obligatorio en cada visita | `TestTheMalfunctionChecks` |
+| Se agrega una columna y el registro vivo no se migra | Los valores se archivan bajo el nombre equivocado y el CSV sigue pareciendo válido | Todo el registro de terreno, sin señal | El cargador rechaza un registro cuya forma no es la del formulario | `TestTheRecordRefusesAnOldShape` |
 | No se anotó azimut ni distancia | El área efectivamente muestreada se desconoce | Densidad, corrección de zona de detección, comparación entre estaciones. **Irrecuperable** | Obligatorios si es instalación o si se movió | `TestTheFormsObligations` |
 | Movida no anotada | Dos lugares distintos colapsan en una estación | Todo resultado espacial se refiere a un lugar que no existe | `moved = si` exige coordenadas nuevas | `TestTheFormsObligations` |
 | Ajuste de reloj no anotado | Un desfase constante se vuelve uno por tramos | Hora del día a través del punto de cambio | `clock_adjusted = si` exige la pantalla posterior | `TestTheFormsObligations` |
 | La hoja se llenó en la oficina, de memoria | Los números son recuerdos, no lecturas | Todo lo anterior, sin que nada lo delate | **Nada** | *Sin fixture — es costumbre de terreno* |
 
 Dos filas dicen "nada revisa esto". No es una omisión: **es el límite de lo que el software
-puede hacer por usted.** Las 32 clases de test del formulario pueden garantizar que un campo
+puede hacer por usted.** Las clases de test del formulario pueden garantizar que un campo
 obligatorio no quede vacío; ninguna puede garantizar que el número que se escribió sea el que
 se midió.
 
@@ -610,7 +674,7 @@ no tiene cómo distinguirla de un error de tipeo.
 | Una reconstrucción curada se revierte | CT27 vuelve a su fecha ambigua | El esfuerzo de otoño 2026 y su denominador | `build_field_notes.py` no puede escribir el archivo vivo | `test_ct27_still_carries_the_reason_for_both_dates` |
 | Una carga se "arregla" editando el CSV | El control de admisión se vuelve decoración | Todo, y sin dejar rastro | **Nada. Es disciplina** | *Sin fixture — por eso `--check` existe* |
 
-30 tests en 5 clases (`tests/test_visit_form.py`), 32 en 3 (`tests/test_visit_schema.py`), 28
+38 tests en 7 clases (`tests/test_visit_form.py`), 32 en 3 (`tests/test_visit_schema.py`), 28
 en 4 (`tests/test_anchors.py`).
 
 ---
@@ -783,7 +847,50 @@ vacía se ven iguales.**
 | **Quién lo hace** | MegaDetector, y después una persona en Timelapse2 |
 | **Qué decide** | Que ninguna imagen quede sin categoría. **Nada más** |
 
-### 4F.2 La revisión tiene que cubrir todas las imágenes
+### 4F.2 El detector, y por qué su umbral es una decisión
+
+El detector no clasifica especies: dice **dónde hay algo** y de qué tipo genérico. Lo que hay
+que declarar de él son cuatro cosas, y las cuatro tienen que viajar con los datos porque
+cambiar cualquiera cambia qué imágenes llegaron a ojos humanos.
+
+| | Qué se declara | Valor vigente |
+|---|---|---|
+| Modelo | MegaDetector v5 | `md_v5b.0.0` en otoño 2025 y otoño 2026; `MD5A-0-0` en primavera 2025 |
+| Umbral de detección | `animal_confidence_threshold` | **0,38** |
+| Desempeño en ese umbral | recall / precisión | **0,97 / 0,80** |
+| Umbral del propuesto de especie | `clip_confidence_threshold` | **0,28**; bajo eso, "No reconocible" |
+
+Las dos versiones se evaluaron comparando sus curvas de precisión-recall y resultaron
+virtualmente idénticas, razón por la cual el desempeño se reporta una vez y no dos.
+
+**Por qué 0,38 y no un umbral más exigente.** Porque los dos errores del detector no cuestan
+lo mismo, y la asimetría es la misma del §0.4:
+
+> Una imagen que el detector marca de más **cuesta tiempo de revisor** y nada más: se abre
+> igual en la Fase 5, se ve que no hay nada, y se descarta. Una imagen que el detector no
+> marca **no la mira nadie nunca**. Desaparece sin dejar señal, y el resultado es un conjunto
+> más chico, internamente consistente y sin mensaje de error.
+>
+> Elegir el umbral de mayor recall es elegir el error recuperable por sobre el irrecuperable.
+> Es la misma decisión que toma la Fase 6 al rechazar en vez de adivinar.
+
+**Y los dos límites que hay que enunciar junto al 0,97, para que no se lea más limpio de lo
+que es.** El primero: es una propiedad del **detector**, medida sobre un conjunto de
+evaluación, no una medición sobre nuestras imágenes. El segundo, y es el que importa para el
+análisis: **el 3 % que se pierde no es un error parejo.** Los fallos de un detector se
+concentran en animales chicos, lejanos, nocturnos en infrarrojo y parcialmente ocluidos — así
+que la pérdida no es ruido, es **detectabilidad diferencial** entre taxones, y entre
+estaciones con distinta densidad de vegetación. No invalida nada. Se declara como limitación
+conocida, y es una razón más para que la Fase 1 anote la geometría de cada instalación.
+
+> **Regla.** El modelo, su versión y los dos umbrales se declaran por campaña. Un cambio de
+> cualquiera de los cuatro **rompe la comparabilidad entre campañas** y tiene que quedar
+> escrito, no deducido del metadato de un archivo.
+>
+> **Qué se rompe.** Dos campañas procesadas con umbrales distintos tienen tasas de detección
+> que no se pueden comparar, y nada en los datos lo advierte: las dos son números plausibles.
+
+### 4F.3 La revisión tiene que cubrir todas las imágenes
 
 > **Regla.** La pasada humana asigna una categoría a **cada** imagen de la campaña, no sólo a
 > las interesantes. Las categorías son un vocabulario fijo y controlado.
@@ -800,7 +907,7 @@ vacía se ven iguales.**
 diferencia visible** entre una campaña revisada completa y una campaña donde alguien miró las
 primeras 200 imágenes y se aburrió. Las dos producen un CSV con categorías en todas las filas.
 
-### 4F.3 La prueba de que la revisión ocurrió
+### 4F.4 La prueba de que la revisión ocurrió
 
 No se puede probar que hubo revisión mirando si hay categorías, porque un archivo sin revisar
 también tiene categorías. Lo que **sí** se puede probar es la presencia de una categoría que
@@ -819,7 +926,7 @@ Verifíquelo en el momento de exportar, no en el momento de ingresar:
 python -m camtrap.exports <csv>
 ```
 
-### 4F.4 Qué se puede eximir y qué no
+### 4F.5 Qué se puede eximir y qué no
 
 > **Regla.** Una exención puede excusar una **excepción a una regla**. Nunca puede excusar la
 > **ausencia del trabajo que la regla verifica**.
@@ -838,7 +945,7 @@ la fecha y la razón, y se rechaza si falta cualquiera de las tres.
 > puede saber si una campaña se firmó a propósito o se saltó con apuro. Un archivo lleva un
 > nombre y una fecha, y **viaja con los datos**.
 
-### 4F.5 Tabla de vigilancia — Fase 4
+### 4F.6 Tabla de vigilancia — Fase 4
 
 | Error vigilado | Qué significa | Análisis que depende de que no ocurra | Qué lo revisa | Fixtures que lo sostienen |
 |---|---|---|---|---|
@@ -849,6 +956,7 @@ la fecha y la razón, y se rechaza si falta cualquiera de las tres.
 | Video en la exportación | Filas infladas; el denominador se corrompe | Toda tasa de detección | Se rechaza video de plano | `TestStillsOnly` (7 casos) |
 | La exportación no cubre todas las imágenes | Filas revisadas que no existen en la exportación total | El ingreso completo: no se puede diagnosticar lo que no está | `timestamps.py` aborta salvo `--allow-unmatched` | `TestReviewedRowsMustBeCovered` |
 | Ausencia de fotos con persona no investigada | O nadie gatilló la cámara, o la revisión no ocurrió | Ambas cosas importan, y son distintas | El control se detiene y obliga a distinguirlas | `TestTheRule`, `TestReadTotalExport` |
+| El umbral o la versión del detector cambian sin quedar escritos | Dos campañas vieron distintas imágenes antes de la revisión | Toda comparación de tasas entre campañas, sin que nada lo advierta | El metadato viaja en el JSON; la declaración vive en §4F.2 | *Sin fixture — es declaración, no cálculo* |
 
 26 tests en 4 clases (`tests/test_exports.py`).
 
@@ -895,7 +1003,71 @@ elige una.
 > **Recuperación.** Total, y el arreglo es **borrar**, no documentar: una ambigüedad
 > documentada sigue siendo una ambigüedad.
 
-### 5F.3 La precedencia, en cinco reglas
+### 5F.3 Quién identifica, y con qué ayuda
+
+La identificación es **semi-automática**, y las tres piezas hacen cosas distintas que conviene
+no confundir:
+
+| Pieza | Qué hace | Qué NO hace |
+|---|---|---|
+| El detector (Fase 4) | Dice dónde hay un animal | No identifica especies. Nunca |
+| CLIP, sin entrenamiento previo | **Propone** una especie y agrupa las imágenes por esa propuesta | No decide nada |
+| La persona | **Decide** la especie de cada imagen | — |
+
+La propuesta automática existe para ordenar la pantalla, no para responder. Como el revisor
+abre **todas** las imágenes con detección de animal, las especies raras quedan revisadas al
+100 % por construcción: no hay una muestra de las güiñas, están todas.
+
+> **Regla.** Cada imagen se resuelve con una decisión humana, y esa decisión queda registrada
+> **por imagen** en `review_outcome`: `confirmed` si la persona estuvo de acuerdo con la
+> propuesta, `corrected` si la cambió.
+>
+> **Qué se rompe sin ese registro.** La afirmación "un humano revisó esto" deja de ser
+> verificable y pasa a ser una declaración de intenciones. Seis meses después nadie puede
+> distinguir una campaña revisada con cuidado de una aceptada en bloque, y **las dos producen
+> un CSV idéntico** — el mismo modo de falla del §4F.3, un nivel más abajo.
+
+**Un revisor, y hay que decirlo.** Las tres campañas publicadas las clasificó una sola
+persona, que es también la responsable de la base. Eso tiene una consecuencia que se enuncia
+acá y no se esconde: **no hay segunda revisión independiente**, así que la cadena no produce
+hoy una tasa de error de clasificación. Lo que sí produce es la cifra de la sección siguiente.
+
+> El nombre de quien clasificó cada campaña **no vive en este manual** — vive en el registro
+> de la campaña y en la declaración de métodos de cualquier publicación, donde corresponde
+> reconocerlo. El manual declara el número de revisores y su rol, que es lo que cambia las
+> garantías.
+
+### 5F.4 Qué dice `review_outcome`, y qué no dice
+
+Sobre las tres campañas publicadas, de las 35.807 filas:
+
+| | Filas | |
+|---|---|---|
+| `corrected` | 1.912 | La persona cambió la propuesta automática |
+| `confirmed` | 1.447 | La persona estuvo de acuerdo |
+| *(vacío)* | 32.448 | **No aplica**: sin detección de animal, nunca entraron a la revisión de especies |
+
+**El 57 % de las decisiones fueron correcciones.** Léalo en la dirección correcta: es evidencia
+de que la revisión es sustantiva. Si la propuesta automática se estuviera aceptando en bloque,
+la proporción sería la inversa.
+
+> **Lo que esta cifra NO es, y es la confusión que hay que evitar:** no es una tasa de error de
+> la base. Mide el **acuerdo entre la propuesta automática y el revisor**, no el error residual
+> del revisor. Una frase del tipo "nuestra base tiene un X % de error" no se sigue de acá y
+> sería falsa.
+>
+> Medir el error residual exige una re-revisión a ciegas por alguien que no clasificó esa
+> campaña. **Queda pendiente por una razón operativa: hoy no hay una segunda persona
+> revisando**, y una muestra re-revisada por quien clasificó no mide error, mide consistencia
+> consigo misma.
+
+**Sobre el vacío.** Hoy las 32.448 filas sin revisión de especies llevan la cadena vacía, y una
+cadena vacía en una columna publicada admite dos lecturas — «no aplica» y «no se revisó» — que
+es exactamente el defecto que el §4F.3 persigue un nivel más arriba. Aquí significa **siempre**
+lo primero. Cambiar el valor a `not_applicable` es una modificación de la tabla canónica, con
+su republicación del contrato, y por eso se anota como pendiente en vez de hacerse de paso.
+
+### 5F.5 La precedencia, en cinco reglas
 
 Cada fila registra **de dónde salió su veredicto** (`review_resolution`), no sólo cuál es.
 
@@ -921,7 +1093,7 @@ exactamente el modo de falla del §0.4: un conjunto más chico, sin mensaje de e
 > cerrar aguas arriba. Se borró en vez de enseñarle las reglas nuevas, porque enseñarle habría
 > creado un segundo lugar al que la próxima corrección tendría que llegar.*
 
-### 5F.4 Tabla de vigilancia — Fase 5
+### 5F.6 Tabla de vigilancia — Fase 5
 
 | Error vigilado | Qué significa | Análisis que depende de que no ocurra | Qué lo revisa | Fixtures que lo sostienen |
 |---|---|---|---|---|
@@ -932,6 +1104,9 @@ exactamente el modo de falla del §0.4: un conjunto más chico, sin mensaje de e
 | Una especie nombrada se pierde por la categoría | El menú decía otra cosa | Riqueza, presencia, todo lo taxonómico | R1: la especie nombrada gana siempre | `NamedSpeciesWins` |
 | Un comentario genérico se promueve a especie | "un ave" se convierte en una especie concreta | Riqueza de especies, inflada | R4: queda `unknown`, etiquetado por tipo | `CoarseAndNoteComments` |
 | No se registra de dónde salió el veredicto | No se puede auditar ninguna decisión | La auditabilidad de la campaña | `review_resolution` es una columna publicada | `WhereTheVerdictComesFrom` (6 casos) |
+| No se registra si el humano confirmó o corrigió | "Un humano revisó esto" deja de ser verificable | La afirmación central de esta fase | `review_outcome` es una columna publicada, por imagen | `TestSchemaIsTheContract` |
+| El acuerdo humano-máquina se presenta como tasa de error | Se afirma una calidad que no se midió | La credibilidad de todo lo demás que se reporte | §5F.4 lo enuncia; ninguna prueba puede impedir una frase mal escrita | *Sin fixture — es redacción* |
+| No se registra quién clasificó la campaña | No se puede reconstruir quién decidió qué | Trazabilidad, y el reconocimiento que exige cualquier publicación | El registro de la campaña | *Sin fixture — es procedimiento* |
 | Las filas se desalinean al resolver | El veredicto se aplica a la fila equivocada | Todo | Invariantes de alineación | `FrameShape`, `RowSetIsTheExport` |
 
 20 tests en 6 clases (`tests/test_review_resolution.py`), 11 en 2

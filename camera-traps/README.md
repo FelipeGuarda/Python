@@ -89,7 +89,61 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-09-03 — **the manual respects its own boundary, and reads in our Spanish.**
+**Last Updated:** 2026-09-09 — **the malfunction check becomes a question the form asks.**
+
+`docs/CONTRASTE-SILVA-RODRIGUEZ-2025.md` maps our chain against Silva-Rodríguez et al. (2025,
+*J Appl Ecol*, DOI 10.1111/1365-2664.70010), the first published protocol for quality control
+in camera-trap datasets. The two protocols turn out to be complementary: theirs protects
+*classification* (is the label right?), ours protects *provenance* (does this datum come from
+where it says?). Four corrections followed, all applied.
+
+**One adds data that was never collected.** A camera that recorded all season while pointing at
+a tree trunk breaks nothing downstream — no file lost, no clock precondition failed, no count
+uneven — it only lowers that station's detection rate in silence. Two such cases already
+survived by luck (a defective SD card recorded in a folder's *name*; a camera found pointing
+upward, in comments). The visit form now asks: `aim_intact` (always), `stop_reason` (a closed
+seven-term vocabulary, required only when `camera_working = no`), and `last_known_working`
+(optional). Three columns, not the paper's eight items — eight checkboxes get answered
+mechanically, and a form answered mechanically stops being data. `stop_reason` is also the
+field witness behind `media_absence.csv`, whose `card_failure` / `video_only_offline`
+declaration decides whether a station's camera-days enter a denominator and until now rested on
+nobody's recorded observation. Manual §1F.7 carries the eight-point list to read on site.
+
+**Three document guarantees that already existed in code.** §4F.2 declares the detector: model
+and version per campaign (`md_v5b.0.0` for otoño 2025 and otoño 2026, `MD5A-0-0` for primavera
+2025), both thresholds (0.38 detection, 0.28 CLIP), the 0.97 recall / 0.80 precision evaluation,
+and why recall was preferred — a false positive costs reviewer time, a false negative deletes an
+observation permanently and without signal. Its two limits are stated rather than buried: the
+0.97 is the detector's property on an evaluation set, and the 3% it misses is *not* uniform, so
+it introduces differential detectability across taxa and stations. §5F.3 and §5F.4 describe the
+species pass — detector finds, CLIP proposes, a person decides per image — with `review_outcome`
+as the per-image record and its measured figure: **1,912 `corrected` against 1,447 `confirmed`,
+57% corrections**, which is evidence the review is substantive and is *not* an error rate, said
+so explicitly in both places.
+
+**Two defects the design review found that were not in the plan.** `visit_form.py` named form
+columns literally (`elif column == 'visit_date'`) despite its own docstring promising it never
+does; it now dispatches on the format the schema declares, so the next date column needs no edit
+there. And the loader never checked the record's shape — it writes with the form's columns and
+only emits a header when the file is new, so appending to a record of another shape would have
+filed every value under the wrong name and left a CSV that still looked valid. It now refuses.
+
+Migration: `setup/add_malfunction_columns.py`, run once — 107 rows, 22 → 25 columns, **zero
+inherited values altered**, both CT27 reconstructions and all 58 `data_flags` rows intact. The
+two historical cases were deliberately *not* mined out of prose into the new columns: reading a
+structured value out of a comment written for a human is the same silent reinterpretation the
+loader refuses at ingest.
+
+**311 tests in 76 classes pass** (was 303 in 74). 76 cited fixture names all exist. Two items
+are logged, not done: `review_outcome`'s empty value should become `not_applicable` (a canonical
+table change, so it carries a contract republish and travels separately), and the blind
+re-review that would yield a real classification error rate — deferred because there is no
+second reviewer today, and a sample re-reviewed by whoever classified it measures self-
+consistency, not error.
+
+---
+
+**Previously, 2026-09-03 — the manual respects its own boundary, and reads in our Spanish.**
 
 `docs/MANUAL-SALUD-DATOS.md` (1,708 lines) was audited against one directive: phases 0–9
 describe the producer, phase 10 describes the checks *any* consumer runs, and no other

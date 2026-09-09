@@ -226,6 +226,11 @@ def _check_obligations(row: dict, where: str, problems: list[str]) -> None:
         elif field.required == visit_schema.REQ_IF_MOVED:
             if _requires_placement(row) and not value:
                 problems.append(f'{where}: falta {field.column} (se movió o es instalación)')
+        elif field.required == visit_schema.REQ_IF_NOT_WORKING:
+            if row.get('camera_working') == 'no' and not value:
+                problems.append(
+                    f'{where}: falta {field.column}; la cámara no funcionaba, y sin la '
+                    'razón no se puede saber si aportó días-cámara al denominador')
 
     if row.get('visit_type') == 'retiro' and row.get('campaign_opened'):
         problems.append(
@@ -252,11 +257,11 @@ def _read_row(values: dict, where: str, source_sheet: str,
             row[column] = _read_choice(raw, field, where, problems)
         elif field.bounds:
             row[column] = _read_number(raw, field, where, problems)
-        elif column == 'visit_date':
+        elif field.fmt == visit_schema.FMT_DATE:
             row[column] = _read_date(raw, column, where, problems)
-        elif column == 'visit_time':
+        elif field.fmt == visit_schema.FMT_TIME:
             row[column] = _read_time(raw, column, where, problems)
-        elif column in ('camera_datetime_observed', 'camera_datetime_after'):
+        elif field.fmt == visit_schema.FMT_DATETIME:
             row[column] = _read_datetime(raw, column, where, problems)
         else:
             row[column] = _text(raw)
@@ -374,12 +379,31 @@ def _existing_rows(csv_path: Path) -> list[dict]:
         return []
     with csv_path.open(encoding='utf-8', newline='') as fh:
         reader = csv.DictReader(fh)
-        fieldnames = reader.fieldnames or []
+        fieldnames = tuple(reader.fieldnames or ())
         if RECORDED_CLOSE_COLUMN in fieldnames:
             raise VisitFormError(csv_path, [
                 f'{csv_path.name} todavía tiene la columna retirada '
                 f'`{RECORDED_CLOSE_COLUMN}`: es una copia previa al cambio de forma. '
                 'Ejecutar setup/reshape_field_notes.py antes de cargar visitas.'])
+        # The writer emits FIELD_NOTES_COLUMNS and only writes a header when the file
+        # is new, so appending to a record of a different shape would file every value
+        # under the wrong name and leave a valid-looking CSV behind. Refuse instead:
+        # a shape change is a migration someone has to run on purpose.
+        if fieldnames and fieldnames != FIELD_NOTES_COLUMNS:
+            missing = [c for c in FIELD_NOTES_COLUMNS if c not in fieldnames]
+            extra = [c for c in fieldnames if c not in FIELD_NOTES_COLUMNS]
+            detail = []
+            if missing:
+                detail.append(f'faltan {missing}')
+            if extra:
+                detail.append(f'sobran {extra}')
+            if not detail:
+                detail.append('mismas columnas en otro orden')
+            raise VisitFormError(csv_path, [
+                f'{csv_path.name} no tiene la forma que declara el formulario '
+                f'({"; ".join(detail)}). Migrar el registro antes de cargar visitas: '
+                'agregar una columna al formulario no puede reescribir en silencio '
+                'un registro que se acumula.'])
         return list(reader)
 
 

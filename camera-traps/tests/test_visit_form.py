@@ -35,6 +35,7 @@ GOOD = {
     'camera_datetime_after': '', 'card_changed': 'si', 'batteries_changed': 'si',
     'moved': 'no', 'lat': '', 'lon': '', 'height_m': '', 'bearing_deg': '',
     'detection_distance_m': '', 'notes': 'Sin novedad.',
+    'aim_intact': 'si', 'stop_reason': '', 'last_known_working': '',
 }
 
 
@@ -141,7 +142,8 @@ class TestTheFormsObligations(unittest.TestCase):
         """The form tells the technician to do exactly this, so demanding the reading
         would demand one that does not exist."""
         row = visit_form.read(workbook(changed(
-            camera_working='no', camera_datetime_observed='')))[0]
+            camera_working='no', camera_datetime_observed='',
+            stop_reason='pilas agotadas')))[0]
         self.assertEqual(row['camera_datetime_observed'], '')
 
     def test_a_working_camera_must_record_the_screen(self):
@@ -348,3 +350,88 @@ class TestTheRenderedTemplateLoads(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestTheMalfunctionChecks(unittest.TestCase):
+    """The checks Silva-Rodriguez et al. (2025) put before classification.
+
+    A camera that recorded all season while pointing at a tree trunk breaks nothing
+    downstream: no file is lost, no clock precondition fails, no count comes out
+    uneven. It only lowers that station's detection rate in silence. Nothing in the
+    chain can see it, which is why it has to be asked in the field.
+    """
+
+    def test_the_aim_is_asked_at_every_visit(self):
+        with self.assertRaises(visit_form.VisitFormError) as cm:
+            visit_form.read(workbook(changed(aim_intact='')))
+        self.assertIn('aim_intact', str(cm.exception))
+
+    def test_a_stopped_camera_must_say_why(self):
+        """Without a reason a dead card and a full card look identical, and the
+        station enters the denominator with an unknown, shorter operating period."""
+        with self.assertRaises(visit_form.VisitFormError) as cm:
+            visit_form.read(workbook(changed(camera_working='no',
+                                             camera_datetime_observed='',
+                                             stop_reason='')))
+        self.assertIn('stop_reason', str(cm.exception))
+
+    def test_a_working_camera_is_not_asked_why_it_stopped(self):
+        """The obligation is conditional: asking it of every visit would train the
+        technician to answer it mechanically, which is how a form stops being read."""
+        row = visit_form.read(workbook(changed(camera_working='si',
+                                               stop_reason='')))[0]
+        self.assertEqual(row['stop_reason'], '')
+
+    def test_not_knowing_is_an_answer_but_not_asking_is_not(self):
+        row = visit_form.read(workbook(changed(camera_working='no',
+                                              camera_datetime_observed='',
+                                              stop_reason='no se sabe')))[0]
+        self.assertEqual(row['stop_reason'], 'no se sabe')
+
+    def test_an_invented_reason_is_refused(self):
+        """The vocabulary is closed for the same reason the species one is: a term
+        nobody declared cannot be counted, and it would be counted as blank."""
+        with self.assertRaises(visit_form.VisitFormError) as cm:
+            visit_form.read(workbook(changed(camera_working='no',
+                                             camera_datetime_observed='',
+                                             stop_reason='se la llevo un puma')))
+        self.assertIn('stop_reason', str(cm.exception))
+
+    def test_the_death_date_round_trips(self):
+        """Optional, because often there is no way to know. When there is, it turns
+        an unknown operating period into a measured one."""
+        row = visit_form.read(workbook(changed(camera_working='no',
+                                              camera_datetime_observed='',
+                                              stop_reason='pilas agotadas',
+                                              last_known_working='2026-03-14')))[0]
+        self.assertEqual(row['last_known_working'], '2026-03-14')
+
+    def test_the_death_date_is_parsed_by_its_declared_format(self):
+        """`visit_form`'s docstring promises no form column is named literally in it.
+        A new date column must work through `fmt`, with no edit here."""
+        with self.assertRaises(visit_form.VisitFormError) as cm:
+            visit_form.read(workbook(changed(camera_working='no',
+                                             camera_datetime_observed='',
+                                             stop_reason='humedad',
+                                             last_known_working='14-03-2026')))
+        self.assertIn('last_known_working', str(cm.exception))
+
+
+class TestTheRecordRefusesAnOldShape(unittest.TestCase):
+
+    def test_appending_to_a_record_of_another_shape_is_refused(self):
+        """The writer emits FIELD_NOTES_COLUMNS and only writes a header when the
+        file is new. Appending to a shorter record would file every value under the
+        wrong name and leave a CSV that still looks valid."""
+        import csv as _csv
+        tmp = Path(tempfile.mkdtemp()) / 'field_notes.csv'
+        stale = [c for c in visit_form.FIELD_NOTES_COLUMNS
+                 if c not in ('aim_intact', 'stop_reason', 'last_known_working')]
+        with tmp.open('w', encoding='utf-8', newline='') as fh:
+            w = _csv.DictWriter(fh, fieldnames=stale)
+            w.writeheader()
+        with self.assertRaises(visit_form.VisitFormError) as cm:
+            visit_form.ingest(workbook(GOOD), tmp)
+        message = str(cm.exception)
+        self.assertIn('aim_intact', message)
+        self.assertIn('forma', message)
