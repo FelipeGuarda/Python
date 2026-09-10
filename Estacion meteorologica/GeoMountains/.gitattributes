@@ -1,0 +1,10 @@
+# El CSV entregado es un artefacto de bytes exactos: build_registry.py lo escribe
+# con terminador LF y registry_report.json declara su tamaño exacto. Sin esta
+# regla, autocrlf lo reescribe en cada checkout de Windows, le suma un byte por
+# fila (~265 kB sobre 265.038 filas) y el tamaño declarado deja de coincidir con
+# el archivo. Tampoco conviene que el mismo entregable difiera entre la máquina
+# Windows y la Linux.
+data/weather_data_WS-01.csv -text
+
+# Word es binario; que git no lo toque nunca.
+*.docx binary
