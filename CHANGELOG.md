@@ -6,6 +6,169 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-09-10c — one channel inventory, generated, with a status vocabulary
+
+The deliverable had units for the delivered channels and evidence prose for the withheld ones, in
+two tables, with no status column and no units at all for the five withheld. Asked for the full
+list in one place; built it as generated output rather than a third hand-typed table.
+
+### Added
+- **`CHANNELS`** in `GeoMountains/build_registry.py` — one inventory of all **38 data columns** the
+  logger emits, each carrying identity, variable, unit, aggregation, status and note. `DELIVERED`
+  is now *derived* (`tuple(c for c in CHANNELS if c.delivered_as)`) instead of a second list.
+- **A status vocabulary, validated in `__post_init__`**: `Opera` · `Interrumpido` ·
+  `Nunca funcionó` · `Inutilizable` · `Derivado` · `Servicio`. Tally: 23 · 7 · 2 · 3 · 1 · 2.
+- **`unit_declared` per channel.** The logger leaves the unit **blank** in TOA5 header row 3 for
+  exactly **12 channels** — the whole radiation block plus the SR50 — so `W m⁻²` there is inferred
+  from magnitude, not declared by the instrument. The table marks those with †.
+- **Generated blocks in the ficha**, spliced between `<!-- GENERADO:inventario -->` and
+  `<!-- GENERADO:retenidos -->` markers; `_splice` raises if a marker is missing. Verified
+  idempotent (identical checksum across consecutive runs).
+
+### Changed
+- **The inventory is measured over all 38 channels, then the CSV is cut to the 33 delivered.**
+  Previously the withheld channels never entered the frame, so their statistics had to be typed
+  into §2 by hand — and I had already had to correct σ and the median there twice in one session.
+  §2's evidence column is now computed: `BP_mbar_Avg` σ 0,18 · `outgoingSW_Avg` median −47,23 ·
+  `outgoingLW_Avg` 265.038 zeros, none of it retyped.
+- **The window column is labelled `Ventana con valor no nulo`, and the table says why a dead
+  channel still shows a full window** — the failures present as zeros and impossible constants, not
+  as nulls, so the *status* column and not the window is what says whether a channel measured
+  anything. That was the one way the old table could have misled a reader.
+- §1.3's prose bullets were cut from four to three, keeping only what the table cannot carry per
+  row: the absence of QC and gap-filling, the quantified nocturnal offset, and the declared SR50
+  cut-off rule.
+- `_channel_summary` → `_channel_inventory`; report key `channels` + `withheld_channels` → one
+  `channel_inventory`. Numbers now include mean, median, std and zero counts per channel.
+
+---
+
+## 2026-09-10b — the warehouse gets its record counter back
+
+Follow-up to the entry below. Building the deliverable required reconstructing the CR800's record
+counter from the raw dumps, because the warehouse had thrown it away. Traced where, and stopped it.
+
+### Added
+- **`data-pipeline/src/cr800_columns.py`** — owns how a CR800 channel name becomes a
+  `weather_station` column, and the fact that the record counter **arrives under two different
+  names**: `RECORD` in TOA5 files and `merged_timeline.csv`, `RecNbr` over PakBus. One function,
+  `normalize_columns(df)`, renames and types it. It replaced **three duplicated copies** of the
+  core-8 rename (`met_csv.py`, `toa5.py`, `cr800.py`) rather than adding a fourth copy of a related
+  decision.
+- **`record BIGINT` in `weather_station`** (`schema.sql`), nullable, not part of the primary key.
+  The schema comment states the consequence it exposes without fixing: the key stays
+  `(station_id, timestamp)`, so where the logger stamped two records with the same time — 47 of
+  them on 2023-10-04/05 — the table still keeps one and `record` is discontinuous there.
+
+### Fixed
+- **Three independent drops of the record counter.** `parsers/met_csv.py` had
+  `_DROP_COLS = {"RECORD"}` with the comment *"internal / not useful in DB"*; `parsers/toa5.py`
+  projected onto 9 schema columns; `fetchers/cr800.py` dropped `RecNbr` on the same line as the
+  raw datetime — so **the antenna delivered the counter and the pipeline discarded it**, which is
+  the direct answer to why `2025.parquet` and `2026.parquet` have no `record` despite those rows
+  arriving over Tailscale. All three now go through `normalize_columns`.
+- **`cr800.py` no longer fails silently if the counter is missing.** It prints a warning naming the
+  columns actually received, so a third alias gets added in one place instead of reintroducing a
+  NULL counter invisibly. Not fatal: the readings are irreplaceable and a fetch that otherwise
+  worked must not be discarded over a metadata column.
+- **A collision risk in `cr800.py`**: the raw datetime column is now dropped *before* renaming, so
+  a source that happens to call it `TIMESTAMP` cannot collide with the `timestamp` just computed.
+
+### Verified (DuckDB 1.5.1 in the `plataforma-territorial` env; the ingest path was exercised)
+- `met_csv.parse` yields 42 columns with `record` as nullable `Int64`, contiguous 11138–13137 on a
+  2,000-row slice; `toa5.parse` yields 10 including `record`, contiguous 11138–58737 on a full dump.
+- **Two suspected hazards are false.** `INSERT OR REPLACE` preserves columns absent from the
+  incoming frame, so re-ingesting a `.dat` does not null the 31 extra sensor channels, and
+  restoring an old parquet without `record` does not null the counter. Confirmed with row counts
+  and identical instant sets on both sides, so the upserts genuinely collided.
+- **What the re-ingest will and will not fix.** From `merged_timeline.csv` it **recovers the 4
+  April records lost each year** — the current `tz_utils.py` places the ambiguous 23:00–23:45
+  stamps at 03:00–03:45 UTC, distinct instants — and **still loses the 4 September ones**, because
+  `nonexistent="shift_forward"` collapses the nonexistent 00:00–00:45 stamps *and* the real 01:00
+  onto a single instant: `RECORD 44863, 44864, 44865, 44866, 44867 → 2019-09-08 04:00Z`, five
+  records, primary key keeps one. That is also why the surviving row stamped 01:00 holds a foreign
+  reading, as measured against the dumps on 5 of 5 comparable September transitions.
+
+### Changed
+- **Corrected the mechanism attributed in the entry below.** The parquet is short 8 records a year,
+  not 4 per transition by one cause. September is the `shift_forward` collapse above, in current
+  code. **April is different**: the 4 ambiguous records are absent outright (a real 2:15 UTC hole,
+  01:45 → 04:00 on 2019-04-07) and the current `tz_utils.py` would not lose them, so they were most
+  likely ingested before `tz_utils.py` existed — its own docstring says it replaced five
+  inconsistent `ambiguous=` strategies, `met_csv.py` among them. *Not attributable to current code.*
+
+### Deferred
+- **Nothing was re-ingested.** The backfill and the parquet re-export must run on the Linux box
+  that holds `fma_data.duckdb`. Until then `record` is NULL for every existing row.
+- **The timezone fix still isn't done**, and the September loss is the argument for bundling it with
+  the re-ingest instead of rebuilding the warehouse twice.
+- **`scripts/recover_dst_gaps.py` apparently never took effect** — it targets exactly the April
+  records and the parquet still lacks them for 2019–2024. It also covers April only. Re-check after
+  the re-ingest.
+
+---
+
+## 2026-09-10 — WS-01 becomes deliverable; the 2023 "gap" was a clock jump
+
+Built the counterpart-facing deliverable for GEO Mountains out of the 2026-09-09 station audit.
+The ask was a different document from the audit: declare what FMA has first, then what it lacks,
+then what is obtainable soon — and one data file instead of seven overlapping ring-buffer dumps.
+Reading the record through the `RECORD` counter rather than the timestamp axis, which the audit
+had not done, changed four of its conclusions.
+
+### Added
+- **`Estacion meteorologica/GeoMountains/`** — the deliverable directory.
+  `FICHA-TECNICA-WS01.md` declares the metadata elements in a three-column table
+  (`Elemento | Valor | Fuente`) with no justification prose inside it, then names what is absent
+  and what closes it. `data/weather_data_WS-01.csv` is the whole record in one file: **265,038
+  rows × 37 columns**, 2018-09-21 16:45 → 2026-04-13 13:00, all stamps carrying an explicit
+  `-03:00`. Column names follow FMA's own partner spec
+  (`estandares-datos-socios-plataforma-territorial.md` §3.6) rather than a new scheme.
+- **`build_registry.py`** — regenerates the CSV and `registry_report.json` from the primary
+  sources. It owns three decisions and hides them: the clock history (`CLOCK_EPOCHS`), that TOA5
+  dumps deduplicate on `RECORD` and not on timestamp, and that the pipeline's stored UTC must be
+  read back as a UTC−03 clock reading. The document cites the JSON instead of restating numbers,
+  so a re-run after the field visit updates both.
+
+### Fixed (in the account of the record, not in code)
+- **There is no 12-hour gap.** `RECORD` runs contiguous from 11138 to 250834 — **239,697 records,
+  zero missing** — across 2018-09-21 → 2025-07-23. The 2023-07-12/13 "gap" is `REC 179606 @ 13:45`
+  followed by `REC 179607 @ 01:45` next day: consecutive records, a clock that jumped.
+- **Exactly two clock events in seven years, and they cancel.** `+11:45:00` at `RECORD 179607`,
+  `−11:45:00` at `RECORD 187673`. The 8,066 records between them are therefore exactly repairable;
+  the CSV carries them corrected and flagged `clock_corrected = true`. The correction closes the
+  15-minute grid at both edges with no residue.
+- **The "~2 h behind for three months" was a method artefact.** With the clock 11:45 ahead,
+  daylight straddles civil midnight, so solar noon taken as a per-calendar-day midpoint of
+  daylight collapses to ≈11.875 h — which is the 11.75 h that was measured and read as a 2-hour
+  drift.
+- **The pipeline's parquet copy is short 8 records a year at the DST transitions** — 2019.parquet
+  holds 35,032 of 35,040. April's ambiguous 23:00–23:45 and September's nonexistent 00:00–00:45;
+  September additionally leaves a foreign record stamped 01:00, confirmed against the TOA5 dumps on
+  5 of 5 comparable transitions. 48 such records were recovered from the dumps; 4 (2025-09-07
+  00:00–00:45) exist in neither copy and are declared in the deliverable. *The mechanism differs
+  between April and September — see the 2026-09-10b entry above, which corrects this paragraph.*
+  Cross-check: 231,587 rows where both copies independently cover the same instant, 23
+  disagreements, all inside DST transitions or the 2023-10-04/05 repeated-stamp window, and in all
+  23 the CSV carries the `RECORD`-identified value.
+
+### Changed
+- **Five channels withheld from the delivery, each declared with its evidence:** `BP_mbar_Avg`
+  (σ = 0.18 mbar over seven years), `outgoingLW_Avg` (identically zero), `incomingLW_Avg`
+  (r = 0.982 with shortwave, negative at night), `outgoingSW_Avg` (sign-inverted, median
+  −47.2 W m⁻²), `albedo_Avg`.
+- **The snow sensor ships as raw sonic distance with a declared service window**, not as snow
+  depth — converting it needs a bare-ground reference that is not documented. Window ends
+  `2021-09-30` as a stated rule; the 150 isolated later readings and the 17,782 exact-zero
+  readings inside the window were dropped, a sonic ranger being unable to report 0.000 m.
+
+### Deferred
+- `data-pipeline/src/tz_utils.py::localize_santiago_to_utc` still encodes the wrong rule. Left
+  untouched deliberately — the fix plus a rebuild of the weather tables is a pipeline change, and
+  the deliverable works around it. Logged under Data Pipeline pending items.
+
+---
+
 ## 2026-09-08 — pehuén implements the consumer handshake; the crossing was broken
 
 First pass at the **consumer** side of the camera-trap boundary, declared out of scope since

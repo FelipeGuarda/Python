@@ -1,6 +1,69 @@
 # FMA Project Status
 
-**Last updated:** 2026-09-08 — **a consumer implements the handshake: pehuén crosses the camera-trap boundary cleanly.**
+**Last updated:** 2026-09-10 — **WS-01 becomes deliverable; the warehouse gets its record counter back.**
+
+**`record` is now a `weather_station` column.** It was being discarded in **three** places, one of
+them on purpose: `parsers/met_csv.py` had `_DROP_COLS = {"RECORD"}` commented *"internal / not
+useful in DB"*, `parsers/toa5.py` projected onto 9 columns, and `fetchers/cr800.py` dropped
+`RecNbr` — meaning **the antenna delivered the counter and the pipeline threw it away**. The
+counter is the opposite of not useful: it is the only column that makes the record's continuity
+provable and the only one that resolves a repeated timestamp. New `src/cr800_columns.py` owns the
+channel→column mapping and the fact that the counter arrives under two names; it replaced three
+duplicated copies of the core-8 rename rather than adding a fourth.
+
+**Measured, not assumed** (DuckDB 1.5.1 is available in the `plataforma-territorial` env, so the
+ingest path was tested end-to-end against a scratch database):
+- `toa5.parse` and `met_csv.parse` now carry `record` as nullable `Int64`, contiguous. met_csv
+  keeps all 42 columns; toa5 still projects onto 10 (pre-existing, unchanged).
+- `INSERT OR REPLACE` preserves columns absent from the incoming frame. So re-ingesting a `.dat`
+  does **not** null the 31 extra sensor channels, and restoring an old parquet without `record`
+  does **not** null the counter. Both hazards were suspected and both are false.
+- A re-ingest from `merged_timeline.csv` **recovers the 4 April records lost each year** (the
+  current `tz_utils.py` places the ambiguous 23:00–23:45 stamps at 03:00–03:45 UTC) and **still
+  loses the 4 September ones**, because `nonexistent="shift_forward"` collapses the nonexistent
+  00:00–00:45 stamps and the real 01:00 onto one instant, where the primary key keeps one of five.
+  Verified on 2019-09-08: `RECORD 44863-44867 → 2019-09-08 04:00Z`. With `record` in the table
+  that remaining loss is finally *visible* — the counter jumps by 5 at each September transition.
+
+**Blockers/Notes.** The re-ingest and the parquet re-export have to run on the Linux box that
+holds `fma_data.duckdb`; nothing was re-ingested from here. The September loss argues for doing
+the tz fix (fixed offset UTC−03:00) in the **same** migration, since both need the same rebuild.
+
+---
+
+**Prior (2026-09-10) — WS-01 becomes deliverable: the record has no gap, and the 2023 clock anomaly was a jump, not a drift.**
+
+**What changed.** New `Estacion meteorologica/GeoMountains/` holds the counterpart-facing
+deliverable for GEO Mountains: one document that declares what FMA has, one consolidated CSV
+(265,038 rows, 2018-09-21 → 2026-04-13, **99.9985 % of the 15-minute grid**), and
+`build_registry.py`, which regenerates both from the primary sources plus a JSON report the
+document cites instead of restating numbers.
+
+**Four claims of the 2026-09-09 audit measured false.** The `RECORD` counter is contiguous from
+11138 to 250834 with **zero missing records**, so the "12-hour gap" of 2023-07-12/13 is a clock
+jump, not lost data. There are exactly **two** clock events in seven years and they cancel:
+**+11:45:00** at `RECORD 179607` and **−11:45:00** at `RECORD 187673`, which makes the 8,066
+records between them exactly repairable (`clock_corrected` flags them in the CSV). The reported
+"~2 h behind for three months" was an artefact of the solar-noon method: with the clock 11:45
+ahead, daylight straddles civil midnight and a per-calendar-day midpoint collapses to ≈11.875 h.
+And the pipeline's parquet copy is short **8 records a year** at the DST transitions — 2019.parquet
+holds 35,032 of 35,040. 48 were recovered from the TOA5 dumps; 4 (2025-09-07 00:00–00:45) exist
+only on the logger. The two transitions fail by *different* mechanisms — see the entry above.
+
+**Integration status:** `Ready` for the document and the CSV. `Pending [field visit]` for the
+metadata the record cannot supply — sensor makes/models/serials, sensor heights, the `.CR8`
+program, siting class, a surveyed elevation. `Pending [DMC]` for a WIGOS Station Identifier if
+OSCAR/Surface is the destination.
+
+**Blockers/Notes.** The ring buffer holds 495.8 days, so everything after the 2026-04-13
+telemetry loss survives on board only until **≈2027-08-22** — that date bounds the field visit.
+`data-pipeline/src/tz_utils.py::localize_santiago_to_utc` still encodes the wrong rule and was
+deliberately left untouched; fixing it is a pipeline change, not a deliverable change. The CSV is
+53 MB, which is a decision to make before committing it.
+
+---
+
+**Prior (2026-09-08) — a consumer implements the handshake: pehuén crosses the camera-trap boundary cleanly.**
 
 `Research/pehuen-species-interactions` is the first downstream project to hold up its half of
 the canonical contract, following the manual's Fase 10. It needed to be: its loader pointed at
@@ -618,6 +681,29 @@ Running as systemd service (`fma-pipeline.service`). Full pipeline with real dat
 - [ ] Tabla `literatura` pendiente de poblar (literatura-agent integration)
 - [ ] Camtrap DP parser: test with real data
 - [ ] Watcher de carpeta incoming: activate
+- [x] **`record` restored to `weather_station` (2026-09-10).** `schema.sql` declares it;
+  `src/cr800_columns.py` owns the channel→column mapping and both counter aliases (`RECORD`,
+  `RecNbr`); `met_csv.py`, `toa5.py` and `cr800.py` consume it instead of each dropping the
+  counter. `cr800.py` now warns loudly, naming the columns received, if a table read arrives with
+  no counter. **Code only — the re-ingest has not run.**
+- [ ] **Re-ingest and re-export, on the Linux box.** `python run_fetch.py --backfill "../Estacion
+  meteorologica/Linea de tiempo/merged_timeline.csv"` (the `.csv` path, via `met_csv.py`, keeps all
+  42 columns; a `.dat` goes through `toa5.py`, which keeps only 10) then `python run_fetch.py
+  --export` / `python -m src.recovery export`. Fills `record` for 2018-09-21 → 2025-07-23 and
+  recovers the 4 April records per year. The antenna tail keeps its NULL counter until `Table1` is
+  downloaded on site.
+- [ ] **CR800 timezone policy is still wrong (found 2026-09-10).**
+  `src/tz_utils.py::localize_santiago_to_utc` localises the logger's naive stamps as
+  `America/Santiago`, which observes DST; the logger runs **UTC−03:00 fixed**. Every record in the
+  ~April–September window each year is one hour late in UTC, and `nonexistent="shift_forward"`
+  destroys 4 records at each September transition (verified: `RECORD 44863-44867 → 2019-09-08
+  04:00Z`, five stamps on one instant, primary key keeps one). Fix is a fixed offset. **Bundle it
+  with the re-ingest above** — both need the same rebuild, and doing them separately means
+  rebuilding the warehouse twice. Reference implementation of the correct reading:
+  `Estacion meteorologica/GeoMountains/build_registry.py`.
+- [ ] **`scripts/recover_dst_gaps.py` never took effect.** It targets exactly the April records and
+  the parquet still lacks them for 2019–2024. It also covers April only, so it would not have
+  addressed September. Re-check after the re-ingest; it may simply be obsolete.
 
 ---
 
@@ -769,6 +855,38 @@ FMA has acoustic monitoring devices deployed in the field. Audio files not yet d
 - [ ] Camera trap vs acoustic comparison for same species
 
 Note: `visualizaciones-artisticas/` has the "Río de Sonidos" concept already designed, plus a reference project in `Volumetric bird songs/`. Audio files from this project feed those visualizations directly.
+
+---
+
+### 8. Estación Meteorológica (`Estacion meteorologica/`) — REGISTRO ENTREGABLE · METADATOS PENDIENTES DE TERRENO
+
+WS-01, Campbell CR800 serial 42107, 15-minute record since 2018-09-21. Not a code project — a
+data and metadata one. Two documents and one deliverable directory live here.
+
+| Componente | Estado | Notas |
+|---|---|---|
+| `ANALISIS-ESTACION-WS01-ES.md` / `.md` | Auditoría interna (2026-09-09) | Cuatro de sus afirmaciones se midieron falsas el 2026-09-10 — ver cabecera de este archivo y `GeoMountains/README.md` |
+| `GeoMountains/FICHA-TECNICA-WS01.md` | **Listo** | Ficha para la contraparte: declara, no argumenta. Lo que hay → lo que no hay → lo que se obtiene pronto. §1.3 y §2 son **bloques generados** por el script entre marcadores `<!-- GENERADO:… -->`; no editarlos a mano |
+| Inventario de canales | **Listo** | Una tabla con las **38 columnas** del logger: unidad (con † donde el logger la deja en blanco, 12 canales), agregación y estado bajo vocabulario controlado — `Opera` 23 · `Interrumpido` 7 · `Inutilizable` 3 · `Nunca funcionó` 2 · `Servicio` 2 · `Derivado` 1 |
+| `GeoMountains/FICHA-TECNICA-WS01.docx` | **Listo** | Exportado el **2026-09-10** con pandoc 3.11 (instalado hoy vía winget en `%LOCALAPPDATA%\Pandoc`, no estaba en esta máquina). Reexportar SIEMPRE después de `build_registry.py`, nunca antes |
+| `GeoMountains/data/weather_data_WS-01.csv` | **Listo** | 265.038 filas × 37 columnas, 53 MB. Nombres según `estandares-datos-socios-plataforma-territorial.md` §3.6 |
+| `GeoMountains/build_registry.py` | **Listo** | Regenera CSV + `registry_report.json`. Deduplica por `RECORD`, aplica la corrección de reloj como dato declarado, valida la grilla |
+| Telemetría | **Caída desde 2026-04-13** | Antena. Plazo del anillo: **≈2027-08-22** |
+
+**Canales entregados:** 11 sensores — aire (T, HR), viento (velocidad, dirección),
+precipitación, suelo a 10 y 50 cm, onda corta incidente, punto de rocío (calculado a bordo),
+distancia sónica a superficie (sólo hasta 2021-09-30), más housekeeping.
+**Retenidos, declarados fuera de servicio:** `BP_mbar_Avg` (σ = 0,18 mbar en siete años),
+`outgoingLW_Avg` (idénticamente cero), `incomingLW_Avg` (r = 0,982 con onda corta),
+`outgoingSW_Avg` (signo invertido), `albedo_Avg`.
+
+**Pendiente:**
+- [ ] **Visita a terreno** — descargar `Table1`, recuperar `estacion_tres_hermanas.CR8`, fotografiar y anotar marca/modelo/serie de cada sensor, medir alturas y profundidades reales, cuatro fotos cardinales + croquis de horizonte, leer el reloj contra hora de referencia anotando ambas lecturas crudas, anotar si el pluviómetro es calefaccionado, registro GNSS estático para la altitud. **Antes de ≈2027-08-22.**
+- [ ] **Cuatro decisiones institucionales, sin costo:** nombre canónico (el registro trae `CR800Series`, `CR800Series_2`, `CR800Series BP` y `estacion_tres_hermanas`; la ficha declara *Bosque Pehuén*), política de datos y licencia, casilla institucional de contacto, depósito con DOI.
+- [ ] **WSI vía DMC**, si el destino es OSCAR/Surface. FMA no puede autorregistrarse.
+- [ ] **Fecha de instalación y lista original de sensores** — no está en los archivos digitales; buscar la orden de compra de 2018 en el archivo administrativo de FMA.
+- [ ] **Altitud citable** — 1.223 m es provisional (API de Open-Meteo, DEM sin nombrar). Cerrar con la tesela Copernicus GLO-30 archivada, o con el GNSS de terreno.
+- [ ] **Confirmar el registro de destino** con la contraparte: OSCAR/Surface (esquema WIGOS, requiere DMC) o inventario de observatorios de montaña de GEO Mountains / CONDESAN.
 
 ---
 
