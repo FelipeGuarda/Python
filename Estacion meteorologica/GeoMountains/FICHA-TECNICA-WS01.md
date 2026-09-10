@@ -60,6 +60,14 @@ Totales anuales, calculados sobre el archivo entregado:
 | 2025 | 35.036 | 2.049,4 | 7,67 |
 | 2026 (hasta 13-04) | 9.845 | 497,9 | 11,70 |
 
+**Los conteos anuales son el máximo aritmético, no una aproximación.** A 15 minutos
+hay 96 registros por día, de modo que un año normal da 365 × 96 = **35.040** y uno
+bisiesto 366 × 96 = **35.136**; los 96 registros de diferencia en 2020 y 2024 son
+exactamente el 29 de febrero. Cada año completo da su máximo exacto, sin un solo
+registro de menos, salvo 2025, que queda en 35.036 por los cuatro registros del
+2025-09-07 descritos en §1.5. Que 2023 dé 35.040 exactos confirma además que el
+salto de reloj de ese año no perdió datos: sólo movió estampas.
+
 ### 1.2 Referencia temporal
 
 **El reloj del datalogger corre en UTC−03:00 fijo, todo el año, sin horario de
