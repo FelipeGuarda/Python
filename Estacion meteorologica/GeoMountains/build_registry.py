@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
@@ -180,7 +181,7 @@ CHANNELS: tuple[Channel, ...] = (
     # --- SR50, distancia sonica a la superficie ----------------------------
     Channel("DT_Max", "DT_Max", "surface_distance_m_max", "Distancia sónica a la superficie", "m", False, "Max", "sr50", "Interrumpido"),
     Channel("DT_Avg", "DT_Avg", "surface_distance_m", "Distancia sónica a la superficie", "m", False, "Avg", "sr50", "Interrumpido",
-            "Distancia cruda al suelo, NO altura de nieve: convertirla exige la referencia a suelo desnudo, no documentada"),
+            "**Baja cuando la nieve sube.** No es espesor; para convertirla, §1.6"),
     Channel("DT_Min", "DT_Min", "surface_distance_m_min", "Distancia sónica a la superficie", "m", False, "Min", "sr50", "Interrumpido"),
     Channel("TCDT_Max", "TCDT_Max", "surface_distance_tc_m_max", "Distancia con corrección de temperatura", "m", False, "Max", "sr50", "Interrumpido"),
     Channel("TCDT_Min", "TCDT_Min", "surface_distance_tc_m_min", "Distancia con corrección de temperatura", "m", False, "Min", "sr50", "Interrumpido"),
@@ -245,6 +246,38 @@ SR50_SERVICE_END = pd.Timestamp("2021-09-30 23:45:00")
 # Dentro de la ventana, el SR50 tampoco puede reportar exactamente 0,000 m.
 # Donde lo hace no hay medicion, y el bloque completo del sensor se anula.
 SR50_SENTINEL_COLUMN = "DT_Avg"
+
+# --- Referencia a suelo desnudo del sensor sonico -------------------------------
+#
+# La altura de montaje del cabezal nunca se anoto, asi que el espesor de nieve no
+# se puede derivar de un documento. Se estima del propio registro, y la eleccion
+# de la ventana esta medida, no supuesta:
+#
+#   ventana      dispersion entre anos   T mediana
+#   nov solo            9 mm              7,3 °C   <- se usa esta
+#   may-jun            14 mm              3,6 °C
+#   abr-jun            20 mm              5,1 °C
+#   dic-ene            31 mm              9,8 °C
+#   dic-feb            39 mm             10,7 °C
+#   oct-nov           147 mm              5,9 °C
+#
+# OCTUBRE ESTA CONTAMINADO por nieve residual: dentro del mes la distancia sube
+# +66 mm (2018), +209 mm (2019) y +863 mm (2020) entre los dias 1-5 y 26-31. Ese
+# derretimiento es lo que arruina la ventana oct-nov. Noviembre ya esta limpio.
+#
+# DICIEMBRE-ENERO ES MAS ESTABLE QUE OCT-NOV PERO PEOR QUE NOVIEMBRE, y ademas se
+# mide ~9 °C por encima de la temporada de nieve, lo que en un canal crudo sesga
+# la referencia por el termino de velocidad del sonido -- ver SR50_TEMP_SLOPE.
+SR50_REFERENCE_MONTH = 11
+SR50_SNOW_MONTHS = (7, 8)
+SR50_SNOW_FREE_MONTHS = (11, 12, 1, 2, 3, 4, 5, 6)
+
+# Por debajo del rango del sensor: no es una medicion de distancia.
+SR50_MIN_PLAUSIBLE_M = 0.5
+
+# El analisis de referencia se limita al periodo plenamente operativo; la
+# degradacion de 2021 mete meses con pocas lecturas y sesga las medianas.
+SR50_ANALYSIS_END = pd.Timestamp("2021-01-01")
 
 
 def _read_toa5_dumps() -> pd.DataFrame:
@@ -419,6 +452,71 @@ def _channel_inventory(registry: pd.DataFrame) -> list[dict]:
     return inventory
 
 
+def _sr50_reference(registry: pd.DataFrame) -> dict:
+    """Estima la referencia a suelo desnudo del sensor sonico, desde el registro.
+
+    Owns la conversion de distancia sonica a espesor de nieve, que es la unica
+    forma de que ese canal sea utilizable: la altura de montaje del cabezal nunca
+    se anoto. Mide tambien la pendiente del canal crudo contra la temperatura del
+    aire, para corregir la referencia a condiciones de invierno -- el canal `DT`
+    no lleva correccion por velocidad del sonido, y `TCDT`, que si la lleva, no
+    tiene promedio de intervalo en el registro.
+    """
+    distance = next(c.delivered_as for c in CHANNELS if c.toa5 == "DT_Avg")
+    frame = registry.loc[:, ["datetime", distance, "temperature_air_c"]].copy()
+    frame["t"] = pd.to_datetime(frame["datetime"].str.slice(0, 19))
+    frame = frame.loc[
+        frame[distance].gt(SR50_MIN_PLAUSIBLE_M) & frame["t"].lt(SR50_ANALYSIS_END)
+    ]
+
+    monthly = frame.groupby(frame["t"].dt.to_period("M")).agg(
+        n=(distance, "size"), distance=(distance, "median"), temp=("temperature_air_c", "median")
+    )
+    monthly = monthly.loc[monthly["n"] > 500]
+
+    snow_free = monthly.loc[monthly.index.month.isin(SR50_SNOW_FREE_MONTHS)]
+    slope, intercept = np.polyfit(snow_free["temp"], snow_free["distance"], 1)
+    corr = float(snow_free["temp"].corr(snow_free["distance"]))
+    winter_temp = float(monthly.loc[monthly.index.month.isin(SR50_SNOW_MONTHS), "temp"].median())
+
+    references = {}
+    for period, row in monthly.loc[monthly.index.month == SR50_REFERENCE_MONTH].iterrows():
+        references[period.year] = {
+            "measured_m": round(float(row["distance"]), 3),
+            "measured_at_c": round(float(row["temp"]), 1),
+            # A temperatura de invierno, para que el sesgo se cancele contra las
+            # lecturas de la temporada de nieve en vez de sumarse a ellas.
+            "winter_equivalent_m": round(float(row["distance"] + slope * (winter_temp - row["temp"])), 3),
+        }
+
+    winters = []
+    for year in sorted(y + 1 for y in references):
+        reference = references[year - 1]["winter_equivalent_m"]
+        august = frame.loc[frame["t"].dt.year.eq(year) & frame["t"].dt.month.eq(8), distance]
+        if august.empty:
+            continue
+        winters.append({
+            "winter": year,
+            "reference_m": reference,
+            "august_median_m": round(float(august.median()), 3),
+            "sustained_depth_m": round(reference - float(august.median()), 2),
+        })
+
+    return {
+        "reference_month": SR50_REFERENCE_MONTH,
+        "reference_by_year": references,
+        "inter_annual_spread_mm": round(
+            1000 * float(monthly.loc[monthly.index.month == SR50_REFERENCE_MONTH, "distance"].max()
+                         - monthly.loc[monthly.index.month == SR50_REFERENCE_MONTH, "distance"].min()), 0
+        ),
+        "temperature_slope_mm_per_c": round(1000 * float(slope), 1),
+        "temperature_correlation": round(corr, 3),
+        "snow_free_months_used": int(len(snow_free)),
+        "winter_temperature_c": round(winter_temp, 1),
+        "winters": winters,
+    }
+
+
 def _es(value: float | int | None, decimals: int = 2) -> str:
     """Un numero con coma decimal y separador de miles, como el resto del documento."""
     if value is None:
@@ -511,6 +609,69 @@ def _render_withheld(inventory: list[dict]) -> str:
     ])
 
 
+def _render_sr50(sr50: dict) -> str:
+    """Como convertir la distancia sonica en espesor de nieve, y con que salvedades."""
+    refs = "\n".join(
+        f"| noviembre {year} | {_es(r['measured_m'], 3)} m | {_es(r['measured_at_c'], 1)} °C "
+        f"| **{_es(r['winter_equivalent_m'], 3)} m** | invierno {year + 1} |"
+        for year, r in sorted(sr50["reference_by_year"].items())
+    )
+    winters = "\n".join(
+        f"| {w['winter']} | {_es(w['reference_m'], 3)} m | {_es(w['august_median_m'], 3)} m "
+        f"| **{_es(w['sustained_depth_m'], 2)} m** |"
+        for w in sr50["winters"]
+    )
+    return "\n".join([
+        "El sensor apunta hacia abajo y reporta la distancia desde el cabezal hasta la superficie",
+        "que tiene debajo. **El número se mueve al revés que la nieve:** cuando la nieve se acumula,",
+        "la superficie sube hacia el sensor y la distancia baja. Leer la columna como espesor",
+        "invierte la señal.",
+        "",
+        "```",
+        "espesor de nieve  =  distancia a suelo desnudo  −  surface_distance_m",
+        "```",
+        "",
+        "La distancia a suelo desnudo es la altura de montaje del cabezal, y **nunca se anotó**.",
+        "Se puede estimar del propio registro, y la ventana está elegida por medición:",
+        "",
+        f"**Noviembre**, con **{_es(sr50['inter_annual_spread_mm'], 0)} mm** de dispersión entre los tres años disponibles. Es el mes",
+        "posterior al derretimiento y anterior a la nieve. Octubre **no** sirve: dentro del mes la",
+        "distancia sube 66 mm (2018), 209 mm (2019) y 863 mm (2020) entre los días 1–5 y 26–31, que es",
+        "nieve residual derritiéndose. Diciembre–enero es más estable que octubre–noviembre (31 mm",
+        "contra 147 mm) pero peor que noviembre solo, y se mide unos 9 °C por encima de la temporada",
+        "de nieve, lo que en este canal importa:",
+        "",
+        f"**El canal crudo depende de la temperatura: {_es(sr50['temperature_slope_mm_per_c'], 1)} mm por cada °C**",
+        f"(r = {_es(sr50['temperature_correlation'], 3)} sobre {sr50['snow_free_months_used']} meses sin nieve). La velocidad del sonido crece con la",
+        "temperatura, y `DT` no lleva esa corrección — `TCDT` sí, pero el registro no tiene su",
+        "promedio de intervalo, sólo máximo y mínimo, cuyo punto medio está dominado por valores",
+        "atípicos y es inservible. Así que la referencia se corrige a la temperatura del invierno",
+        f"({_es(sr50['winter_temperature_c'], 1)} °C mediana de julio–agosto) para que el sesgo se cancele contra las lecturas de",
+        "la temporada en vez de sumarse a ellas:",
+        "",
+        "| Ventana | Medido | A esa temperatura | Equivalente a invierno | Sirve para |",
+        "|---|---|---|---|---|",
+        refs,
+        "",
+        "Con esas referencias, el espesor sostenido de los dos inviernos con el sensor plenamente",
+        "operativo:",
+        "",
+        "| Invierno | Referencia | Mediana de agosto | Espesor sostenido |",
+        "|---|---|---|---|",
+        winters,
+        "",
+        "**Cuatro salvedades, y ninguna es menor.** Nada confirma que la superficie de referencia sea",
+        "suelo desnudo y no pasto o hojarasca. Si el sensor se remontó alguna vez, la referencia",
+        "cambió sin registro. La corrección de temperatura es una pendiente medida sobre medianas",
+        "mensuales, no una calibración del instrumento. Y los mínimos instantáneos implican espesores",
+        "mayores que las medianas mensuales — un solo registro de 15 minutos no es un máximo robusto.",
+        "",
+        "**Una huincha en terreno reemplaza todo esto.** Medir la altura del cabezal del SR50 sobre el",
+        "suelo convierte tres años de datos de nieve en una serie con procedencia, y deja esta",
+        "estimación como contraste en vez de como única vía. Está en la lista de §3.1.",
+    ])
+
+
 def _splice(path: Path, marker: str, body: str) -> None:
     """Reemplaza el bloque generado que lleva ese marcador. Falla si no existe.
 
@@ -552,6 +713,7 @@ def build(out_dir: Path = HERE) -> dict:
     # Medir antes de recortar: los canales retenidos tambien se declaran, y sus
     # cifras deben venir del registro y no de prosa.
     inventory = _channel_inventory(registry)
+    sr50_reference = _sr50_reference(registry)
     delivered = ["datetime", "station_id", "record", "clock_corrected"]
     delivered += [c.delivered_as for c in DELIVERED]
     registry = registry[delivered]
@@ -605,6 +767,7 @@ def build(out_dir: Path = HERE) -> dict:
         "cross_check": cross_check,
         "known_defects": list(KNOWN_DEFECTS),
         "sr50": sr50,
+        "sr50_reference": sr50_reference,
         "channel_inventory": inventory,
         "annual": [
             {
@@ -623,6 +786,7 @@ def build(out_dir: Path = HERE) -> dict:
     ficha = out_dir / "FICHA-TECNICA-WS01.md"
     _splice(ficha, "inventario", _render_inventory(inventory))
     _splice(ficha, "retenidos", _render_withheld(inventory))
+    _splice(ficha, "sonico", _render_sr50(sr50_reference))
 
     return report
 

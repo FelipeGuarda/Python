@@ -133,7 +133,7 @@ están inferidas de la magnitud, no declaradas por el instrumento.
 | `battery_voltage_v_min` | `BattV_Min` | Voltaje de batería | V | Min | **Servicio** | 2018-09-21 → 2026-04-13 | Housekeeping del equipo, no una variable geofísica |
 | *no se entrega* | `BP_mbar_Avg` | Presión de estación | mbar | Avg | **Nunca funcionó** | 2018-09-21 → 2026-04-13 | No es una medición atmosférica: la varianza de siete años es físicamente imposible |
 | `surface_distance_m_max` | `DT_Max` | Distancia sónica a la superficie | m † | Max | **Interrumpido** | 2018-09-21 → 2021-09-05 | — |
-| `surface_distance_m` | `DT_Avg` | Distancia sónica a la superficie | m † | Avg | **Interrumpido** | 2018-09-21 → 2021-09-05 | Distancia cruda al suelo, NO altura de nieve: convertirla exige la referencia a suelo desnudo, no documentada |
+| `surface_distance_m` | `DT_Avg` | Distancia sónica a la superficie | m † | Avg | **Interrumpido** | 2018-09-21 → 2021-09-05 | **Baja cuando la nieve sube.** No es espesor; para convertirla, §1.6 |
 | `surface_distance_m_min` | `DT_Min` | Distancia sónica a la superficie | m † | Min | **Interrumpido** | 2018-09-21 → 2021-09-05 | — |
 | `surface_distance_tc_m_max` | `TCDT_Max` | Distancia con corrección de temperatura | m † | Max | **Interrumpido** | 2018-09-21 → 2021-09-05 | — |
 | `surface_distance_tc_m_min` | `TCDT_Min` | Distancia con corrección de temperatura | m † | Min | **Interrumpido** | 2018-09-21 → 2021-09-05 | — |
@@ -255,6 +255,61 @@ todas en transiciones de horario de verano y en la ventana de estampas repetidas
 del 2023-10-04/05, y en las 23 el archivo entregado lleva el valor del volcado
 del datalogger, identificado por `RECORD`.
 
+### 1.6 Cómo usar el canal sónico
+
+<!-- GENERADO:sonico -->
+El sensor apunta hacia abajo y reporta la distancia desde el cabezal hasta la superficie
+que tiene debajo. **El número se mueve al revés que la nieve:** cuando la nieve se acumula,
+la superficie sube hacia el sensor y la distancia baja. Leer la columna como espesor
+invierte la señal.
+
+```
+espesor de nieve  =  distancia a suelo desnudo  −  surface_distance_m
+```
+
+La distancia a suelo desnudo es la altura de montaje del cabezal, y **nunca se anotó**.
+Se puede estimar del propio registro, y la ventana está elegida por medición:
+
+**Noviembre**, con **9 mm** de dispersión entre los tres años disponibles. Es el mes
+posterior al derretimiento y anterior a la nieve. Octubre **no** sirve: dentro del mes la
+distancia sube 66 mm (2018), 209 mm (2019) y 863 mm (2020) entre los días 1–5 y 26–31, que es
+nieve residual derritiéndose. Diciembre–enero es más estable que octubre–noviembre (31 mm
+contra 147 mm) pero peor que noviembre solo, y se mide unos 9 °C por encima de la temporada
+de nieve, lo que en este canal importa:
+
+**El canal crudo depende de la temperatura: −7,0 mm por cada °C**
+(r = −0,678 sobre 18 meses sin nieve). La velocidad del sonido crece con la
+temperatura, y `DT` no lleva esa corrección — `TCDT` sí, pero el registro no tiene su
+promedio de intervalo, sólo máximo y mínimo, cuyo punto medio está dominado por valores
+atípicos y es inservible. Así que la referencia se corrige a la temperatura del invierno
+(1,0 °C mediana de julio–agosto) para que el sesgo se cancele contra las lecturas de
+la temporada en vez de sumarse a ellas:
+
+| Ventana | Medido | A esa temperatura | Equivalente a invierno | Sirve para |
+|---|---|---|---|---|
+| noviembre 2018 | 2,627 m | 6,7 °C | **2,667 m** | invierno 2019 |
+| noviembre 2019 | 2,618 m | 7,3 °C | **2,662 m** | invierno 2020 |
+| noviembre 2020 | 2,623 m | 8,3 °C | **2,674 m** | invierno 2021 |
+
+Con esas referencias, el espesor sostenido de los dos inviernos con el sensor plenamente
+operativo:
+
+| Invierno | Referencia | Mediana de agosto | Espesor sostenido |
+|---|---|---|---|
+| 2019 | 2,667 m | 1,844 m | **0,82 m** |
+| 2020 | 2,662 m | 1,102 m | **1,56 m** |
+
+**Cuatro salvedades, y ninguna es menor.** Nada confirma que la superficie de referencia sea
+suelo desnudo y no pasto o hojarasca. Si el sensor se remontó alguna vez, la referencia
+cambió sin registro. La corrección de temperatura es una pendiente medida sobre medianas
+mensuales, no una calibración del instrumento. Y los mínimos instantáneos implican espesores
+mayores que las medianas mensuales — un solo registro de 15 minutos no es un máximo robusto.
+
+**Una huincha en terreno reemplaza todo esto.** Medir la altura del cabezal del SR50 sobre el
+suelo convierte tres años de datos de nieve en una serie con procedencia, y deja esta
+estimación como contraste en vez de como única vía. Está en la lista de §3.1.
+<!-- /GENERADO:sonico -->
+
 ---
 
 ## 2. Lo que no se entrega
@@ -292,6 +347,7 @@ sobrescribe.
 | Recuperar el programa `estacion_tres_hermanas.CR8` | Frecuencia de muestreo · multiplicadores y offsets · cableado · fórmulas de punto de rocío y albedo · explica el barómetro y los canales de onda larga |
 | Fotografiar y anotar cada sensor | Marca, modelo y número de serie de los once sensores |
 | Medir alturas sobre el suelo y profundidades reales de las sondas | Altura de sensores · permite reducir el viento a la altura de referencia de 10 m |
+| **Medir con huincha la altura del cabezal del SR50 sobre el suelo** | La referencia a suelo desnudo, hoy estimada del propio registro (§1.6). Dos minutos de trabajo convierten tres años de datos de nieve en una serie con procedencia. Anotar también si bajo el sensor hay suelo, pasto u hojarasca |
 | Cuatro fotografías desde el mástil, una por punto cardinal, más croquis de horizonte | Descripción de emplazamiento y obstáculos · clase de emplazamiento OMM |
 | Leer el reloj del logger contra una hora de referencia, anotando ambas lecturas crudas | Confirma la referencia temporal declarada, que hoy descansa en un cálculo |
 | Anotar si el pluviómetro es calefaccionado | Define si la precipitación invernal lleva salvedad de subcaptura de nieve |

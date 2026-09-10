@@ -6,6 +6,48 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-09-10d — el canal sónico se vuelve utilizable, y la ventana de referencia se mide
+
+La nota del canal `DT_Avg` decía que convertir distancia a espesor de nieve exige una referencia
+a suelo desnudo «no documentada» y ahí terminaba, dejando al consumidor con una columna
+inservible. Es el único canal de nieve que la estación tuvo, y GEO Mountains es una red de
+montaña.
+
+### Added
+- **§1.6 «Cómo usar el canal sónico»**, generada entre marcadores `<!-- GENERADO:sonico -->` por
+  el nuevo `_sr50_reference()`. Ninguna cifra tipeada a mano.
+- **La medición del cabezal del SR50 con huincha entra a la lista de terreno (§3.1)**, junto con
+  anotar si bajo el sensor hay suelo, pasto u hojarasca. Dos minutos de trabajo que convierten
+  tres años de datos de nieve en una serie con procedencia.
+
+### Fixed
+- **La nota del canal decía lo contrario de lo que importa.** Lo esencial no es que falte la
+  referencia: es que **el número se mueve al revés que la nieve**. A más nieve la superficie sube
+  hacia el sensor y la distancia baja, así que leer la columna como espesor invierte la señal —
+  el `1,102 m` de agosto de 2020 significa *más* nieve que eso, no menos.
+
+### Verificado (la elección de ventana está medida, no supuesta)
+- **Octubre está contaminado por nieve residual**, como se sospechaba: dentro del mes la distancia
+  sube +66 mm (2018), +209 mm (2019) y **+863 mm (2020)** entre los días 1–5 y 26–31. Eso arruina
+  la ventana octubre–noviembre, que tiene 147 mm de dispersión entre años.
+- **Diciembre–enero es más estable que octubre–noviembre (31 mm contra 147 mm) pero peor que
+  noviembre solo, y se descarta.** Se mide ~9 °C sobre la temporada de nieve, y el canal crudo
+  depende de la temperatura.
+- **Noviembre gana con 9 mm de dispersión** entre 2018, 2019 y 2020 — post-derretimiento,
+  pre-nieve. Dispersión de las candidatas: nov 9 mm · may-jun 14 · abr-jun 20 · dic-ene 31 ·
+  dic-feb 39 · oct-nov 147.
+- **El canal crudo pierde 7,0 mm por cada °C** (r = −0,678 sobre 18 meses sin nieve), consistente
+  con la dependencia de la velocidad del sonido que `TCDT` existe para corregir. La referencia se
+  corrige a la temperatura de invierno (1,0 °C) para que el sesgo se cancele contra las lecturas
+  de la temporada en vez de sumarse.
+- **`TCDT` no puede sustituir a `DT`**: el registro no tiene `TCDT_Avg`, y el punto medio de
+  `TCDT_Max`/`TCDT_Min` está dominado por atípicos — da 1,478 m en enero de 2019 y 1,368 m en
+  diciembre de 2020 contra 2,515 y 2,565 de `DT`.
+- **Espesor sostenido derivado**: 0,82 m en agosto de 2019 y **1,56 m en agosto de 2020**, contra
+  referencias corregidas de 2,667 y 2,662 m.
+
+---
+
 ## 2026-09-10c — one channel inventory, generated, with a status vocabulary
 
 The deliverable had units for the delivered channels and evidence prose for the withheld ones, in

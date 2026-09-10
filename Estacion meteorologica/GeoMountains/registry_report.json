@@ -83,6 +83,45 @@
     "readings_discarded_after_service_end": 150,
     "readings_discarded_zero": 17782
   },
+  "sr50_reference": {
+    "reference_month": 11,
+    "reference_by_year": {
+      "2018": {
+        "measured_m": 2.627,
+        "measured_at_c": 6.7,
+        "winter_equivalent_m": 2.667
+      },
+      "2019": {
+        "measured_m": 2.618,
+        "measured_at_c": 7.3,
+        "winter_equivalent_m": 2.662
+      },
+      "2020": {
+        "measured_m": 2.623,
+        "measured_at_c": 8.3,
+        "winter_equivalent_m": 2.674
+      }
+    },
+    "inter_annual_spread_mm": 9.0,
+    "temperature_slope_mm_per_c": -7.0,
+    "temperature_correlation": -0.678,
+    "snow_free_months_used": 18,
+    "winter_temperature_c": 1.0,
+    "winters": [
+      {
+        "winter": 2019,
+        "reference_m": 2.667,
+        "august_median_m": 1.844,
+        "sustained_depth_m": 0.82
+      },
+      {
+        "winter": 2020,
+        "reference_m": 2.662,
+        "august_median_m": 1.102,
+        "sustained_depth_m": 1.56
+      }
+    ]
+  },
   "channel_inventory": [
     {
       "toa5": "AirTC_Max",
@@ -633,7 +672,7 @@
       "aggregation": "Avg",
       "group": "sr50",
       "status": "Interrumpido",
-      "note": "Distancia cruda al suelo, NO altura de nieve: convertirla exige la referencia a suelo desnudo, no documentada",
+      "note": "**Baja cuando la nieve sube.** No es espesor; para convertirla, §1.6",
       "n_valid": 88327,
       "n_zero": 0,
       "first_valid": "2018-09-21T16:45:00-03:00",
