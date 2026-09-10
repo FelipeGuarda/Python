@@ -5,6 +5,18 @@
 CREATE TABLE IF NOT EXISTS weather_station (
     station_id        TEXT NOT NULL,
     timestamp         TIMESTAMPTZ NOT NULL,
+    -- The datalogger's own record counter, monotone and contiguous in the logger's
+    -- ring buffer. NULLABLE, because every row ingested before 2026-09-10 was
+    -- written by parsers that discarded it (see src/cr800_columns.py) and cannot
+    -- have it back without a re-ingest.
+    --
+    -- IT IS NOT A KEY AND MUST NOT BECOME ONE. The primary key stays
+    -- (station_id, timestamp): a reading is identified by its instant. But note the
+    -- consequence -- where the logger stamped two records with the same time (47 of
+    -- them on 2023-10-04/05, when the clock was set back 11:45) this table keeps one
+    -- of the two and `record` is discontinuous there. The counter is what lets a
+    -- consumer SEE that; it is not what fixes it.
+    record            BIGINT,
     temperature_air   DOUBLE,
     relative_humidity DOUBLE,
     wind_speed        DOUBLE,

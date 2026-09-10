@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import pandas as pd
 from pycampbellcr1000 import CR1000
 
+from src.cr800_columns import RECORD_COLUMN, normalize_columns
 from src.paths import _STATE_PATH
 from src.tz_utils import localize_santiago_to_utc
 
@@ -64,21 +65,23 @@ def process_raw(data: list, station_id: str) -> pd.DataFrame:
     df["timestamp"] = localize_santiago_to_utc(naive_ts)
     df["station_id"] = station_id
 
-    rename_map = {
-        "AirTC_Avg": "temperature_air",
-        "RH_Avg": "relative_humidity",
-        "WS_ms_Avg": "wind_speed",
-        "WindDir_Avg": "wind_direction",
-        "Rain_mm_Tot": "precipitation",
-        "incomingSW_Avg": "solar_radiation",
-        "BattV_Min": "battery_voltage",
-    }
-    df = df.rename(columns=rename_map)
-    df = df.drop(columns=[c for c in ("RecNbr", ts_col) if c in df.columns])
+    # The raw datetime column is superseded by `timestamp`; drop it before renaming so
+    # a source that happens to call it TIMESTAMP cannot collide with what we just set.
+    # The record counter used to be dropped on this same line, which is how the
+    # antenna's own rows reached the warehouse with no way to prove their continuity.
+    df = df.drop(columns=[ts_col])
+    df = normalize_columns(df)
 
-    schema_cols = ["station_id", "timestamp", "temperature_air", "relative_humidity",
-                   "wind_speed", "wind_direction", "precipitation", "solar_radiation",
-                   "battery_voltage"]
+    if RECORD_COLUMN not in df.columns:
+        # Not fatal: the readings are irreplaceable and a fetch that otherwise worked
+        # must not be thrown away over a metadata column. But say it loudly and name
+        # what did arrive, because a silent NULL counter is the bug this line exists
+        # to prevent -- add the alias to cr800_columns.RECORD_ALIASES.
+        print(f"  WARNING: no record counter in this table read. Columns: {list(df.columns)}")
+
+    schema_cols = ["station_id", "timestamp", RECORD_COLUMN, "temperature_air",
+                   "relative_humidity", "wind_speed", "wind_direction", "precipitation",
+                   "solar_radiation", "battery_voltage"]
     for col in schema_cols:
         if col not in df.columns:
             df[col] = None

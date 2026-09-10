@@ -4,21 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.cr800_columns import RECORD_COLUMN, normalize_columns
 from src.tz_utils import localize_santiago_to_utc
-
-# Map CSV column names → weather_station schema column names (core 8)
-_CORE_RENAME = {
-    "AirTC_Avg": "temperature_air",
-    "RH_Avg": "relative_humidity",
-    "WS_ms_Avg": "wind_speed",
-    "WindDir_Avg": "wind_direction",
-    "Rain_mm_Tot": "precipitation",
-    "incomingSW_Avg": "solar_radiation",
-    "BattV_Min": "battery_voltage",
-}
-
-# Columns to drop entirely (internal / not useful in DB)
-_DROP_COLS = {"RECORD"}
 
 
 def parse(csv_path: Path, station_id: str = "bosque_pehuen") -> pd.DataFrame:
@@ -34,21 +21,18 @@ def parse(csv_path: Path, station_id: str = "bosque_pehuen") -> pd.DataFrame:
 
     df = pd.read_csv(csv_path, dtype=str, low_memory=False)
 
-    # Drop unwanted columns
-    df = df.drop(columns=[c for c in _DROP_COLS if c in df.columns])
-
     # Parse timestamp (America/Santiago → UTC)
     df["TIMESTAMP"] = df["TIMESTAMP"].str.strip()
     naive_ts = pd.to_datetime(df["TIMESTAMP"], errors="coerce")
     df["timestamp"] = localize_santiago_to_utc(naive_ts)
     df = df.drop(columns=["TIMESTAMP"])
 
-    # Rename core columns
-    df = df.rename(columns=_CORE_RENAME)
+    df = normalize_columns(df)
 
-    # Convert all remaining text columns to numeric where possible
-    non_text = [c for c in df.columns if c not in ("timestamp", "source_file", "station_id")]
-    for col in non_text:
+    # Convert all remaining text columns to numeric where possible. `record` is
+    # already typed by normalize_columns and must not be coerced back to float.
+    skip = ("timestamp", "source_file", "station_id", RECORD_COLUMN)
+    for col in [c for c in df.columns if c not in skip]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # Add station_id as first column

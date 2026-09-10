@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.cr800_columns import RECORD_COLUMN, normalize_columns
 from src.tz_utils import localize_santiago_to_utc
 
 
@@ -49,23 +50,11 @@ def parse(dat_path: Path, station_id: str = "bosque_pehuen") -> pd.DataFrame:
     naive_ts = pd.to_datetime(df["TIMESTAMP"], errors="coerce")
     df["TIMESTAMP"] = localize_santiago_to_utc(naive_ts)
 
-    # Map known columns to weather_station schema
-    rename_map = {
-        "TIMESTAMP": "timestamp",
-        "AirTC_Avg": "temperature_air",
-        "RH_Avg": "relative_humidity",
-        "WS_ms_Avg": "wind_speed",
-        "WindDir_Avg": "wind_direction",
-        "Rain_mm_Tot": "precipitation",
-        "incomingSW_Avg": "solar_radiation",
-        "BattV_Min": "battery_voltage",
-    }
+    schema_cols = ["station_id", "timestamp", RECORD_COLUMN, "temperature_air",
+                   "relative_humidity", "wind_speed", "wind_direction", "precipitation",
+                   "solar_radiation", "battery_voltage"]
 
-    schema_cols = ["station_id", "timestamp", "temperature_air", "relative_humidity",
-                   "wind_speed", "wind_direction", "precipitation", "solar_radiation",
-                   "battery_voltage"]
-
-    df = df.rename(columns=rename_map)
+    df = normalize_columns(df)
     df["station_id"] = station_id
 
     # Keep schema columns that exist; leave others as None
