@@ -146,17 +146,19 @@ CHANNELS: tuple[Channel, ...] = (
     Channel("RH_Min", "RH_Min", "relative_humidity_pct_min", "Humedad relativa", "%", True, "Min", "aire", "Opera"),
     # --- viento -----------------------------------------------------------
     Channel("WS_ms_Max", "WS_ms_Max", "wind_speed_ms_max", "Velocidad del viento", "m s⁻¹", True, "Max", "viento", "Opera"),
-    Channel("WS_ms_Avg", "wind_speed", "wind_speed_ms", "Velocidad del viento", "m s⁻¹", True, "Avg", "viento", "Opera"),
+    Channel("WS_ms_Avg", "wind_speed", "wind_speed_ms", "Velocidad del viento", "m s⁻¹", True, "Avg", "viento", "Opera",
+            "Mástil en un claro de bosque, no en terreno abierto: el alcance libre es ~40 m y el dosel circundante suprime la velocidad. Serie internamente consistente; **no comparable con sitios abiertos ni con reanálisis** sin un factor que nadie ha derivado. §1.4, elemento 4-06"),
     Channel("WS_ms_Min", "WS_ms_Min", "wind_speed_ms_min", "Velocidad del viento", "m s⁻¹", True, "Min", "viento", "Opera"),
     Channel("WindDir_Max", "WindDir_Max", "wind_direction_deg_max", "Dirección del viento", "grados", True, "Max", "viento", "Opera",
             "El máximo de una variable circular en el intervalo no es interpretable; usar Avg y Std"),
-    Channel("WindDir_Avg", "wind_direction", "wind_direction_deg", "Dirección del viento", "grados", True, "Avg", "viento", "Opera"),
+    Channel("WindDir_Avg", "wind_direction", "wind_direction_deg", "Dirección del viento", "grados", True, "Avg", "viento", "Opera",
+            "El claro puede desacoplar la dirección del flujo sobre el dosel. Tratar la rosa de vientos como propiedad del emplazamiento, no de la circulación regional"),
     Channel("WindDir_Min", "WindDir_Min", "wind_direction_deg_min", "Dirección del viento", "grados", True, "Min", "viento", "Opera",
             "El mínimo de una variable circular en el intervalo no es interpretable; usar Avg y Std"),
     Channel("WindDir_Std", "WindDir_Std", "wind_direction_deg_std", "Dirección del viento", "grados", True, "Std", "viento", "Opera"),
     # --- precipitacion ----------------------------------------------------
     Channel("Rain_mm_Tot", "precipitation", "precipitation_mm", "Precipitación del intervalo", "mm", True, "Tot", "precipitacion", "Opera",
-            "Pluviómetro presumiblemente sin calefacción: esperar subcaptura de nieve en invierno"),
+            "Pluviómetro presumiblemente sin calefacción: esperar subcaptura de nieve en invierno. El claro **favorece** la captación — sin intercepción de dosel — pero también expone el pluviómetro al viento, que es el mecanismo dominante de subcaptura de nieve"),
     # --- suelo ------------------------------------------------------------
     Channel("T107_10cm_Max", "T107_10cm_Max", "soil_temperature_10cm_c_max", "Temperatura de suelo, 10 cm", "°C", True, "Max", "suelo", "Opera"),
     Channel("T107_10cm_Avg", "T107_10cm_Avg", "soil_temperature_10cm_c", "Temperatura de suelo, 10 cm", "°C", True, "Avg", "suelo", "Opera",
@@ -190,7 +192,7 @@ CHANNELS: tuple[Channel, ...] = (
     Channel("Q_Min", "Q_Min", "surface_distance_quality_min", "Índice de calidad del sensor sónico", "índice", False, "Min", "sr50", "Interrumpido"),
     # --- radiacion --------------------------------------------------------
     Channel("incomingSW_Avg", "solar_radiation", "solar_radiation_wm2", "Onda corta incidente", "W m⁻²", False, "Avg", "radiacion", "Opera",
-            "Desviación nocturna negativa. Usar como magnitud relativa, no absoluta"),
+            "Desviación nocturna negativa. Usar como magnitud relativa, no absoluta. El claro da visión de cielo casi completa: la desviación es del instrumento o su cableado, **no sombra de dosel**"),
     Channel("incomingLW_Avg", "incomingLW_Avg", None, "Onda larga incidente", "W m⁻²", False, "Avg", "radiacion", "Inutilizable",
             "Sigue a la onda corta y es negativa de noche. No es onda larga"),
     Channel("outgoingLW_Avg", "outgoingLW_Avg", None, "Onda larga emitida", "W m⁻²", False, "Avg", "radiacion", "Nunca funcionó",

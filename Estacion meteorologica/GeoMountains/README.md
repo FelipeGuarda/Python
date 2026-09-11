@@ -43,7 +43,25 @@ Después de exportar, actualizar a mano la fila «Versión Word» de la tabla de
 con la fecha de la exportación. Es la única cifra del documento que no sale del script, y existe
 para que la contraparte pueda saber de qué versión salió el archivo que recibió.
 
-Última exportación: **2026-09-10**, pandoc 3.11.
+Última exportación: **2026-09-11**, pandoc 3.1.3.
+
+## Estado
+
+- **Última actualización:** 2026-09-11
+- **Qué cambió:** §1.4 se declara contra la Norma de metadatos WIGOS (OMM-No. 1192,
+  cuadro 2): 53 → 74 filas, con columna de identificador de elemento. Se corrigió la
+  cobertura de superficie — la capa de pisos vegetacionales tiene unidad de mapeo
+  mediana de 11,6 ha y no resuelve el claro donde está el mástil; el sitio es pasto.
+  Cuatro canales ganaron salvedades derivadas de esa geometría, y §3.1 dejó de
+  prometer la reducción del viento a 10 m.
+- **Estado de integración:** `Listo` para circular. Ficha v1.1, `.docx` exportado el
+  2026-09-11 desde el `.md` de esta carpeta.
+- **Bloqueos / notas:** dos valores de §1.4 son estimaciones con marca
+  *(confirmar en terreno)* — el diámetro del claro (~80 m) y la distancia al borde de
+  bosque (~40 m) — y de ellas depende si el viento admite alguna reducción a la altura
+  de referencia. Los valores de z₀ de la clasificación Davenport están sin verificar
+  contra WMO-No. 8, Anexo 1.B. La zona climática Köppen queda pendiente de consulta.
+  El WSI sigue dependiendo de la DMC como Representante Permanente ante la OMM.
 
 ## Contexto
 
