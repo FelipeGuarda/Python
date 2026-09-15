@@ -1,7 +1,83 @@
 # FMA Project Status
 
-**Last updated:** 2026-09-10 — **WS-01 becomes deliverable; the warehouse gets its record counter back.**
+**Last updated:** 2026-09-15 — **pehuén: todos los coeficientes de solapamiento estaban mal, y la campaña no era una temporada.**
 
+**Los diez coeficientes publicados eran incorrectos.** `estimate_overlap()` entregaba la salida de
+`densityFit()` — valores de densidad — a `overlap::overlapEst(A, B)` y `bootstrap(A, B)`, cuyos
+argumentos son **tiempos de detección en radianes**. Las funciones ajustaron núcleos nuevos sobre
+esos valores. Error absoluto medio **0,21**, máximo **0,54** (Guiña × Perro: 0,757 publicado contra
+0,221 real), y **las diez categorías de Monterroso cambiaron**.
+
+Se detectó porque cada PNG por par lleva dos números — el de camtrapR dentro del panel, correcto, y
+el nuestro al pie — y no coincidían. Nada en el código los comparaba; `tests/test_overlap.R` ahora
+sí, anclándose a una llamada directa a `overlap::overlapEst()`.
+
+**La conclusión biológica se invierte y mejora.** Los nativos muestran solapamiento **bajo** con
+perro y jabalí (Guiña × Perro y Zorro culpeo × Perro en Low; Puma × Jabalí y Zorro culpeo × Jabalí
+en Low–Moderate), que es segregación temporal frente a invasoras — el patrón que el proyecto busca.
+Nativo × nativo y nativo × liebre siguen altos. Leerlo contra el n: los que más se mueven son los
+pares de 12–18 episodios, y tres quedan en «Low–High», un IC demasiado ancho para afirmar nada.
+
+**El IC pasa a `basic0`**, no a percentil. `norm0` devolvía una cota superior de 1,0028 para un
+coeficiente acotado en 1, y `?bootCI` es explícito: reportando el estimador **sin corregir** t0 —
+que es lo que hacemos, el mismo valor que camtrapR imprime — el intervalo debe ser `basic0` o
+`norm0`; `perc` «debería corregirse». `basic0` queda dentro de [0, 1] en los diez pares.
+
+**El sesgo bootstrap resultó no ser lo que parecía.** Es un encogimiento hacia el centro (Δ está
+acotado en [0,1] e integra el mínimo de dos curvas, operación cóncava). La tentación es leerlo como
+falta de n: |sesgo| correlaciona -0,48 con el n menor y el único par con n = 129 tiene sesgo
+-0,0007. Pero fijando la forma y variando n en datos sintéticos, el sesgo apenas se mueve
+(+0,032 a n = 20, +0,026 a n = 400) mientras la dispersión cae de 0,114 a 0,025. **La dispersión
+depende de n; el sesgo depende de la forma de las distribuciones frente al suavizado.**
+
+`pehuen-species-interactions` faceteaba cada figura por campaña, y una campaña es el intervalo
+entre dos visitas a terreno — cinco a ocho meses — nombrado por la temporada en que se
+**retiraron** las tarjetas. Las tres ventanas son contiguas: el arreglo es **un registro continuo
+del 2024-10-09 al 2026-05-15**, no tres instantáneas estacionales. Un panel titulado «Otoño 2026»
+mostraba verano y otoño juntos.
+
+**Dos lecturas se caían solas.** El «derrumbe» de la liebre a 2 episodios en otoño 2026 es que esa
+ventana no contiene invierno ni primavera — 109 de sus 129 episodios son de invierno o primavera.
+Y el «Invierno faltante» sobre el que `docs/methods-menu-interactions.md` construyó §A3 y §B2 no
+existe: **el invierno es la temporada mejor muestreada del registro** (96 episodios), estaba dentro
+de la ventana `primavera_2025`.
+
+**Medido, no supuesto.** Nuevo `R/00_seasons.R` (dueño único de la frontera estacional y del
+reparto de esfuerzo) con `tests/test_seasons.R`, 42 aserciones. El invariante que sostiene el
+cambio se verifica contra el registro de terreno real: **13.598 días-cámara entran y 13.598 salen**,
+`sum(effort_days) == field_days` por despliegue. Tras re-correr la cadena completa,
+`data/overlap_stats.csv` queda **byte-idéntico** — 04 no se tocó y el estratificador no debía
+moverlo.
+
+**El tamaño muestral queda explícito, y es el límite real.** De 42 celdas especie × periodo ninguna
+llega a 100 episodios, ocho están en 20–99 y 30 están bajo 10. CT03 y CT09 concentran el 37 % de los
+380 episodios, y el máximo de estaciones compartidas por par de especies es 9 — lo que acota la
+pregunta de interacción a culpeo × liebre y culpeo × perro.
+
+**Barrido de código obsoleto (skill `code-reviewer`, primera revisión de este proyecto).** El
+riesgo dominante tiene nombre: **una cantidad calculada por dos caminos que nadie compara**.
+Produjo el defecto de arriba y tenía dos instancias más, ambas cerradas hoy — el ancho de banda
+fijo de `03` (sus curvas no coincidían con las de camtrapR del mismo script; ahora a 1e-16) y
+`time_rad`, que camtrapR recalcula por su cuenta y ahora se compara en el test. También:
+`R/00_figures.R` da rutas estables a las figuras (camtrapR estampaba la fecha en el nombre y el
+juego viejo quedaba), más imports y una constante muertos. Estado en
+`Reviews/review-state-pehuen-species-interactions.md`: **cero hallazgos abiertos**.
+
+**Integration status:** `In Progress [REMAINING: R/00_detection_history.R, R/07_power_cooccurrence.R]`.
+Objetivo fijado en paper con revisión de pares. Rota (co-ocupación multiespecie) se zanja con una
+prueba de potencia simulada con el n de este arreglo, no con la cita de 400 sitios — el menú de
+métodos y el `FMA_camera_trap_methods_synthesis.pdf` se contradicen y los dos están en el repo.
+
+**Blockers/Notes.** Dos cambios aguas arriba invalidarán el stamp del consumidor cuando lleguen:
+`stations_sha256` (bump a schema 5; sin él la altitud cruza la frontera sin verificar y no se puede
+defender como covariable) y `review_outcome` vacío → `not_applicable`. La frontera estacional podría
+moverse a solsticios/equinoccios — a 38°S el fotoperiodo es lo que la temporada aproxima, y es a lo
+que ancla `activity::transtime()`; `R/00_seasons.R` está hecho para ese cambio (una tabla, ningún
+llamador).
+
+---
+
+**Prior (2026-09-10) — WS-01 becomes deliverable; the warehouse gets its record counter back.**
 **`record` is now a `weather_station` column.** It was being discarded in **three** places, one of
 them on purpose: `parsers/met_csv.py` had `_DROP_COLS = {"RECORD"}` commented *"internal / not
 useful in DB"*, `parsers/toa5.py` projected onto 9 columns, and `fetchers/cr800.py` dropped

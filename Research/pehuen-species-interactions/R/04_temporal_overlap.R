@@ -43,7 +43,7 @@
 #
 # INPUT   data/record_table.rds  (camtrapR format, produced by 01_load_data.R;
 #                                 one row per episode, the producer's rule)
-# OUTPUT  figures/overlap_pairs/activity_overlap_<sp1>-<sp2>_<date>.png
+# OUTPUT  figures/overlap_pairs/activity_overlap_<sp1>-<sp2>.png
 #         figures/04_overlap_summary.png            (overlap dot-plot with CI)
 #         data/overlap_stats.csv                     (numeric results table)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -69,8 +69,95 @@ set.seed(42)  # reproducible bootstrap
 
 # ── Constants + Monterroso classification ────────────────────────────────────
 N_BOOT <- 1000        # bootstrap resamples for the overlap-estimate CI
-N_GRID <- 512         # grid resolution for kernel density fitting
-GRID   <- seq(0, 2 * pi, length.out = N_GRID)
+
+# WHICH OF bootCI()'s FIVE INTERVALS TO REPORT, AND WHY IT IS THIS ONE
+#
+# The five are all built from two quantities (bootCI source, overlap 0.3.x):
+#
+#     bias <- mean(bt) - t0                 merr <- sd(bt) * qnorm(0.975)
+#
+#     norm   = t0 - bias ± merr     bias-corrected normal
+#     norm0  = t0 ± merr            NOT corrected — symmetric on the estimate
+#     perc   = quantile(bt)         NOT corrected — the raw bootstrap quantiles
+#     basic  = 2*t0 - perc[2:1]     bias-corrected by reflection about t0
+#     basic0 = perc - bias          the percentile interval shifted by the bias
+#
+# Note what the `0` suffix means: bias correction REMOVED, not applied. It marks the
+# intervals that belong with the UNCORRECTED point estimate t0, not intervals that
+# skip a correction they should have made.
+#
+# WHAT "BIAS" MEANS HERE
+#   `bias` is mean(bootstrap replicates) - point estimate: how far the resampling
+#   distribution sits from the estimate it was generated around. For a coefficient of
+#   overlapping it is a SHRINKAGE TOWARD THE MIDDLE, not a uniform pull in one
+#   direction. Measured on this data, 1000 resamples, 2026-09-15:
+#
+#       pair                   min n     t0    boot mean    bias
+#       Guiña × Perro             14   0.221      0.268    +0.048
+#       Zorro culpeo × Perro      46   0.304      0.338    +0.034
+#       Puma × Guiña              12   0.586      0.555    -0.031
+#       Puma × Liebre             12   0.717      0.668    -0.049
+#       Zorro culpeo × Liebre    129   0.810      0.809    -0.0007
+#       Guiña × Zorro culpeo      14   0.851      0.757    -0.094
+#
+#   Low estimates are pushed up, high estimates pulled down. Two structural reasons:
+#   Δ is bounded in [0, 1], so noise in the fitted densities can only move a near-1
+#   overlap downward and a near-0 overlap upward; and Δ integrates the MINIMUM of two
+#   density curves, a concave operation, so independent noise in either curve lowers
+#   the expected minimum (Jensen).
+#
+#   IT IS NOT MERELY A SMALL-SAMPLE EFFECT, and it is worth being precise because the
+#   obvious reading is wrong. Across the ten real pairs |bias| does correlate -0.48
+#   with the smaller sample size, and the only pair with a non-tiny smaller sample
+#   (Zorro culpeo × Liebre, n = 129) has a bias of -0.0007. That pattern invites the
+#   conclusion that the bias is just thin data and would vanish with more episodes.
+#   It would not. On synthetic pairs of two narrow, well-separated clusters, holding
+#   the shape fixed and varying n (300 resamples each):
+#
+#       n =  20    bias +0.032    sd 0.114
+#       n =  50    bias +0.036    sd 0.071
+#       n = 120    bias +0.036    sd 0.044
+#       n = 400    bias +0.026    sd 0.025
+#
+#   The SD collapses with n, as it must. The BIAS barely moves. What it tracks is the
+#   shape of the distributions relative to the smoothing: a kernel estimate of two
+#   narrow separated clusters systematically overstates their overlap at every n,
+#   because the bandwidth rule keeps smoothing them together. Our n = 129 pair has a
+#   near-zero bias because it is a broad, high-overlap pair where smoothing distorts
+#   little — not because 129 is large enough to make the problem go away.
+#
+#   The practical consequence is the same either way: with six of ten pairs resting on
+#   12-18 episodes AND several of them narrow and separated, this is a correction that
+#   has to be applied rather than argued away.
+#
+# WHY basic0
+#   ?bootCI is explicit: "in general, the bootstrap estimates are biased, so 'perc'
+#   should be corrected... 'basic' and 'norm' are appropriate if you are using the
+#   bias-corrected estimator, t1. If you use the uncorrected estimator, t0, you should
+#   use 'basic0' or 'norm0'."
+#
+#   We report t0 — `overlapEst()`'s value, the same number camtrapR prints inside each
+#   per-pair plot — so the interval must be `basic0` or `norm0`. Between those two,
+#   measured on this data: `norm0` is symmetric about t0 and returned [0.700, 1.0028]
+#   for Guiña × Zorro culpeo, an upper bound above the maximum the statistic can take;
+#   `basic0` stays inside [0, 1] for all ten pairs. So `basic0` is both the documented
+#   choice for the estimator we report and the one that does not produce an impossible
+#   bound on this data.
+#
+#   `perc` was used briefly on 2026-09-15 on my recommendation, which misread the
+#   suffix convention above: I described `norm0` as bias-corrected when it is not, and
+#   `perc` as the only bounded option when `basic0` is bounded here too. Corrected the
+#   same day. Against `perc`, `basic0` moves exactly one category — Puma × Liebre from
+#   "Low–High" (uninformative) to "Moderate–High" — and where n is large the two
+#   coincide exactly (Zorro culpeo × Liebre is [0.72, 0.89] either way), which is the
+#   bias going to zero.
+#
+#   NOT guaranteed bounded by construction. `basic0` is a shift of the percentile
+#   interval, so a large enough bias near the boundary could push it past 1. It does
+#   not on this data, and tests/test_overlap.R asserts that every published CI lies in
+#   [0, 1] — a data check that will fail loudly if a future campaign changes that,
+#   rather than a property claimed and never verified.
+CI_TYPE <- "basic0"
 
 # Estimator dispatch (Ridout & Linkie 2009). Δ4 is appropriate when the
 # smaller sample has ≥ SMALLER_N_DHAT4_MIN observations; below that we
@@ -96,7 +183,6 @@ classify_overlap <- function(ci_low, ci_high) {
   "Low–High"   # CI spans the full [0.50, 0.75] band
 }
 
-CATEGORY_LEVELS <- c("Low", "Low–Moderate", "Moderate", "Moderate–High", "High", "Low–High")
 
 
 # ── Overlap estimator (picks Δ1 vs Δ4 from the smaller sample) ───────────────
@@ -105,25 +191,39 @@ CATEGORY_LEVELS <- c("Low", "Low–Moderate", "Moderate", "Moderate–High", "Hi
 # CI, the sample sizes, and — critically — the estimator that was applied.
 # Downstream code reads `estimator` from the result; nothing else re-derives
 # the rule.
+#
+# THE ARGUMENTS ARE TIMES, NOT DENSITIES (fixed 2026-09-15)
+#   Until this date the three calls below were handed `densityFit()` output —
+#   512 density values in [0.02, 0.35] — in the A and B slots, which take
+#   detection times in radians. `overlapEst()` cannot tell the difference: it
+#   fitted fresh kernels to those density values and returned the overlap of
+#   *those*, and `bootstrap()` resampled them, so the CI and every Monterroso
+#   category rested on the same mistake. Because both species' density values
+#   occupy one narrow numeric band, the error was systematically toward
+#   agreement — mean absolute error 0.21 over the ten pairs, maximum 0.54
+#   (Guiña × Perro, published 0.757 against a true 0.221), and all ten
+#   categories were wrong. It was invisible because the number camtrapR prints
+#   inside each per-pair plot is computed correctly, and nothing compared the two.
+#   tests/test_overlap.R now does, on every run.
+#
+#   The bandwidth and grid scaffolding went with it. `overlapEst()` fits its own
+#   kernels with the published per-estimator bandwidth adjustments
+#   (adjust = c(0.8, 1, 4) for Δ1/Δ4/Δ5, Ridout & Linkie 2009) — the manual path
+#   was bypassing exactly the adjustment the estimator is defined with.
 estimate_overlap <- function(times_A, times_B, n_boot = N_BOOT) {
   n_A <- length(times_A)
   n_B <- length(times_B)
   estimator <- if (min(n_A, n_B) < SMALLER_N_DHAT4_MIN) "Dhat1" else "Dhat4"
 
-  bw_A <- getBandWidth(times_A)
-  bw_B <- getBandWidth(times_B)
-  f_A  <- densityFit(times_A, grid = GRID, bw = bw_A)
-  f_B  <- densityFit(times_B, grid = GRID, bw = bw_B)
-
-  point <- overlapEst(f_A, f_B, type = estimator)
-  boot  <- bootstrap(f_A, f_B, nb = n_boot, type = estimator)
+  point <- overlapEst(times_A, times_B, type = estimator)
+  boot  <- bootstrap(times_A, times_B, nb = n_boot, type = estimator)
   ci    <- bootCI(point, boot, conf = 0.95)
 
   list(
     estimate  = unname(point),
     estimator = estimator,
-    ci_low    = unname(ci["norm0", "lower"]),
-    ci_high   = unname(ci["norm0", "upper"]),
+    ci_low    = unname(ci[CI_TYPE, "lower"]),
+    ci_high   = unname(ci[CI_TYPE, "upper"]),
     n_A       = n_A,
     n_B       = n_B
   )
@@ -231,9 +331,11 @@ for (pair in PAIRS) {
 
   estimator_label <- if (row$estimator == "Dhat4") "Δ4" else "Δ1"
 
+  # No date in the name: this project chooses this filename, so the figure keeps one
+  # stable path for its whole life and a re-run shows as a change to it rather than a
+  # new file beside the old one (R/00_figures.R explains why that matters here).
   png_path <- here("figures", "overlap_pairs",
-                   sprintf("activity_overlap_%s-%s_%s.png",
-                           sp1, sp2, Sys.Date()))
+                   sprintf("activity_overlap_%s-%s.png", sp1, sp2))
 
   png(png_path, width = 8, height = 6, units = "in", res = 300)
   par(oma = c(3, 0, 0, 0))   # outer bottom margin for the annotation strip

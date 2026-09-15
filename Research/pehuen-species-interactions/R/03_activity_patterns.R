@@ -22,7 +22,9 @@
 #   unit. A burst of 3 frames is one animal, not three.
 #
 # INPUT   data/record_table.rds   (camtrapR format, produced by 01_load_data.R)
-# OUTPUT  figures/activity_individual/<Species>.png  (one per species, camtrapR)
+# OUTPUT  figures/activity_individual/activity_density_<Species>.png
+#           (camtrapR stamps a date into the name it chooses; R/00_figures.R
+#            renames it back off so the figure keeps one stable path)
 #         figures/03_activity_native_carnivores.png  (Fig 2 equivalent, ggplot2)
 #         figures/03_activity_invasive_species.png
 #         figures/03_activity_all_species.png        (all six, faceted)
@@ -34,13 +36,13 @@
 library(here)
 library(dplyr)
 library(ggplot2)
-library(patchwork)
 library(overlap)     # densityFit() for multi-species ggplot2 figures
 library(camtrapR)    # activityDensity() for per-species individual plots
 
 here::i_am("R/03_activity_patterns.R")
 source(here::here("R", "00_contract.R"))
 source(here::here("R", "00_admissibility.R"))
+source(here::here("R", "00_figures.R"))
 dir.create(here("figures"), showWarnings = FALSE)
 dir.create(here("figures", "activity_individual"), showWarnings = FALSE)
 
@@ -107,7 +109,8 @@ for (sp in SPECIES_ORDER) {
   message(sprintf("  Saved: %s.png", sp))
 }
 
-message("Saved per-species plots to figures/activity_individual/")
+n_fixed <- stabilize_dated_pngs(here("figures", "activity_individual"))
+message(sprintf("Saved per-species plots to figures/activity_individual/ (%d renamed off camtrapR's dated names)", n_fixed))
 
 
 # ── 3. Compute kernel densities for multi-species ggplot2 figures ─────────────
@@ -129,14 +132,35 @@ activity_density <- function(record_table, species_lbl) {
   }
 
   # (b) Fit von Mises kernel density at 512 points spanning the full circle.
-  #     bw = 1.5 is the default bandwidth (in radians) used in the reference paper.
-  fit <- densityFit(times, grid = seq(0, 2 * pi, length.out = 512), bw = 1.5)
+  #
+  #     ONE SMOOTHING FOR EVERY FIGURE IN THE PROJECT (2026-09-15). This was
+  #     `bw = 1.5`, hardcoded for all six species and commented as "the default
+  #     bandwidth (in radians)". It was neither. `bw` here is the von Mises
+  #     CONCENTRATION parameter — higher means LESS smoothing — and the package's
+  #     own data-driven values for these species run 4.7 (guiña) to 22.4 (liebre),
+  #     so 1.5 was three to fifteen times more smoothing than anything else in the
+  #     project used.
+  #
+  #     That mattered because camtrapR draws the other curves. `overlap::densityPlot`,
+  #     which camtrapR::activityDensity() calls for the per-species panels in section
+  #     2 of THIS script, and which activityOverlap() calls for 04's overlap figures,
+  #     computes `bw <- getBandWidth(A, kmax = 3) / adjust` with adjust = 1. Calling
+  #     getBandWidth() here is that same expression, so the ggplot overlays, the
+  #     camtrapR panels and the overlap plots now draw one curve per species instead
+  #     of three.
+  fit <- densityFit(times, grid = seq(0, 2 * pi, length.out = 512),
+                    bw = getBandWidth(times, kmax = 3))
 
-  # (c) Convert radians back to hours for the x-axis.
+  # (c) Convert radians back to hours for the x-axis — and rescale the density with
+  #     it. densityFit() returns density per RADIAN; plotted against an hours axis
+  #     it would integrate to 24/(2*pi) = 3.82, not to 1, and the y-axis would read
+  #     3.82x higher than camtrapR's panels for the identical curve. densityPlot()
+  #     applies exactly this factor internally via its xscale = 24 argument.
+  #     Verified 2026-09-15: after this, ours and camtrapR's curves agree to 1e-16.
   data.frame(
     species_label = species_lbl,
     hour          = seq(0, 24, length.out = 512),
-    density       = fit
+    density       = fit * (2 * pi / 24)
   )
 }
 

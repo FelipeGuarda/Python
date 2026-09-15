@@ -2,14 +2,17 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # PURPOSE
 #   For each species with >= MIN_EPISODES independent episodes, produce a single
-#   figure showing bubble detection maps for all four Southern-Hemisphere seasons
-#   side by side.
+#   figure showing bubble detection maps for every season period the array has
+#   recorded, in chronological order.
 #
-#   Seasons (Southern Hemisphere):
-#     Primavera  Sep–Nov
-#     Verano     Dec–Feb
-#     Otoño      Mar–May
-#     Invierno   Jun–Aug
+#   PERIODS, NOT POOLED SEASONS (2026-09-15). This script used to pool the two
+#   otoños into one "Otoño" panel, which is the one thing a single-site study with
+#   19 months of record can least afford to discard: whether a spatial pattern
+#   REPEATS. Seven panels now, one per season period, ordered by date. The season
+#   rule itself moved to R/00_seasons.R — it lived here, in this file's own
+#   assign_season(), and a second copy would have been the first step toward two
+#   figures disagreeing about what winter is. 05_spatial_distribution.R keeps the
+#   pooled four-season view for cross-species comparison.
 #
 #   ADMISSIBILITY. A season needs a trustworthy date, so this script uses the time
 #   rule from R/00_admissibility.R and nothing else. Until 2026-09-08 it also clipped
@@ -18,12 +21,18 @@
 #   valid_date = FALSE -- and its end date silently cut otoño 2026 six weeks short.
 #   The tz was a latent 3-4 h shift on any R with tzdata installed.
 #
-#   Bubble size is fixed on a shared scale across all four season panels so
-#   counts are directly comparable within a figure.  Stations with zero
-#   detections in a season appear as faint × marks.  Seasons with no data
-#   (e.g. Invierno — no field deployment yet) show only the station grid.
+#   Bubble size is fixed on a shared scale across all panels of a figure so counts
+#   are directly comparable within it.  Stations with zero detections in a period
+#   appear as faint × marks.
+#
+#   THE PANELS ARE NOT EQUAL EFFORT and the figure says so: Primavera 2024 is 292
+#   camera-days at 9 stations against 2,249 at 27 in Verano 2025-26.  A bubble is a
+#   count, not a rate.  The header of this file used to read "Invierno — no field
+#   deployment yet"; winter is in fact the best-sampled season in the record (96
+#   episodes), it was simply recorded inside the primavera_2025 campaign window.
 #
 # INPUT   data/records_all.rds
+#         data/deployments.rds    (the panel set comes from the field record)
 #         data/stations_sf.rds
 #         data/boundary_sf.rds
 # OUTPUT  figures/06_seasonal_<species_slug>.png  (one file per species)
@@ -36,12 +45,12 @@ library(here)
 library(dplyr)
 library(ggplot2)
 library(sf)
-library(lubridate)
 library(tidyr)
 
 here::i_am("R/06_seasonal_detection_maps.R")
 source(here::here("R", "00_contract.R"))
 source(here::here("R", "00_admissibility.R"))
+source(here::here("R", "00_seasons.R"))
 dir.create(here("figures"), showWarnings = FALSE)
 
 contract_assert_current()
@@ -50,6 +59,7 @@ contract_assert_current()
 # ── 1. Load data ─────────────────────────────────────────────────────────────
 
 records     <- readRDS(here("data", "records_all.rds"))
+deployments <- readRDS(here("data", "deployments.rds"))
 stations_sf <- readRDS(here("data", "stations_sf.rds"))
 boundary_sf <- readRDS(here("data", "boundary_sf.rds"))
 
@@ -59,21 +69,30 @@ boundary_sf <- readRDS(here("data", "boundary_sf.rds"))
 MIN_EPISODES <- 30L
 
 
-# ── 2. Season assignment ─────────────────────────────────────────────────────
-
-assign_season <- function(month) {
-  dplyr::case_when(
-    month %in% c(9, 10, 11) ~ "Primavera",
-    month %in% c(12, 1, 2)  ~ "Verano",
-    month %in% c(3, 4, 5)   ~ "Otoño",
-    month %in% c(6, 7, 8)   ~ "Invierno"
-  )
-}
-
-SEASON_LEVELS <- c("Primavera", "Verano", "Otoño", "Invierno")
+# ── 2. Season periods ────────────────────────────────────────────────────────
+# season_start is the join key and sorts chronologically; season_label renders it for
+# the reader. Both come from R/00_seasons.R; neither is decided here. The panel set
+# comes from the FIELD RECORD, not from the detections, so a period the array
+# sampled and the species was never seen in still gets a panel of × marks — an
+# absence is a result and must be visible.
 
 records_clean <- admissible(records, "time") %>%
-  mutate(season = factor(assign_season(month(datetime)), levels = SEASON_LEVELS))
+  mutate(season_start = season_start(datetime))
+
+period_effort <- season_effort(deployments) %>%
+  group_by(season_start) %>%
+  summarise(camera_days = sum(effort_days),
+            n_stations  = n_distinct(station_id), .groups = "drop") %>%
+  arrange(season_start) %>%
+  mutate(period = factor(as.character(season_label(season_start)),
+                         levels = as.character(season_label(sort(season_start)))),
+         strip  = sprintf("%s\n%s días-cámara · %d estaciones",
+                          as.character(period), format(camera_days, big.mark = ","), n_stations))
+
+PERIOD_LEVELS <- levels(period_effort$period)
+
+records_clean <- records_clean %>%
+  mutate(period = factor(as.character(season_label(season_start)), levels = PERIOD_LEVELS))
 
 
 # ── 3. Species filter (>= MIN_EPISODES independent episodes) ─────────────────
@@ -130,21 +149,22 @@ for (sp in qualifying$species_label) {
   sp_color   <- SPECIES_COLORS[[sp]]
   sp_slug    <- tolower(gsub(" ", "_", sp))
 
-  # Episodes per station × season. `sp_records` is already time-admissible, so
+  # Episodes per station × period. `sp_records` is already time-admissible, so
   # nothing further is excluded here.
-  det_counts <- episode_counts(sp_records, by = c("station_id", "season"), quiet = TRUE) %>%
+  det_counts <- episode_counts(sp_records, by = c("station_id", "period"), quiet = TRUE) %>%
     rename(n_detections = n_episodes)
 
-  # Full grid: every station × every season (zeros for missing combos)
+  # Full grid: every station × every period the array sampled (zeros elsewhere)
   full_grid <- expand.grid(
     station_id = stations_sf$id,
-    season     = factor(SEASON_LEVELS, levels = SEASON_LEVELS),
+    period     = PERIOD_LEVELS,
     stringsAsFactors = FALSE
   ) %>%
-    left_join(det_counts, by = c("station_id", "season")) %>%
+    left_join(mutate(det_counts, period = as.character(period)),
+              by = c("station_id", "period")) %>%
     mutate(
       n_detections = replace_na(n_detections, 0),
-      season       = factor(season, levels = SEASON_LEVELS)
+      period       = factor(period, levels = PERIOD_LEVELS)
     )
 
   # Attach sf geometry
@@ -157,21 +177,23 @@ for (sp in qualifying$species_label) {
   # Max detections for fixed scale (computed across all seasons)
   max_det <- max(det_sf$n_detections)
 
-  # Seasons present in data (for caption)
-  seasons_with_data <- det_sf %>%
+  # Periods the array sampled and this species was never seen in. A named absence,
+  # not a blank panel: every period here carries the effort printed in its strip.
+  periods_with_data <- det_sf %>%
     st_drop_geometry() %>%
     filter(n_detections > 0) %>%
-    pull(season) %>%
+    pull(period) %>%
     unique() %>%
-    as.character() %>%
-    sort()
+    as.character()
 
-  seasons_no_data <- setdiff(SEASON_LEVELS, seasons_with_data)
-  caption_txt <- if (length(seasons_no_data) > 0) {
-    paste0("Sin registros en: ", paste(seasons_no_data, collapse = ", "), ".")
-  } else {
-    NULL
-  }
+  periods_no_data <- setdiff(PERIOD_LEVELS, periods_with_data)
+  caption_txt <- paste0(
+    "Panel = periodo estacional, en orden cronológico; el esfuerzo de cada uno va en su título. ",
+    "Una burbuja es un conteo, no una tasa.",
+    if (length(periods_no_data) > 0) {
+      paste0("\nSin registros en: ", paste(periods_no_data, collapse = ", "), ".")
+    } else ""
+  )
 
   fig <- ggplot() +
     geom_sf(data = boundary_sf,
@@ -189,16 +211,18 @@ for (sp in qualifying$species_label) {
       limits = c(1, max_det),
       name   = "Detecciones"
     ) +
-    facet_wrap(~season, nrow = 1) +
+    facet_wrap(~period, nrow = 1,
+               labeller = labeller(period = setNames(period_effort$strip,
+                                                     as.character(period_effort$period)))) +
     labs(
       title    = sp,
-      subtitle = sprintf("Eventos independientes (%d min) por temporada.  × = estación sin detección.", EPISODE_GAP_MINUTES),
+      subtitle = sprintf("Eventos independientes (%d min) por periodo estacional.  × = estación sin detección.", EPISODE_GAP_MINUTES),
       caption  = caption_txt
     ) +
     map_theme
 
   out_path <- here("figures", sprintf("06_seasonal_%s.png", sp_slug))
-  ggsave(out_path, fig, width = 16, height = 5, dpi = 300)
+  ggsave(out_path, fig, width = 20, height = 5.5, dpi = 300)
   message(sprintf("Saved %s", out_path))
 }
 

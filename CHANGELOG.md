@@ -6,6 +6,152 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-09-15b — pehuén: todos los coeficientes de solapamiento publicados estaban mal
+
+Las figuras por par llevan **dos** números: el que camtrapR imprime dentro del panel y el que
+nosotros escribíamos al pie. No coincidían — `Dhat4=0.81` contra `Δ4 = 0.879` — y el correcto era
+el de camtrapR.
+
+### Fixed
+- **`estimate_overlap()` pasaba densidades donde van tiempos.** `overlap::overlapEst(A, B)` y
+  `bootstrap(A, B)` reciben **tiempos de detección en radianes**; les entregábamos la salida de
+  `densityFit()` — 512 valores de densidad en [0,02, 0,35]. Las funciones no pueden distinguirlo:
+  ajustaron núcleos nuevos sobre esos valores y devolvieron el solapamiento de eso. Como las
+  densidades de ambas especies ocupan la misma banda numérica estrecha, el error era
+  sistemáticamente hacia el acuerdo.
+- **Error absoluto medio 0,21 sobre los diez pares; máximo 0,54** (Guiña × Perro, 0,757 publicado
+  contra 0,221 real). **Las diez categorías de Monterroso cambiaron.** El intervalo también: el
+  bootstrap remuestreaba los mismos valores de densidad.
+- **La conclusión biológica se invierte.** Los nativos muestran solapamiento **bajo** con perro y
+  jabalí — Guiña × Perro y Zorro culpeo × Perro quedan en Low; Puma × Jabalí y Zorro culpeo ×
+  Jabalí en Low–Moderate — que es segregación temporal frente a invasoras, justo el patrón que el
+  proyecto busca. Nativo × nativo y nativo × liebre siguen altos. La figura de Guiña × Perro
+  siempre mostró esa segregación — guiña nocturna, perro diurno — y el 0,757 la contradecía a la
+  vista.
+- **Andamiaje muerto eliminado**: `N_GRID`, `GRID`, `getBandWidth()`/`densityFit()` dentro de
+  `estimate_overlap()`. `overlapEst()` ajusta sus propios núcleos con el ajuste de ancho de banda
+  por estimador que el estimador tiene por definición (`adjust = c(0.8, 1, 4)`); el camino manual
+  esquivaba exactamente eso.
+
+### Changed
+- **El IC pasa a `basic0`** (`CI_TYPE <- "basic0"`). `norm0` devolvía `[0,700, 1,0028]` para Guiña
+  × Zorro culpeo: una cota superior por encima del máximo que el coeficiente puede tomar.
+  `?bootCI` es explícito: «las estimaciones bootstrap están sesgadas, así que 'perc' debería
+  corregirse… si se usa el estimador sin corregir, t0, hay que usar 'basic0' o 'norm0'».
+  Reportamos t0 — el valor de `overlapEst()`, el mismo que camtrapR imprime dentro de cada
+  gráfico — así que el intervalo debe ser uno de esos dos; `basic0` queda dentro de [0, 1] en
+  los diez pares. El sufijo `0` significa corrección de sesgo **retirada**, no aplicada: marca
+  los intervalos que acompañan al estimador sin corregir.
+  (Un `perc` intermedio duró unas horas, por recomendación mía mal fundada: leí el sufijo al
+  revés. Corregido el mismo día. Frente a `perc`, `basic0` mueve una sola categoría — Puma ×
+  Liebre de «Low–High» a «Moderate–High» — y donde el n es grande coinciden exactamente.)
+
+### Medido (el sesgo no es lo que parecía)
+- **Qué es el sesgo**: `mean(réplicas bootstrap) - estimación`. Para un coeficiente de
+  solapamiento es un **encogimiento hacia el centro** — las estimaciones bajas suben, las altas
+  bajan — porque Δ está acotado en [0, 1] y porque integra el **mínimo** de dos curvas, una
+  operación cóncava: el ruido en cualquiera de las dos baja el mínimo esperado.
+- **No es solo «tenemos poco n», y la lectura obvia es falsa.** En los diez pares |sesgo|
+  correlaciona -0,48 con el n menor, y el único par con n razonable (Zorro culpeo × Liebre,
+  n = 129) tiene sesgo -0,0007 — lo que invita a concluir que con más episodios el problema
+  desaparece. No desaparece. Fijando la forma de las distribuciones y variando n en datos
+  sintéticos: n = 20 → sesgo +0,032, sd 0,114; n = 400 → sesgo +0,026, sd **0,025**. La
+  **dispersión** se desploma con n; el **sesgo apenas se mueve**. Lo que el sesgo sigue es la
+  forma de las distribuciones frente al suavizado: un estimador de núcleo sobre dos cúmulos
+  angostos y separados sobreestima su solapamiento a cualquier n.
+
+### Added
+- **`tests/test_overlap.R`** — 24 aserciones. La que importa: nuestra estimación debe ser igual a
+  una llamada directa a `overlap::overlapEst()` con tolerancia de punto flotante. Es la
+  comparación que no existía y por eso el defecto sobrevivió siete semanas. También afirma que el
+  camino equivocado da un número distinto, para que nadie lo reinstale creyendo que da igual.
+
+### Added (cierre del barrido de código obsoleto)
+- **`R/00_figures.R`** — dueño de una sola cosa: que una figura tenga una **ruta estable**.
+  camtrapR estampa la fecha de ejecución en el nombre que elige y no es configurable, así que
+  cada corrida agregaba un juego nuevo al lado del anterior en un `figures/` versionado (24 PNG
+  borrados a mano el 2026-09-08, otros 24 el 2026-09-15). `stabilize_dated_pngs()` los renombra
+  a nombres sin fecha; 04, que elige sus propios nombres, simplemente ya no le pone fecha.
+  Renombrar en vez de borrar: con ruta estable una re-corrida aparece como cambio de una figura,
+  no como archivo nuevo más uno huérfano.
+- **Chequeo de `time_rad` contra camtrapR.** Lo calculamos en `01_load_data.R` y camtrapR lo
+  recalcula por su cuenta desde `DateTimeOriginal`: **todas las figuras de camtrapR usaban SU
+  versión y todos los números publicados la NUESTRA**, y nada los comparaba — la misma forma que
+  el defecto del estimador. `activityDensity()` devuelve su vector `Time.rad` de forma invisible,
+  así que el test compara las dos derivaciones de punta a punta sin repetir la fórmula de
+  camtrapR (peor discrepancia 1,8e-15). Una tercera copia de la regla dentro del test habría
+  sido exactamente lo que se quiere evitar.
+- **Curvas únicas en todo el proyecto.** `03` suavizaba sus curvas ggplot con `bw = 1.5` fijo,
+  comentado como «el ancho de banda por defecto (en radianes)»: no era ni lo uno ni lo otro
+  — `bw` es el parámetro de **concentración** von Mises y los valores de los datos van de 4,7 a
+  22,4. Ahora usa `getBandWidth()`, la misma expresión que `densityPlot` por dentro: las curvas
+  ggplot, los paneles de camtrapR del mismo script y las de 04 **coinciden a 1e-16**. De paso se
+  corrigió el eje y, que estaba en densidad por radián contra un eje x en horas (3,82× alto).
+- **Código muerto**: imports sin usar (`tidyr` en 02, `patchwork` en 03, `lubridate` en 06),
+  la constante `CATEGORY_LEVELS` en 04, y dos encabezados desactualizados.
+
+### Nota sobre el registro anterior
+- La afirmación del 2026-09-08 «seis de diez pares cambiaron de categoría Monterroso» se calculó
+  con la función rota **en ambos lados de la comparación**. No significa nada; queda como registro
+  de lo que se creía, marcada como tal en el README.
+
+---
+
+## 2026-09-15 — pehuén: la campaña no es una temporada, y siete periodos aparecen donde había tres
+
+Todas las figuras de `pehuen-species-interactions` se faceteaban por campaña. Una campaña es el
+intervalo entre dos visitas a terreno — cinco a ocho meses — y lleva el nombre de la temporada en
+que se **retiraron** las tarjetas, no de la que registró. Las tres ventanas son contiguas: el
+arreglo es **un registro continuo del 2024-10-09 al 2026-05-15** partido en tres retiros.
+
+### Added
+- **`R/00_seasons.R`** — dueño único de dónde empieza una temporada austral y de cómo se reparte
+  el esfuerzo de un despliegue entre las temporadas que cruza. La clave es `season_start`, un
+  `Date`: no se confunde con un slug de campaña (`primavera_2025` nombra una campaña que registró
+  invierno) y ordena cronológicamente sin tabla auxiliar.
+- **`tests/test_seasons.R`** — 42 aserciones, R base. Incluye el invariante que sostiene todo el
+  cambio: `sum(effort_days) == field_days` por despliegue, **13.598 días-cámara entran y 13.598
+  salen**, medido contra el `deployments.rds` real y no solo contra fixtures.
+
+### Changed
+- **02, 05 y 06 se re-estratifican por temporada.** 03 y 04 no se tocan: agrupan todo, así que la
+  etiqueta de campaña nunca les llegó. `05_spatial_native_by_campaign.png` pasa a
+  `..._by_season.png` (cuatro temporadas agrupadas, comparación entre especies); 06 pasa a **siete
+  paneles por periodo en orden cronológico**, que es la vista que permite preguntar si un patrón
+  se **repite** entre los dos otoños.
+- **El `assign_season()` propio de 06 se borra**, no se copia. Era la única copia de la regla y
+  una segunda habría sido el primer paso hacia dos figuras en desacuerdo sobre qué es el invierno.
+- **La campaña sobrevive como procedencia**: sigue siendo lo que el productor publica y lo que
+  decide admisibilidad. Deja de ser un eje contra el cual se grafica algo.
+
+### Fixed
+- **Dos cosas se leían como ecología y no lo eran.** El "derrumbe" de la liebre a 2 episodios en
+  otoño 2026: esa ventana no contiene invierno ni primavera, y 109 de los 129 episodios de liebre
+  son de invierno o primavera. Y el "Invierno faltante" sobre el que el menú de métodos construyó
+  §A3 y §B2: **el invierno es la temporada mejor muestreada del registro** (96 episodios), estaba
+  dentro de la ventana `primavera_2025`.
+- **La ocupación ingenua estacional cambia de regla de admisibilidad y la figura lo dice.** Una
+  temporada no se puede leer de un reloj roto, así que Fig C es time-admissible y pierde cinco
+  presencias estación-especie que la versión por campaña conservaba (CT08 guiña, CT10 jabalí, CT13
+  liebre, CT18 perro, CT18 puma). Los mapas de presencia agrupados de 05 las siguen mostrando.
+
+### Decidido
+- **Objetivo: paper con revisión de pares.** Eso fija lo que falta construir.
+- **Rota (co-ocupación multiespecie) se resuelve con una prueba de potencia, no con una cita.**
+  `docs/methods-menu-interactions.md` §B3 dice que no se ajuste (umbral de 400 sitios);
+  `References/FMA_camera_trap_methods_synthesis.md.pdf` lo rankea primero. Se simula con el n, la
+  grilla de ocasiones y las probabilidades de detección de este arreglo.
+- **La frontera de temporada podría volverse astronómica** (solsticios/equinoccios). A 38°S el
+  fotoperiodo es lo que las temporadas aproximan, y es a lo que ancla `activity::transtime()`.
+  `R/00_seasons.R` está hecho para ese cambio: es una tabla de fronteras y ningún llamador cambia.
+
+### Deferred
+- `R/00_detection_history.R` (grilla de ocasiones desde `deployments.rds`) y
+  `R/07_power_cooccurrence.R`. El covariable de altitud sigue bloqueado aguas arriba por
+  `stations_sha256` (`V2-REVIEW.md` §0-septies).
+
+---
+
 ## 2026-09-10d — el canal sónico se vuelve utilizable, y la ventana de referencia se mide
 
 La nota del canal `DT_Avg` decía que convertir distancia a espesor de nieve exige una referencia

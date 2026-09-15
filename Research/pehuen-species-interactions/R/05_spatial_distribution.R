@@ -28,10 +28,11 @@
 #   is not an inconsistency to reconcile — it is the difference between "was it here"
 #   and "how often", and the captions say so.
 #        Fig B1 — all six species, all campaigns combined (faceted)
-#        Fig B2 — native carnivores, split by campaign (grid: campaign × species).
-#                 The campaign grid comes from the contract stamp, so a new campaign
-#                 appears without editing this file (otoño 2026 fell out of a
-#                 hardcoded pair here until 2026-09-08).
+#        Fig B2 — native carnivores, split by season (grid: season × species),
+#                 pooling the two years of record. The season rule is R/00_seasons.R
+#                 and the four rows are fixed by it, so a new campaign appears
+#                 without editing this file. The year-resolved view — whether a
+#                 pattern repeats across the two otoños — is 06_seasonal_*.png.
 #
 # INPUT   data/records_all.rds   (produced by 01_load_data.R)
 #         data/record_table.rds  (camtrapR format)
@@ -40,7 +41,7 @@
 #         data/boundary_sf.rds   (reserve boundary polygon)
 # OUTPUT  figures/detection_maps/  (camtrapR presence/absence maps)
 #         figures/05_spatial_all_species.png
-#         figures/05_spatial_native_by_campaign.png
+#         figures/05_spatial_native_by_season.png
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -55,6 +56,8 @@ library(camtrapR)   # detectionMaps() — richness panel only
 here::i_am("R/05_spatial_distribution.R")
 source(here::here("R", "00_contract.R"))
 source(here::here("R", "00_admissibility.R"))
+source(here::here("R", "00_seasons.R"))
+source(here::here("R", "00_figures.R"))
 dir.create(here("figures"), showWarnings = FALSE)
 dir.create(here("figures", "detection_maps"), showWarnings = FALSE)
 
@@ -156,10 +159,13 @@ detectionMaps(
   richnessPlot = TRUE
 )
 
+n_fixed <- stabilize_dated_pngs(here("figures", "detection_maps"))
+
 message(sprintf(
   "  presence: %d station-species pairs across %d stations (vs %d stations in the time-admissible set)",
   nrow(pres), n_distinct(pres$station_id),
   n_distinct(admissible(records, "time", quiet = TRUE)$station_id)))
+message(sprintf("  %d camtrapR map(s) renamed off their dated names (R/00_figures.R)", n_fixed))
 
 
 # ── 3. Aggregate detections per (station × species) for bubble maps ───────────
@@ -231,7 +237,12 @@ fig_all <- ggplot() +
     title    = "Spatial distribution of detections — focal species",
     subtitle = sprintf("%s combined.  X marks = all camera stations.",
                        paste(campaign_label(CAMPAIGNS), collapse = ", ")),
-    caption  = sprintf("Unidad: eventos independientes (%d min), no imagenes. Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia -- ver figures/detection_maps/presence_by_species.png.", EPISODE_GAP_MINUTES)
+    caption  = sprintf(paste(
+      "Unidad: eventos independientes (%d min), no imagenes. Temporada austral, agrupando los dos anos del registro:",
+      "el esfuerzo no es igual entre filas ni entre anos -- ver 06_seasonal_*.png para la vista ano a ano.",
+      "Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia",
+      "-- ver figures/detection_maps/presence_by_species.png.", sep = "
+"), EPISODE_GAP_MINUTES)
   ) +
   map_theme
 
@@ -240,25 +251,35 @@ ggsave(here("figures", "05_spatial_all_species.png"),
 message("Saved figures/05_spatial_all_species.png")
 
 
-# ── 6. Figure B2 — native carnivores split by campaign ───────────────────────
-# Whether spatial detection patterns shift between campaigns. Episodes, as in B1:
+# ── 6. Figure B2 — native carnivores by season ─────────────────────────
+# Whether spatial detection patterns shift with the season. Episodes, as in B1:
 # until 2026-09-08 this panel counted images while its subtitle claimed episodes.
+#
+# SEASON, POOLED ACROSS YEARS (2026-09-15). This grid faceted by campaign, and a
+# campaign mixes seasons (R/00_seasons.R). It now pools the two otoños, the two
+# primaveras and the two veranos into four rows, which is the cross-species
+# comparison this figure is for. The year-resolved view — does the pattern repeat —
+# is 06_seasonal_detection_maps.R, one species per figure. Two questions, two
+# figures, one season rule.
+#
+# Pooling is not free: Primavera pools 292 camera-days at 9 stations with 2,008 at
+# 26, so a bubble in that row is a count over unequal effort. Said in the caption.
 
-det_by_campaign <- records %>%
+det_by_season <- records %>%
   filter(species_label %in% NATIVE_LABELS) %>%
-  episode_counts(by = c("station_id", "species_label", "campaign")) %>%
-  rename(n_detections = n_episodes)
+  episodes() %>%
+  mutate(season = as.character(season_of(datetime))) %>%
+  count(station_id, species_label, season, name = "n_detections")
 
 native_combinations <- expand.grid(
   station_id    = unique(stations_sf$id),
   species_label = NATIVE_LABELS,
-  campaign      = CAMPAIGNS,
+  season        = SEASON_LEVELS,
   stringsAsFactors = FALSE
 )
 
 det_native_sf <- native_combinations %>%
-  left_join(det_by_campaign,
-            by = c("station_id", "species_label", "campaign")) %>%
+  left_join(det_by_season, by = c("station_id", "species_label", "season")) %>%
   mutate(n_detections = replace(n_detections, is.na(n_detections), 0)) %>%
   left_join(
     stations_sf %>% rename(station_id = id) %>% select(station_id, geometry),
@@ -267,7 +288,7 @@ det_native_sf <- native_combinations %>%
   st_as_sf() %>%
   mutate(
     species_label = factor(species_label, levels = NATIVE_LABELS),
-    campaign_lbl  = factor(campaign_label(campaign), levels = campaign_label(CAMPAIGNS))
+    season        = factor(season, levels = SEASON_LEVELS)
   )
 
 fig_native <- ggplot() +
@@ -282,15 +303,20 @@ fig_native <- ggplot() +
   ) +
   scale_size_continuous(range = c(2, 12), name = "Detections") +
   scale_colour_manual(values = SPECIES_COLORS[NATIVE_LABELS], name = NULL) +
-  facet_grid(campaign_lbl ~ species_label) +
+  facet_grid(season ~ species_label) +
   labs(
-    title    = "Spatial distribution — native carnivores by campaign",
+    title    = "Spatial distribution — native carnivores by season",
     subtitle = sprintf("Bubble size = independent events (%d-min rule).  X marks = all camera stations.", EPISODE_GAP_MINUTES),
-    caption  = sprintf("Unidad: eventos independientes (%d min), no imagenes. Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia -- ver figures/detection_maps/presence_by_species.png.", EPISODE_GAP_MINUTES)
+    caption  = sprintf(paste(
+      "Unidad: eventos independientes (%d min), no imagenes. Temporada austral, agrupando los dos anos del registro:",
+      "el esfuerzo no es igual entre filas ni entre anos -- ver 06_seasonal_*.png para la vista ano a ano.",
+      "Excluye camaras sin reloj reparable, por lo que puede mostrar MENOS estaciones que el mapa de presencia",
+      "-- ver figures/detection_maps/presence_by_species.png.", sep = "
+"), EPISODE_GAP_MINUTES)
   ) +
   map_theme
 
-ggsave(here("figures", "05_spatial_native_by_campaign.png"),
-       fig_native, width = 12, height = 3 * length(CAMPAIGNS) + 2, dpi = 300)
-message("Saved figures/05_spatial_native_by_campaign.png")
+ggsave(here("figures", "05_spatial_native_by_season.png"),
+       fig_native, width = 12, height = 3 * length(SEASON_LEVELS) + 2, dpi = 300)
+message("Saved figures/05_spatial_native_by_season.png")
 message("All scripts complete. Figures are in the figures/ directory.")

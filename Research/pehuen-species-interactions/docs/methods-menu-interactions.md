@@ -112,8 +112,18 @@ as such.
 - **What it adds:** asks whether a single species shifts its own diel schedule between
   campaigns — a plausible signature of seasonal response or of pressure from invasives. The
   current pairwise-species framing cannot ask this at all.
-- **Feasible here:** Exploratory only. Campaign-level cells are the smallest in the dataset,
-  and the missing Invierno deployment breaks the seasonal sequence.
+- **Feasible here:** Exploratory only, but for a different reason than this document
+  gave until 2026-09-15. **There is no missing Invierno.** A campaign is the interval
+  between two field visits, five to eight months long, named for the season the cards
+  were *retrieved* in — so winter sits inside the `primavera_2025` window and is in fact
+  the best-sampled season in the record (96 episodes). The array ran continuously from
+  2024-10-09 to 2026-05-15. Stratifying on the timestamp instead of the campaign
+  (`R/00_seasons.R`) gives **seven season periods**, with two otoños, two primaveras and
+  two veranos — replication, not a broken sequence.
+  The real constraint is per-cell n. Measured 2026-09-15, episodes per species per
+  period: zorro culpeo 10–35 in all seven, liebre 1–53, perro 3–14, and jabalí, guiña
+  and puma 0–7. Against the A2 floors that is culpeo across the board, liebre in
+  invierno and primavera, and nothing else.
 
 ### A4. Diel phenotype classification (optional extension)
 
@@ -166,9 +176,14 @@ Lower priority than A1–A3.
   detected imperfectly. *Ecology* 84(8): 2200–2207. doi:10.1890/02-3090
 - **Implementation:** `unmarked::colext()`, `spOccupancy::tPGOcc()`
 - **Minimum data:** ≥2–3 primary periods with secondary occasions nested inside each.
-- **Feasible here:** **Borderline.** Three campaigns is the bare minimum to estimate
-  colonisation (γ) and extinction (ε), per-season detections are thin, and the missing
-  Invierno creates an irregular interval. Treat as exploratory and do not oversell.
+- **Feasible here:** **Borderline, and better than this document said.** The "three
+  campaigns, one missing Invierno, irregular interval" framing was wrong on both counts
+  (see A3): the record is continuous, and taking the primary period from the timestamp
+  rather than the campaign gives **seven regular season periods** — an even 3-month
+  spacing, which is what a robust design wants. What remains thin is detections per
+  period per species: only zorro culpeo is present in all seven at double digits.
+  Estimating γ and ε for anything else would be fitting transition rates to cells of
+  one to five detections. Treat as exploratory, and only for culpeo.
 - **What it adds:** asks whether species are *colonising or vacating* stations across
   campaigns — conceptually much closer to a displacement question than static occupancy.
 
@@ -610,17 +625,62 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
       bootstrap resamples; `data/overlap_stats.csv` carries new `estimator`
       column; comparison against previous Δ4-only results implicit in the
       regenerated table.)**
-- [ ] Compute per-species-per-campaign n table against the A2 thresholds (100 / 20 / 10)
-- [ ] Fit single-season occupancy for common species with altitude covariate
-      (blocked on effort matrix above)
+- [x] Compute per-species-per-period n table against the A2 thresholds (100 / 20 / 10)
+      **(2026-09-15. Per campaign it was the wrong question — a campaign is not a
+      season. Per season period, of 42 species × period cells: **none reaches 100,
+      eight are in 20–99** (culpeo in five periods, liebre in three), four are in
+      10–19, and **30 of 42 are below 10** — no curve at all under the A2 rule.
+      Pooled over the whole record only culpeo (161) and liebre (129) clear 100.
+      The A2 rule therefore reads: interpret pooled curves for
+      culpeo and liebre, plot-but-do-not-interpret perro (46), and no curve at all
+      for jabalí (18), guiña (14) or puma (12).)**
+- [ ] **Settle the Rota question with a power check, not a citation.** §B3 says do not
+      fit it; `References/FMA_camera_trap_methods_synthesis.md.pdf` ranks it first.
+      Decision 2026-09-15: simulate at this array's own site count, occasion grid and
+      observed detection probabilities and measure bias and CI coverage. For a paper,
+      "not identifiable at our n, and here is the simulation" is a stronger exclusion
+      than someone else's 400-site threshold. `R/07_power_cooccurrence.R`, after the
+      detection-history module.
+- [ ] Build the detection-history / occasion module (`R/00_detection_history.R`) —
+      `cameraOperation()` inputs from `deployments.rds`, occasion length as the one
+      tunable. Prerequisite for both the occupancy item below and the power check.
+- [ ] Fit single-season occupancy for common species with altitude covariate.
+      Effort is no longer the blocker; `stations_sha256` is — station altitude crosses
+      the boundary unverified until the producer publishes it (§0-septies).
 - [ ] Obtain and read Niedballa et al. (2019) supplementary R function
 - [ ] Decide whether zenith güiña redeployment enters the next campaign design
 - [ ] Consider contacting Gálvez (PUC Villarrica) — nearest comparable dataset and methods group
+- [ ] **Decide whether the season boundary becomes astronomical.** Calendar months
+      are a proxy for photoperiod, and photoperiod is what the seasons stand in for at
+      38°S — it is also what `activity::transtime()` anchors on, so an activity analysis
+      and a seasonal stratum currently answer to two different definitions of the year.
+      `R/00_seasons.R` is built for the swap: it is one boundary table, and no caller
+      changes. Astronomical dates drift a day or two between years, so that version
+      needs a per-year table rather than (month, day).
+- [ ] **Read the raw data the way Smith (2025) requires.** Smith's empirical defence of
+      independence filters (against Peral et al. 2022) turns on inspecting what the
+      retained detections actually are — animals resting or feeding in front of a
+      camera inflate midday density even after filtering. Edwards et al. (2020) makes
+      the same point from the other side: camera-derived activity curves depend on what
+      the camera is pointed at. Neither has been done here, and both belong in a
+      Methods section before any activity claim.
 
 ---
 
 ## Changelog
 
+- **2026-09-15** — **The stratifier was wrong, and two of this document's premises
+  with it.** A campaign is the five- to eight-month interval between field visits,
+  named for the season the cards were retrieved in; the three windows are contiguous,
+  so the array is one continuous record from 2024-10-09 to 2026-05-15. Every figure
+  that faceted "by campaign" was faceting by retrieval interval. §A3 and §B2 claimed
+  a missing Invierno breaks the seasonal sequence — **winter is the best-sampled
+  season in the record** (96 episodes), it sat inside the `primavera_2025` window.
+  New `R/00_seasons.R` owns the boundary rule and splits deployment effort across the
+  seven season periods, conserving station-days exactly (13,598, asserted in
+  `tests/test_seasons.R`). Scripts 02, 05 and 06 re-stratified. The A2 n-table open
+  item is closed with the measured counts. Target set for a peer-reviewed paper;
+  Rota routed to a power check rather than a citation.
 - **2026-07-28** — Applied the two § 0 prerequisites in code: 30-min
   independence filter on `record_table.rds`, and per-pair Δ1/Δ4 estimator
   dispatch in `04_temporal_overlap.R` (crossover at min-sample < 50, Ridout
