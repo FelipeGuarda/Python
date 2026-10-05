@@ -5,6 +5,7 @@ went from 3,359 rows to 35,807 and every consumer kept running silently. The rep
 happened to filter on `observation_type` and stayed correct; nothing checked that.
 """
 
+import hashlib
 import json
 import sys
 import unittest
@@ -14,7 +15,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from camtrap import canonical_state, episodes, observations
+from camtrap import canonical_state, episodes, observations, stations
 
 
 def _frame(**over) -> pd.DataFrame:
@@ -49,7 +50,29 @@ class TestSchemaIsTheContract(unittest.TestCase):
         """Added 2026-08-26 (schema 4). It carries the independence rule, which existed
         three times downstream and had already drifted between two of the copies."""
         self.assertIn(episodes.COLUMN, list(observations.CANONICAL_COLUMNS))
-        self.assertEqual(canonical_state.SCHEMA_VERSION, 4)
+
+    def test_the_station_registry_is_in_the_contract(self):
+        """Schema 5 (2026-10-05). Before it, every coordinate and altitude crossed the
+        boundary unverified: the contract listed observed labels, not the registry."""
+        self.assertEqual(canonical_state.SCHEMA_VERSION, 5)
+        state = canonical_state.build()
+        self.assertRegex(state["stations_sha256"] or "", r"^[0-9a-f]{64}$")
+        self.assertEqual(state["n_stations_registry"], len(stations.registry()))
+
+    def test_the_hash_is_of_the_bytes_a_consumer_holds(self):
+        """A consumer verifies with a plain SHA-256 of the file; no parsing, no
+        normalisation. If this ever needs anything cleverer, consumers break."""
+        path = observations.CAMPAIGNS_ROOT / stations.REGISTRY_GEOJSON_NAME
+        self.assertEqual(canonical_state.build()["stations_sha256"],
+                         hashlib.sha256(path.read_bytes()).hexdigest())
+
+    def test_every_observed_station_is_in_the_registry(self):
+        """A label in the table with no registry row has no position; a consumer joining
+        on it would silently drop that station's records."""
+        state = canonical_state.build()
+        observed = {s for c in state["campaigns"].values() for s in c["stations"]}
+        self.assertEqual(observed - set(stations.registry()), set())
+        self.assertLessEqual(state["n_stations_total"], state["n_stations_registry"])
 
     def test_retired_campaign_is_not_in_the_published_state(self):
         """pv_2025_2026 is a review pass, not a campaign.
@@ -101,6 +124,27 @@ class TestDiffDetectsRealChanges(unittest.TestCase):
         published["campaigns"]["otono_2025"]["n_stations"] = 20
         problems = canonical_state.diff(published, self.current)
         self.assertTrue(any("otono_2025.n_stations" in p for p in problems), problems)
+
+    def test_regenerated_registry_without_republish_is_caught(self):
+        """The producer's own gate must refuse what the consumers refuse: a GeoJSON
+        rewritten (a moved coordinate, a new altitude) and the contract left behind."""
+        published = json.loads(json.dumps(self.current))
+        published["stations_sha256"] = "0" * 64
+        problems = canonical_state.diff(published, self.current)
+        self.assertTrue(any(p.startswith("stations_sha256") for p in problems), problems)
+
+    def test_registry_station_count_change_is_caught(self):
+        published = json.loads(json.dumps(self.current))
+        published["n_stations_registry"] = 26
+        problems = canonical_state.diff(published, self.current)
+        self.assertTrue(any(p.startswith("n_stations_registry") for p in problems), problems)
+
+    def test_a_pre_schema_5_publish_is_caught(self):
+        """A v4 file has no registry fields at all; that must read as a difference."""
+        published = json.loads(json.dumps(self.current))
+        del published["stations_sha256"], published["n_stations_registry"]
+        problems = canonical_state.diff(published, self.current)
+        self.assertTrue(any("stations_sha256" in p for p in problems), problems)
 
 
 class TestConsumerGuard(unittest.TestCase):

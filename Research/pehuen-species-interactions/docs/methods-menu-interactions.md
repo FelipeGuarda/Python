@@ -60,10 +60,22 @@ Everything below assumes these two are done or explicitly flagged as not done.
   day an animal spends active* — is an interpretable effect size with real units, not a
   shape-comparison statistic. `compareAct()` tests whether two species differ in that
   quantity. It gives the defensible null and effect size that Δ4 structurally lacks.
-- **Practical note:** `transtime()` handles solar anchoring (sunrise/sunset or double
-  anchoring), which matters for Southern-Hemisphere campaigns spanning very different day
-  lengths (Otoño vs Primavera-verano). Without anchoring, seasonal comparisons partly measure
-  photoperiod rather than behaviour.
+- **Practical note — DONE 2026-10-05, and it was not only a seasonal issue.** `transtime()`
+  handles solar anchoring (sunrise/sunset or double anchoring). This note framed it as
+  mattering for comparisons BETWEEN seasons; measured, it matters for the POOLED curves too,
+  which is the stronger claim. Sunrise moves 2.9 h across the year at the site, so a pooled
+  19-month clock-time curve smears any sunrise-locked peak across nearly three hours and
+  flattens it — Rowcliffe et al. (2014) say so explicitly, and exempt only the tropics and
+  short studies. `R/00_timeofday.R` now builds both frames and `03`/`04` report both. Effect
+  on the ten pairs: mean |Δ| 0.055, max 0.179, four of ten Monterroso categories changed (all
+  by widening onto compound labels, which is the 12-18-episode samples showing through).
+  Two limits for Methods: the UTC offset is a declared assumption worth at most 11.4 min, and
+  `get_suntimes()` is approximate and knows no Andean horizon. Citations:
+  **Nouvellet, P., Rasmussen, G.S.A., Macdonald, D.W. & Courchamp, F. (2012)** Noisy clocks
+  and silent sunrises: measurement methods of daily activity pattern. *Journal of Zoology*
+  286: 179-184 (single anchoring); **Vazquez, C., Rowcliffe, J.M., Spoelstra, K. & Jansen,
+  P.A. (2019)** Comparing diel activity patterns of wildlife across latitudes and seasons:
+  time transformation using day length. *Methods in Ecology and Evolution* (double anchoring).
 
 ### A2. Small-sample estimator choice — Δ1 vs Δ4 — ACT ON THIS
 
@@ -650,6 +662,17 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
 - [ ] Obtain and read Niedballa et al. (2019) supplementary R function
 - [ ] Decide whether zenith güiña redeployment enters the next campaign design
 - [ ] Consider contacting Gálvez (PUC Villarrica) — nearest comparable dataset and methods group
+- [ ] **Decide which solar transformation is primary for the paper.** `SOLAR_ANCHOR` is
+      `"average"` (the package default; the axis still reads as local hours). The alternative
+      is `"equinoctial"`, which rescales every day onto sunrise 06:00 / solar noon 12:00 /
+      sunset 18:00 — the presentation Vazquez et al. use for comparison across latitudes and
+      seasons. Both are implemented and swapping is one constant in `R/00_timeofday.R` with no
+      caller change. Open question, and NOT one to settle from the package default: check what
+      the regional comparables (Gálvez's group, Ramírez-Alvarez) actually report.
+- [ ] **Decide whether the solar frame is the headline or the sensitivity run.** `V2-REVIEW`
+      called it a sensitivity run. The argument for promoting it: at 39.4°S over 19 months it
+      is clock time that needs defending, not solar. The argument against: it reverses the
+      producer's own framing. Affects prose, not code — both frames are computed either way.
 - [ ] **Decide whether the season boundary becomes astronomical.** Calendar months
       are a proxy for photoperiod, and photoperiod is what the seasons stand in for at
       38°S — it is also what `activity::transtime()` anchors on, so an activity analysis

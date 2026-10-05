@@ -64,7 +64,11 @@ dir.create(here("figures", "overlap_pairs"), showWarnings = FALSE)
 
 contract_assert_current()
 
-set.seed(42)  # reproducible bootstrap
+# Re-applied at the start of EACH frame's loop, not once for the script. Seeding
+# once would make every clock-frame CI depend on whether the solar frame ran before
+# or after it — a published number silently hostage to the order of a vector.
+BOOT_SEED <- 42L
+set.seed(BOOT_SEED)
 
 
 # ── Constants + Monterroso classification ────────────────────────────────────
@@ -236,9 +240,26 @@ estimate_overlap <- function(times_A, times_B, n_boot = N_BOOT) {
 # is one row per episode, using the rule camera-traps decided at ingest.
 
 record_table <- readRDS(here("data", "record_table.rds"))  # camtrapR format
+source(here::here("R", "00_timeofday.R"))   # for time_frame_label() only
 
-# Named list of time-of-day (radians) vectors — direct input to the overlap package.
-times_by_species <- split(record_table$time_rad, record_table$Species)
+# Named lists of time-of-day (radians) vectors — direct input to the overlap package.
+# Two frames of reference, built in 01_load_data.R by R/00_timeofday.R:
+#
+#   clock  the camera's wall time. Every overlap coefficient this project has ever
+#          published is in this frame.
+#   solar  the same detections relative to that day's sunrise and sunset. Sunrise
+#          moves 2.9 h across the year at 39.4°S, so two species that hold fixed
+#          schedules relative to it can look differently synchronised in clock time
+#          purely because the record spans 19 months.
+#
+# Neither frame is a correction of the other and the solar one does not supersede the
+# published table: the DIFFERENCE between them is the result. A pair whose coefficient
+# barely moves is robust to the smearing; one that moves a Monterroso category was
+# being read partly as photoperiod.
+TIMES_BY_FRAME <- list(
+  clock = split(record_table$time_rad,       record_table$Species),
+  solar = split(record_table$time_solar_rad, record_table$Species)
+)
 
 
 # ── 2. Define species pairs ───────────────────────────────────────────────────
@@ -267,7 +288,11 @@ PAIRS <- list(
 
 message("Computing overlap statistics + Monterroso classification...")
 
-overlap_results <- lapply(PAIRS, function(pair) {
+pairs_for_frame <- function(frame) {
+  times_by_species <- TIMES_BY_FRAME[[frame]]
+  set.seed(BOOT_SEED)   # see BOOT_SEED above: per frame, never once per script
+
+  bind_rows(lapply(PAIRS, function(pair) {
   sp1 <- pair[1]
   sp2 <- pair[2]
   t1  <- times_by_species[[sp1]]
@@ -278,6 +303,7 @@ overlap_results <- lapply(PAIRS, function(pair) {
   fit <- estimate_overlap(t1, t2)
 
   data.frame(
+    frame      = frame,
     sp1        = sp1,
     sp2        = sp2,
     n1         = fit$n_A,
@@ -295,11 +321,18 @@ overlap_results <- lapply(PAIRS, function(pair) {
     ),
     stringsAsFactors = FALSE
   )
-})
+  }))
+}
 
-overlap_df <- bind_rows(overlap_results)
+# Clock first, always. estimate_overlap() is frame-agnostic by design — it takes
+# radians and does not know or care where they came from — so the only thing the
+# frame changes is the input vector.
+overlap_all <- bind_rows(lapply(c("clock", "solar"), pairs_for_frame))
 
-message("\nOverlap coefficients + Monterroso category:")
+# §4 and §5 are the published clock-frame figures and are deliberately unchanged.
+overlap_df <- overlap_all %>% filter(frame == "clock")
+
+message("\nOverlap coefficients + Monterroso category (clock frame):")
 print(overlap_df %>%
       select(pair_label, n1, n2, estimator, estimate, ci_low, ci_high, category))
 
@@ -437,12 +470,125 @@ ggsave(here("figures", "04_overlap_summary.png"),
 message("Saved figures/04_overlap_summary.png")
 
 
+# ── 5b. Figure: what the frame of reference is worth ─────────────────────────
+# A dumbbell, because the quantity of interest is the MOVEMENT between two frames,
+# not either value on its own. One row per pair; the open mark is the clock frame
+# (every coefficient this project has published), the filled mark is the solar frame,
+# and the segment between them is the answer.
+#
+# Guild stays on the facets and the Monterroso bands keep the colours they have in
+# 04_overlap_summary.png, so frame is encoded by SHAPE. Recolouring by frame would
+# make the same red mean "invasive" in one figure of this family and "solar" in the
+# next — identity must follow the entity, not the panel.
+#
+# Pairs whose Monterroso category changes are labelled, because that is the only
+# movement with a consequence for the written interpretation.
+
+frame_wide <- overlap_all %>%
+  select(pair_label, guild_type, estimator, frame, estimate, category) %>%
+  tidyr::pivot_wider(names_from = frame,
+                     values_from = c(estimate, category)) %>%
+  mutate(
+    delta          = estimate_solar - estimate_clock,
+    category_moved = category_clock != category_solar,
+    note           = ifelse(category_moved,
+                            sprintf("%s → %s", category_clock, category_solar), NA),
+    # A pair whose two marks coincide draws as ONE dot, which reads as a missing
+    # series rather than as the result it is. Say it instead of drawing it.
+    still          = abs(delta) < 0.01
+  ) %>%
+  arrange(guild_type, desc(estimate_clock)) %>%
+  mutate(pair_label = factor(pair_label, levels = rev(unique(pair_label))))
+
+frame_long <- overlap_all %>%
+  mutate(pair_label = factor(pair_label, levels = levels(frame_wide$pair_label)),
+         frame = factor(frame, levels = c("clock", "solar")))
+
+fig_frames <- ggplot(frame_wide, aes(y = pair_label)) +
+  geom_rect(data = bands, inherit.aes = FALSE,
+            aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf, fill = fill),
+            alpha = 0.35) +
+  scale_fill_identity() +
+  geom_vline(xintercept = c(LOW_MOD_THRESHOLD, MOD_HIGH_THRESHOLD),
+             linetype = "dashed", colour = "grey40") +
+  geom_segment(aes(x = estimate_clock, xend = estimate_solar,
+                   y = pair_label, yend = pair_label),
+               colour = "grey45", linewidth = 1) +
+  geom_point(data = frame_long, aes(x = estimate, shape = frame),
+             size = 3.2, colour = "grey15", fill = "white", stroke = 0.9) +
+  # Labels in a fixed column clear of the plotting area, not beside each dumbbell:
+  # trailing the longer mark put them across the 0.75 cutoff line on three rows.
+  geom_text(data = subset(frame_wide, category_moved),
+            aes(x = 1.03, label = note),
+            hjust = 0, size = 3.1, colour = "grey25") +
+  geom_text(data = subset(frame_wide, still),
+            aes(x = 1.03, label = "sin movimiento"),
+            hjust = 0, size = 3.1, colour = "grey45", fontface = "italic") +
+  scale_shape_manual(
+    values = c(clock = 21, solar = 19),
+    labels = c(clock = "Reloj de la cámara", solar = "Hora solar"),
+    name   = NULL
+  ) +
+  scale_x_continuous(limits = c(0, 1.25), breaks = seq(0, 1, 0.25),
+                     expand = c(0, 0)) +
+  labs(
+    title    = "¿Cuánto del solapamiento era fotoperiodo?",
+    subtitle = paste0("El mismo par, estimado en los dos marcos de referencia. ",
+                      "El amanecer se corre 2,9 h en el año a 39,4°S."),
+    caption  = paste0(time_frame_label("solar"),
+                      ". Sólo se rotula el par cuya categoría de Monterroso cambia."),
+    x        = "Coeficiente de solapamiento (Δ1 o Δ4)",
+    y        = NULL
+  ) +
+  # facet_grid, not facet_wrap: `space = "free_y"` sizes each panel to its own row
+  # count. With facet_wrap the three native-native pairs got the same panel height
+  # as the seven native-invasive ones and half the figure was blank.
+  facet_grid(guild_type ~ ., scales = "free_y", space = "free_y") +
+  theme_classic(base_size = 13) +
+  theme(
+    legend.position  = "bottom",
+    strip.background = element_blank(),
+    strip.text.y     = element_text(face = "bold", angle = 0),
+    plot.caption     = element_text(hjust = 0, colour = "grey30", size = 9),
+    panel.grid.major.y = element_line(colour = "grey92")
+  )
+
+ggsave(here("figures", "04_overlap_frames.png"),
+       fig_frames, width = 12, height = 6, dpi = 300)
+message("Saved figures/04_overlap_frames.png")
+
+message("\nFrame of reference — what it moved:")
+print(frame_wide %>%
+      select(pair_label, estimate_clock, estimate_solar, delta,
+             category_clock, category_solar) %>%
+      as.data.frame(), digits = 3)
+message(sprintf(
+  "  mean |delta| = %.3f, max |delta| = %.3f, Monterroso categories changed: %d of %d",
+  mean(abs(frame_wide$delta)), max(abs(frame_wide$delta)),
+  sum(frame_wide$category_moved), nrow(frame_wide)))
+
+
 # ── 6. Numeric results table ─────────────────────────────────────────────────
 # Persist the stats table so it can be re-read from other scripts or dropped
-# into the annual report as a table.
+# into the annual report as a table. BOTH frames, with `frame` as the first column:
+# the clock-frame rows are the published series and must not move when the solar
+# frame is added beside them.
 
-stats_out <- overlap_df %>%
-  select(sp1, sp2, guild_type, n1, n2,
+# Row order: the clock block keeps the order it has always had (guild, then
+# descending overlap — §5 used to impose it as a side effect of sorting for the
+# figure, which meant the file's shape depended on a plotting step). It is explicit
+# here, and the SAME pair order is applied to the solar block, so row i of one block
+# and row i of the other are the same pair and the two are readable side by side.
+pair_order <- overlap_all %>%
+  filter(frame == "clock") %>%
+  arrange(guild_type, desc(estimate)) %>%
+  mutate(rank = row_number()) %>%
+  select(sp1, sp2, rank)
+
+stats_out <- overlap_all %>%
+  left_join(pair_order, by = c("sp1", "sp2")) %>%
+  arrange(factor(frame, levels = c("clock", "solar")), rank) %>%
+  select(frame, sp1, sp2, guild_type, n1, n2,
          estimator, estimate, ci_low, ci_high, category)
 
 write.csv(stats_out,

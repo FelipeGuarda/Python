@@ -33,6 +33,11 @@ _CANONICAL_RE = re.compile(CANONICAL_PATTERN)
 _ALIAS_CSV = Path(__file__).resolve().parents[1] / "data" / "campaigns" / "station_aliases.csv"
 _REGISTRY_CSV = Path(__file__).resolve().parents[1] / "data" / "campaigns" / "estaciones.csv"
 
+#: The registry's published projection, next to the CSV it is generated from. Named
+#: once here because two modules need it: setup/build_station_registry.py writes it,
+#: and camtrap/canonical_state.py hashes it into the contract.
+REGISTRY_GEOJSON_NAME = "estaciones.geojson"
+
 
 class UnknownStation(ValueError):
     """A station name is neither canonical nor a known historical alias."""

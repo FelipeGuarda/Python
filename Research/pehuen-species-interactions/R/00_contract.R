@@ -15,11 +15,17 @@
 #     3. the campaign description matches what our  -> compared as the WHOLE declared
 #        data/ was built from                         block, not just the row count
 #
+#     4. the station registry we hold is the one   -> SHA-256 of estaciones.geojson
+#        the contract hashes (schema 5)               against `stations_sha256`; a
+#                                                     mismatch, or no hash, means REFUSE
+#
 #   Two verbs implement that. `contract_load()` is what 01_load_data.R calls before
 #   opening a parquet. `contract_assert_current()` is what every downstream script
 #   calls before reading an .rds: it compares the stamp 01 wrote against the contract
 #   as published NOW, so a campaign re-ingested upstream cannot keep feeding last
 #   month's numbers into a figure. Row 1 of the manual's Fase 10 vigilance table.
+#   The stamp carries the registry hash too, so coordinates republished upstream stop
+#   every script that reads stations_sf.rds, not only 01.
 #
 # A REFUSAL IS A VERDICT, NOT A CRASH
 #   `refuse()` prints what did not match and exits with status 2. An R error exits
@@ -31,8 +37,10 @@
 #   Whether the published contract matches the parquets and deployments.csv on disk
 #   (`deployments_sha256`, `n_rows` against the file). That is the producer's own
 #   `camtrap.canonical_state.verify`, and re-implementing it here would be the second
-#   place a repair has to reach. The one exception is the per-campaign row count in
-#   01_load_data.R, kept because it is the difference between a figure and a stop.
+#   place a repair has to reach. The exceptions are the per-campaign row count in
+#   01_load_data.R, kept because it is the difference between a figure and a stop, and
+#   the registry hash (check 4): the registry is a file THIS project opens, so "is
+#   what I hold what was published" is a question only this side can answer.
 #
 # REQUIRES    jsonlite, here (here::i_am() must have run in the calling script).
 # SOURCED BY  every R/0*.R script. Pure functions return verdicts; only the two
@@ -43,7 +51,10 @@
 # The one schema version this project knows how to read. Bumping it is a deliberate
 # act that must come with a re-read of camera-traps/camtrap/observations.py
 # (CANONICAL_COLUMNS) and of the `needed` list in 01_load_data.R.
-CONTRACT_SCHEMA_VERSION <- 4L
+#   5 (2026-10-05): no column changed; the contract now hashes the station registry,
+#   which this project reads for every coordinate and altitude. contract_load()
+#   verifies it.
+CONTRACT_SCHEMA_VERSION <- 5L
 
 # Display names for the campaign slugs the producer uses. The slug is the identity
 # and travels in every table; the label exists only for figure text. An unknown slug
@@ -80,6 +91,13 @@ contract_path <- function() {
   env <- Sys.getenv("FMA_CANONICAL_STATE", unset = "")
   if (nzchar(env)) return(env)
   file.path(producer_dir(), "data", "CANONICAL_STATE.json")
+}
+
+# The registry is published NEXT TO the contract (camera-traps/data/campaigns/), so
+# its path follows the contract's: a contract overridden to a scratch copy brings its
+# own registry with it, and no second override can point the two at different states.
+registry_path <- function() {
+  file.path(dirname(contract_path()), "campaigns", "estaciones.geojson")
 }
 
 stamp_path <- function() here::here("data", "contract_stamp.json")
@@ -153,6 +171,36 @@ contract_check <- function(state, campaigns) {
 }
 
 
+# Is the registry we are about to read the one the contract hashes? Bytes, not
+# content: the producer hashes the file as written, and any normalisation here would
+# be a second definition of "the same registry".
+contract_registry_check <- function(state, path = registry_path()) {
+  published <- state$stations_sha256
+  regenerate <- paste0(
+    "In camera-traps: python setup/build_station_registry.py --check, then ",
+    "python -m camtrap.canonical_state --publish")
+  if (is.null(published) || length(published) != 1 || is.na(published) ||
+      !nzchar(published)) {
+    return(sprintf(
+      "the contract publishes no stations_sha256, so %s cannot be verified. %s",
+      basename(path), regenerate))
+  }
+  if (!file.exists(path)) {
+    return(sprintf("station registry not found: %s\n    %s", path, regenerate))
+  }
+  held <- unname(tools::sha256sum(path))
+  if (!identical(held, published)) {
+    return(sprintf(
+      paste0("%s is not the registry the contract publishes (sha256 held %s, ",
+             "published %s; %s stations published). Coordinates and altitudes would ",
+             "be read unverified. %s"),
+      path, substr(held, 1, 12), substr(published, 1, 12),
+      format(state$n_stations_registry), regenerate))
+  }
+  character()
+}
+
+
 # One string per field, stable across a JSON round trip, so two descriptions can be
 # compared field by field and the refusal can NAME what moved.
 .canon <- function(x) {
@@ -169,9 +217,10 @@ contract_check <- function(state, campaigns) {
 # declared block of every campaign it read, verbatim. Readable on purpose.
 contract_stamp <- function(state, campaigns) {
   list(
-    schema_version = CONTRACT_SCHEMA_VERSION,
-    written_at     = format(Sys.time(), "%Y-%m-%dT%H:%M:%S", tz = "UTC"),
-    campaigns      = state$campaigns[campaigns]
+    schema_version  = CONTRACT_SCHEMA_VERSION,
+    written_at      = format(Sys.time(), "%Y-%m-%dT%H:%M:%S", tz = "UTC"),
+    stations_sha256 = state$stations_sha256,
+    campaigns       = state$campaigns[campaigns]
   )
 }
 
@@ -209,6 +258,11 @@ contract_compare <- function(stamp, state) {
       "data/ was built under schema_version %s; this project now reads %d. Re-run R/01_load_data.R.",
       format(stamp$schema_version), CONTRACT_SCHEMA_VERSION))
   }
+  if (!identical(.canon(stamp$stations_sha256), .canon(state$stations_sha256))) {
+    reasons <- c(reasons, sprintf(
+      "stations_sha256: data/ built from registry %s, published now %s -- station coordinates or altitudes moved.",
+      .canon(stamp$stations_sha256), .canon(state$stations_sha256)))
+  }
   for (c in names(stamp$campaigns)) {
     now <- state$campaigns[[c]]
     if (is.null(now)) {
@@ -238,12 +292,13 @@ contract_compare <- function(stamp, state) {
 contract_load <- function(campaigns, path = contract_path()) {
   r <- contract_read(path)
   if (length(r$reasons)) refuse(r$reasons)
-  reasons <- contract_check(r$state, campaigns)
+  reasons <- c(contract_check(r$state, campaigns), contract_registry_check(r$state))
   if (length(reasons)) refuse(reasons)
   message(sprintf(
-    "Contract verified: schema_version %d, %s rows, %s stations, campaigns: %s",
+    "Contract verified: schema_version %d, %s rows, %s stations, campaigns: %s; registry %s stations, sha256 %s",
     CONTRACT_SCHEMA_VERSION, format(r$state$n_rows_total, big.mark = ","),
-    r$state$n_stations_total, paste(campaigns, collapse = ", ")))
+    r$state$n_stations_total, paste(campaigns, collapse = ", "),
+    r$state$n_stations_registry, substr(r$state$stations_sha256, 1, 12)))
   invisible(r$state)
 }
 

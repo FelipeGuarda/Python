@@ -1,5 +1,5 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "columns": [
     "campaign",
     "camera_num",
@@ -190,5 +190,7 @@
     }
   },
   "n_rows_total": 35807,
-  "n_stations_total": 27
+  "n_stations_total": 27,
+  "stations_sha256": "10c5680f0f29ed2c96ad0d2328586d433338429e1256b0037ff5fc980c4ae6e0",
+  "n_stations_registry": 27
 }

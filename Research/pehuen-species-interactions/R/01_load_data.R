@@ -9,7 +9,8 @@
 #   - data/CANONICAL_STATE.json                        the contract; verified FIRST
 #   - data/campaigns/<campaign>/observations.parquet   the canonical table
 #   - data/campaigns/<campaign>/deployments.csv        field windows and effort
-#   - data/campaigns/estaciones.geojson                station coordinates       (*)
+#   - data/campaigns/estaciones.geojson                station coordinates; its SHA-256
+#                                                      is verified against the contract
 #   - plataforma-territorial/data/boundary.geojson     reserve boundary (platform's) (*)
 #
 #   (*) NOT covered by the contract: existence is refused here, content is not
@@ -45,7 +46,7 @@
 
 library(here)        # reproducible relative paths, anchored by .here in the project
 library(dplyr)
-library(lubridate)   # hour(), minute(), second()
+library(lubridate)   # hour(); the radian conversions moved to R/00_timeofday.R
 library(sf)          # GeoJSON
 library(jsonlite)    # used by R/00_contract.R
 
@@ -71,6 +72,7 @@ library(jsonlite)    # used by R/00_contract.R
 here::i_am("R/01_load_data.R")
 source(here::here("R", "00_contract.R"))
 source(here::here("R", "00_admissibility.R"))
+source(here::here("R", "00_timeofday.R"))
 
 
 # ── 1. Campaigns and species ─────────────────────────────────────────────────
@@ -98,37 +100,25 @@ SPECIES_FILTER <- names(FOCAL_SPECIES)
 
 
 # ── 2. The handshake: verify the contract before opening anything ────────────
-# Absent, unreadable, wrong schema or missing campaign all REFUSE here with exit
-# status 2. Nothing below runs against an unverified contract.
+# Absent, unreadable, wrong schema, missing campaign, or a station registry that is
+# not the one the contract hashes all REFUSE here with exit status 2. Nothing below
+# runs against an unverified contract.
 
 state <- contract_load(CAMPAIGNS)
 
 CAMPAIGNS_DIR <- file.path(producer_dir(), "data", "campaigns")
-PATH_GEOJSON  <- file.path(CAMPAIGNS_DIR, "estaciones.geojson")
+PATH_GEOJSON  <- registry_path()   # verified byte-for-byte by contract_load() above
 PATH_BOUNDARY <- file.path(monorepo_root(), "plataforma-territorial", "data", "boundary.geojson")
 
-# These two GeoJSONs are the inputs the CONTRACT DOES NOT COVER. It hashes
-# deployments.csv and describes observations.parquet column by column, but it says
-# nothing about the station registry, and the boundary belongs to a second producer
-# with no contract at all. So their absence is checked here rather than left to
-# st_read, which errors -- and an error exits 1, which reads as a crash. A published
-# input that is not there is a verdict about the upstream state, so it exits 2 like
-# every other one.
-#
-# What is still unverified is their CONTENT. camera-traps guards the registry against
-# drift from estaciones.csv, which owns station identity (setup/build_station_registry.py
-# --check, and a test), but that guarantee is not visible from here: nothing in
-# CANONICAL_STATE.json would let this script notice a moved coordinate or a changed
-# altitude_m. See README, "Inputs the contract does not cover".
-spatial_missing <- c(
-  if (!file.exists(PATH_GEOJSON)) sprintf(
-    "station registry not found: %s\n    In camera-traps: python setup/build_station_registry.py",
-    PATH_GEOJSON),
-  if (!file.exists(PATH_BOUNDARY)) sprintf(
-    "reserve boundary not found: %s\n    Published by plataforma-territorial, not by camera-traps.",
-    PATH_BOUNDARY)
-)
-if (length(spatial_missing)) refuse(spatial_missing, what = "spatial inputs")
+# The reserve boundary is the one input the CONTRACT DOES NOT COVER: it belongs to a
+# second producer with no contract at all. So its absence is checked here rather than
+# left to st_read, which errors -- and an error exits 1, which reads as a crash. A
+# published input that is not there is a verdict about the upstream state, so it exits
+# 2 like every other one. Its CONTENT is unverified. See README, "Inputs the contract
+# does not cover".
+if (!file.exists(PATH_BOUNDARY)) refuse(sprintf(
+  "reserve boundary not found: %s\n    Published by plataforma-territorial, not by camera-traps.",
+  PATH_BOUNDARY), what = "spatial inputs")
 
 dir.create(here("data"), showWarnings = FALSE)
 
@@ -299,9 +289,19 @@ records_all <- records_joined %>%
     # NA where the clock could not be repaired; an unknown hour is never imputed.
     date     = as.Date(datetime),
     hour     = hour(datetime),
-    # Time of day in radians (0..2*pi), the `overlap` package's input.
-    time_rad = (hour(datetime) * 3600 + minute(datetime) * 60 + second(datetime)) /
-               86400 * 2 * pi,
+    # Time of day in radians (0..2*pi), the `overlap` package's input, in BOTH
+    # frames of reference. R/00_timeofday.R owns the conversion; this file used to
+    # own the clock half and there is no second copy of it any more.
+    #   time_rad        the camera's wall clock, which is what every figure before
+    #                   2026-10-05 was built on.
+    #   time_solar_rad  the same detection relative to that day's sunrise and sunset.
+    #                   Sunrise moves 2.9 h across the year here, so a species with a
+    #                   fixed schedule relative to it is smeared across nearly three
+    #                   hours of clock time. Rowcliffe et al. (2014) names the
+    #                   consequence: flattened peaks and overestimated activity level.
+    # Neither replaces the other. 03 and 04 report both and the difference IS a result.
+    time_rad       = clock_rad(datetime),
+    time_solar_rad = solar_rad(datetime),
     # A FLAG, not a filter. Presence needs a station, not a clock; activity needs
     # both. Each script asks for the rule it needs through R/00_admissibility.R.
     time_admissible = !is.na(datetime) & valid_date & valid_time_of_day
@@ -337,8 +337,15 @@ print(table(records_all$species_label, records_all$campaign))
 
 # ── 8. camtrapR tables ───────────────────────────────────────────────────────
 # RECORD TABLE: one row per EPISODE (the producer's rule), time-admissible only,
-# because activityDensity() and activityOverlap() read the hour. time_rad is carried
-# so 04_temporal_overlap.R's numeric and visual layers use the same rows.
+# because activityDensity() and activityOverlap() read the hour. Both radian columns
+# are carried so 04_temporal_overlap.R's numeric and visual layers use the same rows.
+#
+# NOTE for anyone extending the camtrapR figures: activityDensity() and
+# activityOverlap() take `recordDateTimeCol` and derive the hour themselves. There is
+# no radians entry point, so THE CAMTRAPR PANELS CANNOT BE PUT INTO THE SOLAR FRAME.
+# They stay on the clock, and the solar-frame figures are ggplot-only. That is safe
+# because the two layers were proved to agree to 1e-16 on 2026-09-15; it is not an
+# oversight.
 
 record_table <- episodes(records_all, quiet = TRUE) %>%
   transmute(
@@ -348,6 +355,7 @@ record_table <- episodes(records_all, quiet = TRUE) %>%
     Date             = date,
     Time             = format(datetime, "%H:%M:%S"),
     time_rad         = time_rad,
+    time_solar_rad   = time_solar_rad,
     Campaign         = campaign
   )
 

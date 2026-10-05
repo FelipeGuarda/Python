@@ -1,6 +1,43 @@
 # FMA Project Status
 
-**Last updated:** 2026-09-15 — **pehuén: todos los coeficientes de solapamiento estaban mal, y la campaña no era una temporada.**
+**Last updated:** 2026-10-05 — **el registro de estaciones entra en el contrato (schema 4 → 5).**
+
+`camera-traps/data/CANONICAL_STATE.json` publica ahora, en el nivel superior, `stations_sha256`
+(SHA-256 de los bytes de `estaciones.geojson`) y `n_stations_registry` (27). Hasta hoy cada
+coordenada y cada `altitude_m` cruzaba la frontera sin verificar: `stations` lista etiquetas
+observadas en la tabla, no el registro. El `diff()` del productor compara ambos campos, así que
+regenerar el GeoJSON sin `--publish` falla también aquí. Un `.gitattributes` nuevo fija LF en los
+archivos con hash, para que un checkout en Windows no rechace un archivo correcto. **317 tests
+pasan** (6 nuevos); ningún parquet se tocó.
+
+**pehuén verifica el registro.** `contract_load()` compara el hash y se niega con salida 2,
+nombrando los comandos que regeneran. El stamp lleva el hash, así que 02–06 se niegan si el
+registro se republica. Se probaron cuatro negativas sobre copias adulteradas en un scratch, todas
+con salida 2 y `data/` intacto:
+- hash alterado;
+- hash ausente;
+- una latitud movida 1e-5° (unos 1 m);
+- stamp viejo.
+
+Tras re-correr la cadena completa, **`overlap_stats.csv` es byte-idéntico** a HEAD y los seis `.rds`
+son idénticos por digest de contenido. 33 aserciones en el gate (eran 25). La covariable de altitud
+y el anclaje a hora solar quedan desbloqueados por el lado de los datos.
+
+**Integration status:**
+- camera-traps: `Ready` (lado productor).
+- pehuén: `In Progress [REMAINING: R/00_detection_history.R, R/07_power_cooccurrence.R]`.
+- data-pipeline: `Pending [bump deliberado 3 → 5]`.
+
+**Blockers/Notes.**
+- **data-pipeline sigue en schema 3 y se niega en ejecución desde 2026-08-26**: `ct_*` en DuckDB
+  está congelado en la última ingesta v3. Quedó fuera de esta sesión por decisión; lo que implica
+  llevarlo a 5 está en V2-REVIEW §0-septies.
+- **`review_outcome` vacío → `not_applicable` no se agrupó, y no movería ningún stamp**, porque el
+  contrato no describe dominios de valores. Si debería describirlos es una decisión abierta.
+
+---
+
+**Prior — 2026-09-15 — pehuén: todos los coeficientes de solapamiento estaban mal, y la campaña no era una temporada.**
 
 **Los diez coeficientes publicados eran incorrectos.** `estimate_overlap()` entregaba la salida de
 `densityFit()` — valores de densidad — a `overlap::overlapEst(A, B)` y `bootstrap(A, B)`, cuyos
@@ -63,14 +100,67 @@ fijo de `03` (sus curvas no coincidían con las de camtrapR del mismo script; ah
 juego viejo quedaba), más imports y una constante muertos. Estado en
 `Reviews/review-state-pehuen-species-interactions.md`: **cero hallazgos abiertos**.
 
+### 2026-10-05 — pehuén mide la hora como la mide el animal
+
+El registro abarca 19 meses a 39,4°S y **el amanecer se corre 2,9 h en el año** (08:07 el
+2025-06-20, 05:17 el 2025-12-20; el día pasa de 9,4 a 15,0 h). Una curva de actividad en hora del
+reloj, agrupada sobre ese lapso, unta cualquier pico anclado al amanecer sobre casi tres horas y lo
+aplana. Rowcliffe et al. (2014) lo dicen y eximen sólo a los trópicos y a los estudios cortos.
+
+**No es una idea nueva: es la pieza 3 de una decisión ya tomada aguas arriba.** El
+`DATA-HEALTH-MANUAL.md` §5.3 de camera-traps prohíbe ajustar los relojes al horario civil
+*precisamente porque* «el marco defendible para un análisis de actividad es el solar»; `V2-REVIEW`
+dejó «la corrida de sensibilidad anclada al sol en pehuén (pieza 3)» explícitamente fuera de
+alcance. Esto la cierra.
+
+Nuevo `R/00_timeofday.R` — dueño único de dónde cae una detección en el círculo de 24 h, en los dos
+marcos. `activity::transtime()` con doble anclaje a amanecer y ocaso (Nouvellet et al. 2012;
+Vazquez et al. 2019); la geometría solar es del paquete y el test la ancla a una llamada directa,
+no la reimplementa.
+
+**Lo que movió:** |Δ| medio 0,055, máximo 0,179 (Puma × Jabalí), **cuatro de diez categorías de
+Monterroso cambiaron** — las cuatro ensanchando hacia etiquetas compuestas, que es el n de 12–18
+episodios asomando, no una afirmación biológica nueva. La lectura de titular sobrevive: los nativos
+mantienen solapamiento **bajo** con el perro en los dos marcos. `overlap_stats.csv` pasa de 10 a 20
+filas con una columna `frame`, y **las diez filas del reloj quedan idénticas fila por fila** a las
+commiteadas: el bootstrap se re-siembra por marco, para que un IC publicado no dependa de si el
+marco solar corrió antes o después.
+
+**Tres trampas medidas, no supuestas.**
+- `transtime(type="average")` toma por defecto su referencia del promedio de los anclajes **que le
+  pasan**, así que sin fijarla la misma detección se movía **42 minutos** según cuántas filas
+  recibiera la función — y 04 la llama sobre subconjuntos por especie. Queda fijada al ciclo anual
+  del sitio y el test lo prueba.
+- El desfase UTC (−4, horario de invierno) es un **supuesto declarado**: los relojes se ajustaron
+  una vez y la pieza 2 — el offset por despliegue — no está publicada. Medido: un −3 en vez de −4
+  mueve cualquier detección **a lo más 11,4 minutos**.
+- **Una coordenada de sitio basta, y está medido**: el amanecer difiere **15,7 segundos** entre las
+  dos esquinas extremas del arreglo contra un vaivén anual de 2,9 h. El módulo no lee ningún
+  archivo de estaciones, así que este trabajo **no dependía del schema 5** — corrieron en paralelo.
+
+**Los paneles de camtrapR se quedan en el reloj y no pueden moverse**: `activityDensity()` y
+`activityOverlap()` reciben `recordDateTimeCol` y derivan la hora por dentro. `test_overlap.R`
+ahora afirma las dos mitades — camtrapR coincide con `time_rad` y **discrepa** con
+`time_solar_rad` — para que nadie «arregle» la limitación escribiendo hora solar en
+`DateTimeOriginal` sin que la suite falle.
+
+Seis scripts salen 0; 139 aserciones pasan (33 + 41 + 30 + 35). Dos figuras nuevas:
+`03_activity_frames.png`, `04_overlap_frames.png`.
+
 **Integration status:** `In Progress [REMAINING: R/00_detection_history.R, R/07_power_cooccurrence.R]`.
 Objetivo fijado en paper con revisión de pares. Rota (co-ocupación multiespecie) se zanja con una
 prueba de potencia simulada con el n de este arreglo, no con la cita de 400 sitios — el menú de
 métodos y el `FMA_camera_trap_methods_synthesis.pdf` se contradicen y los dos están en el repo.
 
-**Blockers/Notes.** Dos cambios aguas arriba invalidarán el stamp del consumidor cuando lleguen:
-`stations_sha256` (bump a schema 5; sin él la altitud cruza la frontera sin verificar y no se puede
-defender como covariable) y `review_outcome` vacío → `not_applicable`. La frontera estacional podría
+**Blockers/Notes.** `stations_sha256` **llegó** el 2026-10-05 (schema 5, consumido y verificado);
+queda `review_outcome` vacío → `not_applicable`, que invalidará el stamp cuando llegue.
+⚠️ **`data-pipeline` sigue en schema 3 y por lo tanto REHÚSA contra el contrato publicado.** No es
+un bump de número: su propio mensaje de error lo dice, y la causa real es que `episode_30min` —
+la columna que agregó el schema 4 — no aparece en `src/`, mientras `schema.sql` declara `eventID`
+siempre NULL. El id de evento independiente del productor nunca llegó al almacén, y por eso la
+plataforma calcula un tercer solapamiento propio desde histogramas horarios
+(`plataforma-territorial/backend/routers/detections.py:499`). Cerrarlo cambia conteos publicados
+en la plataforma y necesita su propia sesión. La frontera estacional podría
 moverse a solsticios/equinoccios — a 38°S el fotoperiodo es lo que la temporada aproxima, y es a lo
 que ancla `activity::transtime()`; `R/00_seasons.R` está hecho para ese cambio (una tabla, ningún
 llamador).

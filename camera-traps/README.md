@@ -89,7 +89,35 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-09-09 — **the malfunction check becomes a question the form asks.**
+**Last Updated:** 2026-10-05 — **the station registry enters the contract (schema_version 4 → 5).**
+
+**What Changed.** `CANONICAL_STATE.json` now publishes, top-level, `stations_sha256` (SHA-256 of
+the bytes of `data/campaigns/estaciones.geojson`) and `n_stations_registry` (27). Until now
+every coordinate and altitude crossed the boundary unverified: `stations` lists labels observed
+in the table, not the registry, and `build_station_registry.py --check` guards drift only on
+this side. `diff()` checks both fields, so a GeoJSON regenerated without `--publish` now fails
+`python -m camtrap.canonical_state` here, as it does for consumers. The builder prints the
+re-publish command after a write. The GeoJSON filename has one owner
+(`camtrap.stations.REGISTRY_GEOJSON_NAME`). New `.gitattributes` pins the hashed files to LF so a
+Windows checkout cannot refuse a correct file. No parquet was touched; the contract diff is the
+version and two fields. **317 tests pass** (6 new).
+
+**For any consumer that reads station coordinates or altitudes:** compare a SHA-256 of the
+GeoJSON you hold against `stations_sha256` and refuse on mismatch or absence. Look for the file
+next to the contract, not by a path of your own. Recipe in the `canonical_state.py` docstring;
+manual §10F.2 item 4.
+
+**Integration Status:** `Ready` (producer side). pehuen reads schema 5 and verifies the registry.
+**data-pipeline is still pinned to 3** and has refused at runtime since 2026-08-26. It was left
+out of this session by decision; see V2-REVIEW §0-septies for what bringing it to 5 involves.
+
+**Blockers/Notes.** `review_outcome` "" → `not_applicable` was deliberately not bundled, and it
+would **not** move any consumer stamp, because the contract describes no value domains. See
+V2-REVIEW §0-septies.
+
+---
+
+**Prior — 2026-09-09 — the malfunction check becomes a question the form asks.**
 
 `docs/CONTRASTE-SILVA-RODRIGUEZ-2025.md` maps our chain against Silva-Rodríguez et al. (2025,
 *J Appl Ecol*, DOI 10.1111/1365-2664.70010), the first published protocol for quality control

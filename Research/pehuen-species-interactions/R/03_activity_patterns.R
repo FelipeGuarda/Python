@@ -43,6 +43,7 @@ here::i_am("R/03_activity_patterns.R")
 source(here::here("R", "00_contract.R"))
 source(here::here("R", "00_admissibility.R"))
 source(here::here("R", "00_figures.R"))
+source(here::here("R", "00_timeofday.R"))
 dir.create(here("figures"), showWarnings = FALSE)
 dir.create(here("figures", "activity_individual"), showWarnings = FALSE)
 
@@ -120,12 +121,17 @@ message(sprintf("Saved per-species plots to figures/activity_individual/ (%d ren
 # density vector at 512 equally-spaced points from 0 to 2π.  We then convert
 # the radian grid back to hours (0–24) for a readable x-axis.
 
-activity_density <- function(record_table, species_lbl) {
-  # (a) time_rad for this species' episodes, computed in 01_load_data.R as
-  #       (hour*3600 + min*60 + sec) / 86400 * 2π
+activity_density <- function(record_table, species_lbl, frame = "clock") {
+  # (a) The episodes' position on the 24-hour circle, in the requested frame of
+  #     reference. Both columns are built in 01_load_data.R by R/00_timeofday.R,
+  #     which owns both conversions; this function selects, it does not derive.
+  time_col <- switch(frame,
+                     clock = "time_rad",
+                     solar = "time_solar_rad",
+                     stop(sprintf("activity_density(): unknown frame '%s'.", frame)))
   times <- record_table %>%
     filter(Species == species_lbl) %>%
-    pull(time_rad)
+    pull(.data[[time_col]])
 
   if (length(times) < 10) {
     warning(sprintf("Only %d episodes for %s — density may be unreliable.", length(times), species_lbl))
@@ -159,13 +165,21 @@ activity_density <- function(record_table, species_lbl) {
   #     Verified 2026-09-15: after this, ours and camtrapR's curves agree to 1e-16.
   data.frame(
     species_label = species_lbl,
+    frame         = frame,
     hour          = seq(0, 24, length.out = 512),
     density       = fit * (2 * pi / 24)
   )
 }
 
-density_list <- lapply(SPECIES_ORDER, function(sp) activity_density(record_table, sp))
-density_df   <- bind_rows(density_list) %>%
+density_df <- bind_rows(lapply(SPECIES_ORDER, function(sp)
+                 activity_density(record_table, sp, "clock"))) %>%
+  mutate(species_label = factor(species_label, levels = SPECIES_ORDER))
+
+# The same curves in the solar frame. Kept separate rather than merged into
+# density_df: figures 5-7 below are the published clock-frame series and must not
+# silently acquire a second set of lines.
+density_solar_df <- bind_rows(lapply(SPECIES_ORDER, function(sp)
+                      activity_density(record_table, sp, "solar"))) %>%
   mutate(species_label = factor(species_label, levels = SPECIES_ORDER))
 
 
@@ -173,14 +187,27 @@ density_df   <- bind_rows(density_list) %>%
 # Dawn and dusk bands (05:00–07:00 and 18:00–20:00) mark the crepuscular window.
 # All other styling is shared so native and invasive panels look identical.
 
-plot_activity <- function(df, title_text) {
+plot_activity <- function(df, title_text, frame = "clock") {
+  # The twilight annotation is NOT the same object in the two frames, and drawing
+  # the clock version on a solar panel would be a false statement about the data.
+  #   clock  sunrise wanders 2.9 h across the year, so the best that can be drawn
+  #          is an approximate band.
+  #   solar  the transformation puts sunrise and sunset on the site's annual mean
+  #          for EVERY day, so they are exact lines, not bands. That is the whole
+  #          point of the frame and the figure should show it.
+  twilight <- if (identical(frame, "solar")) {
+    sun_h <- SOLAR_MNANCHOR * 12 / pi
+    list(geom_vline(xintercept = sun_h, colour = "darkorange", linewidth = 0.6))
+  } else {
+    list(annotate("rect", xmin = 5,  xmax = 7,  ymin = -Inf, ymax = Inf,
+                  fill = "orange", alpha = 0.08),
+         annotate("rect", xmin = 18, xmax = 20, ymin = -Inf, ymax = Inf,
+                  fill = "orange", alpha = 0.08))
+  }
+
   ggplot(df, aes(x = hour, y = density, colour = species_label)) +
     geom_line(linewidth = 1.1) +
-    # Shade approximate twilight windows
-    annotate("rect", xmin = 5,  xmax = 7,  ymin = -Inf, ymax = Inf,
-             fill = "orange", alpha = 0.08) +
-    annotate("rect", xmin = 18, xmax = 20, ymin = -Inf, ymax = Inf,
-             fill = "orange", alpha = 0.08) +
+    twilight +
     scale_x_continuous(
       breaks = c(0, 3, 6, 9, 12, 15, 18, 21, 24),
       labels = c("00:00", "03:00", "06:00", "09:00", "12:00",
@@ -190,8 +217,12 @@ plot_activity <- function(df, title_text) {
     scale_colour_manual(values = SPECIES_COLORS, name = NULL) +
     labs(
       title    = title_text,
-      subtitle = sprintf("Kernel density (von Mises) on independent episodes (%d-min rule); shaded bands = approx. dawn/dusk", EPISODE_GAP_MINUTES),
-      x        = "Time of day",
+      subtitle = sprintf("Kernel density (von Mises) on independent episodes (%d-min rule); %s",
+                         EPISODE_GAP_MINUTES,
+                         if (identical(frame, "solar"))
+                           "líneas = amanecer y ocaso (exactos en este marco)"
+                         else "shaded bands = approx. dawn/dusk"),
+      x        = time_frame_label(frame),
       y        = "Activity density"
     ) +
     theme_classic(base_size = 13) +
@@ -206,7 +237,8 @@ plot_activity <- function(df, title_text) {
 
 fig_native <- plot_activity(
   filter(density_df, species_label %in% NATIVE_LABELS),
-  "Daily activity patterns — native carnivores"
+  "Daily activity patterns — native carnivores",
+  "clock"
 )
 
 ggsave(here("figures", "03_activity_native_carnivores.png"),
@@ -218,7 +250,8 @@ message("Saved figures/03_activity_native_carnivores.png")
 
 fig_invasive <- plot_activity(
   filter(density_df, species_label %in% INVASIVE_LABELS),
-  "Daily activity patterns — invasive species"
+  "Daily activity patterns — invasive species",
+  "clock"
 )
 
 ggsave(here("figures", "03_activity_invasive_species.png"),
@@ -252,4 +285,73 @@ fig_all <- ggplot(density_df, aes(x = hour, y = density)) +
 ggsave(here("figures", "03_activity_all_species.png"),
        fig_all, width = 11, height = 6, dpi = 300)
 message("Saved figures/03_activity_all_species.png")
+
+
+# ── 8. Figure: the same curves in both frames of reference ───────────────────
+# Rows are species, columns are the frame. Reading across a row shows what pooling
+# 19 months of clock time costs: sunrise moves 2.9 h over the year at 39.4°S, so a
+# peak held relative to sunrise is smeared across nearly three hours of clock time,
+# and the curve is flatter than the behaviour. Rowcliffe et al. (2014) name the
+# consequence — flattened peaks, OVERESTIMATED activity level.
+#
+# Only species the A2 rule allows a curve for. Of the six, puma (12), guiña (14) and
+# jabalí (18) are in the "plot but do not interpret" band or below; putting them in a
+# figure whose subject is a difference between two curves would invite reading a
+# difference that is sampling noise. The figure says which are missing and why.
+
+FRAME_MIN_EPISODES <- 30
+
+frame_n <- record_table %>% count(Species, name = "n")
+frame_species <- frame_n %>% filter(n >= FRAME_MIN_EPISODES) %>% pull(Species)
+frame_skipped <- frame_n %>% filter(n <  FRAME_MIN_EPISODES)
+
+both_frames <- bind_rows(density_df, density_solar_df) %>%
+  filter(species_label %in% frame_species) %>%
+  left_join(frame_n, by = c("species_label" = "Species")) %>%
+  mutate(
+    species_n = sprintf("%s (n = %d)", species_label, n),
+    frame_lbl = factor(ifelse(frame == "clock",
+                              "Reloj de la cámara", "Hora solar"),
+                       levels = c("Reloj de la cámara", "Hora solar"))
+  )
+
+sun_h <- SOLAR_MNANCHOR * 12 / pi
+sun_lines <- data.frame(
+  frame_lbl = factor("Hora solar",
+                     levels = levels(both_frames$frame_lbl)),
+  x = sun_h
+)
+
+fig_frames <- ggplot(both_frames, aes(x = hour, y = density)) +
+  geom_vline(data = sun_lines, aes(xintercept = x),
+             colour = "darkorange", linewidth = 0.6) +
+  geom_line(aes(colour = species_label), linewidth = 1.1, show.legend = FALSE) +
+  facet_grid(species_n ~ frame_lbl, scales = "free_y") +
+  scale_x_continuous(breaks = c(0, 6, 12, 18, 24),
+                     labels = c("0", "6", "12", "18", "24")) +
+  scale_colour_manual(values = SPECIES_COLORS) +
+  labs(
+    title    = "La misma actividad, en dos marcos de referencia",
+    subtitle = paste0("A 39,4°S el amanecer se corre 2,9 h en el año, de modo que una hora fija\n",
+                      "del reloj no es una hora fija del día. Las líneas naranjas son el amanecer\n",
+                      "y el ocaso: exactos en el marco solar, sólo aproximables en el del reloj."),
+    caption  = sprintf(
+      "%s\nSin curva: %s — bajo %d episodios independientes (regla A2 del menú de métodos).",
+      time_frame_label("solar"),
+      paste(sprintf("%s (%d)", frame_skipped$Species, frame_skipped$n), collapse = ", "),
+      FRAME_MIN_EPISODES),
+    x        = "Hora",
+    y        = "Densidad de actividad"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(strip.background = element_blank(),
+        strip.text.y     = element_text(face = "italic"),
+        strip.text.x     = element_text(face = "bold"),
+        plot.caption     = element_text(hjust = 0, colour = "grey30", size = 9))
+
+ggsave(here("figures", "03_activity_frames.png"),
+       fig_frames, width = 10, height = 7.6, dpi = 300)
+message(sprintf("Saved figures/03_activity_frames.png (%d species; skipped %s)",
+                length(frame_species),
+                paste(frame_skipped$Species, collapse = ", ")))
 message("Run 04_temporal_overlap.R next.")

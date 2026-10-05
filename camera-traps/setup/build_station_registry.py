@@ -43,7 +43,7 @@ from camtrap import stations  # noqa: E402
 
 # camera-traps/setup/build_station_registry.py -> parents[1] = camera-traps/
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
-_GEOJSON_REL = Path("data/campaigns/estaciones.geojson")
+_GEOJSON_REL = Path("data/campaigns") / stations.REGISTRY_GEOJSON_NAME
 
 #: Emitted for every feature; the artifact describes camera traps and nothing else.
 _STATION_TYPE = "camera_trap"
@@ -187,6 +187,9 @@ def main() -> int:
     if changed:
         for p in changed:
             print(f"wrote {p.relative_to(_PROJECT_ROOT)}")
+        # The GeoJSON is hashed into CANONICAL_STATE.json (stations_sha256). Until the
+        # contract is re-published, consumers refuse it -- correctly.
+        print("Re-publish the contract: python -m camtrap.canonical_state --publish")
     else:
         print("no change")
     print(f"{n} stations from {stations._REGISTRY_CSV.name}")

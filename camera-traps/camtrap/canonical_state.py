@@ -26,6 +26,11 @@ From a consumer (Python):
 
 From a consumer in R or SQL: read the JSON, compare `columns` against your frame's
 names and `campaigns[<name>].n_rows` against your row count, and stop if they differ.
+
+A consumer that reads station coordinates or altitudes from `campaigns/estaciones.geojson`
+must also compare the SHA-256 of the file it holds against `stations_sha256`, and stop
+if they differ or if the contract publishes none. Any SHA-256 of the raw bytes will do
+(`hashlib.sha256`, R's `tools::sha256sum`, `sha256sum`); nothing needs parsing.
 """
 
 from __future__ import annotations
@@ -39,6 +44,7 @@ from pathlib import Path
 import pandas as pd
 
 from camtrap.deployments import DEPLOYMENTS_FILENAME
+from camtrap.stations import REGISTRY_GEOJSON_NAME
 from camtrap.observations import (
     CAMPAIGNS_ROOT,
     CANONICAL_COLUMNS,
@@ -61,7 +67,16 @@ from camtrap.observations import (
 #   disagreed (523 events against 696, a 33% undercount in the script that writes
 #   events_clean.parquet). A rule that lives in its consumers drifts, because nothing
 #   compares the copies. See camtrap/episodes.py.
-SCHEMA_VERSION = 4
+#
+#   4 -> 5 (2026-10-05): the station registry, `estaciones.geojson`, is now hashed
+#   (`stations_sha256`) and counted (`n_stations_registry`). Until now every coordinate
+#   and every altitude crossed the boundary unverified: the contract's `stations` field
+#   lists labels OBSERVED IN THE TABLE, not the registry file, and the guard against
+#   GeoJSON drift (build_station_registry.py --check and its test) runs only here, where
+#   a consumer cannot see it. A consumer holding the GeoJSON could not tell whether it was
+#   the one last published -- and occupancy with an altitude covariate, or activity
+#   anchored to solar time, make those numbers load-bearing. V2-REVIEW §0-septies.
+SCHEMA_VERSION = 5
 
 STATE_FILENAME = "CANONICAL_STATE.json"
 DEFAULT_STATE_PATH = CAMPAIGNS_ROOT.parent / STATE_FILENAME
@@ -131,6 +146,25 @@ def _describe(campaign: str, root: Path) -> dict:
     }
 
 
+def _describe_registry(root: Path) -> dict:
+    """The published station registry, summarised so a consumer can check its copy.
+
+    Top-level rather than per campaign: there is one registry for the whole array,
+    published once, and repeating it inside each campaign block would say three times
+    something that can only be true once.
+
+    The hash is of the GeoJSON's BYTES, so a consumer verifies with any SHA-256 of the
+    file it holds and needs no parser. `n_stations_registry` counts the features of that
+    same file -- it describes the bytes the hash covers, not the CSV behind them -- and
+    lets a refusal say "published 27, holding 28" rather than only "hash differs".
+    """
+    path = root / REGISTRY_GEOJSON_NAME
+    if not path.exists():
+        return {"stations_sha256": None, "n_stations_registry": None}
+    features = json.loads(path.read_text(encoding="utf-8"))["features"]
+    return {"stations_sha256": _sha256(path), "n_stations_registry": len(features)}
+
+
 def build(*, root: Path = CAMPAIGNS_ROOT) -> dict:
     """The current state of the canonical tables, read from disk."""
     campaigns = {c: _describe(c, root) for c in PUBLISHED_CAMPAIGNS}
@@ -141,8 +175,10 @@ def build(*, root: Path = CAMPAIGNS_ROOT) -> dict:
         "campaigns": campaigns,
         "n_rows_total": sum(c["n_rows"] for c in campaigns.values()),
         # Union, not sum: campaigns share stations, and the count that matters to a
-        # consumer is how many distinct cameras the whole dataset covers.
+        # consumer is how many distinct cameras the whole dataset covers. These are
+        # stations OBSERVED in the table; the registry's count is n_stations_registry.
         "n_stations_total": len({s for c in campaigns.values() for s in c["stations"]}),
+        **_describe_registry(root),
     }
 
 
@@ -186,6 +222,15 @@ def diff(published: dict, current: dict) -> list[str]:
         for key in ("n_rows", "n_stations", "n_reviewed", "n_animal_rows"):
             if p.get(key) != c[key]:
                 out.append(f"{name}.{key}: published {p.get(key)} != current {c[key]}")
+    # Without this, a regenerated GeoJSON that nobody re-published would pass the
+    # producer's own gate while every consumer that verifies the hash refused it.
+    for key in ("stations_sha256", "n_stations_registry"):
+        if key not in published:
+            out.append(f"{key}: absent from the published state (published before "
+                       f"schema 5); current {current[key]}")
+        elif published[key] != current[key]:
+            out.append(f"{key}: published {published[key]} != current {current[key]} "
+                       f"({REGISTRY_GEOJSON_NAME} changed since publish)")
     return out
 
 
@@ -241,6 +286,8 @@ def main(argv: list[str] | None = None) -> int:
                   f"{c['n_reviewed']:>5,} reviewed  {c['n_animal_rows']:>5,} animal")
         print(f"  TOTAL            {state['n_rows_total']:>6,} rows  "
               f"{state['n_stations_total']:>2} stations")
+        print(f"  registry         {state['n_stations_registry']} stations  "
+              f"sha256 {state['stations_sha256']}")
         return 0
 
     try:

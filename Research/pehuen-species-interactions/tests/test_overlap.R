@@ -183,8 +183,27 @@ if (file.exists(rt_path)) {
     max(abs(sort(cam) - sort(ours)))
   }, numeric(1)))
   invisible(dev.off())
-  check(sprintf("camtrapR derives the same radians we do (worst %.1e)", worst),
+  check(sprintf("camtrapR derives the same radians we do IN THE CLOCK FRAME (worst %.1e)", worst),
         worst < 1e-9)
+
+  # The complement, and it is the assertion the solar frame makes necessary.
+  # camtrapR recomputes from DateTimeOriginal, so it is permanently on the clock —
+  # there is no radians entry point and the solar frame CANNOT be handed to it.
+  # If someone ever "fixes" that by writing solar times into DateTimeOriginal, the
+  # check above would still pass while every camtrapR panel silently changed
+  # meaning. This fails instead: the two columns must be measurably different
+  # frames, and 03/04's solar figures are ggplot-only for exactly this reason.
+  worst_solar <- max(vapply(c("Zorro culpeo", "Liebre", "Puma"), function(sp) {
+    cam  <- activityDensity(recordTable = rt_rad, species = sp, allSpecies = FALSE,
+                            writePNG = FALSE, plotR = TRUE, speciesCol = "Species",
+                            recordDateTimeCol = "DateTimeOriginal")
+    sol  <- rt_rad$time_solar_rad[rt_rad$Species == sp]
+    max(abs(sort(cam) - sort(sol)))
+  }, numeric(1)))
+  check(sprintf("...and NOT the solar ones -- the frames are distinct (worst %.3f rad)",
+                worst_solar),
+        worst_solar > 1e-3)
+  dev.off()
 } else {
   cat("  skip data/record_table.rds absent -- run R/01_load_data.R\n")
 }
@@ -205,9 +224,33 @@ if (file.exists(rt_path)) {
   csv_path <- here::here("data", "overlap_stats.csv")
   if (file.exists(csv_path)) {
     csv <- read.csv(csv_path, fileEncoding = "UTF-8")
-    row <- csv[csv$sp1 == "Zorro culpeo" & csv$sp2 == "Liebre", ]
-    check("overlap_stats.csv carries that same estimate",
+    # The file carries both frames since 2026-10-05, so every lookup must say which.
+    # `real` above was computed from rt$time_rad, i.e. the clock frame.
+    check("overlap_stats.csv declares a frame for every row",
+          "frame" %in% names(csv) && !any(is.na(csv$frame)) &&
+          setequal(unique(csv$frame), c("clock", "solar")))
+    check("both frames cover the same ten pairs",
+          {
+            k <- function(f) sort(paste(csv$sp1[csv$frame == f], csv$sp2[csv$frame == f]))
+            length(k("clock")) == 10 && identical(k("clock"), k("solar"))
+          })
+    row <- csv[csv$frame == "clock" & csv$sp1 == "Zorro culpeo" & csv$sp2 == "Liebre", ]
+    check("overlap_stats.csv carries that same estimate (clock frame)",
           nrow(row) == 1 && isTRUE(all.equal(row$estimate, real$estimate, tolerance = 1e-6)))
+    check("the frame changes the number -- it is not a duplicated block",
+          {
+            cl <- csv[csv$frame == "clock", ]
+            so <- csv[csv$frame == "solar", ]
+            cl <- cl[order(cl$sp1, cl$sp2), ]; so <- so[order(so$sp1, so$sp2), ]
+            max(abs(cl$estimate - so$estimate)) > 1e-3
+          })
+    check("n is a property of the records, not of the frame",
+          {
+            cl <- csv[csv$frame == "clock", ]; so <- csv[csv$frame == "solar", ]
+            cl <- cl[order(cl$sp1, cl$sp2), ]; so <- so[order(so$sp1, so$sp2), ]
+            identical(cl$n1, so$n1) && identical(cl$n2, so$n2) &&
+              identical(cl$estimator, so$estimator)
+          })
     check("every published CI lies inside [0, 1]",
           all(csv$ci_low >= 0) && all(csv$ci_high <= 1))
     check("every published CI contains its point estimate",

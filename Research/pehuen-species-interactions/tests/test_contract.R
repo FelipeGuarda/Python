@@ -37,8 +37,23 @@ fixture <- function(name, obj) {
   p
 }
 
+# The registry is published next to the contract, so every fixture contract in `tmp`
+# shares this one; registry_path() resolves it from the contract's own directory.
+registry_fixture <- function(dir, coords = "[-71.72707, -39.45183]") {
+  dir.create(file.path(dir, "campaigns"), showWarnings = FALSE, recursive = TRUE)
+  p <- file.path(dir, "campaigns", "estaciones.geojson")
+  writeLines(sprintf(paste0('{"type": "FeatureCollection", "features": [{"type": ',
+                            '"Feature", "properties": {"id": "CT01", "altitude_m": 1263}, ',
+                            '"geometry": {"type": "Point", "coordinates": %s}}]}'), coords), p)
+  p
+}
+registry_file <- registry_fixture(tmp)
+registry_hash <- unname(tools::sha256sum(registry_file))
+
 good <- list(
   schema_version = CONTRACT_SCHEMA_VERSION,
+  stations_sha256 = registry_hash,
+  n_stations_registry = 1L,
   columns = c("campaign", "camera_num"),
   campaigns = list(
     otono_2025 = list(n_rows = 8997L, n_stations = 21L,
@@ -124,6 +139,29 @@ r <- contract_stamp_read(file.path(tmp, "nostamp.json"))
 check("absent stamp refuses (data/ never built under a verified contract)",
       is.null(r$stamp) && any_match(r$reasons, "never been built"))
 
+cat("station registry (schema 5)\n")
+Sys.setenv(FMA_CANONICAL_STATE = file.path(tmp, "good.json"))
+check("registry_path follows the contract's directory",
+      identical(registry_path(), file.path(tmp, "campaigns", "estaciones.geojson")))
+Sys.unsetenv("FMA_CANONICAL_STATE")
+check("the registry the contract hashes passes",
+      length(contract_registry_check(state, registry_file)) == 0)
+moved_reg <- registry_fixture(file.path(tmp, "moved_registry"), "[-71.72707, -39.45184]")
+reasons <- contract_registry_check(state, moved_reg)
+check("a coordinate moved by 1e-5 deg is refused, naming both regenerating commands",
+      any_match(reasons, "not the registry the contract publishes")
+      && any_match(reasons, "build_station_registry.py") && any_match(reasons, "--publish"))
+nohash <- state; nohash$stations_sha256 <- NULL
+check("a contract that publishes no registry hash refuses (no silent pass)",
+      any_match(contract_registry_check(nohash, registry_file), "publishes no stations_sha256"))
+check("an absent registry refuses",
+      any_match(contract_registry_check(state, file.path(tmp, "nowhere.geojson")), "not found"))
+check("the stamp carries the registry hash", identical(stamp$stations_sha256, registry_hash))
+reg <- good; reg$stations_sha256 <- strrep("0", 64)
+rg <- contract_read(fixture("reg.json", reg))$state
+check("a registry republished after data/ was built is caught by the stamp",
+      any_match(contract_compare(stamp, rg), "stations_sha256"))
+
 cat("campaign_label\n")
 check("known slug labelled", identical(campaign_label("otono_2025"), "Otoño 2025"))
 check("unknown slug renders as itself", identical(campaign_label("verano_2027"), "verano_2027"))
@@ -157,6 +195,14 @@ check("contract_load on a valid contract exits 0", identical(res$status, 0L))
 res <- run(sprintf('contract_assert_current(stamp = "%s")', posix(file.path(tmp, "nostamp.json"))),
            file.path(tmp, "good.json"))
 check("contract_assert_current with no stamp exits 2", identical(res$status, 2L))
+
+# A contract whose registry has drifted: the good contract, beside a different file.
+drift_dir <- file.path(tmp, "drift")
+invisible(registry_fixture(drift_dir, "[-71.7, -39.4]"))
+invisible(file.copy(file.path(tmp, "good.json"), file.path(drift_dir, "good.json")))
+res <- run('contract_load("otono_2025")', file.path(drift_dir, "good.json"))
+check("contract_load on a registry that is not the published one exits 2",
+      identical(res$status, 2L) && grepl("estaciones.geojson", res$stderr))
 
 unlink(tmp, recursive = TRUE)
 if (.failures > 0) {

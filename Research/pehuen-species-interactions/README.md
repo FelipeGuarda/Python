@@ -41,19 +41,21 @@ Fase 10 in the producer's docs. `R/00_contract.R` owns it.
 
 - **`01_load_data.R`** calls `contract_load()` before opening any file. Absent
   contract, unparseable contract, a schema version other than the one this project
-  reads (`CONTRACT_SCHEMA_VERSION`, currently 4), or a requested campaign the
-  contract does not describe, all **refuse**: a `REFUSED (...)` message naming the
-  mismatch and **exit status 2**. An R error exits 1 and reads as a crash; a refusal
-  is a verdict and must look like one.
-- After a successful load, `01` writes `data/contract_stamp.json`: the declared
-  block of every campaign it read, verbatim.
+  reads (`CONTRACT_SCHEMA_VERSION`, currently 5), a requested campaign the
+  contract does not describe, or a station registry that is not the one the contract
+  hashes, all **refuse**: a `REFUSED (...)` message naming the mismatch and **exit
+  status 2**. An R error exits 1 and reads as a crash; a refusal is a verdict and must
+  look like one.
+- After a successful load, `01` writes `data/contract_stamp.json`: the registry hash
+  and the declared block of every campaign it read, verbatim.
 - **`02`–`06`** call `contract_assert_current()` first. It compares the stamp against
-  the contract as published *now* and refuses if any field of any campaign moved,
-  naming the field (`otono_2025.n_animal_rows: data/ built from 707, published now
-  712`). A campaign re-ingested upstream therefore cannot keep feeding stale numbers
-  into a figure; the fix is always "re-run `01`".
-- The gate has its own tests: `Rscript tests/test_contract.R` (base R, 25
-  assertions, including a subprocess check that a refusal exits 2).
+  the contract as published *now* and refuses if the registry hash or any field of any
+  campaign moved, naming the field (`otono_2025.n_animal_rows: data/ built from 707,
+  published now 712`). A campaign re-ingested or a registry re-published upstream
+  therefore cannot keep feeding stale numbers or coordinates into a figure; the fix is
+  always "re-run `01`".
+- The gate has its own tests: `Rscript tests/test_contract.R` (base R, 33
+  assertions, including subprocess checks that a refusal exits 2).
 
 What the scripts deliberately do **not** do (manual 10F.3): parse station labels,
 repair or shift timestamps, translate species names, decide whether a frame holds an
@@ -62,22 +64,27 @@ those arrive decided, in `observations.parquet` or `deployments.csv`.
 
 ### Inputs the contract does not cover
 
-The contract describes `observations.parquet` column by column and hashes
-`deployments.csv`. Two inputs are outside it, and it is worth knowing which:
+The contract describes `observations.parquet` column by column, hashes
+`deployments.csv` and, since schema 5 (2026-10-05), hashes the station registry. One
+input is still outside it:
 
 | input | published by | existence | content |
 |---|---|---|---|
-| `campaigns/estaciones.geojson` | camera-traps | refused if absent | **not verified here** |
+| `campaigns/estaciones.geojson` | camera-traps | refused if absent | **verified**: SHA-256 against `stations_sha256` |
 | `plataforma-territorial/data/boundary.geojson` | the platform | refused if absent | **not verified here** |
 
-Both are read once, by `01`. A missing one refuses with exit 2 and the command that
-regenerates it, rather than dying inside `st_read` — an R error exits 1, which reads
-as a crash. Their *content* is another matter: nothing in `CANONICAL_STATE.json`
-would let this project notice a moved coordinate or a changed `altitude_m`.
-camera-traps does guard the registry against drift from `estaciones.csv`, which owns
-station identity, but that check lives upstream and is not visible from here.
-Closing it properly means adding a `stations_sha256` to the published state, which is
-a schema bump on both sides; it is logged in the producer's `V2-REVIEW.md` §0-septies.
+**The registry** is verified byte-for-byte by `contract_load()`, before `01` opens
+anything. It is looked up *next to the contract* (`registry_path()`), so a contract
+pointed elsewhere with `FMA_CANONICAL_STATE` brings its own registry and the two cannot
+describe different states. A mismatch, or a contract that publishes no hash, refuses
+with exit 2 and names `python setup/build_station_registry.py --check` and
+`python -m camtrap.canonical_state --publish`. Every coordinate and `altitude_m` this
+project uses is therefore the one camera-traps last published, which is what the
+altitude covariate and solar-time anchoring need.
+
+**The boundary** belongs to a producer with no contract. A missing file refuses with
+exit 2 rather than dying inside `st_read` (an R error exits 1, which reads as a
+crash); its content is unverified.
 
 What *is* enforced from here: a station that appears in the canonical table but not in
 the registry **refuses**. It used to warn and null the station, which meant records
@@ -99,8 +106,8 @@ Run in order. `01` writes `data/`; the rest read it and refuse if it is missing 
 ```bash
 Rscript R/01_load_data.R              # REQUIRED FIRST. contract, parquet, deployments, GeoJSON -> data/
 Rscript R/02_detection_summary.R      # episodes, rate per 100 camera-days, naive occupancy — by season
-Rscript R/03_activity_patterns.R      # 24 h kernel density activity curves (pooled)
-Rscript R/04_temporal_overlap.R       # Δ1/Δ4 pairwise overlap + CI + Monterroso category
+Rscript R/03_activity_patterns.R      # 24 h kernel density activity curves (pooled), both frames
+Rscript R/04_temporal_overlap.R       # Δ1/Δ4 pairwise overlap + CI + Monterroso category, both frames
 Rscript R/05_spatial_distribution.R   # presence maps + episode bubble maps, natives by season
 Rscript R/06_seasonal_detection_maps.R  # bubble maps per season PERIOD, chronological
 ```
@@ -108,10 +115,13 @@ Rscript R/06_seasonal_detection_maps.R  # bubble maps per season PERIOD, chronol
 Tests:
 
 ```bash
-Rscript tests/test_contract.R    # 25 assertions — the consumer gate
+Rscript tests/test_contract.R    # 33 assertions — the consumer gate
 Rscript tests/test_seasons.R     # 41 assertions — boundaries, the year straddle,
                                  # and effort conservation against the real field record
-Rscript tests/test_overlap.R     # 25 assertions — anchors estimate_overlap() to a direct
+Rscript tests/test_timeofday.R   # 35 assertions — anchors solar_rad() to a direct
+                                 # activity::transtime() call, proves the reference
+                                 # anchor is pinned, and bounds the UTC-offset assumption
+Rscript tests/test_overlap.R     # 30 assertions — anchors estimate_overlap() to a direct
                                  # overlap::overlapEst() call, guards the CI choice, and
                                  # checks camtrapR derives the same radians this project does
 ```
@@ -189,6 +199,70 @@ proxy for, and what `activity::transtime()` anchors on — changes that table an
 caller. Astronomical dates drift between years, so that version needs a per-year table
 rather than (month, day).
 
+### Two frames of reference (`R/00_timeofday.R`)
+
+A detection's position on the 24-hour circle is computed in two frames, and the
+difference between them is a result rather than a correction.
+
+| | what it is | who uses it |
+|---|---|---|
+| `time_rad` | the camera's own wall clock | every figure published before 2026-10-05; all camtrapR panels |
+| `time_solar_rad` | the same detection relative to that day's sunrise and sunset | 03's and 04's solar figures, ggplot only |
+
+Measured at the site, over 2025:
+
+| | sunrise | sunset | day length |
+|---|---|---|---|
+| 2025-06-20 | 08:07 | 17:30 | 9.4 h |
+| 2025-12-20 | 05:17 | 20:14 | 15.0 h |
+| **annual swing** | **2.9 h** | **2.8 h** | **5.6 h** |
+
+A species holding a fixed schedule relative to sunrise is therefore smeared across
+nearly three hours of pooled clock time. Rowcliffe et al. (2014) name the
+consequence — flattened peaks and **overestimated activity level** — and exempt only
+the tropics and short studies. This record is 19 months at 39.4°S.
+
+This is piece 3 of a decision taken upstream, not a new idea. `camera-traps`'
+`DATA-HEALTH-MANUAL.md` §5.3 forbids adjusting camera clocks for civil time
+*because* "the defensible frame for an activity analysis is solar"; `V2-REVIEW.md`
+lists "the sun-anchored sensitivity run in pehuén (piece 3)" as deliberately out of
+that review's scope.
+
+The transformation is `activity::transtime()` and the sun times are
+`activity::get_suntimes()` — nothing here reimplements solar geometry, and
+`tests/test_timeofday.R` anchors our value to a direct call of both.
+
+**What it moved.** Mean |Δ| over the ten pairs is 0.055, max 0.179 (Puma × Jabalí),
+and **four of ten Monterroso categories changed** — all four by widening, not by
+reversing: three pairs land on a compound label spanning more bands, which is the
+honest consequence of 12–18-episode samples. `Guiña × Zorro culpeo` does not move at
+all (Δ = 0.001). The headline reading survives: natives keep **Low** overlap with
+perro in both frames.
+
+**Three things this frame does not fix, and they belong in Methods.**
+
+- `SOLAR_OFFSET_HOURS <- -4` is a declared assumption. The upstream rule is
+  *horario de invierno, no DST correction ever*, which makes −4 right; but §5.3 also
+  records that these clocks were adjusted once, and the per-deployment offset
+  (piece 2) is not published. Measured bound: a −3 offset instead of −4 moves any
+  detection **at most 11.4 minutes**, asserted in the test suite.
+- `get_suntimes()` is documented as **approximate** and computes geometric sunrise at
+  sea level. It does not know the Andean horizon, so at a station with a ridge to the
+  east, real first light is later. The error is per-station and unmodelled.
+- **One site coordinate, not 27** — measured, not assumed. Sunrise differs by
+  **15.7 seconds** between the array's two extreme corners against a 2.9-hour annual
+  swing, so per-station coordinates would be false precision at about 1:660. The
+  module therefore reads no station file and does not depend on `estaciones.geojson`
+  or on the contract that describes it.
+
+**The camtrapR panels stay on the clock and cannot be moved.** `activityDensity()`
+and `activityOverlap()` take `recordDateTimeCol` and derive the hour internally;
+there is no radians entry point. The solar figures are ggplot-only, which is safe
+because the two layers were proved to agree to 1e-16 on 2026-09-15.
+`tests/test_overlap.R` now asserts both halves: camtrapR agrees with `time_rad`, and
+**disagrees** with `time_solar_rad`, so nobody can "fix" the limitation by writing
+solar times into `DateTimeOriginal` without the suite failing.
+
 ### Units and admissibility (`R/00_admissibility.R`)
 
 Two questions, two rules, both explicit at the call site:
@@ -222,7 +296,7 @@ Script 02 applies exactly that table.
 
 Estimator per pair from the smaller sample (Ridout & Linkie 2009): Δ4 when
 `min(n_A, n_B) ≥ 50`, Δ1 otherwise; 1000 bootstrap resamples for the 95% CI,
-reported as the **percentile** interval (`CI_TYPE`). Classification per Monterroso
+reported as the **`basic0`** interval (`CI_TYPE`). Classification per Monterroso
 et al. (2014) applied to the **whole CI**: Low (< 0.50), Moderate (0.50–0.75), High
 (≥ 0.75); a CI straddling a threshold gets a compound label. Estimator, estimate, CI
 and category are in `data/overlap_stats.csv` and on every figure.
@@ -352,8 +426,46 @@ sizes. Its "Open items" list is the analysis backlog.
 
 ## Project status
 
-- **Last Updated:** 2026-09-15
-- **What Changed (2 of 2):** **Every published overlap number was wrong.**
+- **Last Updated:** 2026-10-05
+- **What Changed (2026-10-05, 3 of 3):** **The analysis gained a second frame of reference.**
+  New `R/00_timeofday.R` owns where a detection sits on the 24-hour circle, in both the
+  camera's clock frame and a sun-anchored solar frame (`activity::transtime()`, double
+  anchoring on sunrise and sunset — Nouvellet et al. 2012; Vazquez et al. 2019). At 39.4°S
+  over 19 months sunrise moves 2.9 h, so pooled clock time flattens exactly the peaks this
+  analysis is about; Rowcliffe et al. (2014) exempt only the tropics and short studies. This
+  is piece 3 of the upstream clock decision (`DATA-HEALTH-MANUAL.md` §5.3), not a new idea.
+  `03` and `04` report both frames and `data/overlap_stats.csv` gains a `frame` column — 20
+  rows where it had 10. **The ten clock-frame rows are byte-identical to the committed ones**
+  (item 2 of 3 below says the file was byte-identical after the schema bump; it still is, row
+  for row, in the clock block — this change adds a second block beside it and moves nothing).
+  The bootstrap is re-seeded per frame so a published CI cannot depend on whether the solar
+  frame ran before or after it. Mean |Δ| 0.055, max 0.179 (Puma × Jabalí); four of ten
+  Monterroso categories changed, all by widening onto compound labels, which is the
+  12–18-episode samples showing through rather than a new biological claim. The headline
+  survives: natives keep **Low** overlap with perro in both frames. Two new figures,
+  `03_activity_frames.png` and `04_overlap_frames.png`. `tests/test_timeofday.R` (35
+  assertions) anchors the value to a direct package call, proves the reference anchor is
+  pinned — unpinned, `transtime()` moved the same detection **42 minutes** depending on how
+  many rows the caller passed, and 04 calls it on species subsets — and bounds the UTC-offset
+  assumption at **11.4 minutes**. `tests/test_overlap.R` (30, was 25) now asserts camtrapR
+  agrees with `time_rad` AND disagrees with `time_solar_rad`, so the camtrapR limitation
+  cannot be "fixed" by overwriting `DateTimeOriginal` without the suite failing. Three limits
+  for Methods are in "Two frames of reference" above.
+- **What Changed (2026-10-05, 2 of 3):** **The station registry is verified.** Contract
+  schema 4 → 5. `contract_load()` checks the SHA-256 of `estaciones.geojson` against the
+  published `stations_sha256` and refuses with exit 2, and the stamp carries the hash so
+  02–06 refuse when the registry is re-published. Four refusals were proved on doctored
+  scratch copies (hash altered, hash removed, one latitude moved 1e-5°, stale stamp). The
+  full chain re-ran with **`overlap_stats.csv` byte-identical** to HEAD and all six `.rds`
+  identical by content digest. 33 contract assertions (was 25). On this Linux machine the
+  `pehuen-analysis` env lacked `camtrapR` and `nanoparquet`; both are now installed
+  (`r-fs` and `r-httpuv` from conda-forge, since they need libuv).
+- **What Changed (2026-10-05, 1 of 3):** Orientation pass over the spatial and temporal analyses
+  actually built. No code changed. One stale word corrected: the overlap section above said
+  the 95% CI is the **percentile** interval; `CI_TYPE` has been `basic0` since 2026-09-15 and
+  the subsection below it already argued for `basic0`. The account of what is built, what is
+  blocked and on what is in [[2026-10-05-pehuen-spatial-temporal-stocktake]].
+- **What Changed (2026-09-15, 2 of 2):** **Every published overlap number was wrong.**
   `estimate_overlap()` passed `densityFit()` output into `overlapEst(A, B)` and
   `bootstrap(A, B)`, whose arguments are detection times in radians; both fitted fresh
   kernels to the density values instead. Found because the per-pair PNGs carry two
@@ -372,7 +484,7 @@ sizes. Its "Open items" list is the analysis backlog.
   coefficient's maximum) to `basic0`, the interval `?bootCI` prescribes when the
   reported estimate is the uncorrected `t0` — see "Which confidence interval, and why"
   above for the bias this corrects and why it is not merely a small-n artefact.
-- **What Changed (1 of 2):** **The stratifier was wrong.** Every figure faceted by campaign, and
+- **What Changed (2026-09-15, 1 of 2):** **The stratifier was wrong.** Every figure faceted by campaign, and
   a campaign is the five- to eight-month interval between field visits, named for the
   season the cards were retrieved in. The three windows are contiguous, so the array is
   one continuous record from 2024-10-09 to 2026-05-15. New `R/00_seasons.R` owns the
@@ -408,16 +520,18 @@ sizes. Its "Open items" list is the analysis backlog.
   the registry refuses instead of warning and exiting 0.
 - **Integration Status:** `In Progress [REMAINING: detection-history module, Rota power
   check]` — the seasonal foundation is in and all six scripts run clean against schema
-  4. Target is a peer-reviewed paper, which sets the remaining sequence: build
+  5. Target is a peer-reviewed paper, which sets the remaining sequence: build
   `R/00_detection_history.R` (occasion grid from `deployments.rds`), then
   `R/07_power_cooccurrence.R` to settle whether the Rota multi-species co-occupancy
   model is estimable here — `docs/methods-menu-interactions.md` §B3 says no on a
   400-site citation, `References/FMA_camera_trap_methods_synthesis.md.pdf` ranks it
-  first, and a simulation at this array's own n is worth more than either. Two items
-  are upstream: `estaciones.geojson` is not covered by the contract, so station
-  coordinates and `altitude_m` are unverified from here and the altitude covariate
-  cannot be defended until `stations_sha256` lands (`V2-REVIEW.md` §0-septies); and
-  `review_outcome` empty → `not_applicable` will bump the schema and force a rebuild.
+  first, and a simulation at this array's own n is worth more than either. The registry
+  blocker is closed: station coordinates and `altitude_m` are verified since schema 5,
+  so occupancy with an altitude covariate and solar-time anchoring
+  (`activity::transtime`) are unblocked on the data side. One item is still upstream:
+  `review_outcome` empty → `not_applicable`. It would not move this project's numbers
+  (no animal row carries an empty value), and as the contract stands it would not move
+  the stamp either (`V2-REVIEW.md` §0-septies).
 - **Blockers/Notes:** **Sample size is the binding constraint and the season split makes
   it explicit.** Of 42 species × period cells, none reaches 100 episodes, eight are in
   20–99 (culpeo in five periods, liebre in three), and 30 are below 10. Pooled over the

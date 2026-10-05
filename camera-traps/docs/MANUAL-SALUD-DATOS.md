@@ -1746,7 +1746,7 @@ Es la diferencia entre una firma y un sello automático.
 | | |
 |---|---|
 | **Entra** | Las tablas canónicas ya escritas |
-| **Sale** | `data/CANONICAL_STATE.json` — versión de esquema, columnas, y por campaña filas / estaciones / días-cámara / hash |
+| **Sale** | `data/CANONICAL_STATE.json` — versión de esquema, columnas, por campaña filas / estaciones / días-cámara / hash, y el hash del registro de estaciones |
 | **Quién lo hace** | `python -m camtrap.canonical_state --publish` |
 | **Qué decide** | Nada. **Declara**, y esa es toda su función |
 
@@ -1762,11 +1762,20 @@ olvidó de volver a publicar.
 
 | | |
 |---|---|
-| `schema_version` | **4** |
+| `schema_version` | **5** |
 | Columnas | 17, en orden declarado |
 | `otono_2025` | 8.997 filas · 21 estaciones · 3.816 días-cámara |
 | `primavera_2025` | 16.904 filas · 26 estaciones · 5.178 días-cámara |
 | `otono_2026` | 9.906 filas · 27 estaciones · 3.981 días-cámara |
+| Registro de estaciones | `stations_sha256` del `estaciones.geojson` · `n_stations_registry` 27 |
+
+**El registro entra en el contrato desde el esquema 5 (2026-10-05).** Hasta entonces el campo
+`stations` listaba las etiquetas *observadas en la tabla*, no el archivo de registro, y cada
+coordenada y cada `altitude_m` cruzaba la frontera sin verificar. El hash es de los **bytes** del
+archivo: un consumidor lo verifica con cualquier SHA-256 del archivo que tiene, sin parsear nada.
+Está en el nivel superior y no dentro de cada campaña porque el registro es uno solo para todo el
+arreglo. Regenerar el GeoJSON sin volver a publicar hace fallar `verify()` aquí mismo, igual que
+a los consumidores.
 
 **Los días-cámara son el subconjunto con imágenes**, deliberadamente: es el que hace pareja con
 el número de filas. Otoño 2025 tiene por eso **dos** cifras publicadas y hay que elegir la que
@@ -1779,14 +1788,16 @@ canónica, y 4.318 sobre 25 para cualquier cosa que cuente el video.
 |---|---|---|---|---|
 | Las tablas se reconstruyeron y no se re-publicó | El contrato describe datos que ya no están | Todo consumidor corre sobre datos distintos, en silencio | `canonical_state.verify()`, y es un test | `TestPublishedFileIsCurrent` |
 | El ingreso publica su propio contrato | La verificación siempre concuerda consigo misma | La verificación entera: no podría fallar nunca | Publicar es un comando aparte, `--publish` | `TestPublishedFileIsCurrent` |
-| Un cambio de filas pasa desapercibido | 3.359 filas se volvieron 35.807 y nadie lo notó | Toda cifra publicada. **Ya ocurrió** | `diff()` compara campo por campo | `TestDiffDetectsRealChanges` (6 casos) |
+| Un cambio de filas pasa desapercibido | 3.359 filas se volvieron 35.807 y nadie lo notó | Toda cifra publicada. **Ya ocurrió** | `diff()` compara campo por campo | `TestDiffDetectsRealChanges` (9 casos) |
 | Una columna agregada o reordenada | El orden es parte del contrato | Cualquier consumidor que lea por posición | `diff()` detecta agregado **y** reorden | `TestDiffDetectsRealChanges` |
 | `deployments.csv` editado a mano | Es generado, no mantenido | El denominador de esfuerzo | Se compara con una construcción fresca | `TestPublishedFiles` |
 | `media_absence.csv` con una declaración huérfana | Se excusa esfuerzo de una estación ya ingresada | El denominador | Toda fila declarada tiene que corresponder a un vacío real | `test_the_declared_absences_match_the_committed_file` |
 | Una razón de ausencia mal escrita | `video_only_ofline` se lee como permiso | El denominador, con un typo como causa | Se **rechaza**, no se ignora | `test_a_misspelled_reason_is_refused_not_ignored` |
 | Un vacío sin explicar contado como esfuerzo | Nadie escribió por qué esa estación no tiene fotos | El denominador, y nadie hizo la pregunta | `media_status = unexplained`, no una nota tranquilizadora | `test_an_undeclared_gap_reports_unexplained_rather_than_nothing` |
+| El GeoJSON se regeneró y no se re-publicó | El contrato describe un registro que ya no es el que está publicado | Toda coordenada y altitud aguas abajo: ocupación con altitud, hora solar | `diff()` compara `stations_sha256` y `n_stations_registry` | `test_regenerated_registry_without_republish_is_caught`, `test_registry_station_count_change_is_caught` |
+| Una estación de la tabla sin fila en el registro | Sus registros no tienen posición | Un join por estación pierde esa estación en silencio | Toda etiqueta observada tiene que estar en el registro | `test_every_observed_station_is_in_the_registry` |
 
-15 tests en 4 clases (`tests/test_canonical_state.py`), 16 en 4 (`tests/test_deployments.py`).
+21 tests en 4 clases (`tests/test_canonical_state.py`), 16 en 4 (`tests/test_deployments.py`).
 
 ---
 
@@ -1817,7 +1828,7 @@ la carga escribe.
 
 ### 10F.2 Qué verifica, exactamente
 
-Tres cosas, y el orden importa:
+Tres cosas, y una cuarta para quien lea el registro de estaciones; el orden importa:
 
 1. **Que el contrato exista y se pueda leer.** Ausente o ilegible significa **negarse**, no
    seguir.
@@ -1826,6 +1837,12 @@ Tres cosas, y el orden importa:
    nuevas no le importan.
 3. **Que el `sha256` coincida.** Se calcula sobre la descripción completa de la campaña, no
    sólo sobre el número de filas.
+4. **Si el consumidor lee coordenadas o altitudes, que el registro que tiene sea el
+   publicado** (esquema 5). SHA-256 de los bytes de `campaigns/estaciones.geojson` contra
+   `stations_sha256`. Si no coincide, o si el contrato no publica ninguno, **negarse**,
+   nombrando `python setup/build_station_registry.py --check` y `--publish`. El registro se
+   busca **junto al contrato**, no por una ruta propia: así una copia del contrato trae su
+   registro y las dos cosas no pueden apuntar a estados distintos.
 
 > **Regla.** El productor publica; los consumidores verifican. **El productor no debe saber que
 > un consumidor determinado existe.**

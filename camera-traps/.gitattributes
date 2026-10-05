@@ -1,0 +1,6 @@
+# Files whose SHA-256 is published in data/CANONICAL_STATE.json. A consumer recomputes
+# the hash from the bytes it holds, so a checkout must hold the bytes that were hashed:
+# with core.autocrlf on Windows, git would rewrite LF to CRLF and every correct file would
+# be refused. Pinned to LF on every platform.
+data/campaigns/estaciones.geojson        text eol=lf
+data/campaigns/*/deployments.csv         text eol=lf
