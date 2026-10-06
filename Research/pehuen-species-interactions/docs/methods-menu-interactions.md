@@ -157,6 +157,195 @@ Lower priority than A1–A3.
   1457–1462. doi:10.1111/2041-210X.12600
 - Requires: true deployment start/end per station, plus any malfunction gaps. Everything in
   Bucket B depends on this.
+- **DONE 2026-10-06 — `R/00_detection_history.R`.** Built in base R rather than through
+  `cameraOperation()`/`detectionHistory()`: those assume one setup-to-retrieval window per
+  camera and know nothing of a season window or of this project's effort rule, so
+  reproducing season-anchored occasions through them needs workarounds every caller would
+  have to repeat. The module's header gives the full reasoning; `tests/test_detection_history.R`
+  asserts the grid cell by cell. Decisions: **one season per grid (required — closure)**,
+  **14-day occasions (measured, §B0.1)**, **unsurveyed occasions are NA, never 0**. The
+  surveyed-day rule is `effort_admissible(deployments, "detections")` in
+  `R/00_admissibility.R`, shared with 02's rate denominator.
+
+### B0.1. Reading an occupancy model — ψ, p, occasions and closure (measured 2026-10-06)
+
+Written because the numbers below are easy to misread, and the paper's Methods and Results
+will have to explain them to readers who are not occupancy specialists.
+
+#### Definitions
+
+- **Station (site).** One camera location. Every quantity below is about *camera
+  stations*, not about the area of the reserve. Cameras are not a random sample of
+  habitat, so "share of stations" becomes "share of the reserve" only under an assumption
+  about placement that has to be argued, not assumed.
+- **Occasion.** One repeat survey of a station: a block of consecutive days. A season's
+  deployment is cut into occasions, and each station × occasion cell becomes **1**
+  (species recorded at least once), **0** (station surveyed, species not recorded) or
+  **NA** (station not surveyed on any day of that block). The station × occasion matrix is
+  the *detection history*. NA is not 0: MacKenzie et al. (2003, "Missing observations")
+  enter unsurveyed occasions as missing, because a 0 there would be an absence nobody
+  observed.
+- **ψ (psi), occupancy.** The probability that a station is used by the species during the
+  season. Read across stations: the share of stations used.
+- **p, detection probability.** At a station the species *does* use, the probability that
+  one occasion records it. p is per occasion, so its value depends on how long an occasion
+  is.
+- **Cumulative detection, p\*.** The probability of recording the species at least once
+  over all K occasions at a used station: p\* = 1 − (1 − p)^K. This, not p, is how much the
+  survey actually sees.
+- **Naive occupancy.** The share of stations where the species was recorded at all (what
+  `02` plots). In expectation it equals ψ × p\*: the true share used, times the chance a
+  used station is noticed. That is why naive occupancy always understates ψ when p\* < 1.
+- **Closure.** A single-season model assumes each station is used or unused for the whole
+  run of occasions — its state does not change mid-season (MacKenzie et al. 2002). Burton
+  et al. (2015) note this is hard to defend over weeks or months for most mammals; with
+  repeat visits ψ is often better read as "probability the station was *used*" than as
+  strict occupancy. This is why `detection_history()` refuses without a season: over the
+  whole 19-month record, closure is plainly false.
+
+#### Why the split matters, and what it gives that naive occupancy does not
+
+A station with no photographs is ambiguous: the species never came, or it came and the
+camera missed it. Naive occupancy cannot tell those apart; an occupancy model can, because
+a used station that is missed in some occasions and caught in others shows how often a
+miss happens. That buys three things:
+
+1. **An unbiased share of stations used**, rather than one deflated by missed detections.
+2. **A clean place for covariates.** Altitude can enter on ψ (is the species *using*
+   high stations less?) separately from p (is it merely *harder to photograph* there?).
+   With naive occupancy those two effects are the same number. This is what turns the
+   elevation stratifier into a tested gradient (§B1).
+3. **An honest statement of what the survey can see**, via p\*. A species with low p\*
+   cannot be called absent from a station on camera evidence.
+
+#### Worked examples (null model ψ(.)p(.), 14-day occasions)
+
+**Zorro culpeo, Invierno 2025 — the well-behaved case.** 24 stations surveyed; culpeo
+recorded at 10 (naive occupancy 0.42). The model gives ψ = 0.56, p = 0.20.
+
+- ψ = 0.56: culpeo used about half the stations that winter, ~13–14 of 24 — so ~3–4
+  stations were used but never photographed.
+- p = 0.20: at a used station, one 14-day occasion has a one-in-five chance of recording it.
+- p\* = 1 − 0.8^6.5 ≈ 0.77 over the season's ~6.5 occasions: about a quarter of used
+  stations look empty in the data. Check: ψ × p\* = 0.56 × 0.77 = 0.43, against the
+  observed 0.42.
+
+**Occasion length re-packages the same information.** Same species and season:
+
+| Occasion | Occasions per station | p per occasion | p\* over the season | ψ |
+|---|---|---|---|---|
+| 7 days | ~13 | 0.12 | 0.81 | 0.54 |
+| 14 days | ~6.5 | 0.20 | 0.77 | 0.56 |
+
+Longer occasions raise p only because each block is longer; p\* — what the survey sees —
+is nearly unchanged, and so is ψ (0.53, 0.52, 0.54, 0.52, 0.56 at 3, 5, 7, 10, 14 d). The
+choice of length is about estimation stability and reporting, not about information. The
+exception is the short end: at **1-day** occasions p = 0.012 and even culpeo's fit runs to
+the boundary (ψ → 1), so very short occasions are not just re-packaging, they break the fit.
+
+**Perro, Invierno 2025 — the low-p case.** Recorded at 4 of 24 stations (naive 0.17). The
+model gives ψ ≈ 0.43–0.48 (depending on occasion length) with p = 0.03–0.07, so p\* ≈
+0.40 at 14 days: the model is asserting that dogs used more than twice as many stations as
+were seen, and that most used stations were missed. ψ × p\* = 0.43 × 0.40 ≈ 0.17 — the
+arithmetic is consistent, but the conclusion rests on a handful of detections and leans
+on the model's assumptions more than on the data. This is what "p too low" means in
+practice.
+
+**Liebre — the heterogeneous case.** Liebre is among the most photographed species (129
+episodes) yet has low ψ (0.14–0.38) because the records come from few cameras: 11 of 27
+stations ever, **71 % of episodes at three** (CT09 49, CT20 24, CT19 19), against culpeo's
+161 episodes at 19 stations with 52 % at its top three. ψ is low and p is high *where it
+occurs*. The null model assumes one p for every station, which liebre breaks: CT09 detects
+it almost continuously, most stations never. When detection varies between stations
+because local abundance varies, standard occupancy models tend to **underestimate** ψ
+(Royle & Nichols 2003) — so liebre's true share may be somewhat higher; the direction is
+known, the size is not. Altitude does not explain the pattern (liebre stations span
+886–1231 m, the same as the array). CT19 sits near the rangers' houses. The defensible
+statement is descriptive: *in this array, liebre was detected at fewer stations than
+culpeo and its detections concentrate at three of them.* "Liebre occupies a smaller area of
+Bosque Pehuén" additionally needs camera habitat descriptors and a station-level detection
+covariate or an abundance-induced-heterogeneity model (Royle & Nichols 2003).
+
+#### The 0.3 threshold
+
+The FMA methods synthesis (`References/FMA_camera_trap_methods_synthesis.md.pdf`, occupancy
+section) warns that estimates "degrade badly when p is low (<0.3)". It gives no primary
+source for the figure. Below roughly that level, too few used stations are caught often
+enough for the model to separate "absent" from "missed", and the fit drifts to the boundary
+(ψ → 1, p → 0) or rests on its assumptions. Treat 0.3 as a rule of thumb; the design
+literature to check before citing a number is MacKenzie & Royle (2005).
+
+#### The measurement (2026-10-06)
+
+Null single-season ψ(.)p(.) fitted by maximum likelihood (own likelihood, no package) per
+species × season period × occasion length {1, 3, 5, 7, 10, 14 d}, on grids built with the
+same rule `detection_history()` now encodes. 216 fits; **91 hit the boundary ψ → 1**, which
+is non-identifiability from too few detecting stations, not an occasion-length effect.
+Primavera 2024 has only 6 surveyed stations and should be left out of any model.
+
+Usable estimates, p per occasion (ψ at 14 d):
+
+| Species | Season | p 5 d | p 7 d | p 10 d | p 14 d | ψ |
+|---|---|---|---|---|---|---|
+| Zorro culpeo | Verano 2024-25 | 0.35 | 0.38 | 0.52 | 0.58 | 0.20 |
+| | Otoño 2025 | 0.17 | 0.22 | 0.26 | 0.35 | 0.34 |
+| | Invierno 2025 | 0.10 | 0.12 | 0.18 | 0.20 | 0.56 |
+| | Primavera 2025 | 0.11 | 0.14 | 0.17 | 0.22 | 0.44 |
+| | Verano 2025-26 | 0.11 | 0.15 | 0.18 | 0.27 | 0.40 |
+| | Otoño 2026 | 0.15 | 0.19 | 0.21 | 0.25 | 0.56 |
+| Liebre | Verano 2024-25 | 0.15 | 0.21 | 0.31 | 0.33 | 0.15 |
+| | Otoño 2025 | 0.15 | 0.20 | 0.23 | 0.33 | 0.14 |
+| | Invierno 2025 | 0.17 | 0.20 | 0.27 | 0.31 | 0.38 |
+| | Primavera 2025 | 0.13 | 0.17 | 0.20 | 0.27 | 0.35 |
+| Perro | Verano 2025-26 | 0.13 | 0.17 | 0.22 | 0.20 | 0.25 |
+| | Primavera 2025 | 0.07 | 0.10 | 0.13 | 0.19 | 0.23 |
+| | Verano 2024-25 | 0.05 | 0.07 | 0.10 | 0.13 | 0.50 |
+| | Invierno 2025 | 0.03 | 0.03 | 0.05 | 0.07 | 0.43 |
+
+**Reading.** Culpeo is estimable in all six usable seasons with stable ψ; liebre in about
+four; perro only with a low-p caveat. **Puma, guiña and jabalí are detected at 0–4
+stations per season and are not estimable by occupancy** — name them as excluded, with
+this table as the evidence. Low native p is also the first input to the Rota power check
+(`07`), and it does not favour Rota.
+
+**Decision:** `OCCASION_DAYS = 14` (per-occasion p for culpeo and liebre ~0.2–0.35, ~6.5
+occasions per season, inside Burton's 1–15 d range); **7 d as the sensitivity run**.
+
+**Limits of this measurement.** No standard errors (whether 10 d and 14 d differ is not
+tested); no effort covariate (a part-surveyed occasion counts as a full one; the module now
+returns `effort` so B1 can use it); constant p across stations, which liebre violates. The
+fitting script was a scratch computation; B1 reproduces it properly with `unmarked`.
+
+#### References for this section
+
+In `References/`:
+
+- MacKenzie, D.I., Nichols, J.D., Hines, J.E., Knutson, M.G. & Franklin, A.B. (2003)
+  Estimating site occupancy, colonization, and local extinction when a species is detected
+  imperfectly. *Ecology* 84(8): 2200–2207. — missing observations as NA; seasons with
+  nested occasions (B2).
+- Burton, A.C. et al. (2015) Wildlife camera trapping: a review and recommendations for
+  linking surveys to ecological processes. *Journal of Applied Ecology* 52: 675–685. —
+  occasion lengths in 32 camera-trap occupancy studies (1–15 camera-days, median 5); p from
+  a 1-day and a 15-day occasion are not comparable; closure over weeks to months.
+- `FMA_camera_trap_methods_synthesis.md.pdf` — occasions as 3–7 day windows; the p < 0.3
+  warning.
+
+Not in `References/` — obtain, and verify details before citing:
+
+- MacKenzie, D.I. et al. (2002) *Ecology* 83(8): 2248–2255 (full reference §B1). — the
+  single-season model; closure.
+- MacKenzie, D.I. & Royle, J.A. (2005) Designing occupancy studies: general advice and
+  allocating survey effort. *Journal of Applied Ecology* 42: 1105–1114. — design guidance
+  on number of occasions vs stations at a given p.
+- Bailey, L.L., MacKenzie, D.I. & Nichols, J.D. (2014) Advances and applications of
+  occupancy models. *Methods in Ecology and Evolution* 5: 1269–1279. — cited by Burton on
+  defining sites and occasions.
+- Royle, J.A. & Nichols, J.D. (2003) Estimating abundance from repeated presence–absence
+  data or point counts. *Ecology* 84(3): 777–790. — detection heterogeneity from abundance;
+  the liebre case.
+- MacKenzie et al. (2017) *Occupancy Estimation and Modeling*, 2nd ed. (§B1) — the
+  book-length treatment of all of the above.
 
 ### B1. Single-season occupancy with altitude and guild covariates — HIGHEST-VALUE SPATIAL ADDITION
 
@@ -653,12 +842,28 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
       "not identifiable at our n, and here is the simulation" is a stronger exclusion
       than someone else's 400-site threshold. `R/07_power_cooccurrence.R`, after the
       detection-history module.
-- [ ] Build the detection-history / occasion module (`R/00_detection_history.R`) —
-      `cameraOperation()` inputs from `deployments.rds`, occasion length as the one
-      tunable. Prerequisite for both the occupancy item below and the power check.
+- [x] Build the detection-history / occasion module (`R/00_detection_history.R`)
+      **(2026-10-06.** Season required, `OCCASION_DAYS = 14` measured in §B0.1,
+      unsurveyed occasions NA. Surveyed-day rule shared with 02 as
+      `effort_admissible()`. 33 assertions in `tests/test_detection_history.R`.**)**
 - [ ] Fit single-season occupancy for common species with altitude covariate.
-      Effort is no longer the blocker; `stations_sha256` is — station altitude crosses
-      the boundary unverified until the producer publishes it (§0-septies).
+      **Unblocked upstream 2026-10-05** (schema 5: `stations_sha256` published and
+      checked, so altitude is a verified covariate) and on the consumer side 2026-10-06
+      (detection history). Scope set by §B0.1: culpeo (6 seasons), liebre (~4), perro
+      with a low-p caveat; puma, guiña and jabalí excluded with the §B0.1 table as
+      evidence. Needs `unmarked` installed in `pehuen-analysis`. Report 14 d with a 7 d
+      sensitivity run.
+- [ ] **Liebre needs a station-level detection covariate or a Royle–Nichols model**
+      (§B0.1): 71 % of its episodes come from three stations, which biases a
+      constant-p ψ downward.
+- [ ] **Camera habitat descriptors** (forest / clearing / trail / meadow; distance to
+      houses). Needed to read ψ as "share of the reserve" rather than "share of camera
+      stations", and as p covariates. Check what `camera-traps/data/campaigns/estaciones.csv`'s
+      empty columns were meant to hold before asking the field team.
+- [ ] **Liebre's seasonal series is not a window artefact any more.** 7–8 stations in
+      Invierno and Primavera 2025, then one episode each in Verano 2025-26 and Otoño 2026
+      with 26 stations surveyed. The season stratifier removed the campaign-window
+      explanation; this is an A3/B2 question. Not interpreted yet.
 - [ ] Obtain and read Niedballa et al. (2019) supplementary R function
 - [ ] Decide whether zenith güiña redeployment enters the next campaign design
 - [ ] Consider contacting Gálvez (PUC Villarrica) — nearest comparable dataset and methods group
@@ -692,6 +897,14 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
 
 ## Changelog
 
+- **2026-10-06** — **B0 built, and occasion length measured rather than assumed.**
+  `R/00_detection_history.R` returns the station × occasion grid (1 / 0 / NA, effort per
+  cell) for one season at a time; the surveyed-day rule moved out of 02 into
+  `effort_admissible()` (02's output byte-identical). New §B0.1 explains ψ, p, occasions,
+  cumulative detection and closure with the culpeo, perro and liebre cases, and records
+  the p-by-occasion-length measurement: ψ barely moves with length, 14 d chosen, 7 d as
+  sensitivity; puma, guiña and jabalí not estimable by occupancy. The occupancy open
+  item's `stations_sha256` blocker was stale — schema 5 shipped 2026-10-05.
 - **2026-09-15** — **The stratifier was wrong, and two of this document's premises
   with it.** A campaign is the five- to eight-month interval between field visits,
   named for the season the cards were retrieved in; the three windows are contiguous,

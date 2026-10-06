@@ -40,6 +40,21 @@
 #   Raw `records` is one row per IMAGE and should not be counted directly. If you
 #   find yourself writing count(records, ...) ask whether you meant episodes().
 #
+# THE SAME RULE, ON THE EFFORT SIDE
+#   A denominator is admissible for a question in the same sense a record is, and
+#   until 2026-10-06 that rule lived inline in 02 while 00_detection_history.R was
+#   about to need it a second time. It is decided here, once, off the producer's
+#   `media_status` and `valid_effort` (README "Effort" table):
+#
+#     effort_admissible(deployments, "detections")  the days on which a detection
+#                       could have been recorded AND dated: stills in the canonical
+#                       table and a clock diagnosis that allows effort. A day outside
+#                       this set says nothing about absence. Rate denominators and
+#                       detection histories.
+#     effort_admissible(deployments, "sampling")    the camera was recording, whether
+#                       or not its media is readable here: in_canonical plus
+#                       video_only_offline. Naive-occupancy denominators.
+#
 # THE INDEPENDENCE RULE IS NOT DECIDED HERE
 #   Until 2026-09-08 this file held its own 30-minute rule (`keep_after_min_gap()`,
 #   `independent()`), the third copy of a decision that also lived in the annual
@@ -51,7 +66,7 @@
 #   Retiring the R rule moved zero numbers: 380 episodes on the same 1,112 focal rows.
 #
 # REQUIRES    nothing beyond base R.
-# SOURCED BY  01, 02, 03, 05, 06. In 01, source it after here::i_am().
+# SOURCED BY  01, 02, 03, 05, 06, 00_detection_history. In 01, source it after here::i_am().
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Every timestamp in this project is a camera-clock READING labelled UTC (see
@@ -103,6 +118,25 @@ admissible <- function(records, for_question = c("time", "place"), quiet = FALSE
     }
   }
   out
+}
+
+
+# Any table carrying `media_status` and `valid_effort` -- deployments.rds, or the
+# per-season rows of season_effort() -- -> logical, one per row. No row is dropped;
+# the caller filters, so the same rule serves a filter and a conditional sum.
+effort_admissible <- function(deployments, for_question = c("detections", "sampling")) {
+  for_question <- match.arg(for_question)
+  missing <- setdiff(c("media_status", "valid_effort"), names(deployments))
+  if (length(missing)) {
+    stop("`deployments` is missing column(s): ", paste(missing, collapse = ", "),
+         ". Re-run R/01_load_data.R.", call. = FALSE)
+  }
+  switch(
+    for_question,
+    detections = deployments$media_status == "in_canonical" &
+                 deployments$valid_effort %in% TRUE,
+    sampling   = deployments$media_status %in% c("in_canonical", "video_only_offline")
+  )
 }
 
 

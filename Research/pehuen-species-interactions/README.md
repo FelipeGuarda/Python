@@ -139,6 +139,9 @@ Rscript tests/test_timeofday.R   # 35 assertions — anchors solar_rad() to a di
 Rscript tests/test_overlap.R     # 30 assertions — anchors estimate_overlap() to a direct
                                  # overlap::overlapEst() call, guards the CI choice, and
                                  # checks camtrapR derives the same radians this project does
+Rscript tests/test_detection_history.R  # 33 assertions — 1/0/NA cell semantics, the half-open
+                                 # window, effort conserved against 02's rate denominator,
+                                 # and every episode is a 1 (all species, all seasons)
 ```
 
 ### Figures have stable paths (`R/00_figures.R`)
@@ -349,14 +352,37 @@ nothing. `record_table.rds`, the camtrapR input, is one row per episode.
 
 One row per (campaign, station) from the field record, with `media_status`:
 
-| status | means | in a stills-based rate denominator | in an occupancy denominator |
+| status | means | in a stills-based rate denominator, and surveyed in a detection history | in a naive-occupancy denominator |
 |---|---|:---:|:---:|
 | `in_canonical` | stills are in the table | yes, if `valid_effort` | yes |
 | `video_only_offline` | camera was sampling; media is video outside the pipeline | no | yes |
 | `card_failure` | recorded nothing | no | no |
 | `unexplained`, `no_field_dates` | no usable effort; surfaced, never absorbed | no | no |
 
-Script 02 applies exactly that table.
+The table is one function, `effort_admissible(deployments, "detections" | "sampling")` in
+`R/00_admissibility.R` — the effort-side twin of `admissible(records, ...)`. Script 02 and
+`R/00_detection_history.R` both call it; neither restates it.
+
+### Detection histories (`R/00_detection_history.R`)
+
+`detection_history(records, deployments, species, season)` returns the station × occasion
+grid an occupancy model needs: `y` (1 detected / 0 surveyed-not-detected / **NA not
+surveyed**), `effort` (surveyed days per cell) and `occasions` (start, end). It feeds
+`unmarked::unmarkedFrameOccu(y = h$y, obsCovs = list(effort = h$effort))` directly.
+
+- **`season` is required.** A single-season model assumes closure — each station used or
+  unused for the whole run of occasions — and the 19-month record does not satisfy it. A
+  call without a season refuses. Occasions start on the season's first day; B2 stacks one
+  grid per season.
+- **`OCCASION_DAYS` is 14, measured.** Occasion length barely moves ψ, because the chance of
+  detecting a species at least once in a season is nearly fixed (culpeo, Invierno 2025: 81 %
+  at 7 d, 77 % at 14 d). 14 d is where per-occasion p for culpeo and liebre reaches
+  ~0.2–0.35; 7 d is the sensitivity run. The measurement, and a plain-language account of ψ,
+  p, occasions and closure with worked examples, is in `docs/methods-menu-interactions.md`
+  §B0.1.
+- **What it supports.** Culpeo in all six usable seasons, liebre in about four, perro only
+  with a low-p caveat. Puma, guiña and jabalí are detected at 0–4 stations per season and
+  are not estimable by occupancy.
 
 ### Overlap (script 04)
 
@@ -493,7 +519,26 @@ sizes. Its "Open items" list is the analysis backlog.
 ## Project status
 
 - **Last Updated:** 2026-10-06
-- **What Changed (2026-10-06, 2 of 2):** **Citations came off the figures, and no figure
+- **What Changed (2026-10-06, 3 of 3):** **The detection history exists, and its occasion length
+  was measured before it was chosen.** New `R/00_detection_history.R` builds the station × occasion
+  grid occupancy needs — 1 / 0 / **NA for unsurveyed** (MacKenzie et al. 2003), surveyed days per
+  cell as `effort` — for **one season at a time; a call without a season refuses**, because a
+  single-season model assumes closure and the 19-month record does not hold it. Occasion length
+  was set by fitting a null ψ(.)p(.) per species × season at 1–14 days: ψ barely moves (culpeo
+  Invierno 2025: 0.53–0.56 from 3 to 14 d) because the chance of detecting a species at least
+  once per season is nearly fixed (81 % at 7 d, 77 % at 14 d), so **`OCCASION_DAYS = 14`**, 7 d
+  as sensitivity. The same fits settle scope: culpeo estimable in all six usable seasons,
+  liebre in ~4, perro only with a low-p caveat, **puma, guiña and jabalí not estimable by
+  occupancy** (0–4 detecting stations per season). Liebre's low ψ despite many photos is
+  concentration — 71 % of its episodes at CT09, CT20, CT19 — which a constant-p model reads
+  as low ψ and probably underestimates. A plain-language account of ψ, p, occasions,
+  cumulative detection and closure, with these cases worked through and references, is the
+  new `docs/methods-menu-interactions.md` §B0.1. The surveyed-day rule moved out of 02 into
+  `effort_admissible()` in `R/00_admissibility.R`, so 02 and the new module share one rule;
+  02's printed output and all three PNGs were byte-identical before and after. 33 new
+  assertions; all five suites pass. Two stale doc lines corrected (this block's 1 of 3, and
+  the methods menu's `stations_sha256` blocker, which schema 5 closed on 2026-10-05).
+- **What Changed (2026-10-06, 2 of 3):** **Citations came off the figures, and no figure
   clips its own content any more.** Attribution moved to the manuscript — see "Citations live
   in the manuscript, not in the figures" above for the exact strings removed and the two
   references (Ridout & Linkie 2009; Monterroso et al. 2014) that must now be cited in the
@@ -506,7 +551,7 @@ sizes. Its "Open items" list is the analysis backlog.
   `1.00` tick label hung past a 5.5pt margin. All **38 of 38** figures now carry no ink on their
   outermost pixel row or column, measured. `data/overlap_stats.csv` stayed byte-identical
   throughout and all four suites pass.
-- **What Changed (2026-10-06, 1 of 2):** **The Windows box reached schema 5, and the chain reproduces
+- **What Changed (2026-10-06, 1 of 3):** **The Windows box reached schema 5, and the chain reproduces
   there exactly.** `data/overlap_stats.csv` came back **byte-identical to HEAD** after a full
   rebuild and re-run on Windows, so the solar-frame work done on Linux on 2026-10-05 is not
   platform-dependent. All four suites pass and all six scripts exit 0. Two failures were fixed,
@@ -520,7 +565,8 @@ sizes. Its "Open items" list is the analysis backlog.
   machine): both platforms render at identical pixel dimensions with correct accents and en-dashes,
   and the 2.5× byte difference is font rasterization, not resolution — `04_overlap_summary.png`
   rendered here is byte-identical to the 2026-09-15 commit, so there are two stable platform
-  renders rather than drift. One real defect found and **not yet fixed**: that figure clips its own
+  renders rather than drift. One real defect found and **not yet fixed** (*fixed later the same
+  day — see 2 of 3*): that figure clips its own
   subtitle at the right edge in both renders, which is a layout bug in `R/04_temporal_overlap.R`;
   the other figures have not been checked for it.
 - **What Changed (2026-10-05, 3 of 3):** **The analysis gained a second frame of reference.**
@@ -614,10 +660,10 @@ sizes. Its "Open items" list is the analysis backlog.
   `unexplained`, no `no_field_dates`). Two guard rails were added — the two GeoJSONs
   now refuse with exit 2 instead of crashing with exit 1, and a station missing from
   the registry refuses instead of warning and exiting 0.
-- **Integration Status:** `In Progress [REMAINING: detection-history module, Rota power
-  check]` — the seasonal foundation is in and all six scripts run clean against schema
-  5. Target is a peer-reviewed paper, which sets the remaining sequence: build
-  `R/00_detection_history.R` (occasion grid from `deployments.rds`), then
+- **Integration Status:** `In Progress [REMAINING: Rota power check, B1 occupancy, overlap
+  prose rewrite]` — the seasonal foundation and the detection history are in and all six
+  scripts run clean against schema 5. Target is a peer-reviewed paper, which sets the
+  remaining sequence: `R/00_detection_history.R` is done (2026-10-06), so next is
   `R/07_power_cooccurrence.R` to settle whether the Rota multi-species co-occupancy
   model is estimable here — `docs/methods-menu-interactions.md` §B3 says no on a
   400-site citation, `References/FMA_camera_trap_methods_synthesis.md.pdf` ranks it

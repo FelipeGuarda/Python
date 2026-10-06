@@ -54,7 +54,7 @@
 #   the table in the README) and is not restated here.
 #
 # REQUIRES    nothing beyond base R.
-# SOURCED BY  02, 05, 06. Source it after here::i_am().
+# SOURCED BY  02, 05, 06, 00_detection_history. Source it after here::i_am().
 # ─────────────────────────────────────────────────────────────────────────────
 
 

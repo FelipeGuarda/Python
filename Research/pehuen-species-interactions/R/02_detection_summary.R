@@ -25,7 +25,8 @@
 #   deployments.csv (field record), not from "days with a photo", which was a lower
 #   bound that this script used until 2026-09-08 and which rewarded busy cameras.
 #
-#   Two questions, two denominators, both read off `media_status`:
+#   Two questions, two denominators, both decided by effort_admissible() in
+#   R/00_admissibility.R off `media_status`:
 #     rate       divides stills-based episodes by camera-days of stations whose stills
 #                are in the canonical table AND whose clock diagnosis allows effort
 #                (valid_effort). A station without a usable clock has no episodes, so
@@ -83,17 +84,19 @@ deployments <- readRDS(here("data", "deployments.rds")) %>%
 
 # ── 2. Effort, from the field record, split across seasons ───────────────────
 # season_effort() divides each deployment window among the periods it spans and
-# carries media_status through; the two denominator rules below are this script's,
-# unchanged from the campaign version. The split conserves days exactly
-# (tests/test_seasons.R), so switching the axis moved no effort.
+# carries media_status through; the two denominator rules are effort_admissible()'s
+# (R/00_admissibility.R), unchanged from the campaign version. The split conserves
+# days exactly (tests/test_seasons.R), so switching the axis moved no effort.
 
 season_days <- season_effort(deployments)
 
 effort <- season_days %>%
+  mutate(for_rate     = effort_admissible(season_days, "detections"),
+         for_sampling = effort_admissible(season_days, "sampling")) %>%
   group_by(season_start) %>%
   summarise(
-    camera_days         = sum(effort_days[media_status == "in_canonical" & valid_effort %in% TRUE]),
-    n_stations_sampling = n_distinct(station_id[media_status %in% c("in_canonical", "video_only_offline")]),
+    camera_days         = sum(effort_days[for_rate]),
+    n_stations_sampling = n_distinct(station_id[for_sampling]),
     .groups = "drop"
   ) %>%
   mutate(season = season_label(season_start))
@@ -119,7 +122,7 @@ season_facets <- facet_wrap(~season, ncol = 4,
 # deployment it sits in. Both are needed, so the join is on all three keys.
 
 rate_units <- season_days %>%
-  filter(media_status == "in_canonical", valid_effort %in% TRUE) %>%
+  filter(effort_admissible(season_days, "detections")) %>%
   select(campaign, station_id, season_start)
 
 episodes_seasoned <- records %>%
