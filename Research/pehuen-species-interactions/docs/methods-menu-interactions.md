@@ -277,7 +277,9 @@ literature to check before citing a number is MacKenzie & Royle (2005).
 
 #### The measurement (2026-10-06)
 
-Null single-season ψ(.)p(.) fitted by maximum likelihood (own likelihood, no package) per
+`R/occasion_length_scan.R` → `data/occasion_length_scan.csv` (tracked; every fit, with
+naive occupancy, cumulative detection and a boundary flag). Null single-season ψ(.)p(.)
+fitted by maximum likelihood (likelihood written out, since `unmarked` is not installed) per
 species × season period × occasion length {1, 3, 5, 7, 10, 14 d}, on grids built with the
 same rule `detection_history()` now encodes. 216 fits; **91 hit the boundary ψ → 1**, which
 is non-identifiability from too few detecting stations, not an occasion-length effect.
@@ -314,7 +316,10 @@ occasions per season, inside Burton's 1–15 d range); **7 d as the sensitivity 
 **Limits of this measurement.** No standard errors (whether 10 d and 14 d differ is not
 tested); no effort covariate (a part-surveyed occasion counts as a full one; the module now
 returns `effort` so B1 can use it); constant p across stations, which liebre violates. The
-fitting script was a scratch computation; B1 reproduces it properly with `unmarked`.
+numbers are not citable as they stand: B1 must refit them with `unmarked` (open item in §I).
+The script was first run as a scratch computation and committed on 2026-10-06 rebuilt on
+`detection_history()`; it reproduced the scratch run exactly (p identical, ψ within the
+0.005 of rounding).
 
 #### References for this section
 
@@ -853,6 +858,13 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
       with a low-p caveat; puma, guiña and jabalí excluded with the §B0.1 table as
       evidence. Needs `unmarked` installed in `pehuen-analysis`. Report 14 d with a 7 d
       sensitivity run.
+- [ ] **Reproduce the §B0.1 table with `unmarked` before citing any of it.**
+      `R/occasion_length_scan.R` uses a hand-written likelihood with no standard errors,
+      no effort covariate and one p for every station. Refit with `unmarked::occu()`
+      (SEs, `effort` as a detection covariate) and confirm the occasion-length choice
+      and the occupancy scope still hold. First install `unmarked`, `glmmTMB` and
+      `spOccupancy` in `pehuen-analysis` — none of the three is there (checked
+      2026-10-06); B1, B2, B3 and B6 all need one of them.
 - [ ] **Liebre needs a station-level detection covariate or a Royle–Nichols model**
       (§B0.1): 71 % of its episodes come from three stations, which biases a
       constant-p ψ downward.

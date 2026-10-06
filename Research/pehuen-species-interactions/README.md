@@ -127,6 +127,13 @@ Rscript R/05_spatial_distribution.R   # presence maps + episode bubble maps, nat
 Rscript R/06_seasonal_detection_maps.R  # bubble maps per season PERIOD, chronological
 ```
 
+Outside the chain, one evidence script:
+
+```bash
+Rscript R/occasion_length_scan.R      # null psi(.)p(.) per species x season x occasion length
+                                      # -> data/occasion_length_scan.csv; the basis of OCCASION_DAYS
+```
+
 Tests:
 
 ```bash
@@ -674,7 +681,12 @@ sizes. Its "Open items" list is the analysis backlog.
   `review_outcome` empty → `not_applicable`. It would not move this project's numbers
   (no animal row carries an empty value), and as the contract stands it would not move
   the stamp either (`V2-REVIEW.md` §0-septies).
-- **Blockers/Notes:** **Sample size is the binding constraint and the season split makes
+- **Blockers/Notes:** **Occupancy numbers are not citable yet.** `R/occasion_length_scan.R`
+  (the basis of `OCCASION_DAYS = 14` and of excluding puma, guiña and jabalí) uses a
+  hand-written null likelihood with no standard errors. B1 must refit it with `unmarked`,
+  which — like `glmmTMB` and `spOccupancy` — is not installed in `pehuen-analysis`. Tracked as
+  an open item in the methods menu §I.
+  **Sample size is the binding constraint and the season split makes
   it explicit.** Of 42 species × period cells, none reaches 100 episodes, eight are in
   20–99 (culpeo in five periods, liebre in three), and 30 are below 10. Pooled over the
   whole record only culpeo (161) and liebre (129) clear 100; perro is 46; jabalí, guiña
