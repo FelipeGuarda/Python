@@ -31,6 +31,21 @@ producer is expected at `../../camera-traps` and the platform at
 project root anchors `here()` to this directory and must not be deleted. For a
 checkout laid out differently set `FMA_MONOREPO` to the repository root.
 
+### 3. Line endings, on a checkout older than 2026-10-05
+
+`contract_load()` recomputes the SHA-256 of the producer's `estaciones.geojson` from the
+bytes on disk, so the checkout must hold the bytes that were hashed. `camera-traps/.gitattributes`
+pins those files to LF — but it governs *checkout*, so files already in the working tree from
+before it existed keep their CRLF and `git status` stays clean, because git normalizes on
+comparison. The symptom is a refusal with exit 2 on a repository that looks pristine. Measured on
+Windows 2026-10-06: the local file hashed `46f140dd…` against a published `10c5680f…`. One-time
+fix, from the monorepo root:
+
+```bash
+rm -f camera-traps/data/campaigns/estaciones.geojson camera-traps/data/campaigns/*/deployments.csv
+git checkout -- camera-traps/data/campaigns/
+```
+
 ---
 
 ## The handshake
@@ -152,6 +167,57 @@ REFUSED (data/ is not current):
 **What is tracked:** `figures/` and `data/overlap_stats.csv`, the numeric overlap results.
 Those are readable outputs you would put in a report, not intermediates. The line is whether a
 person can read it, not whether it is derived.
+
+### Citations live in the manuscript, not in the figures
+
+Removed from figure text on 2026-10-06. The numbers, the estimator symbol and the
+category labels all stay on the figures — only the attribution went, because it belongs
+in the paper's Methods and reads better there than squeezed onto a plot margin.
+
+| Figure | Text removed |
+|---|---|
+| `figures/overlap_pairs/*.png` (footnote) | `— Monterroso et al. 2014; estimator per Ridout & Linkie 2009` |
+| `figures/04_overlap_summary.png` (subtitle) | `(Ridout & Linkie 2009)` and `Categories from Monterroso et al. (2014).` |
+| `figures/04_overlap_frames.png` (caption) | `categoría de Monterroso` → `categoría de solapamiento` |
+
+So two references must be cited in the write-up wherever these figures appear, and they
+are no longer visible on the figures themselves:
+
+- **Ridout & Linkie (2009)** — the Δ1/Δ4 estimator and the rule that picks between them
+  (Δ4 when `min(n_A, n_B) ≥ 50`, Δ1 otherwise).
+- **Monterroso et al. (2014)** — the Low / Moderate / High overlap bands at 0.50 and 0.75,
+  and the rule that a pair earns a single label only when its whole CI sits in one band.
+
+Neither is lost from the repository: both are stated in full in the header of
+`R/04_temporal_overlap.R` and triaged in `docs/methods-menu-interactions.md`. The
+`category` column of `data/overlap_stats.csv` is unchanged and still carries the
+classification itself.
+
+This was done together with a clipping fix (below), and it is most of that fix: the
+per-pair footnote was being cut at both ends *because* of the citation clause, losing the
+leading `O` of "Overlap:" and the closing parenthesis — on the one line that carries the
+published Δ and its CI.
+
+### No figure may clip its own content
+
+All 38 figures are checked by measuring ink on the outermost pixel row and column: text
+cut off at the device boundary leaves marks there. Three real defects were found and
+fixed on 2026-10-06, and the cause was different in each case:
+
+- **The per-pair footnote** overflowed an 8-inch canvas. It hit 6 of 10 pairs — exactly
+  those with the long category labels (`Moderate–High`, `Low–Moderate`) — so it was
+  length-driven, and dropping the citation clause was enough.
+- **`theme_void()` sets `plot.margin` to zero on all four sides**, so titles and captions
+  on the map figures were drawn hard against the device edge with their descenders cut.
+  Raising the canvas height does *not* help — the caption sits at the bottom edge whatever
+  the height is. The margin is now set explicitly in both `map_theme` definitions
+  (`05`, `06`) and on `presence_by_species`, which has its own inline theme.
+- **`04_overlap_summary.png`** uses `expand = c(0, 0)`, which puts the panel edge exactly
+  at 1.00, so the centred `1.00` tick label hung half its width into a 5.5pt margin a few
+  pixels too narrow. Right margin widened to 16pt.
+
+None of this moved a number: `data/overlap_stats.csv` stayed byte-identical through the
+whole pass.
 
 ### Seasons, and why campaign is not one (`R/00_seasons.R`)
 
@@ -426,7 +492,37 @@ sizes. Its "Open items" list is the analysis backlog.
 
 ## Project status
 
-- **Last Updated:** 2026-10-05
+- **Last Updated:** 2026-10-06
+- **What Changed (2026-10-06, 2 of 2):** **Citations came off the figures, and no figure
+  clips its own content any more.** Attribution moved to the manuscript — see "Citations live
+  in the manuscript, not in the figures" above for the exact strings removed and the two
+  references (Ridout & Linkie 2009; Monterroso et al. 2014) that must now be cited in the
+  write-up. That was also most of the clipping fix: the per-pair footnote was being cut at
+  **both** ends by the citation clause, losing the leading `O` of "Overlap:" and the closing
+  parenthesis on the one line carrying the published Δ and its CI, in 6 of 10 pairs. Two other
+  causes, both different: `theme_void()` zeroes `plot.margin` on all four sides, so the map
+  captions were drawn hard against the device edge (raising canvas height does not help, and
+  was tried and reverted); and `04_overlap_summary.png` uses `expand = c(0, 0)`, so the centred
+  `1.00` tick label hung past a 5.5pt margin. All **38 of 38** figures now carry no ink on their
+  outermost pixel row or column, measured. `data/overlap_stats.csv` stayed byte-identical
+  throughout and all four suites pass.
+- **What Changed (2026-10-06, 1 of 2):** **The Windows box reached schema 5, and the chain reproduces
+  there exactly.** `data/overlap_stats.csv` came back **byte-identical to HEAD** after a full
+  rebuild and re-run on Windows, so the solar-frame work done on Linux on 2026-10-05 is not
+  platform-dependent. All four suites pass and all six scripts exit 0. Two failures were fixed,
+  neither in the analysis: `tests/test_contract.R` compared raw path strings, which cannot hold on
+  Windows because `tempfile()` returns backslashes while `dirname()` normalizes to forward slashes
+  (`registry_path()` was never wrong); and `tests/test_overlap.R` now fails closed when
+  `record_table.rds` lacks `time_rad`/`time_solar_rad` — a cache from 2026-09-15 made
+  `rt_rad$time_solar_rad` NULL, so `max()` over `numeric(0)` returned `-Inf` and a stale cache read
+  as a broken frame. The gate itself had been refusing on Windows for a line-ending reason, now
+  documented under Setup §3. **Figures are committed from Windows renders** (this is the work
+  machine): both platforms render at identical pixel dimensions with correct accents and en-dashes,
+  and the 2.5× byte difference is font rasterization, not resolution — `04_overlap_summary.png`
+  rendered here is byte-identical to the 2026-09-15 commit, so there are two stable platform
+  renders rather than drift. One real defect found and **not yet fixed**: that figure clips its own
+  subtitle at the right edge in both renders, which is a layout bug in `R/04_temporal_overlap.R`;
+  the other figures have not been checked for it.
 - **What Changed (2026-10-05, 3 of 3):** **The analysis gained a second frame of reference.**
   New `R/00_timeofday.R` owns where a detection sits on the 24-hour circle, in both the
   camera's clock frame and a sun-anchored solar frame (`activity::transtime()`, double

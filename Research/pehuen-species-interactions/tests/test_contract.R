@@ -141,8 +141,15 @@ check("absent stamp refuses (data/ never built under a verified contract)",
 
 cat("station registry (schema 5)\n")
 Sys.setenv(FMA_CANONICAL_STATE = file.path(tmp, "good.json"))
+# Compared on the resolved path, not the string: on Windows tempfile() returns
+# backslashes while dirname() normalizes to forward slashes, so identical() on the
+# raw strings fails on a correct registry_path(). mustWork = FALSE because neither
+# path exists -- the assertion is about path construction, not the file.
+.same_path <- function(a, b) identical(
+  normalizePath(a, winslash = "/", mustWork = FALSE),
+  normalizePath(b, winslash = "/", mustWork = FALSE))
 check("registry_path follows the contract's directory",
-      identical(registry_path(), file.path(tmp, "campaigns", "estaciones.geojson")))
+      .same_path(registry_path(), file.path(tmp, "campaigns", "estaciones.geojson")))
 Sys.unsetenv("FMA_CANONICAL_STATE")
 check("the registry the contract hashes passes",
       length(contract_registry_check(state, registry_file)) == 0)

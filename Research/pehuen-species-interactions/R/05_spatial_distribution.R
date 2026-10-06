@@ -138,7 +138,9 @@ fig_presence <- ggplot() +
     caption  = "Unidad: presencia (conjunto), no frecuencia. Ver figura de burbujas para frecuencia."
   ) +
   theme_void(base_size = 9) +
-  theme(legend.position = "none")
+  # theme_void() zeroes plot.margin; see the note on map_theme below.
+  theme(legend.position = "none",
+        plot.margin     = margin(5.5, 5.5, 5.5, 5.5, "pt"))
 
 ggsave(here("figures", "detection_maps", "presence_by_species.png"),
        fig_presence, width = 9, height = 6.5, dpi = 200)
@@ -203,8 +205,14 @@ det_sf <- stations_sf %>%
 
 # ── 4. Shared map theme ───────────────────────────────────────────────────────
 
+# theme_void() zeroes plot.margin on all four sides, so a title or caption is drawn
+# flush against the device boundary and its descenders are cut off by it. Measured on
+# 2026-10-06: the last of this figure's four caption lines was clipped. The margin is
+# restored explicitly rather than by raising the canvas height, which does not help --
+# the caption sits at the bottom edge whatever the height is.
 map_theme <- theme_void(base_size = 12) +
   theme(
+    plot.margin      = margin(5.5, 5.5, 5.5, 5.5, "pt"),
     legend.position  = "bottom",
     strip.background = element_blank(),
     strip.text       = element_text(face = "bold", size = 11),

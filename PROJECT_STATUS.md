@@ -1,6 +1,70 @@
 # FMA Project Status
 
-**Last updated:** 2026-10-05 — **el registro de estaciones entra en el contrato (schema 4 → 5).**
+**Last updated:** 2026-10-06 — **la máquina Windows alcanza el schema 5, y dos tests fallaban por
+razones ajenas al análisis.**
+
+El trabajo del 2026-10-05 se hizo en Linux y se empujó; su log de sesión no. Esta sesión puso a
+Windows en el mismo estado y midió la paridad.
+
+**El pin `eol=lf` no repara un working tree anterior a él.** El `.gitattributes` gobierna el
+*checkout*, así que los cuatro archivos cubiertos por hash seguían en CRLF en disco desde antes del
+2026-10-05. `contract_load()` rehusaba aquí con salida 2 — correctamente: los bytes que tenía no
+eran los bytes hasheados (`46f140dd…` contra el publicado `10c5680f…`). `git status` estaba limpio
+todo el tiempo, así que era invisible sin recomputar el hash. Un `rm` + `git checkout --` de los
+cuatro archivos lo cerró.
+
+**Dos fallas de test, ninguna del análisis.**
+- `tests/test_contract.R`: «registry_path follows the contract's directory» comparaba strings de
+  ruta. En Windows `tempfile()` devuelve backslashes y `dirname()` normaliza a forward slashes, así
+  que la aserción no podía pasar nunca aquí. Ahora compara por `normalizePath()`. `registry_path()`
+  nunca estuvo mal.
+- `tests/test_overlap.R`: un `record_table.rds` del 2026-09-15 no tenía `time_solar_rad`, así que
+  `max()` sobre `numeric(0)` devolvía `-Inf` y la suite reportaba «los marcos son distintos» como
+  falla — un caché viejo leyéndose como un marco roto. Ahora rehúsa nombrando la columna y el
+  comando que reconstruye.
+
+**Paridad medida.** Tras reconstruir `data/` y correr la cadena completa en Windows,
+`data/overlap_stats.csv` queda **byte-idéntico a HEAD**: el marco solar de Linux se reproduce aquí
+exactamente. Las cuatro suites pasan y los seis scripts salen 0.
+
+**Las figuras tienen dos renders estables, uno por plataforma.** `04_overlap_summary.png`
+renderizado en Windows es byte-idéntico al commiteado el 2026-09-15 — las figuras previas al
+2026-10-05 eran renders de Windows y la sesión de Linux las volvió a generar todas. Mismas
+dimensiones en píxeles (3300×2400), mismos acentos y guiones largos correctos en ambas; la
+diferencia de 2,5× en bytes es rasterizado de fuentes, no resolución. **Decisión: se commitean los
+renders de Windows**, que es la máquina de trabajo. Una corrida futura en Linux volverá a ensuciar
+las 38 figuras simétricamente.
+
+**Hallazgo aparte, en ambas plataformas:** `04_overlap_summary.png` corta su propio subtítulo en el
+borde derecho («…1000 bootstrap resamples for 9…»). Es un bug de layout en
+`R/04_temporal_overlap.R`, no un artefacto de fuente. Las demás figuras no se revisaron aún.
+
+**Las advertencias de timezone son cosméticas** para esta cadena: `tzone` es `UTC`, el reloj es
+deliberadamente naive y los campos redondean exacto (`12:22:20` → `time_rad` 12,3722 h);
+`R/00_timeofday.R` aplica su propio `SOLAR_OFFSET_HOURS = -4` en vez de consultar una base tz.
+
+**Las citas salen de las figuras y ninguna figura corta su propio contenido.** La atribución
+pasa al manuscrito: el pie de cada par perdía `— Monterroso et al. 2014; estimator per Ridout &
+Linkie 2009`, el subtítulo de `04_overlap_summary.png` perdía sus dos citas, y
+`categoría de Monterroso` pasa a `categoría de solapamiento`. Las dos referencias que ahora hay
+que citar en el texto están listadas en el README (§«Citations live in the manuscript»).
+
+Eso era además la mayor parte del defecto de recorte: el pie se cortaba **por ambos extremos**
+por culpa de la cláusula de cita — perdía la `O` de «Overlap:» y el paréntesis de cierre — en 6
+de 10 pares, justo en la línea que lleva el Δ publicado y su IC. Otras dos causas, distintas
+entre sí: `theme_void()` pone `plot.margin` en cero en los cuatro lados, así que los pies de los
+mapas se dibujaban pegados al borde del dispositivo (subir el alto del lienzo **no** sirve; se
+probó y se revirtió), y `04_overlap_summary.png` usa `expand = c(0, 0)`, con lo que la etiqueta
+`1.00` centrada sobresalía de un margen de 5,5pt. **38 de 38** figuras quedan sin tinta en su
+fila ni columna de píxeles más externa, medido. `data/overlap_stats.csv` siguió byte-idéntico
+toda la pasada y las cuatro suites pasan.
+
+**Integration status:** pehuén `In Progress [REMAINING: R/00_detection_history.R,
+R/07_power_cooccurrence.R]` — sin cambios. camera-traps `Ready`. data-pipeline `Pending [bump 3 → 5]`.
+
+---
+
+**Prior — 2026-10-05 — el registro de estaciones entra en el contrato (schema 4 → 5).**
 
 `camera-traps/data/CANONICAL_STATE.json` publica ahora, en el nivel superior, `stations_sha256`
 (SHA-256 de los bytes de `estaciones.geojson`) y `n_stations_registry` (27). Hasta hoy cada

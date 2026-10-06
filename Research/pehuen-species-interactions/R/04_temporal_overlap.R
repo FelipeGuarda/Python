@@ -384,7 +384,7 @@ for (pair in PAIRS) {
     main              = paste("Activity overlap:", sp1, "and", sp2)
   )
   mtext(
-    sprintf("Overlap: %s   (%s = %.3f, 95%% CI [%.2f, %.2f]) — Monterroso et al. 2014; estimator per Ridout & Linkie 2009",
+    sprintf("Overlap: %s   (%s = %.3f, 95%% CI [%.2f, %.2f])",
             row$category, estimator_label, row$estimate, row$ci_low, row$ci_high),
     side = 1, line = 1, outer = TRUE, cex = 0.9, col = "grey20"
   )
@@ -448,9 +448,8 @@ fig_summary <- ggplot(overlap_df,
                      expand = c(0, 0)) +
   labs(
     title    = "Temporal overlap between focal species pairs",
-    subtitle = paste0("Δ1/Δ4 selected per pair from the smaller sample (Ridout & Linkie 2009); ",
-                      N_BOOT, " bootstrap resamples for 95% CI. ",
-                      "Categories from Monterroso et al. (2014)."),
+    subtitle = paste0("Δ1/Δ4 selected per pair from the smaller sample; ",
+                      N_BOOT, " bootstrap resamples for 95% CI."),
     caption  = "Bands: Low (< 0.50) · Moderate (0.50–0.75) · High (≥ 0.75). Category assigned only when entire CI sits in one band.",
     x        = "Temporal overlap coefficient (Δ1 or Δ4)",
     y        = NULL
@@ -462,7 +461,11 @@ fig_summary <- ggplot(overlap_df,
     strip.background = element_blank(),
     strip.text       = element_text(face = "bold"),
     plot.caption     = element_text(hjust = 0, colour = "grey30", size = 10),
-    panel.grid.major.y = element_line(colour = "grey92")
+    panel.grid.major.y = element_line(colour = "grey92"),
+    # expand = c(0, 0) above puts the panel edge exactly at 1.00, so the centred
+    # "1.00" tick label hangs half its width past it. The default 5.5pt margin is a
+    # few pixels short of that and clipped the last glyph; measured 2026-10-06.
+    plot.margin      = margin(5.5, 16, 5.5, 5.5, "pt")
   )
 
 ggsave(here("figures", "04_overlap_summary.png"),
@@ -536,7 +539,7 @@ fig_frames <- ggplot(frame_wide, aes(y = pair_label)) +
     subtitle = paste0("El mismo par, estimado en los dos marcos de referencia. ",
                       "El amanecer se corre 2,9 h en el año a 39,4°S."),
     caption  = paste0(time_frame_label("solar"),
-                      ". Sólo se rotula el par cuya categoría de Monterroso cambia."),
+                      ". Sólo se rotula el par cuya categoría de solapamiento cambia."),
     x        = "Coeficiente de solapamiento (Δ1 o Δ4)",
     y        = NULL
   ) +

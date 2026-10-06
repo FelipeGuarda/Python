@@ -174,6 +174,22 @@ rt_path <- here::here("data", "record_table.rds")
 if (file.exists(rt_path)) {
   suppressPackageStartupMessages(library(camtrapR))
   rt_rad <- readRDS(rt_path)
+
+  # Fail closed on a data/ that predates the columns under test. Without this, a
+  # record_table.rds written before the solar frame existed makes rt_rad$time_solar_rad
+  # NULL, the comparison below runs over numeric(0), and max() returns -Inf — which
+  # fails the assertion for the wrong reason and reads as a broken frame rather than a
+  # stale cache. Measured on 2026-10-06 against a 2026-09-15 cache.
+  missing_cols <- setdiff(c("time_rad", "time_solar_rad"), names(rt_rad))
+  if (length(missing_cols) > 0) {
+    stop(sprintf(paste0(
+      "REFUSED: data/record_table.rds is stale -- missing column(s): %s.\n",
+      "  It was written before these columns existed; the frame comparisons below\n",
+      "  cannot run against it. Rebuild:\n",
+      "    conda run -n pehuen-analysis Rscript R/01_load_data.R"),
+      paste(missing_cols, collapse = ", ")), call. = FALSE)
+  }
+
   png(tempfile())  # activityDensity needs a device; we want the return value only
   worst <- max(vapply(c("Zorro culpeo", "Liebre", "Puma"), function(sp) {
     cam  <- activityDensity(recordTable = rt_rad, species = sp, allSpecies = FALSE,

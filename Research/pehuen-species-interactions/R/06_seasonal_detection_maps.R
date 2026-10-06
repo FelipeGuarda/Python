@@ -127,8 +127,11 @@ SPECIES_COLORS <- c(
   "Perro"        = "#fee090"
 )
 
+# theme_void() zeroes plot.margin; without this the flush-left title and caption sit
+# hard against the device edge. See the same note in 05_spatial_distribution.R.
 map_theme <- theme_void(base_size = 11) +
   theme(
+    plot.margin       = margin(5.5, 5.5, 5.5, 5.5, "pt"),
     legend.position   = "bottom",
     strip.background  = element_blank(),
     strip.text        = element_text(face = "bold", size = 12),
