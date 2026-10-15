@@ -1,6 +1,25 @@
 # FMA Project Status
 
-**Last updated:** 2026-10-06 — **la máquina Windows alcanza el schema 5, y dos tests fallaban por
+**Last updated:** 2026-10-15 — **los dos documentos de calidad de camera-traps alcanzan al schema 5.**
+
+**What Changed:** `MANUAL-SALUD-DATOS.md` y `CONTRASTE-SILVA-RODRIGUEZ-2025.md` se auditaron
+contra el trabajo del 2026-09-15 al 2026-10-06. El manual se contradecía (15 y 21 tests para el
+mismo archivo), contaba 311 tests (son 317), no registraba la falla CRLF del 2026-10-06 (nueva fila
+en §9F.3, **sin test**: la protección es `.gitattributes`), y no decía que una campaña no es una
+temporada (nuevo párrafo en §0F.4; dos «temporada» corregidas a «campaña»). El contraste suma el
+registro de estaciones al contrato (§4a, §7.7) y el conteo de tests. En una segunda parte el
+contraste se **reescribió** como documento interno para el equipo y la coordinación: el protocolo
+de Silva-Rodríguez et al. cabe *dentro* del nuestro (antes: «complementarios»), ellos especifican
+qué declarar y nuestra cadena produce cada declaración como registro, la tasa de error medida se
+declara de entrada como el punto donde estamos por debajo, y cierra con el potencial como
+contribución metodológica, condicionado a revisión de literatura. Sólo documentación.
+
+**Integration Status:** camera-traps `Ready`. Sin cambios de código ni de contrato.
+
+**Blockers/Notes:** `review_outcome` → `not_applicable` sigue pendiente. V2-REVIEW no tiene sello
+`0-octies` para el 2026-10-05. El `.docx` del manual no se regeneró en esta sesión.
+
+**Prior — 2026-10-06:** **la máquina Windows alcanza el schema 5, y dos tests fallaban por
 razones ajenas al análisis.**
 
 El trabajo del 2026-10-05 se hizo en Linux y se empujó; su log de sesión no. Esta sesión puso a

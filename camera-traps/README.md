@@ -89,7 +89,19 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-10-05 — **the station registry enters the contract (schema_version 4 → 5).**
+**Last Updated:** 2026-10-15 — **the Silva-Rodríguez comparison is reframed: their protocol sits
+inside ours.** `docs/CONTRASTE-SILVA-RODRIGUEZ-2025.md` is now an internal document for the team
+and coordination, not a planning note. The 2026-09-09 reading — "complementary: they protect
+classification, we protect provenance" — undersold it: their three stages map onto our phases
+4–5 and part of 0–3, and our chain adds what must hold before a label means anything and after it
+leaves the producer. The difference in kind: they specify what to *disclose*; our chain produces
+each disclosure as a *record* (a column, a test, a contract field). The one place we fall short —
+a measured error rate from blind re-review — is stated up front. Ends with a note that this has
+potential as a methods contribution, conditional on a literature check (Camtrap DP at minimum).
+Also: `MANUAL-SALUD-DATOS.md` caught up to schema 5 (317 tests, the CRLF failure row in §9F.3,
+"a campaign is not a season" in §0F.4). Docs only; no code or contract change.
+
+**Prior — 2026-10-05 — the station registry enters the contract (schema_version 4 → 5).**
 
 **What Changed.** `CANONICAL_STATE.json` now publishes, top-level, `stations_sha256` (SHA-256 of
 the bytes of `data/campaigns/estaciones.geojson`) and `n_stations_registry` (27). Until now

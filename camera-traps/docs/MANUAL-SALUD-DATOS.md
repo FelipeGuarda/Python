@@ -3,7 +3,7 @@
 ### Manual de extremo a extremo: del terreno al contrato
 
 **Fundación Mar Adentro · Bosque Pehuén**
-Documento vigente. Edición 2026-09-09.
+Documento vigente. Edición 2026-10-15.
 
 > Este es el documento autoritativo. Existe una edición en inglés
 > (`DATA-HEALTH-MANUAL.md`) que **no se mantiene al día** y que sólo debe usarse como
@@ -178,7 +178,7 @@ quien no va a leerlo completo, y tiene cinco columnas:
 
 Un punto sobre la última columna, porque el número asusta y conviene desarmarlo.
 
-**Hay 311 tests. No hay 311 preocupaciones distintas.** Los 311 tests viven en **76 clases**
+**Hay 317 tests. No hay 317 preocupaciones distintas.** Los 317 tests viven en **76 clases**
 repartidas en 14 archivos. La unidad conceptual es la **clase**, no el test: una clase es
 *una* regla acordada, y los tests dentro de ella son los casos de esa regla. Por eso la
 tabla nombra clases y no cuenta tests.
@@ -338,6 +338,20 @@ que traiga.
 > *Observado: `pv_2025_2026` era una segunda pasada de revisión sobre primavera 2025, no una
 > campaña. Llegó una vez a la lista de campañas y desplazó silenciosamente a primavera,
 > revirtiendo 606 filas recién revisadas.*
+
+**Una campaña tampoco es una temporada.** Dura de cinco a ocho meses, y el nombre dice cuándo
+se retiraron las tarjetas, no qué parte del año registró: `primavera_2025` contiene el
+invierno, `otono_2026` contiene verano y otoño. Las campañas son contiguas, así que el arreglo
+es un registro continuo partido en retiros, no una serie de instantáneas estacionales. La
+campaña es **procedencia** — decide qué se publica y bajo qué contrato —; la temporada de un
+registro se deriva de su marca de tiempo.
+
+> **Qué se rompe.** Un análisis que estratifica por campaña mezcla temporadas bajo un rótulo
+> estacional, y lee el borde de la ventana como un cambio biológico.
+>
+> *Observado (2026-09-15): un «derrumbe» de liebre de 80 a 2 episodios era una ventana sin
+> invierno ni primavera; y un «invierno faltante» sobre el que se habían escrito dos secciones
+> de métodos era, medido, la temporada mejor muestreada del registro.*
 
 ### 0F.5 Tabla de vigilancia — Fase 0
 
@@ -1332,7 +1346,7 @@ escribía el archivo, así que el nombre se armó con la fecha nueva y la marca 
 *Recuperable:* no aplica, no hay nada malo.
 
 > **Qué se rompe si esto se confunde con (4).** Una cámara que funciona se declara defectuosa
-> y se descarta su temporada completa.
+> y se descarta su campaña completa.
 >
 > *Observado: tres fotos a las 23:59:28–29 — un máximo de 32 segundos de medianoche,
 > contra 318 fotos que concordaban — hicieron que se rechazara una cámara entera, a un
@@ -1444,7 +1458,7 @@ casos que nadie anticipó, incluida una carpeta inocentemente llamada `Camara 23
 | Salto hacia adelante no detectado | El reloj saltó adelante y sigue con fechas modernas y creíbles | Lo mismo que arriba, y es peor: nada se ve mal en una inspección visual | La misma prueba de discontinuidad; **no** un umbral de año | `TestForwardJump` |
 | Un desfase por estación aplicado a una cámara con varios reinicios | Se trató como un reinicio algo que eran cinco segmentos | Fechas verosímiles y falsas en la mayoría de los segmentos | El diagnóstico es por segmento por construcción (`Segment.index`) | `TestScenarioD`, `TestScenarioG`, `TestSegmentForRows` |
 | Reloj incoherente aceptado como reparable | El reloj no avanza parejo; hay meses `00` y `16` | Todo lo temporal, y ninguna ancla lo arregla | P2: nombre `MMDD` contra su propia marca | `TestPrecondition2Coherence` |
-| Artefacto de medianoche tratado como corrupción | Un archivo se escribió cruzando el límite del día | **Falso negativo caro:** se descarta una temporada completa de una cámara sana | Tolerancia de 120 s a medianoche, que **sólo perdona** | `TestMidnightTolerance` (5 casos) |
+| Artefacto de medianoche tratado como corrupción | Un archivo se escribió cruzando el límite del día | **Falso negativo caro:** se descarta una campaña completa de una cámara sana | Tolerancia de 120 s a medianoche, que **sólo perdona** | `TestMidnightTolerance` (5 casos) |
 | Orden de captura asumido en vez de demostrado | El contador `nnnn` da la vuelta en 9999 y no hay manifiesto | La detección de reinicios completa: sin orden no hay discontinuidad que ver | P1: `clocks.establish_order()`, rechaza si no puede demostrarlo | `TestPrecondition1Ordering`, `TestDcimFolderKey` |
 | Dos cámaras tratadas como una instalación | Dos gramáticas de nombre, cada una con su propia corrida de contador | Atribución: fotos asignadas a la estación equivocada | `clocks.parse_filename()` + la regla de una historia de captura | `TestFilenameGrammar`, `TestDcimFolderKey` |
 | Una fila sin segmento asignada por adivinanza | Un video o una marca indescifrable en una cámara multi-segmento | Contención: una foto ubicada en el tramo equivocado | `clocks.segment_for_rows()` rechaza en vez de ubicar | `TestSegmentForRows`, `TestVideosExcluded` |
@@ -1717,7 +1731,7 @@ tiempo**. Es reciclaje del contador `MMDDnnnn.JPG` entre años, y **no se debe d
 | Una estación desplegada sin imágenes, descartada | Se borran ~620 días-cámara reales | El denominador de la campaña | Se publican con `has_media = false` | `test_stations_deployed_without_images_are_published` |
 | "Sin imágenes" tratado como "no vio nada" | Cuatro estaciones grababan video | El denominador: se reescala toda tasa de otoño 2025 | `media_status` da la **razón**, no sólo el hecho | `TestMediaStatusIsAReasonNotAMeasurement` (6 casos) |
 
-15 tests en 4 clases (`tests/test_canonical_state.py`), 19 en 6 (`tests/test_episodes.py`), 16
+21 tests en 4 clases (`tests/test_canonical_state.py`), 19 en 6 (`tests/test_episodes.py`), 16
 en 4 (`tests/test_deployments.py`).
 
 ---
@@ -1796,6 +1810,7 @@ canónica, y 4.318 sobre 25 para cualquier cosa que cuente el video.
 | Un vacío sin explicar contado como esfuerzo | Nadie escribió por qué esa estación no tiene fotos | El denominador, y nadie hizo la pregunta | `media_status = unexplained`, no una nota tranquilizadora | `test_an_undeclared_gap_reports_unexplained_rather_than_nothing` |
 | El GeoJSON se regeneró y no se re-publicó | El contrato describe un registro que ya no es el que está publicado | Toda coordenada y altitud aguas abajo: ocupación con altitud, hora solar | `diff()` compara `stations_sha256` y `n_stations_registry` | `test_regenerated_registry_without_republish_is_caught`, `test_registry_station_count_change_is_caught` |
 | Una estación de la tabla sin fila en el registro | Sus registros no tienen posición | Un join por estación pierde esa estación en silencio | Toda etiqueta observada tiene que estar en el registro | `test_every_observed_station_is_in_the_registry` |
+| Un clon en Windows reescribe los fines de línea de un archivo con hash | `core.autocrlf` convierte LF en CRLF al hacer checkout; los bytes ya no son los que se publicaron | La verificación del registro: el consumidor rechaza un archivo **correcto**. **Ya ocurrió** (2026-10-06) | `.gitattributes` fija `eol=lf` en `estaciones.geojson` y en cada `deployments.csv`. El pin rige el checkout: un clon anterior al 2026-10-05 conserva sus CRLF hasta volver a sacar esos archivos | **Ninguno.** La protección es configuración, no test; `git status` aparece limpio aunque el hash no coincida |
 
 21 tests en 4 clases (`tests/test_canonical_state.py`), 16 en 4 (`tests/test_deployments.py`).
 
