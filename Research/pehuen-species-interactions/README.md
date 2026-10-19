@@ -525,7 +525,22 @@ sizes. Its "Open items" list is the analysis backlog.
 
 ## Project status
 
-- **Last Updated:** 2026-10-06
+- **Last Updated:** 2026-10-16
+- **What Changed (2026-10-16):** **An internal status document for colleagues, in Spanish**
+  (`docs/estado-analisis-2026-10.md`, rendered to `.docx` by `docs/render.sh`). Two new figures
+  back it: `figures/05_station_map.png` (every station labelled, coloured by altitude; new §7 of
+  `05`) and `figures/02_deployment_timeline.png` (one bar per deployment, coloured by the status
+  `effort_admissible()` reads; Fig D of `02`). No number moved; the other figures of 02 and 05
+  were restored to their committed Windows renders. Two checks went into the document.
+  (1) The 83 puma and jabalí images without a time come from three deployments only: CT10 and
+  CT15 in otoño 2025 (coherent clock with no anchor, recoverable with field evidence) and CT18
+  in otoño 2026 (jabalí: corrupt clock, not recoverable). (2) Liebre's fall from Dec 2025 holds
+  against every artefact check: the cameras were working and detecting ground birds, the
+  unknowns sit at CT08/CT22, all animal rows were human-reviewed, and the undated images are few.
+  **But the year-on-year contrast is confounded**: the field notes record CT09 raised to ~2 m
+  (2025-05-14), CT19 raised (2025-06-05) and CT20 moved (2025-06-09). CT09 held 45 of its 49
+  liebre episodes before the raise. Open: no field notes exist for the Nov–Dec 2025 visit, and
+  every camera was raised to 1.5–2 m in May 2026.
 - **What Changed (2026-10-06, 3 of 3):** **The detection history exists, and its occasion length
   was measured before it was chosen.** New `R/00_detection_history.R` builds the station × occasion
   grid occupancy needs — 1 / 0 / **NA for unsurveyed** (MacKenzie et al. 2003), surveyed days per

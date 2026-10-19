@@ -49,6 +49,7 @@
 # OUTPUT  figures/02_detections_per_species.png
 #         figures/02_detection_rate.png
 #         figures/02_naive_occupancy.png
+#         figures/02_deployment_timeline.png   (Fig D — operation per station)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -217,6 +218,71 @@ fig_C <- ggplot(occupancy, aes(x = species_label, y = naive_occupancy, fill = gu
 
 ggsave(here("figures", "02_naive_occupancy.png"), fig_C, width = 14, height = 8, dpi = 300)
 message("Saved figures/02_naive_occupancy.png")
+
+# ── 7. Figure D — deployment timeline ────────────────────────────────────────
+# One row per station, one bar per deployment, coloured by the same status that
+# effort_admissible() reads. It shows in one picture why effort differs eightfold
+# between periods (the array ramping up) and where the place-only records come from
+# (whole deployments whose clock could not be repaired). Season-period boundaries
+# are drawn so a gap can be read against the strata every other figure uses.
+
+DEPLOY_STATUS_COLORS <- c(
+  "Fotos, reloj válido"       = "#2c7bb6",
+  "Fotos, reloj no reparable" = "#fdae61",
+  "Sólo video"                = "grey60",
+  "Tarjeta fallida"           = "#d7191c"
+)
+
+timeline <- deployments %>%
+  mutate(
+    status = case_when(
+      media_status == "in_canonical" & valid_effort  ~ "Fotos, reloj válido",
+      media_status == "in_canonical"                 ~ "Fotos, reloj no reparable",
+      media_status == "video_only_offline"           ~ "Sólo video",
+      media_status == "card_failure"                 ~ "Tarjeta fallida"
+    ),
+    status     = factor(status, levels = names(DEPLOY_STATUS_COLORS)),
+    station_id = factor(station_id, levels = rev(sort(unique(station_id))))
+  )
+stopifnot(!anyNA(timeline$status))   # a new media_status must be named, not dropped
+
+record_days    <- seq(min(timeline$field_start), max(timeline$field_end), by = "day")
+period_starts  <- sort(unique(season_start(record_days)))
+period_breaks  <- period_starts[period_starts > min(record_days)]
+period_mids    <- data.frame(
+  start = pmax(period_starts, min(record_days)),
+  end   = c(period_breaks, max(record_days))
+) %>%
+  mutate(mid = start + (end - start) / 2, label = as.character(season_label(start)))
+
+fig_D <- ggplot(timeline) +
+  geom_vline(xintercept = period_breaks, colour = "grey75", linewidth = 0.3) +
+  geom_segment(aes(x = field_start, xend = field_end, y = station_id, yend = station_id,
+                   colour = status), linewidth = 3.2) +
+  # A white tick at each field visit, so back-to-back deployments of the same
+  # status read as two bars rather than one.
+  geom_point(data = filter(timeline, field_start > min(field_start)),
+             aes(x = field_start, y = station_id), shape = "|", size = 4, colour = "white") +
+  geom_text(data = period_mids, aes(x = mid, y = Inf, label = label),
+            vjust = -0.6, size = 3.2, colour = "grey30") +
+  scale_colour_manual(values = DEPLOY_STATUS_COLORS, name = NULL, drop = FALSE) +
+  scale_x_date(date_breaks = "2 months", date_labels = "%b\n%Y") +
+  coord_cartesian(clip = "off") +
+  labs(
+    title    = "Operación de cada estación en el tiempo",
+    subtitle = "Una barra por despliegue (entre dos visitas de terreno); líneas grises = inicio de cada temporada",
+    caption  = paste("Fuente: deployments.csv del productor. \"Reloj no reparable\": las fotos prueban presencia",
+                     "pero no fecha ni hora, y esos días no entran al denominador de las tasas.", sep = "\n"),
+    x = NULL, y = NULL
+  ) +
+  theme_classic(base_size = 12) +
+  theme(legend.position = "bottom",
+        plot.title      = element_text(margin = margin(b = 4)),
+        plot.subtitle   = element_text(margin = margin(b = 22)),
+        plot.caption    = element_text(hjust = 0, colour = "grey30"))
+
+ggsave(here("figures", "02_deployment_timeline.png"), fig_D, width = 12, height = 8, dpi = 300)
+message("Saved figures/02_deployment_timeline.png")
 
 message("\nEpisodes / rate / occupancy per season and species:")
 summary_tbl <- detections %>%

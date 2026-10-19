@@ -42,6 +42,7 @@
 # OUTPUT  figures/detection_maps/  (camtrapR presence/absence maps)
 #         figures/05_spatial_all_species.png
 #         figures/05_spatial_native_by_season.png
+#         figures/05_station_map.png   (labelled station reference map)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -327,4 +328,35 @@ fig_native <- ggplot() +
 ggsave(here("figures", "05_spatial_native_by_season.png"),
        fig_native, width = 12, height = 3 * length(SEASON_LEVELS) + 2, dpi = 300)
 message("Saved figures/05_spatial_native_by_season.png")
+
+
+# ── 7. Station reference map ─────────────────────────────────────────────────
+# Every other map in this project leaves the stations unnamed, so a reader told
+# "71 % of liebre's episodes are at CT09, CT20 and CT19" cannot find them. This one
+# exists to be looked up: every station labelled, coloured by altitude, nothing else.
+# Coordinates are the registry's current ones; CT01 and CT20 were moved in mid-2025
+# (field notes) and the registry holds one position per station.
+
+fig_stations <- ggplot() +
+  geom_sf(data = boundary_sf, fill = "#f0f4e8", colour = "grey60", linewidth = 0.5) +
+  geom_sf(data = stations_sf, aes(fill = altitude_m),
+          shape = 21, size = 3.2, colour = "grey20", stroke = 0.3) +
+  # geom_text on the coordinates rather than geom_sf_text: the latter computes
+  # st_point_on_surface(), which warns on lon/lat even for points.
+  geom_text(data = cbind(st_drop_geometry(stations_sf), st_coordinates(stations_sf)),
+            aes(x = X, y = Y, label = id), size = 3, fontface = "bold", nudge_y = 0.0011) +
+  scale_fill_viridis_c(name = "Altitud (m)", option = "cividis") +
+  labs(
+    title    = "Estaciones de fototrampeo, Bosque Pehuén",
+    subtitle = sprintf("%d estaciones; color = altitud del registro de estaciones",
+                       nrow(stations_sf)),
+    caption  = paste("Coordenadas actuales del registro (estaciones.geojson).",
+                     "CT01 y CT20 se reubicaron a mediados de 2025.")
+  ) +
+  map_theme +
+  theme(legend.position = "right")
+
+ggsave(here("figures", "05_station_map.png"),
+       fig_stations, width = 8, height = 8.5, dpi = 300)
+message("Saved figures/05_station_map.png")
 message("All scripts complete. Figures are in the figures/ directory.")
