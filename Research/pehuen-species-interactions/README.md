@@ -525,7 +525,22 @@ sizes. Its "Open items" list is the analysis backlog.
 
 ## Project status
 
-- **Last Updated:** 2026-10-16
+- **Last Updated:** 2026-11-03
+- **What Changed (2026-11-03):** `docs/estado-analisis-2026-10.md` restructured around the team's
+  research questions — (i) detection rates, (ii) spatial patterns, (iii) temporal patterns, plus
+  (iv) space × time, added because the expected results include it. Each section reads *what was
+  done (with a plain-language method description) → what it shows → what could be done → what it
+  requires*. Field tasks and the cannot-yet-claim list are now their own sections; the old
+  next-steps list becomes a priorities table pointing to sections. No number, figure or citation
+  changed (checked by diffing numeric tokens); the broken "sección 4.1" reference is fixed. Scope
+  note added: cameras with unmarked animals cannot measure movement, and habitat *selection* needs
+  per-camera habitat descriptors, so (ii) is framed as site use / distribution for now.
+  Later the same day: **the liebre headline was false.** CT18 (clock failed, excluded from rates
+  via `valid_effort`) holds 9–11 liebre events in otoño 2026, all after 2025-11-28 by counter
+  order, against 2 dated events elsewhere. The document now says so, and §1.4 counts lost
+  *events* per species (exact in coherent unanchored segments, 1–n bounds in incoherent ones).
+  The episode reconstruction was a one-off scratch script, not committed.
+  **Integration Status:** `Ready` (`.docx` re-rendered).
 - **What Changed (2026-10-16):** **An internal status document for colleagues, in Spanish**
   (`docs/estado-analisis-2026-10.md`, rendered to `.docx` by `docs/render.sh`). Two new figures
   back it: `figures/05_station_map.png` (every station labelled, coloured by altitude; new §7 of

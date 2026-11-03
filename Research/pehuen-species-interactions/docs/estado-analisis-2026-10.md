@@ -11,23 +11,58 @@ Llevamos 19 meses de registro continuo de 27 cámaras trampa. De ellos salen **3
 independientes** de seis especies focales: tres carnívoros nativos (puma, güiña, zorro culpeo)
 y tres invasoras (jabalí, liebre, perro).
 
-El resultado más sólido hasta ahora es temporal. **Los nativos coinciden poco en el horario con
-el perro**: el culpeo y la güiña son nocturnos y el perro es estrictamente diurno. Esto se
-sostiene con los dos marcos de tiempo que usamos. Todavía no sabemos si es evitación o solo
-el horario propio del perro.
+Este documento ordena lo hecho según las preguntas que nos planteamos como equipo. Para cada
+una dice qué métodos se usaron, qué muestran hasta ahora y qué métodos se podrían usar
+después.
 
-El hallazgo que más pide explicación es la **liebre**. Era la segunda especie más registrada.
-Desde diciembre de 2025 prácticamente desaparece de todo el arreglo, en cámaras que siguen
-funcionando y registrando otros animales. Parte de la comparación entre años está afectada
-por cambios en la instalación de las cámaras (sección 4.1), pero la caída simultánea en todas
-las estaciones no se explica por eso.
+| Pregunta | Estado | Lo principal hasta ahora |
+|---|---|---|
+| (i) Tasas de detección | **Hecho** | La **liebre** cae fuertemente desde diciembre de 2025 en las estaciones con reloj válido, pero sigue presente en CT18, cuyo reloj falló (sección 2.2) |
+| (ii) Patrones espaciales | **Parcial** | Descriptivo. Modelos de ocupación preliminares, todavía no citables (sección 3.2) |
+| (iii) Patrones temporales | **Hecho** | **Los nativos coinciden poco en el horario con el perro**, en los dos marcos de tiempo (sección 4.3) |
+| (iv) Espacio y tiempo juntos | **No iniciado** | Es el principal vacío del proyecto (sección 5) |
 
-Lo espacial sigue siendo mayormente descriptivo. El análisis conjunto de espacio y tiempo, es
-decir, si una especie evita los lugares que otra acaba de usar, todavía no se ha hecho.
+El resultado más sólido es temporal: el culpeo y la güiña son nocturnos y el perro es
+estrictamente diurno. Todavía no sabemos si es evitación o solo el horario propio del perro.
+
+El hallazgo que más pide explicación es la liebre. Era la segunda especie más registrada.
+Desde diciembre de 2025 deja de aparecer en las cámaras con reloj válido, que siguen
+funcionando y registrando otros animales: en esas estaciones quedan solo 2 eventos en el
+otoño de 2026. **Pero no desaparece del arreglo.** CT18, cuyo reloj falló, registró entre 9 y
+11 eventos de liebre en el mismo período. No sabemos sus fechas, pero sí sabemos que son
+posteriores al 28 de noviembre de 2025 (sección 2.2). Parte de la comparación entre años está
+afectada además por cambios en la instalación de las cámaras.
 
 ---
 
-# 1. Los datos
+# 0. Objetivo y preguntas
+
+**Objetivo.** i) Evaluar las tasas de detección, ii) patrones espaciales de actividad y
+iii) patrones temporales de actividad de mamíferos nativos e invasores en las cámaras trampa
+desplegadas en Bosque Pehuén.
+
+Los resultados esperados agregan una cuarta pregunta, la relación entre el uso del espacio y
+el horario. Este documento la trata como pregunta (iv):
+
+| Pregunta | Qué se pregunta | Sección |
+|---|---|---|
+| (i) Tasas de detección | ¿Con qué frecuencia se registra cada especie, y cómo cambia entre temporadas? | 2 |
+| (ii) Patrones espaciales | ¿Dónde están las especies y qué proporción de los sitios usan? | 3 |
+| (iii) Patrones temporales | ¿A qué hora están activas, cómo cambia en el año y cuánto coinciden entre especies? | 4 |
+| (iv) Espacio y tiempo juntos | ¿Una especie evita los lugares que otra acaba de usar? ¿El horario cambia según el sitio? | 5 |
+
+**Dos precisiones de alcance.** Con cámaras fijas e individuos sin marcar **no se puede medir
+movimiento** de animales. Y **"selección de hábitat"** (uso del hábitat en relación con lo
+disponible) requiere describir el hábitat de cada cámara, cosa que todavía no se ha hecho. Por
+eso la pregunta (ii) se trata hoy como **uso de sitios y distribución**, y la selección de
+hábitat aparece entre los métodos posibles (sección 3.3).
+
+Cada sección sigue el mismo orden: **qué se hizo** (con una breve descripción del método),
+**qué muestra**, **qué se podría hacer** y **qué requiere**.
+
+---
+
+# 1. Los datos (base común a todas las preguntas)
 
 ## 1.1 El arreglo de cámaras
 
@@ -63,7 +98,7 @@ para calcular tasas, porque tienen fotos con un reloj confiable:
 
 La figura siguiente muestra cada despliegue (el período entre dos visitas) por estación.
 Explica de una vez por qué el esfuerzo es desigual y de dónde vienen las fotos sin hora
-utilizable (sección 2).
+utilizable (sección 1.4).
 
 ![Operación de cada estación. Azul: fotos con reloj válido. Naranjo: fotos con reloj no
 reparable. Gris: solo video. Rojo: tarjeta fallida.](../figures/02_deployment_timeline.png)
@@ -86,10 +121,11 @@ se corrigieron. El animal más fotografiado es el **vacuno** (579 imágenes), se
 (389) y zorro culpeo (335). También aparecen especies que no son focales en este análisis pero
 son relevantes: **ciervo rojo** (87, invasor), caballo (123), monito del monte (55) y pudú (31).
 
-**La unidad de análisis es el evento independiente, no la foto.** Una cámara toma 2–3 fotos
-por disparo, y un animal que se queda frente a ella genera muchas. Por eso se agrupan las
-fotos de una misma especie en una misma estación separadas por menos de 30 minutos. Ejemplo:
-las 579 fotos de vacuno son solo 19 eventos.
+**Método: el evento independiente.** La unidad de análisis es el evento, no la foto. Una
+cámara toma 2–3 fotos por disparo, y un animal que se queda frente a ella genera muchas. Por
+eso se agrupan las fotos de una misma especie en una misma estación separadas por menos de 30
+minutos, y cada grupo cuenta como un registro. Ejemplo: las 579 fotos de vacuno son solo 19
+eventos.
 
 | Especie | Eventos independientes |
 |---|---:|
@@ -104,15 +140,13 @@ las 579 fotos de vacuno son solo 19 eventos.
 los 161 eventos del culpeo están en CT03. Cuatro estaciones nunca registraron una especie
 focal con hora válida.
 
----
-
-# 2. Imágenes con uso limitado
+## 1.4 Imágenes con uso limitado: fotos sin hora
 
 Hay que distinguir dos niveles. Las imágenes sin animal no sirven para este estudio. Pero
 dentro de las imágenes con animal hay un segundo grupo: aquellas cuya **cámara tenía el reloj
-dañado**. Esas fotos prueban que el animal estuvo en esa estación, pero no cuándo. Sirven para
-los mapas de presencia y no sirven para nada que use fecha u hora: actividad diaria,
-temporadas, tasas o solapamiento.
+dañado**. Esas fotos prueban que el animal estuvo en esa estación, pero no cuándo. **Sirven
+para la pregunta (ii)** (mapas de presencia) y **no sirven para las preguntas (i), (iii) ni
+(iv)**, ni para nada que use fecha u hora: actividad diaria, temporadas, tasas o solapamiento.
 
 De las 2.522 imágenes con animal, **452 (18 %)** no tienen una hora confiable. Entre las seis
 especies focales son **258 de 1.112 (23 %)**, pero la pérdida es desigual:
@@ -129,10 +163,9 @@ especies focales son **258 de 1.112 (23 %)**, pero la pérdida es desigual:
 Las dos especies con menos registros, puma y jabalí, son también las que más información
 horaria pierden.
 
-## 2.1 De dónde vienen las imágenes de puma y jabalí sin hora
-
-Todas vienen de **tres despliegues**. En los tres, la cámara funcionó todo el período pero su
-reloj no se pudo reconstruir. Ninguna de esas 83 imágenes tiene fecha:
+**De dónde vienen las imágenes de puma y jabalí sin hora.** Todas vienen de **tres
+despliegues**. En los tres, la cámara funcionó todo el período pero su reloj no se pudo
+reconstruir. Ninguna de esas 83 imágenes tiene fecha:
 
 | Despliegue | Puma | Jabalí | Problema del reloj |
 |---|---:|---:|---|
@@ -161,46 +194,85 @@ completo de los análisis temporales del jabalí, y de CT18 quedan solo 2 fotos.
 El puma figura en 8 estaciones en el mapa de presencia y en 7 en los análisis con hora; se
 pierde CT18. En CT10 y CT15 se pierden sus registros de octubre de 2024 a junio de 2025, que
 son los únicos de puma en esas estaciones durante ese verano y otoño. Esto importa para la
-sección 3: **algunas de esas 17 fotos sin fecha podrían ser de otoño de 2025**, la temporada
-en la que el puma aparece sin registros.
-
-Sin hora no se pueden agrupar esas fotos en eventos, así que no se sabe exactamente cuántos
-eventos se pierden. Como referencia, a 2–3 fotos por disparo, 64 fotos de jabalí son del
-orden de 20–30 disparos. Los eventos serían menos.
+pregunta (i): **algunas de esas 17 fotos sin fecha podrían ser de otoño de 2025**, la
+temporada en la que el puma aparece sin registros.
 
 Hay un caso equivalente para la liebre: **65 fotos en CT19 entre febrero y junio de 2025**,
 con el reloj pendiente de un testigo. Si se encuentra uno, esas fotos se recuperan.
 
+**Cuántos eventos se pierden.** Aunque no se conozca la fecha, en muchos casos sí se puede
+contar los eventos. Cuando el reloj es coherente pero sin punto de referencia, la distancia
+entre dos fotos sigue siendo real, y la regla de 30 minutos se aplica igual dentro de cada
+tramo del reloj. Ese conteo es exacto. Cuando el registro del reloj es contradictorio no hay
+distancias confiables, y solo se puede dar un rango: entre 1 evento y uno por foto.
+
+Todas las campañas, todas las estaciones donde la especie aparece, con o sin reloj válido:
+
+| Especie | Estaciones | Con reloj dañado (fotos) | Eventos utilizables | Eventos perdidos | % perdido |
+|---|---:|---|---:|---:|---:|
+| Puma | 8 | CT10 (11), CT15 (6), CT18 (2) | 12 | 6 | 33 |
+| Jabalí | 9 | CT10 (30), CT15 (1), CT18 (33) | 18 | 3–35 | 14–66 |
+| Liebre | 11 | CT10 (1), CT13 (1), CT18 (21), CT19 (65) | 129 | 13–87 | 9–40 |
+| Zorro culpeo | 19 | CT10 (48), CT15 (6), CT18 (16) | 161 | 37–45 | 19–22 |
+| Güiña | 10 | CT08 (2), CT16 (3) | 14 | 4–5 | 22–26 |
+| Perro | 13 | CT10 (2), CT13 (3), CT15 (1), CT18 (4), CT19 (2) | 46 | 8–10 | 15–18 |
+
+Los rangos amplios vienen de dos casos con el registro del reloj contradictorio: el jabalí de
+CT18 (33 fotos, entre 1 y 33 eventos) y la liebre de CT19 (65 fotos). Solo para la última
+campaña (otoño 2026), la pérdida se concentra en CT18, la única estación con reloj dañado:
+
+| Especie | Estaciones con la especie | Eventos utilizables | Eventos perdidos (CT18) | % perdido |
+|---|---|---:|---:|---:|
+| Liebre | CT09, CT18 | 2 | 9–11 | 82–85 |
+| Jabalí | CT06, CT15, CT18 | 3 | 1–33 | 25–92 |
+| Puma | CT10, CT15, CT16, CT18 | 3 | 1 | 25 |
+| Zorro culpeo | 15 estaciones | 52 | 8–16 | 13–24 |
+| Perro | 8 estaciones | 14 | 2 | 12 |
+| Güiña | CT06, CT10, CT16, CT22 | 7 | 0 | 0 |
+
+**El orden de las fotos se conoce aunque la fecha no.** El contador del nombre de archivo de
+CT18 permite ordenar sus fotos. Su último tramo con hora real termina el **28 de noviembre de
+2025**; todas sus fotos de liebre y de puma de esa campaña vienen después. Esto importa para
+la sección 2.2.
+
 ---
 
-# 3. Lo más básico: dónde están las especies y con qué frecuencia
+# 2. Pregunta (i): tasas de detección
 
-La primera capa de análisis es descriptiva:
+**Estado: hecho.** Tasas por especie, estación y temporada.
 
-- mapas de presencia y ausencia por especie y de riqueza por estación;
-- mapas de burbujas con el número de eventos por estación;
-- para cada temporada, la **tasa de detección** (eventos por 100 días-cámara) y la
-  **ocupación ingenua** (proporción de estaciones donde la especie se vio al menos una vez).
+## 2.1 Qué se hizo
+
+**Método: tasa de detección.** Es el número de eventos independientes por cada 100
+días-cámara. Dividir por el esfuerzo permite comparar temporadas en que funcionaron distintas
+cantidades de cámaras (de 292 a 2.249 días-cámara, sección 1.2). La tasa mide cuántas veces
+se fotografía una especie, no cuántos animales hay: depende también de cuánto se mueven, de
+dónde está la cámara y de su altura.
+
+Lo que muestra por especie:
 
 **Zorro culpeo** es el fondo estable del registro. Su tasa está cerca de 1–2 eventos por 100
-días-cámara en todas las temporadas, y aparece en el 20–44 % de las estaciones cada temporada.
+días-cámara en todas las temporadas.
 
 **Perro** alcanza su máximo en el verano 2025-26: 0,62 eventos por 100 días-cámara, en 5
 estaciones. Sus registros se concentran en CT09 (14 eventos) y CT03 (9).
 
 **Puma** no tiene eventos con fecha en ninguna temporada de otoño o invierno. Con 12 eventos
 en total esto es una descripción, no un resultado. Además, 17 fotos de puma sin fecha (CT10 y
-CT15) podrían caer en el otoño de 2025 (sección 2.1).
+CT15) podrían caer en el otoño de 2025, y el evento de puma de CT18, posterior al 28 de
+noviembre de 2025, podría caer en el otoño de 2026 (sección 1.4).
 
-**Güiña y jabalí** tienen 14 y 18 eventos. Como ya se dijo, al jabalí le faltan dos de sus
-cuatro sitios principales en todo lo que usa la hora.
+**Güiña y jabalí** tienen 14 y 18 eventos. Al jabalí le faltan dos de sus cuatro sitios
+principales en todo lo que usa la hora (sección 1.4).
 
-## 3.1 Hallazgo destacado: la liebre desaparece del arreglo desde diciembre de 2025
+## 2.2 Hallazgo destacado: la liebre cae en casi todo el arreglo desde diciembre de 2025
 
 > **Este resultado pide una explicación biológica.** Los datos se revisaron dos veces y los
 > conteos se sostienen. Una parte de la comparación entre años está afectada por cambios en
-> la instalación de las cámaras, y eso se detalla abajo. Pero la desaparición simultánea en
-> todas las estaciones donde la liebre estaba no se explica por esos cambios.
+> la instalación de las cámaras, y eso se detalla abajo. Pero la caída simultánea en las
+> estaciones donde la liebre estaba no se explica por esos cambios. **La liebre no
+> desaparece del arreglo**: sigue presente en CT18, una estación cuyo reloj falló y que por
+> eso no entra en las tasas.
 
 **Lo que muestran los datos.** Eventos de liebre por temporada, en las estaciones donde
 aparece:
@@ -222,6 +294,14 @@ Entre los dos otoños la tasa cae de 0,79 a 0,05, unas 16 veces. Los tres evento
 noviembre de 2025 son los últimos en esas estaciones, salvo dos en CT09 (enero y abril
 de 2026).
 
+**La excepción: CT18.** La tabla y la tasa usan solo estaciones con reloj válido. CT18 tuvo
+el reloj dañado durante todo el despliegue de noviembre 2025 a mayo 2026, así que queda fuera
+tanto del numerador como del denominador. Pero sus fotos muestran **12 fotos de liebre, entre
+9 y 11 eventos**, todas posteriores al 28 de noviembre de 2025 (sección 1.4). Es decir, en el
+período en que las demás estaciones quedan en silencio, CT18 registra más eventos de liebre
+que todo el resto del arreglo junto. Las tasas de 0,04 y 0,05 son correctas para las
+estaciones con reloj válido, pero no describen el arreglo completo.
+
 ![Eventos de liebre por estación y temporada.](../figures/06_seasonal_liebre.png)
 
 **Lo que se verificó y descartó como artefacto:**
@@ -234,8 +314,10 @@ de 2026).
 - **No está oculta entre las fotos sin identificar.** Las 398 imágenes no identificables del
   otoño 2026 se concentran en CT08 (167) y CT22 (118). En ninguna de las dos estaciones se ha
   registrado nunca una liebre.
-- **No está oculta por relojes dañados.** En la última campaña solo hay 12 fotos de liebre sin
-  fecha, todas en CT18. Equivalen como mucho a unos pocos eventos.
+- **Sí hay liebres ocultas por un reloj dañado, en CT18.** Una versión anterior de este
+  documento decía que esas 12 fotos sin fecha equivalían a "unos pocos eventos". Contadas con
+  el reloj de la propia cámara son entre 9 y 11 eventos, cuatro a cinco veces los 2 eventos
+  con fecha del resto del arreglo.
 - **No es un error de identificación.** Todas las fotos de animales fueron revisadas por una
   persona, y solo hay un registro de conejo en todo el período (CT04, enero de 2025).
 
@@ -256,18 +338,24 @@ a la liebre.
 registraron 43 eventos de liebre entre junio y octubre de 2025. En la primavera de 2025 la
 liebre además se extendió a CT02, CT04, CT10, CT11 y CT15. Desde diciembre de 2025 **todas esas
 estaciones quedan en silencio al mismo tiempo**, con la misma instalación (hasta donde se
-registró) y registrando otras especies.
+registró) y registrando otras especies. CT18 no está en esa lista: ahí la liebre sigue.
 
-**Dos explicaciones posibles**, que hoy no se pueden distinguir:
+**Tres explicaciones posibles**, que hoy no se pueden distinguir:
 
 1. **Patrón estacional.** La liebre usa estos sitios de bosque y borde en invierno y primavera
    y se desplaza en verano y otoño, por ejemplo hacia praderas abiertas fuera del arreglo. El
    cambio de altura de CT09 impide comparar con el verano anterior.
 2. **Disminución real de la población** por enfermedad, depredación, control o caza, u otra
    causa. Vale la pena preguntar a los guardaparques si hubo controles o hallazgos de
-   animales muertos.
+   animales muertos. Que CT18 siga registrando liebres le resta peso a esta explicación.
+3. **Cambio de los sitios que usa.** La liebre deja las estaciones del norte (CT09, CT19,
+   CT20) y del interior y se concentra en otros puntos, CT18 entre ellos.
 
-**Cómo distinguirlas.** Hay dos pasos concretos:
+**Cómo distinguirlas.** Hay tres pasos concretos (sección 7):
+
+- **Fechar las fotos de CT18.** Con un testigo de terreno para los tramos sin punto de
+  referencia se recuperan las fechas de 9 de las 12 fotos. Diría si la liebre de CT18 está
+  en el verano, en el otoño o en ambos.
 
 - **Confirmar con el equipo de terreno que en la visita de noviembre–diciembre de 2025 no se
   movió ni se reorientó ninguna cámara.** Esa visita no tiene notas en el registro de terreno.
@@ -279,13 +367,60 @@ Hay que tener en cuenta que en la visita de mayo de 2026 **todas las cámaras se
 1,5–2 m**. Esa comparación tendrá entonces la misma limitación que CT09, ahora en todo el
 arreglo.
 
+## 2.3 Qué se podría hacer
+
+- **Altura de cámara como variable.** Hubo cambios de altura en 2025 y una elevación general
+  en mayo de 2026. Si se registra la altura exacta por estación en cada visita (sección 7),
+  puede entrar como covariable de la tasa y de la detección (p) en los modelos de ocupación.
+  Cambia qué animales pequeños se detectan.
+- **Sensibilidad al umbral de independencia.** Repetir las tasas con umbrales de 15, 30 y 60
+  minutos para mostrar que el resultado no depende de esa elección. Lo pedirá un revisor.
+- **Recuperar fotos sin hora** (sección 1.4). Con testigos de terreno para CT10 y CT15 (otoño
+  2025) y para CT19 (febrero–junio 2025) se recuperan 17 fotos de puma, 31 de jabalí y 65 de
+  liebre. Con testigos para CT18 (noviembre 2025 – mayo 2026) se recuperan además las fechas
+  de 9 fotos de liebre, 2 de puma y 7 de culpeo.
+- **Simulación de poder estadístico.** Estimar cuántas campañas o estaciones más se necesitan
+  para que puma, güiña y jabalí entren en los análisis de ocupación y solapamiento. Convierte
+  el problema de muestra en una recomendación de diseño de muestreo.
+
 ---
 
-# 4. Separar "ausente" de "no detectado": ocupación
+# 3. Pregunta (ii): patrones espaciales (uso de sitios y distribución)
+
+**Estado: parcial.** Lo descriptivo está hecho. Los modelos de ocupación son preliminares.
+
+## 3.1 Qué se hizo: descripción
+
+**Métodos.**
+
+- **Mapas de presencia y ausencia** por especie, y **mapas de riqueza** (número de especies
+  focales por estación). Usan también las fotos sin hora (sección 1.4).
+- **Mapas de burbujas**: cada estación se dibuja con un círculo proporcional a su número de
+  eventos.
+- **Ocupación ingenua**: proporción de estaciones donde la especie se vio al menos una vez en
+  la temporada. Es "ingenua" porque trata cada estación sin registro como si la especie no
+  estuviera.
+
+**Qué muestra.**
+
+- **Zorro culpeo** aparece en el 20–44 % de las estaciones cada temporada.
+- **Perro**: hasta 5 estaciones en el verano 2025-26, con los registros concentrados en CT09
+  y CT03.
+- **Puma** figura en 8 estaciones en el mapa de presencia.
+- Los registros en general están **concentrados**: CT03 y CT09 reúnen el 37 % de los eventos
+  (sección 1.3).
+
+## 3.2 Qué se hizo: ocupación (preliminar)
 
 Que una especie no aparezca en una cámara no prueba que no use ese lugar. Puede haber pasado
-sin ser fotografiada. Los modelos de ocupación separan dos cosas: la proporción de sitios que
-la especie realmente usa (**ψ**) y la probabilidad de detectarla cuando está (**p**).
+sin ser fotografiada.
+
+**Método: modelo de ocupación de una temporada** (MacKenzie et al. 2002). Separa dos cosas:
+la proporción de sitios que la especie realmente usa (**ψ**) y la probabilidad de detectarla
+en un período cuando está (**p**). La idea es simple: si en las estaciones donde la especie
+sí aparece se la detecta solo en algunos períodos, entonces algunas estaciones "vacías"
+probablemente también la tienen y no la fotografiaron. El modelo usa esa repetición para
+estimar cuántas.
 
 Para eso se construyó, para cada especie y temporada, una tabla de estaciones por períodos de
 14 días (**ocasiones**). Cada casilla vale 1 si la especie se detectó, 0 si la cámara funcionó
@@ -296,7 +431,7 @@ apenas cambia: para el culpeo en invierno 2025 va de 0,53 a 0,56. La probabilida
 la especie al menos una vez en la temporada se mantiene en 77–81 %. Es decir, el largo de la
 ocasión solo reparte la misma información de otra manera.
 
-Lo que dicen los primeros modelos:
+**Qué muestran los primeros modelos:**
 
 - **Zorro culpeo**, invierno 2025: usa cerca del **56 %** de las estaciones. Donde está, cada
   ocasión de 14 días tiene una probabilidad de 0,20 de fotografiarlo. Se vio en el 42 % de las
@@ -313,14 +448,46 @@ Lo que dicen los primeros modelos:
 > errores estándar. Falta ajustarlos con el paquete estándar (`unmarked`), con altitud como
 > covariable.
 
+## 3.3 Qué se podría hacer
+
+- **Ocupación con covariables, bien ajustada.** Ajustar culpeo y liebre con `unmarked`, con
+  altitud y descriptores de hábitat por cámara en ψ, y el esfuerzo en p. Con descriptores de
+  hábitat, esto es lo que permite hablar de **selección de hábitat**: si ψ sube o baja con
+  la cobertura, el tipo de bosque o la distancia a senderos. Requiere levantar los
+  descriptores de hábitat de cada estación.
+- **Modelo de Royle–Nichols para la liebre** (Royle y Nichols 2003). Permite que la detección
+  sea distinta según la abundancia local: una estación con muchas liebres las detecta más
+  seguido. Se ajusta al caso de CT09.
+- **Actividad humana como covariable.** Las 1.674 imágenes de personas y vehículos dan una
+  medida de uso humano por estación. Puede explicar la presencia del perro y, en la pregunta
+  (iv), la nocturnidad de los nativos. Conecta además con CT19, cerca de las casas de los
+  guardaparques.
+- **Ganado y ciervo rojo.** El vacuno es el animal más fotografiado y el ciervo rojo es un
+  invasor que hoy no se analiza. Pueden entrar como factores de perturbación o como especies
+  focales; esto último cambiaría el alcance del estudio.
+
+**Métodos que conviene excluir explícitamente, citando por qué:**
+
+- Ocupación conjunta de varias especies: pide cientos de sitios.
+- Densidad sin individuos identificados (REM, REST): el protocolo no mide distancias.
+- Captura–recaptura espacial para güiña: requiere cámaras cenitales.
+
 ---
 
-# 5. Cuándo están activas: hora del reloj y hora solar
+# 4. Pregunta (iii): patrones temporales
 
-## 5.1 Curvas de actividad
+**Estado: hecho** para la actividad diaria y el solapamiento. **Pendiente** la variación
+entre temporadas.
 
-Para las tres especies con al menos 30 eventos se estimó la curva de actividad diaria, es
-decir, cómo se reparten sus eventos en las 24 horas:
+## 4.1 Curvas de actividad
+
+**Método: densidad de kernel circular.** Cada evento se ubica en un reloj de 24 horas, y se
+estima una curva suave de cómo se reparten los eventos en el día (densidad de kernel de von
+Mises, paquete `overlap` de R). Es como un histograma por hora, pero sin depender de dónde se
+cortan las barras, y entendiendo que las 23:59 y las 00:00 son vecinas. Se exige un mínimo de
+30 eventos por especie para estimar una curva.
+
+**Qué muestra:**
 
 - **Zorro culpeo**: nocturno, con un repunte al amanecer y un máximo cerca de las 22:00.
 - **Liebre**: crepuscular y nocturna, con un pico marcado justo después de la puesta de sol.
@@ -332,7 +499,7 @@ eventos.
 ![Curvas de actividad en los dos marcos de tiempo. Izquierda: hora del reloj de la cámara.
 Derecha: hora solar, con amanecer y puesta en posiciones fijas.](../figures/03_activity_frames.png)
 
-## 5.2 Por qué usar la hora solar, y qué hace el método
+## 4.2 Hora del reloj y hora solar
 
 **El problema.** Un animal no se rige por el reloj sino por la luz. A 39,4°S la hora del
 amanecer y la puesta cambia mucho en el año:
@@ -351,8 +518,9 @@ de la puesta" aparece repartida en casi tres horas. Los picos se aplanan y el ni
 actividad se sobreestima. Rowcliffe et al. (2014) describen este efecto y solo eximen a los
 estudios tropicales o muy cortos. El nuestro no es ninguna de las dos cosas.
 
-**Qué hace el método.** Se usa la transformación de **doble anclaje** (Nouvellet et al. 2012;
-Vazquez et al. 2019), con la función `transtime()` del paquete `activity` de R. Para cada
+**Método: hora solar de doble anclaje** (Nouvellet et al. 2012; Vazquez et al. 2019), con la
+función `transtime()` del paquete `activity` de R. En una frase: cada detección se mide
+respecto del amanecer y la puesta de *ese* día, en vez de respecto del reloj. Para cada
 detección:
 
 1. Se calcula la hora del amanecer y de la puesta **ese día** en el sitio.
@@ -396,21 +564,19 @@ sitio**, y un test automático lo verifica.
   difiere en 16 segundos, frente a las 2,9 horas de variación anual. Usar una coordenada por
   estación sería precisión falsa.
 
-**Qué falta decidir.** Si el marco solar será el principal o el análisis de sensibilidad, y si
-el día de referencia será el promedio del sitio o el "equinoccial" (amanecer a las 06:00 y
-puesta a las 18:00). Conviene decidirlo según qué usan los estudios comparables de la región.
+## 4.3 Solapamiento temporal entre pares de especies
 
----
+**Método: coeficiente de solapamiento** (Ridout y Linkie 2009). Se superponen las curvas de
+actividad de dos especies y se mide el área que comparten. Va de 0 (nunca activos a la misma
+hora) a 1 (curvas idénticas). Se usa el estimador Δ4 cuando la especie con menos datos tiene
+al menos 50 eventos, y Δ1 por debajo de eso, que se comporta mejor con muestras chicas. El
+intervalo de confianza del 95 % se obtiene **remuestreando** los eventos 1.000 veces
+(bootstrap): se recalcula el solapamiento con muestras al azar y se ve cuánto varía. Cada par
+se clasifica como Bajo (< 0,50), Moderado (0,50–0,75) o Alto (≥ 0,75) (Monterroso et al.
+2014) **solo si todo el intervalo cae en una categoría**. Si el intervalo cruza un límite, el
+par recibe una categoría compuesta.
 
-# 6. Solapamiento temporal entre pares de especies
-
-Para cada uno de los diez pares nativo–nativo y nativo–invasor se calculó el **coeficiente
-de solapamiento**. Va de 0 (nunca activos a la misma hora) a 1 (curvas idénticas). Se reporta
-con su intervalo de confianza del 95 % (1.000 remuestreos). Cada par se clasifica como Bajo
-(< 0,50), Moderado (0,50–0,75) o Alto (≥ 0,75) **solo si todo el intervalo cae en una
-categoría**. Si el intervalo cruza un límite, el par recibe una categoría compuesta.
-
-Hora del reloj:
+Se calculó para los diez pares nativo–nativo y nativo–invasor. Hora del reloj:
 
 | Par | n | Solapamiento [IC 95 %] | Categoría |
 |---|---|---|---|
@@ -431,90 +597,113 @@ Hora del reloj:
 
 - **Nativos y perro: Bajo, en ambos marcos.** Es el resultado más sólido del proyecto.
 - **Nativos y jabalí: Bajo a Moderado.** Con 18 eventos de jabalí, y sin dos de sus sitios
-  principales (sección 2.1).
+  principales (sección 1.4).
 - **Nativos y liebre: alto.** Coinciden en el horario nocturno y crepuscular.
 - **Pares con puma: sin conclusión.** Los intervalos van de Bajo a Alto. Con 12 eventos no se
   puede afirmar nada.
 
-> **Lo que todavía no podemos afirmar**
->
-> - **Que los nativos evitan al perro.** Un solapamiento bajo entre un zorro nocturno y un
->   perro diurno ligado a personas es lo esperable aunque ninguno reaccione al otro. Hoy el
->   resultado describe una **separación de horarios**, no una **evitación**.
-> - **Que la liebre ocupa menos territorio que el culpeo.** Se detecta en menos estaciones,
->   pero eso puede deberse a una detección desigual entre estaciones. Además faltan
->   descriptores del hábitat de cada cámara.
-> - **Ningún valor de ocupación (ψ)** hasta reajustarlo con errores estándar.
-> - **Nada sobre puma, güiña ni jabalí más allá de su presencia.** Están bajo cualquier
->   umbral de muestra razonable para modelos.
-> - **Que la caída de la liebre es una disminución.** Ver sección 3.1.
+## 4.4 Qué se podría hacer: variación entre temporadas y ambiente
+
+- **Cambios de actividad entre temporadas.** Comparar el horario y el nivel de actividad del
+  culpeo entre invierno y verano. Responde si los nativos ajustan su horario a lo largo del
+  año. Es barato: los módulos necesarios ya existen.
+- **Luna y clima sobre la actividad del culpeo.** La fase lunar es una prueba clásica para
+  carnívoros nocturnos, y 161 eventos alcanzan. La estación meteorológica aporta temperatura
+  y lluvia de cada noche.
+- **Análisis de sensibilidad que pedirá un revisor.**
+  - Límites de temporada por solsticios y equinoccios.
+  - Amanecer calculado contra el amanecer medido por la estación meteorológica.
+
+**Método que conviene excluir:** las razones de evitación–atracción, porque el método fue
+refutado.
 
 ---
 
-# 7. Espacio y tiempo juntos: lo que falta
+# 5. Pregunta (iv): espacio y tiempo juntos
+
+**Estado: no iniciado.** Es el principal vacío del proyecto.
 
 Todo lo anterior mira **dónde** o **cuándo** por separado. La pregunta central de un estudio
 de interacciones combina ambas. Por ejemplo: después de que un perro pasa por una estación,
-¿el culpeo tarda más en volver a esa estación que lo esperable por azar? Ese análisis
-**todavía no se ha hecho** y es el principal vacío del proyecto.
+¿el culpeo tarda más en volver a esa estación que lo esperable por azar?
 
-Lo limita el tamaño de muestra. Ningún par de especies comparte más de 9 estaciones. Solo
-culpeo × liebre y culpeo × perro superan los 50 registros que la literatura pide para esta
-clase de prueba.
+**Lo que lo limita es el tamaño de muestra.** Ningún par de especies comparte más de 9
+estaciones. Solo culpeo × liebre y culpeo × perro superan los 50 registros que la literatura
+pide para esta clase de prueba.
+
+**Qué se podría hacer** (prueba de si el perro desplaza a los nativos):
+
+- **Actividad según el sitio.** Comparar la curva de actividad del culpeo en estaciones con y
+  sin perro, con el mismo método de la sección 4.1. Si el culpeo es más nocturno donde hay
+  perros, hay indicio de desplazamiento. La actividad humana por estación (sección 3.3) puede
+  entrar del mismo modo.
+- **Tiempo entre encuentros.** En las estaciones que comparten ambas especies, medir cuánto
+  tarda el culpeo en aparecer después de un perro, y compararlo con lo que pasaría si los
+  tiempos fueran al azar. El "azar" se construye **permutando** los registros: se reordenan
+  muchas veces y se ve qué tan extremo es el valor real (Niedballa et al. 2019).
+- **Sensibilidad.** Repetir el solapamiento sin CT03 y CT09, para ver si dos estaciones
+  sostienen el resultado.
+- El poder estadístico es bajo y hay que decirlo.
 
 ---
 
-# 8. Qué se podría hacer a continuación
+# 6. Lo que todavía no podemos afirmar
+
+- **Que los nativos evitan al perro.** Un solapamiento bajo entre un zorro nocturno y un
+  perro diurno ligado a personas es lo esperable aunque ninguno reaccione al otro. Hoy el
+  resultado describe una **separación de horarios**, no una **evitación**. Responderlo es la
+  pregunta (iv).
+- **Que la liebre ocupa menos territorio que el culpeo.** Se detecta en menos estaciones,
+  pero eso puede deberse a una detección desigual entre estaciones. Además faltan
+  descriptores del hábitat de cada cámara.
+- **Ningún valor de ocupación (ψ)** hasta reajustarlo con errores estándar.
+- **Nada sobre puma, güiña ni jabalí más allá de su presencia.** Están bajo cualquier
+  umbral de muestra razonable para modelos.
+- **Que la caída de la liebre es una disminución.** Ver sección 2.2. Tampoco que la liebre
+  desaparece del arreglo: CT18 la sigue registrando después de noviembre de 2025.
+
+**Decisiones pendientes del equipo.** Si el marco solar será el principal o el análisis de
+sensibilidad, y si el día de referencia será el promedio del sitio o el "equinoccial"
+(amanecer a las 06:00 y puesta a las 18:00). Conviene decidirlo según qué usan los estudios
+comparables de la región.
+
+---
+
+# 7. Tareas de terreno
+
+No son análisis, pero varios análisis dependen de ellas:
+
+- **Visita de noviembre–diciembre de 2025.** Confirmar que no se movió ni se reorientó
+  ninguna cámara (sección 2.2).
+- **Guardaparques.** Preguntar por controles de liebre o hallazgos de animales muertos
+  (sección 2.2).
+- **Invierno 2026.** Revisar la liebre en cuanto llegue la próxima campaña (sección 2.2).
+- **Testigos para relojes.** Buscar fotos con hora real conocida para CT10 y CT15 (otoño
+  2025), para CT19 (febrero–junio 2025) y para CT18 (noviembre 2025 – mayo 2026), esta última
+  la más urgente por la liebre (secciones 1.4 y 2.2).
+- **Altura de cámara.** Registrar la altura exacta por estación en cada visita (sección 2.3).
+- **Descriptores de hábitat por cámara.** Necesarios para la ocupación con covariables y la
+  selección de hábitat (sección 3.3).
+
+---
+
+# 8. Prioridades
 
 En orden de valor frente a lo que los datos permiten:
 
-1. **Ocupación con covariables, bien ajustada.** Ajustar culpeo y liebre con `unmarked`, con
-   altitud y descriptores de hábitat por cámara en ψ, y el esfuerzo en p. Para la liebre, usar
-   un modelo que permita detección distinta según la abundancia local (Royle–Nichols). Requiere
-   levantar los descriptores de hábitat de cada estación.
-2. **Prueba de si el perro desplaza a los nativos.**
-   - Comparar la actividad del culpeo en estaciones con y sin perro: si el culpeo es más
-     nocturno donde hay perros, hay indicio de desplazamiento.
-   - Complementar con una prueba de tiempo entre encuentros en estaciones compartidas, con un
-     modelo nulo por permutación (Niedballa et al. 2019).
-   - El poder estadístico es bajo y hay que decirlo.
-3. **Seguimiento de la liebre** (sección 3.1).
-   - Confirmar con terreno la visita de noviembre–diciembre de 2025.
-   - Revisar el invierno 2026 en cuanto llegue la próxima campaña.
-   - Preguntar a los guardaparques por controles o animales muertos.
-4. **Recuperar fotos sin hora.** Buscar testigos de terreno para CT10 y CT15 (otoño 2025) y
-   para CT19 (febrero–junio 2025). Con eso se recuperan 17 fotos de puma, 31 de jabalí y 65
-   de liebre para los análisis temporales.
-5. **Cambios de actividad entre temporadas.** Comparar el horario y el nivel de actividad del
-   culpeo entre invierno y verano. Responde si los nativos ajustan su horario a lo largo del
-   año. Es barato: los módulos necesarios ya existen.
-6. **Usar las 1.674 imágenes de personas y vehículos.** La actividad humana por estación puede
-   explicar la presencia del perro y la nocturnidad de los nativos. Conecta además con CT19,
-   cerca de las casas de los guardaparques.
-7. **Ganado y ciervo rojo.** El vacuno es el animal más fotografiado y el ciervo rojo es un
-   invasor que hoy no se analiza. Pueden entrar como factores de perturbación o como especies
-   focales; esto último cambiaría el alcance del estudio.
-8. **Luna y clima sobre la actividad del culpeo.** La fase lunar es una prueba clásica para
-   carnívoros nocturnos, y 161 eventos alcanzan. La estación meteorológica aporta temperatura
-   y lluvia de cada noche.
-9. **Altura de cámara como variable.** Hubo cambios de altura en 2025 y una elevación general
-   en mayo de 2026. Conviene registrar la altura exacta por estación en cada visita, porque
-   cambia qué animales pequeños se detectan.
-10. **Análisis de sensibilidad que pedirá un revisor.**
-    - Umbral de independencia de 15, 30 y 60 minutos.
-    - Límites de temporada por solsticios y equinoccios.
-    - Solapamiento sin CT03 y CT09, para ver si dos estaciones sostienen el resultado.
-    - Amanecer calculado contra el amanecer medido por la estación meteorológica.
-11. **Simulación de poder estadístico.** Estimar cuántas campañas o estaciones más se
-    necesitan para que puma, güiña y jabalí entren en los análisis de ocupación y
-    solapamiento. Convierte el problema de muestra en una recomendación de diseño de muestreo.
-
-**Métodos que conviene excluir explícitamente, citando por qué:**
-
-- Ocupación conjunta de varias especies: pide cientos de sitios.
-- Razones de evitación–atracción: el método fue refutado.
-- Densidad sin individuos identificados (REM, REST): el protocolo no mide distancias.
-- Captura–recaptura espacial para güiña: requiere cámaras cenitales.
+| # | Qué | Pregunta | Sección |
+|---:|---|---|---|
+| 1 | Ocupación con covariables, bien ajustada (`unmarked`, Royle–Nichols) | (ii) | 3.3 |
+| 2 | Prueba de si el perro desplaza a los nativos | (iv) | 5 |
+| 3 | Seguimiento de la liebre | (i) | 2.2, 7 |
+| 4 | Recuperar fotos sin hora | (i), (iii) | 1.4, 2.3 |
+| 5 | Cambios de actividad entre temporadas | (iii) | 4.4 |
+| 6 | Usar las imágenes de personas y vehículos | (ii), (iv) | 3.3 |
+| 7 | Ganado y ciervo rojo | (ii) | 3.3 |
+| 8 | Luna y clima sobre la actividad del culpeo | (iii) | 4.4 |
+| 9 | Altura de cámara como variable | (i) | 2.3 |
+| 10 | Análisis de sensibilidad que pedirá un revisor | todas | 2.3, 4.4, 5 |
+| 11 | Simulación de poder estadístico | todas | 2.3 |
 
 ---
 
@@ -539,8 +728,17 @@ un modelo de ocupación.
 **Ocasión.** Bloque de días (aquí 14) en que se divide una temporada para el modelo de
 ocupación.
 
+**Densidad de kernel.** Curva suave que estima cómo se reparten los eventos en las 24 horas.
+Una versión continua del histograma.
+
 **Coeficiente de solapamiento.** Cuánto coinciden dos curvas de actividad diaria. Va de 0
 (nunca activos a la misma hora) a 1 (idénticas).
+
+**Bootstrap (remuestreo).** Recalcular un valor muchas veces con muestras al azar de los
+mismos datos, para ver cuánto varía y construir su intervalo de confianza.
+
+**Permutación.** Reordenar los datos al azar muchas veces para construir lo que se esperaría
+si no hubiera ningún efecto, y comparar el valor real con eso.
 
 **Hora solar (doble anclaje).** Posición de una detección respecto del amanecer y la puesta
 de ese día, trasladada a un día de referencia del sitio.

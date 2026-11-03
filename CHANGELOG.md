@@ -6,6 +6,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-11-03 — pehuén: el estado del análisis se ordena por las preguntas del equipo
+
+### Changed
+- `docs/estado-analisis-2026-10.md` reorganizado según el objetivo del equipo: (i) tasas de
+  detección, (ii) patrones espaciales, (iii) patrones temporales y (iv) espacio × tiempo, que los
+  resultados esperados piden aunque el objetivo no lo nombra. Cada sección: qué se hizo, con una
+  descripción breve del método → qué muestra → qué se podría hacer → qué requiere.
+- Nuevas descripciones de método en lenguaje simple: evento independiente, tasa de detección,
+  ocupación ingenua, ocupación (MacKenzie), densidad de kernel circular, solapamiento Δ1/Δ4 con
+  bootstrap y clases de Monterroso, permutación. Tres entradas nuevas en el glosario.
+- Las tareas de terreno y "lo que todavía no podemos afirmar" pasan a secciones propias; la lista
+  de próximos pasos queda como tabla de prioridades con su pregunta y sección.
+
+### Fixed
+- La referencia a "sección 4.1" del resumen (no existía; era la 3.1, hoy 2.2).
+- **"La liebre desaparece de todo el arreglo" era falso.** CT18 (reloj dañado, `valid_effort`
+  FALSE, fuera de numerador y denominador) tiene 12 fotos de liebre en otoño 2026 = **9–11
+  eventos**, contra 2 con fecha en el resto del arreglo. El orden por contador las ubica todas
+  después del último tramo con hora real de CT18 (28-11-2025). Las tasas 0,04/0,05 siguen
+  siendo correctas para las estaciones con reloj válido; lo falso era la frase y la viñeta
+  "como mucho unos pocos eventos". Se agrega una tercera explicación (cambio de sitios).
+- §1.4 ahora cuenta **eventos** perdidos por especie, no solo fotos: exactos en tramos de reloj
+  coherente sin referencia (regla de 30 min sobre el reloj de la cámara, dentro de los tramos de
+  `camtrap.clocks.diagnose`, que reproducen los del audit log), rango 1–n en tramos
+  incoherentes. Ej.: puma 6 de 18 eventos perdidos (33 %).
+- `.docx` regenerado con `docs/render.sh`.
+
+---
+
 ## 2026-09-15b — pehuén: todos los coeficientes de solapamiento publicados estaban mal
 
 Las figuras por par llevan **dos** números: el que camtrapR imprime dentro del panel y el que
