@@ -141,11 +141,14 @@ ORDER_NONE     = 'none'                    # no usable evidence
 
 # ── Anchors ───────────────────────────────────────────────────────────────────
 
-# How close to midnight a filename/DateTime date disagreement may sit before it is
-# read as a naming artefact rather than a corrupt clock. See the P2 block in
-# diagnose() for the measured basis. Loose relative to the 32-60 s observed, and two
-# orders of magnitude tighter than the smallest genuine case (3 h).
-MIDNIGHT_TOLERANCE = timedelta(seconds=120)
+# The largest lead (or lag) of the filename's date over the stamp's that can still be
+# read as a day-boundary naming artefact. NOT the discriminator — the structure in
+# `_day_boundary_artefacts` is — but a cap on it: without one, a naming register
+# hours ahead would forgive itself as "the tail of every day". One hour is a third
+# of the smallest genuine case measured (CT18, 3 h) and well above the largest benign
+# one (CT08 primavera_2025, 3 min 21 s). Replaced a 120 s tolerance on 2026-11-03,
+# after that tolerance refused CT08's 2,434 frames over 2 frames at 200 s.
+DAY_BOUNDARY_MAX_SKEW = timedelta(hours=1)
 
 ANCHOR_TYPES_EXACT        = {'install', 'mid_visit', 'retrieval'}
 # APPROXIMATE means the same thing for both members: the DATE is recoverable but the
@@ -374,6 +377,49 @@ def establish_order(df: pd.DataFrame) -> tuple[pd.DataFrame, bool, str, list[str
 # Diagnosis
 # =============================================================================
 
+def _day_boundary_artefacts(stamps: pd.Series, name_mmdd: pd.Series) -> pd.Series:
+    """True where a filename/stamp date disagreement is a day-boundary naming artefact.
+
+    The camera writes two date registers: the stamp (EXIF DateTime) and the MMDD in
+    the filename. Near midnight the two can sit on different days without either
+    being wrong, because the filename register flips day a little before (or after)
+    the stamp does. Measured: CT03 otono_2025 32 s, CT23 primavera_2025 60 s,
+    CT08 primavera_2025 3 min 21 s — the last refused 2,434 frames under the old
+    120 s tolerance, which is why this is a rule about structure, not a distance.
+
+    A frame is forgiven iff ALL hold:
+      1. its filename names exactly the next day (a lead) or the previous one (a lag);
+      2. it is within DAY_BOUNDARY_MAX_SKEW of that boundary;
+      3. a lead is the unbroken TAIL of its stamp-day: no frame of the same stamp-day
+         that is not a lead sits later. A lag is the unbroken HEAD of its stamp-day.
+         A register that flips at one moment produces exactly this shape; a register
+         that is corrupt, or flips back and forth, does not.
+
+    Order is by stamp, not by capture order, so it needs no ordering evidence and no
+    assumption about how many frames a trigger writes (CT13 writes 3 stills, CT18
+    2 stills plus a video). Frames with no stamp or no parseable MMDD are never
+    forgiven.
+    """
+    known = stamps.notna() & name_mmdd.notna()
+    day = stamps.dt.normalize()
+    one_day = pd.Timedelta(days=1)
+    lead = known & (name_mmdd == (day + one_day).dt.strftime('%m%d')) \
+        & ((day + one_day - stamps) <= DAY_BOUNDARY_MAX_SKEW)
+    lag = known & (name_mmdd == (day - one_day).dt.strftime('%m%d')) \
+        & ((stamps - day) <= DAY_BOUNDARY_MAX_SKEW)
+
+    frame = pd.DataFrame({'stamp': stamps, 'day': day, 'lead': lead, 'lag': lag})[known]
+    other = frame[~frame['lead']]
+    last_non_lead = other.groupby('day')['stamp'].max()
+    other = frame[~frame['lag']]
+    first_non_lag = other.groupby('day')['stamp'].min()
+
+    tail = frame['stamp'] >= frame['day'].map(last_non_lead).fillna(pd.Timestamp.min)
+    head = frame['stamp'] <= frame['day'].map(first_non_lag).fillna(pd.Timestamp.max)
+    forgiven = (frame['lead'] & tail) | (frame['lag'] & head)
+    return forgiven.reindex(stamps.index, fill_value=False).astype(bool)
+
+
 def diagnose(
     images: pd.DataFrame,
     station: str,
@@ -428,27 +474,14 @@ def diagnose(
     df, ordered, evidence, order_notes = establish_order(df)
     notes.extend(order_notes)
 
-    # P2 — the filename's own MMDD must agree with the DateTime it carries.
+    # P2 — the filename's own MMDD must agree with the DateTime it carries, except for
+    # day-boundary naming artefacts. See `_day_boundary_artefacts` for the rule.
     #
-    # EXCEPT within MIDNIGHT_TOLERANCE of midnight. A frame captured seconds before
-    # 00:00 can be named with the NEXT day's date, because the camera builds the
-    # filename from its date at write time and the two straddle the boundary. That is
-    # a naming artefact, not corrupt date registers: the clock is ticking correctly.
-    #
-    # Added 2026-08-20 (Felipe's call) after CT03 otono_2025 was refused entirely —
-    # 321 images including 7 puma — on THREE frames at 23:59:28-29, against 318 that
-    # agreed. The discriminator is distance from midnight and it separates cleanly:
-    # benign cases sit inside a minute (CT03 32 s, CT23 60 s), genuine ones are hours
-    # away (CT19 14 h, CT16 11 h, CT18 3 h). See the module test for the fixtures.
-    #
-    # This only ever FORGIVES a mismatch. A station with one mismatch away from
-    # midnight is still refused, so the tolerance cannot admit a corrupt clock.
+    # This only ever FORGIVES a mismatch. A station with one mismatch that is not a
+    # boundary artefact is still refused, so the rule cannot admit a corrupt clock.
     stamp_mmdd = df['camera_datetime'].dt.strftime('%m%d')
     raw_mismatch = df['_mmdd'].notna() & (df['_mmdd'] != stamp_mmdd)
-
-    secs = (df['camera_datetime'] - df['camera_datetime'].dt.normalize()).dt.total_seconds()
-    to_midnight = secs.where(secs <= 43200, 86400 - secs)
-    at_boundary = to_midnight <= MIDNIGHT_TOLERANCE.total_seconds()
+    at_boundary = _day_boundary_artefacts(df['camera_datetime'], df['_mmdd'])
 
     mismatch = raw_mismatch & ~at_boundary
     n_mismatch = int(mismatch.sum())
@@ -458,9 +491,10 @@ def diagnose(
     if n_forgiven:
         notes.append(
             f'{n_forgiven} filename/DateTime mismatch(es) forgiven as day-boundary '
-            f'naming artefacts (within {int(MIDNIGHT_TOLERANCE.total_seconds())}s of '
-            f'midnight) — the clock crossed a day while writing the file, which is not '
-            f'a corrupt date register'
+            f'naming artefacts (each one the unbroken tail or head of its stamp-day, '
+            f'within {int(DAY_BOUNDARY_MAX_SKEW.total_seconds() // 60)} min of '
+            f'midnight) — the filename register flipped day slightly before or after '
+            f'the stamp, which is not a corrupt date register'
         )
     if n_mismatch:
         notes.append(

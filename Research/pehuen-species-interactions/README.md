@@ -540,6 +540,15 @@ sizes. Its "Open items" list is the analysis backlog.
   order, against 2 dated events elsewhere. The document now says so, and §1.4 counts lost
   *events* per species (exact in coherent unanchored segments, 1–n bounds in incoherent ones).
   The episode reconstruction was a one-off scratch script, not committed.
+  **Then (branch `fix/clock-false-refusals`):** four deployments camera-traps had refused were
+  recoverable (CT08 ×2, CT10, CT13; see camera-traps README). The full pipeline was re-run.
+  - Events went from 380 to 415: culpeo 185, liebre 131, perro 49, jabalí 19, güiña 16, puma 15.
+  - Useful effort went from 10,912 to 11,823 camera-days.
+  - Photos without time fell from 452 to 249: puma 19 → 8, jabalí 64 → 34.
+  - Natives × perro stays Low in both frames. In the solar frame, 3 puma pairs move to
+    Low–Moderate.
+  - `test_detection_history.R` repinned to 10 of 25 stations (CT08 joins the season).
+  - The document was updated throughout.
   **Integration Status:** `Ready` (`.docx` re-rendered).
 - **What Changed (2026-10-16):** **An internal status document for colleagues, in Spanish**
   (`docs/estado-analisis-2026-10.md`, rendered to `.docx` by `docs/render.sh`). Two new figures

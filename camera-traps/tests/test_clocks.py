@@ -604,7 +604,7 @@ class TestDcimFolderKey(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
-class TestMidnightTolerance(unittest.TestCase):
+class TestDayBoundaryArtefact(unittest.TestCase):
     """A day-boundary naming artefact is not a corrupt clock.
 
     Added 2026-08-20. CT03 otono_2025 was refused entirely — 321 images, 7 puma — on
@@ -652,11 +652,71 @@ class TestMidnightTolerance(unittest.TestCase):
         self.assertTrue(all(s.coherent for s in d.segments), d.notes)
         self.assertFalse(any('forgiven' in n for n in d.notes), d.notes)
 
-    def test_one_genuine_mismatch_outweighs_many_forgiven(self):
-        """Mixed case (CT08 primavera): near-midnight ones forgiven, the rest refused."""
-        rows = [(f'0318{i:04d}.JPG', f'2025-03-18 12:{i:02d}:00') for i in range(1, 20)]
-        rows += [('03190100.JPG', '2025-03-18 23:59:40'),   # forgiven
-                 ('03190101.JPG', '2025-03-18 23:56:39')]   # 3m21s out -> genuine
+    def test_ct08_primavera_minutes_long_lead_is_forgiven(self):
+        """The real CT08 primavera_2025 shape, 2026-11-03.
+
+        The filename register flipped to 10-28 at 23:56:39 by the stamp, 3 min 21 s
+        early. Seven frames, the unbroken tail of the stamp-day, stamps continuous
+        through midnight. Under the old 120 s tolerance this refused all 2,434 frames.
+        An earlier fixture here called it genuine, but put the 23:56 frame AFTER the
+        23:59 one in capture order — a backwards stamp the real data never had.
+        """
+        rows = [('10270018.JPG', '2025-10-27 23:55:43'),
+                ('10270019.JPG', '2025-10-27 23:55:43'),
+                ('10280020.JPG', '2025-10-27 23:56:39'),
+                ('10280021.JPG', '2025-10-27 23:56:40'),
+                ('10280022.JPG', '2025-10-27 23:59:37'),
+                ('10280023.JPG', '2025-10-27 23:59:38'),
+                ('10280024.JPG', '2025-10-27 23:59:52'),
+                ('10280025.JPG', '2025-10-27 23:59:53'),
+                ('10280026.JPG', '2025-10-27 23:59:59'),
+                ('10280027.JPG', '2025-10-28 00:00:00'),
+                ('10280028.JPG', '2025-10-28 00:00:35')]
         d = clocks.diagnose(self._frames(rows), station='CT08')
+        self.assertTrue(all(s.coherent for s in d.segments), d.notes)
+        self.assertTrue(any('7 filename/DateTime' in n for n in d.notes), d.notes)
+
+    def test_two_still_bursts_are_forgiven_the_same(self):
+        """CT18 writes 2 stills + a video per trigger, so its counter steps by 3.
+
+        Nothing in the rule may depend on how many frames a trigger writes.
+        """
+        rows = [('03180001.JPG', '2025-03-18 23:40:00'),
+                ('03180002.JPG', '2025-03-18 23:40:01'),     # 0003 is the video
+                ('03190004.JPG', '2025-03-18 23:58:10'),
+                ('03190005.JPG', '2025-03-18 23:58:11'),     # 0006 is the video
+                ('03190007.JPG', '2025-03-19 00:20:00'),
+                ('03190008.JPG', '2025-03-19 00:20:01')]
+        d = clocks.diagnose(self._frames(rows), station='CT18')
+        self.assertTrue(all(s.coherent for s in d.segments), d.notes)
+
+    def test_lead_interrupted_by_an_agreeing_frame_is_refused(self):
+        """A register that flips day and then flips back is not a boundary artefact."""
+        rows = [('03180001.JPG', '2025-03-18 12:00:00'),
+                ('03190002.JPG', '2025-03-18 23:30:00'),     # lead...
+                ('03180003.JPG', '2025-03-18 23:45:00'),     # ...then agrees again
+                ('03190004.JPG', '2025-03-18 23:58:00')]
+        d = clocks.diagnose(self._frames(rows), station='CT_X')
+        self.assertFalse(all(s.coherent for s in d.segments), d.notes)
+
+    def test_lead_beyond_the_cap_is_refused(self):
+        """A filename register hours ahead would be 'the tail of every day'. Capped."""
+        rows = [('03180001.JPG', '2025-03-18 12:00:00'),
+                ('03190002.JPG', '2025-03-18 21:30:00')]
+        d = clocks.diagnose(self._frames(rows), station='CT_X')
+        self.assertFalse(all(s.coherent for s in d.segments), d.notes)
+
+    def test_constant_one_day_register_offset_is_refused(self):
+        """Every filename one day ahead: no frame is a boundary tail. Refused."""
+        rows = [(f'0319{i:04d}.JPG', f'2025-03-18 {8 + i:02d}:00:00') for i in range(1, 10)]
+        d = clocks.diagnose(self._frames(rows), station='CT_X')
+        self.assertFalse(all(s.coherent for s in d.segments), d.notes)
+
+    def test_month_offset_register_is_refused(self):
+        """CT18 primavera_2025: filenames a constant ~30 days ahead. Not this rule's case."""
+        rows = [('07100001.JPG', '2025-06-10 15:50:57'),
+                ('07260004.JPG', '2025-06-26 09:17:00'),
+                ('08010011.JPG', '2025-07-02 16:26:57')]
+        d = clocks.diagnose(self._frames(rows), station='CT18')
         self.assertFalse(all(s.coherent for s in d.segments), d.notes)
 

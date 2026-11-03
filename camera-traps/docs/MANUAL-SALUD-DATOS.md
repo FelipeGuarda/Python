@@ -178,16 +178,17 @@ quien no va a leerlo completo, y tiene cinco columnas:
 
 Un punto sobre la última columna, porque el número asusta y conviene desarmarlo.
 
-**Hay 317 tests. No hay 317 preocupaciones distintas.** Los 317 tests viven en **76 clases**
+**Hay 322 tests. No hay 322 preocupaciones distintas.** Los 322 tests viven en **76 clases**
 repartidas en 14 archivos. La unidad conceptual es la **clase**, no el test: una clase es
 *una* regla acordada, y los tests dentro de ella son los casos de esa regla. Por eso la
 tabla nombra clases y no cuenta tests.
 
-Un ejemplo concreto de la Fase 6: `TestMidnightTolerance` es **una** idea — "un artefacto de
-nombre en el límite del día no es un reloj corrupto" — y son 5 tests porque hay cinco casos
-que hay que separar (dentro de la tolerancia, fuera de ella, exactamente en el borde, del
-lado benigno, del lado corrupto). Nadie tiene que llevar cinco cosas en la cabeza: tiene que
-llevar una.
+Un ejemplo concreto de la Fase 6: `TestDayBoundaryArtefact` es **una** idea — "un artefacto
+de nombre en el límite del día no es un reloj corrupto" — y son 10 tests porque hay diez
+casos que hay que separar (adelantado, atrasado, el caso real de CT08, disparos de 2 fotos,
+una cola interrumpida, más allá del tope, un desfase constante de un día o de un mes, a
+mediodía, sin discrepancia). Nadie tiene que llevar diez cosas en la cabeza: tiene que llevar
+una.
 
 La razón de que las reglas vivan en tests y no en párrafos es corta: **una convención documentada se degrada; una ejecutable no.** Una regla escrita en un
 documento se vuelve a discutir cada vez que alguien tiene un motivo; una regla con test falla
@@ -1337,12 +1338,19 @@ la repara, y decirlo así es el resultado correcto. Otra discrepaba 14 horas en 
 11 horas, una tercera 3 horas. Son 2.806 filas de las 35.807 publicadas.*
 
 **5. El artefacto del límite del día — que se parece a (4) y no lo es.**
-*Firma:* la fecha del nombre está un día adelantada respecto de la marca, y la foto
-está a segundos de medianoche.
-*Detección:* distancia a medianoche. Separa limpio de (4): los casos benignos caen dentro de
-un minuto, la corrupción genuina está a horas.
-*Bloquea:* **nada.** El reloj está correcto y andando; cruzó el límite del día mientras
-escribía el archivo, así que el nombre se armó con la fecha nueva y la marca con la vieja.
+*Firma:* la fecha del nombre está exactamente un día adelantada (o atrasada) respecto de la
+marca, cerca de medianoche, y esas fotos son la **cola ininterrumpida** del día de la marca
+(o su cabeza, si va atrasada).
+*Detección:* estructura, no distancia (`clocks._day_boundary_artefacts`). Se perdona una
+discrepancia sólo si (a) es de ±1 día exacto, (b) está a menos de una hora de medianoche, y
+(c) ninguna foto del mismo día de la marca que concuerde con su nombre queda *después* de
+ella (o *antes*, si va atrasada). Un registro que cambia de día una vez produce exactamente
+esa forma; uno corrupto, o que va y vuelve, no. La hora es un tope, no el criterio: sin él,
+un registro varias horas adelantado se perdonaría como "la cola de cada día". Es un tercio
+del caso genuino más chico medido (CT18, 3 h).
+*Bloquea:* **nada.** El reloj está correcto y andando; el registro del nombre cambió de día
+un poco antes (o después) que la marca. No depende de cuántas fotos escribe cada disparo
+(CT13: 3 fotos; CT18: 2 fotos más un video).
 *Recuperable:* no aplica, no hay nada malo.
 
 > **Qué se rompe si esto se confunde con (4).** Una cámara que funciona se declara defectuosa
@@ -1351,9 +1359,14 @@ escribía el archivo, así que el nombre se armó con la fecha nueva y la marca 
 > *Observado: tres fotos a las 23:59:28–29 — un máximo de 32 segundos de medianoche,
 > contra 318 fotos que concordaban — hicieron que se rechazara una cámara entera, a un
 > costo de 321 imágenes incluyendo 7 registros de puma. La cámara estuvo muy cerca de ser
-> desechada en terreno por la fuerza de ese falso positivo. Hoy una tolerancia de 120
-> segundos perdona esta clase, y **porque la tolerancia sólo perdona**, una estación con una
-> sola discrepancia lejos de medianoche sigue siendo rechazada.*
+> desechada en terreno por la fuerza de ese falso positivo.*
+>
+> *Observado otra vez, 2026-11-03: la tolerancia de 120 s con que se corrigió eso rechazó
+> CT08 primavera_2025 — 2.434 fotos — por 2 fotos a 200 s de medianoche. Su registro del
+> nombre cambió de día 3 min 21 s antes que la marca, y la marca siguió continua a través de
+> la medianoche. Una distancia calibrada sobre los casos vistos (32–60 s) falla en el
+> siguiente; por eso hoy el criterio es la estructura. **La regla sólo perdona**: una
+> estación con una sola discrepancia fuera de esa forma sigue siendo rechazada.*
 
 **6. Desfase constante.**
 *Firma:* todas las marcas erradas por la misma cantidad; internamente perfectamente
@@ -1458,7 +1471,7 @@ casos que nadie anticipó, incluida una carpeta inocentemente llamada `Camara 23
 | Salto hacia adelante no detectado | El reloj saltó adelante y sigue con fechas modernas y creíbles | Lo mismo que arriba, y es peor: nada se ve mal en una inspección visual | La misma prueba de discontinuidad; **no** un umbral de año | `TestForwardJump` |
 | Un desfase por estación aplicado a una cámara con varios reinicios | Se trató como un reinicio algo que eran cinco segmentos | Fechas verosímiles y falsas en la mayoría de los segmentos | El diagnóstico es por segmento por construcción (`Segment.index`) | `TestScenarioD`, `TestScenarioG`, `TestSegmentForRows` |
 | Reloj incoherente aceptado como reparable | El reloj no avanza parejo; hay meses `00` y `16` | Todo lo temporal, y ninguna ancla lo arregla | P2: nombre `MMDD` contra su propia marca | `TestPrecondition2Coherence` |
-| Artefacto de medianoche tratado como corrupción | Un archivo se escribió cruzando el límite del día | **Falso negativo caro:** se descarta una campaña completa de una cámara sana | Tolerancia de 120 s a medianoche, que **sólo perdona** | `TestMidnightTolerance` (5 casos) |
+| Artefacto de medianoche tratado como corrupción | Un archivo se escribió cruzando el límite del día | **Falso negativo caro:** se descarta una campaña completa de una cámara sana | Regla estructural: ±1 día, cola (o cabeza) ininterrumpida del día, tope de 1 h; **sólo perdona** | `TestDayBoundaryArtefact` (10 casos) |
 | Orden de captura asumido en vez de demostrado | El contador `nnnn` da la vuelta en 9999 y no hay manifiesto | La detección de reinicios completa: sin orden no hay discontinuidad que ver | P1: `clocks.establish_order()`, rechaza si no puede demostrarlo | `TestPrecondition1Ordering`, `TestDcimFolderKey` |
 | Dos cámaras tratadas como una instalación | Dos gramáticas de nombre, cada una con su propia corrida de contador | Atribución: fotos asignadas a la estación equivocada | `clocks.parse_filename()` + la regla de una historia de captura | `TestFilenameGrammar`, `TestDcimFolderKey` |
 | Una fila sin segmento asignada por adivinanza | Un video o una marca indescifrable en una cámara multi-segmento | Contención: una foto ubicada en el tramo equivocado | `clocks.segment_for_rows()` rechaza en vez de ubicar | `TestSegmentForRows`, `TestVideosExcluded` |
@@ -1573,9 +1586,12 @@ ancla. Una fecha de visita sin hora, no.
 > atrapar).
 
 En uso acá: las anclas exactas se calzan dentro de **1 hora**, porque se registran al minuto.
-Las ventanas derivadas de visitas usan **3 días**. La tolerancia de medianoche de la Fase 6 son
-**120 segundos**, y se derivó de las mediciones reales: los casos benignos estaban a 32 y 60
-segundos, los genuinos a 3, 11 y 14 horas.
+Las ventanas derivadas de visitas usan **3 días**. La tolerancia de medianoche de la Fase 6 fue
+**120 segundos**, derivada de los casos benignos medidos (32 y 60 s). Es el contraejemplo de
+esta misma sección: el 2026-11-03 rechazó CT08 primavera_2025 por un caso benigno a 200 s.
+Calibrar sobre los casos vistos ajusta la tolerancia al último caso, no a la clase. Se
+reemplazó por una regla de estructura (§6.3(5)), que deja la hora sólo como tope, puesto
+lejos de ambos lados: a un tercio del caso genuino más chico (3 h).
 
 ### 7F.6 La ventana de instalación son dos límites, no una franja
 
@@ -1612,7 +1628,7 @@ segundos, los genuinos a 3, 11 y 14 horas.
 | Un desfase aplicado a toda la estación | Se ignoran los segmentos | Empeora la mayoría de los segmentos, y se ve creíble | `repair_plan()` produce un desfase **por segmento** | `TestPerSegmentOffsets` (5 casos) |
 | Un ancla aproximada tratada como exacta | Una visita sin hora se usa como si tuviera hora | La hora del día, con una precisión que no existe | Se marca `valid_time_of_day = false` | `TestApproximateAnchor` |
 | Un rechazo omitido en vez de escrito | "Nadie lo miró" se ve igual que "no se puede anclar" | El tiempo de la próxima persona, y la claridad del estado | `unrepairable_pending` es una fila explícita | `TestUnrepairablePending` |
-| Una tolerancia elegida a ojo | Rechaza datos buenos, o admite la falla que busca | Depende de cuál de los dos errores; los dos son caros | Cada tolerancia se derivó de mediciones anotadas | `TestMidnightTolerance`, `TestDeploymentWindow` |
+| Una tolerancia elegida a ojo | Rechaza datos buenos, o admite la falla que busca | Depende de cuál de los dos errores; los dos son caros | Cada tolerancia se derivó de mediciones anotadas | `TestDayBoundaryArtefact`, `TestDeploymentWindow` |
 | Un vacío interior tratado como falla | Una cámara sana se marca porque pasó 41 días sin disparo | Se descartan cámaras limpias | Sólo se prueban los dos **bordes** de la ventana | `TestDeploymentWindow` (6 casos) |
 | La tabla de anclas cambia de forma sin aviso | Una columna nueva o renombrada | El ingreso completo | Esquema verificado del archivo de anclas | `TestAnchorSchema` |
 | La ventana se toma con el margen de ±3 días | El margen de validación de anclas llega al esfuerzo | **6 días de más por cámara** en el denominador | `deployments.py` usa `opening()`, no `window()` | `TestWindowIsTheFieldWindow` |

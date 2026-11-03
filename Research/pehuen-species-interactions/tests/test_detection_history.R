@@ -179,8 +179,10 @@ if (file.exists(rec_path) && file.exists(dep_path)) {
         }, logical(1))))
 
   hw <- detection_history(real_rec, real_dep, "Zorro culpeo", D("2025-06-01"), quiet = TRUE)
-  check("culpeo, Invierno 2025: 10 of 24 stations, as measured 2026-10-06",
-        sum(rowSums(hw$y, na.rm = TRUE) > 0) == 10L && nrow(hw$y) == 24L)
+  # 24 -> 25 stations on 2026-11-03: CT08 primavera_2025 was refused over a
+  # day-boundary naming artefact and is now admitted. Detections unchanged.
+  check("culpeo, Invierno 2025: 10 of 25 stations, as measured 2026-11-03",
+        sum(rowSums(hw$y, na.rm = TRUE) > 0) == 10L && nrow(hw$y) == 25L)
 } else {
   cat("  skip data/*.rds absent -- run R/01_load_data.R\n")
 }

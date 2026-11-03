@@ -6,6 +6,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-11-03b — camera-traps: cuatro relojes "irreparables" no lo eran
+
+### Fixed
+- **CT08 otoño 2025.** El reloj estaba un mes atrasado: +30 d exactos según las fotos del equipo al
+  instalar y al retirar. Se agregaron dos anclas exactas y la hora del día se conserva.
+- **CT10 otoño 2025.** El reloj estaba bien; el error era la fecha de retiro en la planilla
+  (05-28 → 06-05, con el equipo visible en la tarjeta). Se corrigió `field_notes.csv`.
+- **CT13 otoño 2025.** Hay un paso real de −1 h a mitad de disparo. El segmento 0 queda exacto;
+  el segmento 1 recupera la fecha pero no la hora.
+- **CT08 primavera 2025.** Se había rechazado por 2 de 2.434 fotos a 200 s de medianoche.
+  `MIDNIGHT_TOLERANCE` (120 s) se reemplaza por una regla estructural, con un tope de 1 h que no
+  depende del tamaño del disparo.
+
+### Changed
+- Se reingestaron otoño 2025 y primavera 2025 y se republicó el contrato.
+- pehuén se re-ejecutó: 380 → 415 eventos, 10.912 → 11.823 días-cámara útiles, fotos sin hora
+  452 → 249. El documento de estado se actualizó.
+
+### Deferred
+- **CT18 primavera 2025.** El registro del nombre va +30/31 d constante, pero la marca concuerda
+  con la visita. Requiere su propio diseño.
+- Anclas por continuidad de disparo (el +1 h de CT13).
+- El Informe Anual 2025 no se re-ejecutó; sus insumos de otoño y primavera cambiaron.
+
+---
+
 ## 2026-11-03 — pehuén: el estado del análisis se ordena por las preguntas del equipo
 
 ### Changed

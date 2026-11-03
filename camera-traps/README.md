@@ -89,7 +89,32 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-10-15 — **the Silva-Rodríguez comparison is reframed: their protocol sits
+**Last Updated:** 2026-11-03 — **four "unrepairable" clocks were not, and the midnight rule is
+structural now.** Felipe saw no problem in CT08's raw images while the deployment timeline marked
+it unrepairable; all 11 refused deployments were re-audited. Four were false refusals:
+- **CT08 otoño 2025**: the clock was set a month behind (field sheet: "dicen septiembre, debe decir
+  octubre"). Team frames at install and retrieval both give exactly +30 d, so the time of day was
+  never wrong. The offset pushed frames across the window edge, which made an artificial segment.
+  Fixed with two exact anchors.
+- **CT10 otoño 2025**: the clock was fine. The field sheet had the retrieval on 05-28, but the team
+  appears on the card on 06-03 and 06-05. `field_notes.csv` corrected.
+- **CT13 otoño 2025**: a genuine −1 h step mid-burst (`02280048`→`0049`→`0050`). Segment 0 gets a
+  provenance anchor; segment 1 a `visit_date_only` anchor (date only — burst continuity as
+  evidence for the +1 h is deferred).
+- **CT08 primavera 2025**: refused over 2 of 2,434 frames named for the next day 200 s before
+  midnight, past the 120 s `MIDNIGHT_TOLERANCE`. That tolerance is replaced by
+  `clocks._day_boundary_artefacts`: ±1 day, the unbroken tail (or head) of its stamp-day, capped
+  at 1 h. It is independent of burst size (CT18 writes 2 stills + video).
+
+Reverses the 2026-08-20 fixture that called 3m21s genuine; its stamps ran backwards, the real
+data's do not. Still refused, correctly: CT15, CT16 ×2, CT17, CT19, CT18 otoño 2026. **CT18
+primavera 2025 is still open**: its filenames run a constant +30/31 d ahead of the stamp, and the
+stamp matches the visit. This needs its own design. 322 tests (1 pre-existing Windows-only
+failure in `test_flatten`); otoño 2025 and primavera 2025 re-ingested; contract re-published.
+**Integration Status:** `In Progress [REMAINING: CT18 primavera register offset; burst-continuity
+anchors; Anual-reports 2025 not re-run — its otoño/primavera inputs changed]`.
+
+**Prior — 2026-10-15** — **the Silva-Rodríguez comparison is reframed: their protocol sits
 inside ours.** `docs/CONTRASTE-SILVA-RODRIGUEZ-2025.md` is now an internal document for the team
 and coordination, not a planning note. The 2026-09-09 reading — "complementary: they protect
 classification, we protect provenance" — undersold it: their three stages map onto our phases
