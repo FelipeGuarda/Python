@@ -171,10 +171,12 @@ class TestThePublishedTables(unittest.TestCase):
         self.assertFalse(with_id.datetime.isna().any())
 
     def test_the_count_is_the_one_the_corrected_rule_produces(self):
-        """696 across the three campaigns, measured 2026-08-26 before the column
-        existed. The stale predecessor rule gives 523; if this figure ever reads 523
-        again, the rule regressed rather than the data changing."""
-        self.assertEqual(episodes.count(read_campaigns(*CAMPAIGN_ORDER)), 696)
+        """777 across the three campaigns, measured 2026-11-03. It was 696 on
+        2026-08-26; the 81 added events are the four deployments readmitted that day
+        (CT08 x2, CT10, CT13 — their rows gained a valid stamp, hence an episode).
+        The stale predecessor rule gave 523 against 696; a drop of that size would
+        mean the rule regressed rather than the data changing."""
+        self.assertEqual(episodes.count(read_campaigns(*CAMPAIGN_ORDER)), 777)
 
 
 if __name__ == '__main__':
