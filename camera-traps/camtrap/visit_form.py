@@ -182,6 +182,8 @@ def _read_choice(raw, field, where: str, problems: list[str]) -> str:
             f'{where}: {field.column} = {value!r} no está en la lista '
             f'({", ".join(str(o) for o in field.options)})')
         return ''
+    if field.csv_values:
+        return field.csv_values[match]
     return visit_schema.CSV_BOOLEAN.get(match, match) \
         if field.column in _BOOLEAN_COLUMNS else match
 
@@ -198,23 +200,16 @@ def _requires_placement(row: dict) -> bool:
 def _check_obligations(row: dict, where: str, problems: list[str]) -> None:
     """The form's four requirement classes, applied to one finished row.
 
-    Two refinements the requirement column cannot express on its own, both taken
-    from the fields' own `why` text rather than invented here:
-
-      * `camera_datetime_observed` is blank when the camera would not switch on —
-        the form tells the technician to leave it blank and answer `camera_working`
-        = no, so demanding it would demand a reading that does not exist.
-      * `campaign_opened` must be BLANK on a `retiro`: the vocabulary defines that
-        visit as leaving the site without equipment, so a campaign named there
-        would contradict the visit type. The requirement column says `siempre`
-        because every other visit type does leave a card in the ground.
+    One refinement the requirement column cannot express on its own, taken from the
+    field's own `why` text rather than invented here: `camera_datetime_observed` is
+    blank when the camera would not switch on — the form tells the technician to
+    leave it blank and answer `camera_working` = no, so demanding it would demand a
+    reading that does not exist.
     """
     for field in visit_schema.VISIT_FIELDS:
         value = row.get(field.column, '')
         if field.required == visit_schema.REQ_ALWAYS:
             if field.column == 'camera_datetime_observed' and row.get('camera_working') == 'no':
-                continue
-            if field.column == 'campaign_opened' and row.get('visit_type') == 'retiro':
                 continue
             if not value:
                 problems.append(f'{where}: falta {field.column} (obligatorio)')
@@ -231,11 +226,6 @@ def _check_obligations(row: dict, where: str, problems: list[str]) -> None:
                 problems.append(
                     f'{where}: falta {field.column}; la cámara no funcionaba, y sin la '
                     'razón no se puede saber si aportó días-cámara al denominador')
-
-    if row.get('visit_type') == 'retiro' and row.get('campaign_opened'):
-        problems.append(
-            f'{where}: un retiro deja el sitio sin equipo, así que campaign_opened '
-            f'debe quedar vacío (dice {row["campaign_opened"]!r})')
 
 
 def _read_row(values: dict, where: str, source_sheet: str,

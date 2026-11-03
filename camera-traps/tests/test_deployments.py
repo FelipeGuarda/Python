@@ -59,10 +59,10 @@ class TestWindowIsTheFieldWindow(unittest.TestCase):
             root = Path(tmp)
             with open(root / FIELD_NOTES_FILENAME, "w", encoding="utf-8", newline="") as fh:
                 w = csv.writer(fh)
-                w.writerow(["campaign_opened", "station_id",
+                w.writerow(["maintenance_campaign", "station_id",
                             "visit_type", "visit_date", "visit_time"])
                 # Opens otono_2025 and is never closed.
-                w.writerow(["otono_2025", "CT99", "instalacion", "2025-01-01", ""])
+                w.writerow(["", "CT99", "instalacion", "2025-01-01", ""])
             frame = deployments.build("otono_2025", root=root)
         self.assertEqual(len(frame), 0, "a station with one dated end is not a deployment")
 
@@ -202,9 +202,9 @@ class TestMediaStatusIsAReasonNotAMeasurement(unittest.TestCase):
             with (root / FIELD_NOTES_FILENAME).open("w", encoding="utf-8", newline="") as fh:
                 w = csv.writer(fh)
                 w.writerow(["station_id", "visit_type", "visit_date", "visit_time",
-                            "campaign_opened"])
-                w.writerow(["CT99", "instalacion", "2025-02-04", "", "otono_2025"])
-                w.writerow(["CT99", "revision", "2025-06-05", "", ""])
+                            "maintenance_campaign"])
+                w.writerow(["CT99", "instalacion", "2025-02-04", "", ""])
+                w.writerow(["CT99", "revision", "2025-06-05", "", "otono_2025"])
             frame = deployments.build("otono_2025", root=root)
             row = frame[frame["station_id"] == "CT99"].iloc[0]
             self.assertEqual(row["media_status"], deployments.STATUS_UNEXPLAINED)
@@ -219,9 +219,9 @@ class TestMediaStatusIsAReasonNotAMeasurement(unittest.TestCase):
             with (root / FIELD_NOTES_FILENAME).open("w", encoding="utf-8", newline="") as fh:
                 w = csv.writer(fh)
                 w.writerow(["station_id", "visit_type", "visit_date", "visit_time",
-                            "campaign_opened"])
-                w.writerow(["CT99", "instalacion", "2025-02-04", "", "otono_2025"])
-                w.writerow(["CT99", "revision", "2025-06-05", "", ""])
+                            "maintenance_campaign"])
+                w.writerow(["CT99", "instalacion", "2025-02-04", "", ""])
+                w.writerow(["CT99", "revision", "2025-06-05", "", "otono_2025"])
             with (root / deployments.MEDIA_ABSENCE_FILENAME).open(
                     "w", encoding="utf-8", newline="") as fh:
                 w = csv.writer(fh)

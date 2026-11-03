@@ -226,8 +226,9 @@ class Visit:
     """
     station_id: str
     visit_type: str                 # visit_schema.VISIT_TYPES, or legacy 'unrecorded'
-    campaign_closed: str            # DERIVED, never read from the file — see _derive_closings
-    campaign_opened: str
+    maintenance_campaign: str       # the salida, as recorded
+    campaign_closed: str            # DERIVED — see _derive_campaigns
+    campaign_opened: str            # DERIVED — see _derive_campaigns
     visit_date: Optional[datetime]  # date at midnight, or None
     visit_time_recorded: bool       # False => the hour is ASSUMED_VISIT_HOUR
     flags: str
@@ -253,50 +254,59 @@ class Visit:
         return 'date_ambiguous' in self.flags or 'date_conflict' in self.flags
 
 
-#: Retired 2026-08-26. Present only in a pre-reshape `field_notes.csv`.
+#: Retired 2026-08-26 and 2026-11-03. Present only in an older `field_notes.csv`:
+#: the record now holds the salida (`maintenance_campaign`) and derives both.
 RECORDED_CLOSE_COLUMN = 'campaign_closed'
+RECORDED_OPEN_COLUMN = 'campaign_opened'
 
 
-def _derive_closings(visits: list[Visit]) -> list[Visit]:
-    """Fill `campaign_closed` from each station's own visit sequence.
+def _derive_campaigns(visits: list[Visit]) -> list[Visit]:
+    """Fill `campaign_closed` and `campaign_opened` from each station's visit sequence.
 
-    The field form deliberately does not collect it: a visit always closes the
-    campaign the previous visit to that station opened, so recording it a second time
-    only creates a cell that can disagree with the rest of the sheet. Measured
-    against the 107 legacy rows before the column was dropped, the derivation
-    reproduced 105 of the 106 dated values. The single exception was CT27's
-    2025-12-11 row, which claimed to close `primavera_2025` for a station that has no
-    primavera deployment in `deployments.csv`, none in the canonical table and no
-    prior visit at all — i.e. the derivation was right and the recorded value wrong.
+    The form records one thing, the salida a visit belongs to, because that is what
+    the team knows at the tree. Campaigns are named for the salida that retrieves
+    their cards, so:
 
-    An undated visit cannot be placed in the sequence, so it closes nothing and does
-    not advance the carry. CT27's `unrecorded` placeholder is the live case.
+      * a visit that closes a campaign (`CLOSES_CAMPAIGN`) closes the one its own
+        salida is named for — but only if the station's previous card-touching visit
+        left a card (`OPENS_CAMPAIGN`). Without that there was nothing in the ground:
+        CT27's 2025-12-11 row once claimed to close `primavera_2025` with no earlier
+        visit at all, and this precondition is what keeps that claim out;
+      * a visit that opens one (`OPENS_CAMPAIGN`) opens whatever the NEXT
+        card-touching visit to that station closes. If that next visit only opens
+        (an install with no retrieval in between), nothing traceable was opened.
 
-    `retiro` resets the carry because the card comes out for good: without the reset,
-    a station lifted and later reinstalled would derive its reinstall as closing the
-    campaign that ended before the gap. There are no `retiro` rows in the record yet,
-    so this branch is held by a fixture rather than by data.
+    So the campaign still in the ground has no name until its retrieval is recorded.
+    Nothing needs it sooner: a campaign is ingested only after it is retrieved.
+
+    Until 2026-11-03 the form recorded the campaign OPENED and derived the closing.
+    That asked the team to name a salida that had not happened yet ("otoño" at a
+    spring visit), which the team found confusing. Converting the 107 legacy rows
+    (`setup/reshape_field_notes.py`) reproduced every opening and closing exactly.
+
+    An undated visit cannot be placed in the sequence, so it closes and opens nothing
+    and is skipped by its neighbours. CT27's `unrecorded` placeholder is the live
+    case. `inspeccion` touches no card, so it neither closes, opens, nor interrupts.
     """
     closed = [''] * len(visits)
+    opened = [''] * len(visits)
     by_station: dict[str, list[int]] = {}
     for i, v in enumerate(visits):
-        by_station.setdefault(v.station_id, []).append(i)
+        if v.visit_date is not None:
+            by_station.setdefault(v.station_id, []).append(i)
 
+    touches_card = set(visit_schema.CLOSES_CAMPAIGN) | set(visit_schema.OPENS_CAMPAIGN)
     for idxs in by_station.values():
-        ordered = sorted(idxs, key=lambda i: (visits[i].visit_date is None,
-                                              visits[i].visit_date or datetime.min,
-                                              i))
-        in_ground = ''
-        for i in ordered:
-            v = visits[i]
-            if v.visit_type in visit_schema.CLOSES_CAMPAIGN:
-                closed[i] = in_ground
-            if v.visit_type in visit_schema.OPENS_CAMPAIGN:
-                in_ground = v.campaign_opened
-            elif v.visit_type in visit_schema.CLOSES_CAMPAIGN:
-                in_ground = ''          # retiro: nothing left in the ground
+        ordered = [i for i in sorted(idxs, key=lambda i: (visits[i].visit_date, i))
+                   if visits[i].visit_type in touches_card]
+        for here, nxt in zip(ordered, ordered[1:]):
+            if (visits[here].visit_type in visit_schema.OPENS_CAMPAIGN
+                    and visits[nxt].visit_type in visit_schema.CLOSES_CAMPAIGN):
+                closed[nxt] = visits[nxt].maintenance_campaign
+                opened[here] = closed[nxt]
 
-    return [replace(v, campaign_closed=c) for v, c in zip(visits, closed)]
+    return [replace(v, campaign_closed=c, campaign_opened=o)
+            for v, c, o in zip(visits, closed, opened)]
 
 
 class FieldRecord:
@@ -314,23 +324,26 @@ class FieldRecord:
         """Returns an empty record if the file does not exist, so a campaign with no
         field notes degrades to the anchor-derived window rather than failing.
 
-        Refuses a file that still carries `campaign_closed`. That column was
-        authoritative until 2026-08-26 and is now derived, so a file holding it is
-        either a pre-reshape copy or a `build_field_notes.py` run that reverted the
-        curated rows — and reading it while ignoring the column would reinterpret it
-        silently. `setup/reshape_field_notes.py` performs the one-time conversion.
+        Refuses a file that still carries `campaign_closed` or `campaign_opened`.
+        Each was authoritative once (closed until 2026-08-26, opened until
+        2026-11-03) and both are now derived, so a file holding either is an older
+        copy — and reading it while ignoring the column would reinterpret it
+        silently. `setup/reshape_field_notes.py` performs the one-time conversions.
         """
         if not path.exists():
             return cls([])
 
         df = pd.read_csv(path, dtype=str, keep_default_na=False)
-        if RECORDED_CLOSE_COLUMN in df.columns:
-            raise ValueError(
-                f'{path} still carries the retired `{RECORDED_CLOSE_COLUMN}` column. '
-                'The campaign a visit closes is derived from the station\'s visit '
-                'sequence since 2026-08-26; a file that records it is a pre-reshape '
-                'copy. Run setup/reshape_field_notes.py, or fix the fixture.'
-            )
+        for retired, since in ((RECORDED_CLOSE_COLUMN, '2026-08-26'),
+                               (RECORDED_OPEN_COLUMN, '2026-11-03')):
+            if retired in df.columns:
+                raise ValueError(
+                    f'{path} still carries the retired `{retired}` column. Both '
+                    'campaigns a visit closes and opens are derived from the station\'s '
+                    f'visit sequence and its salida (`maintenance_campaign`) since '
+                    f'{since}; a file that records it is an older copy. Run '
+                    'setup/reshape_field_notes.py, or fix the fixture.'
+                )
         visits: list[Visit] = []
         for _, r in df.iterrows():
             raw_date = (r.get('visit_date') or '').strip()
@@ -347,14 +360,15 @@ class FieldRecord:
             visits.append(Visit(
                 station_id=(r.get('station_id') or '').strip(),
                 visit_type=(r.get('visit_type') or '').strip(),
-                campaign_closed='',        # filled by _derive_closings below
-                campaign_opened=(r.get('campaign_opened') or '').strip(),
+                maintenance_campaign=(r.get('maintenance_campaign') or '').strip(),
+                campaign_closed='',        # filled by _derive_campaigns below
+                campaign_opened='',        # filled by _derive_campaigns below
                 visit_date=when,
                 visit_time_recorded=has_time,
                 flags=(r.get('data_flags') or '').strip(),
                 source_sheet=(r.get('source_sheet') or '').strip(),
             ))
-        return cls(_derive_closings(visits))
+        return cls(_derive_campaigns(visits))
 
     def __len__(self) -> int:
         return len(self._visits)

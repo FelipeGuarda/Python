@@ -178,7 +178,7 @@ quien no va a leerlo completo, y tiene cinco columnas:
 
 Un punto sobre la última columna, porque el número asusta y conviene desarmarlo.
 
-**Hay 322 tests. No hay 322 preocupaciones distintas.** Los 322 tests viven en **76 clases**
+**Hay 331 tests. No hay 331 preocupaciones distintas.** Los 331 tests viven en **76 clases**
 repartidas en 14 archivos. La unidad conceptual es la **clase**, no el test: una clase es
 *una* regla acordada, y los tests dentro de ella son los casos de esa regla. Por eso la
 tabla nombra clases y no cuenta tests.
@@ -635,26 +635,36 @@ validación.
 
 ### 2F.3 Qué se deriva y no se pregunta
 
-El formulario **no pregunta qué campaña se cierra**, y eso es deliberado. Pregunta sólo la que
-se abre.
+El formulario **no pregunta qué campaña se cierra ni cuál se abre**. Pregunta la **campaña de
+mantención**: la salida de terreno a la que pertenece la visita (`otoño 2026`), que es lo que el
+equipo sabe frente a la cámara. Es la misma para todas las cámaras de una salida, aunque dure
+semanas o cruce de mes.
 
-La campaña que una visita cierra es siempre la que abrió la visita anterior a esa misma
-estación, así que derivarla es lo que hace **imposible que la hoja se contradiga a sí misma**.
-La derivación necesita saber qué tipos de visita tocan la tarjeta:
+Las dos campañas se derivan de esa salida y de la secuencia de visitas de cada estación, y eso
+hace **imposible que la hoja se contradiga a sí misma**:
+
+- una visita que cierra, cierra **la campaña de su salida**, porque las campañas se nombran
+  por la salida que retira sus tarjetas. Exige que la visita anterior a esa estación haya
+  dejado una tarjeta: sin eso no había nada en el suelo;
+- una visita que abre, abre **lo que cierre la siguiente visita** a esa estación. La campaña
+  que está en el suelo no tiene nombre hasta que se retira, y nada lo necesita antes, porque una
+  campaña sólo se procesa después de retirada.
 
 | Tipo de visita | Qué pasa con la tarjeta | Cierra | Abre |
 |---|---|---|---|
 | `instalacion` | No había tarjeta en el suelo | nada | una |
-| `revision` | La tarjeta se cambia | una | la siguiente |
-| `retiro` | La tarjeta sale para siempre | una | nada |
-| `mantencion` | La tarjeta **no** se toca | nada | nada |
+| `revision` | La tarjeta se cambia | la de su salida | la siguiente |
+| `retiro` | La tarjeta sale para siempre | la de su salida | nada |
+| `inspeccion` | La tarjeta **no** se toca | nada | nada |
 
-`mantencion` es la razón de que esto no se pueda leer sólo de `campaign_opened`: la persona
-anota la campaña que sigue abierta, y leer eso como "se abrió de nuevo" cerraría una campaña
-que nunca terminó.
+*Historia.* Hasta el 2026-08-26 se anotaban las dos. Hasta el 2026-11-03 se anotaba la que se
+**abre**, lo que obligaba a anotar en una visita de otoño una salida que aún no había ocurrido
+("primavera 2026"); el equipo lo encontró confuso, con razón. `inspeccion` se llamaba
+`mantencion`; se renombró para que "mantención" signifique una sola cosa en el formulario.
 
-*Medido: la derivación reprodujo 105 de 106 valores heredados. La única discrepancia era una
-afirmación equivocada que el resto del proyecto ya contradecía, y se borró.*
+*Medido: convertir los 107 registros heredados (`setup/reshape_field_notes_salida.py`)
+reprodujo **todas** las aperturas y cierres, comparado contra la implementación anterior, y la
+ingesta en seco de las tres campañas dio ventanas y veredictos idénticos.*
 
 ### 2F.4 Las decisiones curadas no se pierden
 

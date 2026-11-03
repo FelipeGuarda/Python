@@ -6,6 +6,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-11-03c — camera-traps: el formulario de visita pregunta por la salida
+
+### Changed
+- **"Campaña que se ABRE" pasa a "Campaña de mantención".** Es una lista por temporada
+  (`otoño 2026`) que escribe el slug del pipeline y es obligatoria en toda visita. Las campañas
+  que se cierran y se abren se derivan (`anchors._derive_campaigns`).
+- `field_notes.csv` se convirtió una vez con `setup/reshape_field_notes_salida.py`, y las
+  aperturas y cierres de las 107 filas quedaron idénticos. `FieldRecord` rechaza los formatos
+  antiguos.
+- El tipo de visita `mantencion` pasa a llamarse `inspeccion`.
+- "Pantalla DESPUÉS del ajuste" pasa a "Fecha y hora EN LA PANTALLA DESPUÉS del ajuste".
+- `SCHEMA_VERSION` pasa a 2.0.
+
+### Added
+- Dos campos nuevos: **Foto testigo AL LLEGAR** y **AL IRSE**, ambos sí/no.
+
+### Fixed
+- Las filas de la hoja `Ejemplo` estaban tres columnas corridas. Ahora van por nombre de
+  columna y un test las lee con el cargador real.
+- En `fix/clock-false-refusals`, tres arreglos:
+  - `deployments.csv` no se había republicado tras corregir CT10;
+  - el conteo de episodios se fijó de nuevo en 777 (+81, todos de los despliegues recuperados);
+  - la línea de tiempo y el `.docx` se regeneraron.
+
+---
+
 ## 2026-11-03b — camera-traps: cuatro relojes "irreparables" no lo eran
 
 ### Fixed

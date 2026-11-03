@@ -29,8 +29,10 @@ TEMPLATE = (Path(__file__).resolve().parents[1] / 'data' / 'campaigns'
 #: A complete, valid revision. Every test below is this row with one thing changed.
 GOOD = {
     'station_id': 'CT01', 'visit_date': '2026-11-20', 'visit_time': '09:40',
-    'visit_type': 'revision', 'campaign_opened': 'otono_2027', 'observers': 'FG, SC',
+    'visit_type': 'revision', 'maintenance_campaign': 'primavera 2026',
+    'observers': 'FG, SC',
     'camera_unit_id': 'CAM-01', 'camera_working': 'si',
+    'witness_photo_arrival': 'si', 'witness_photo_departure': 'si',
     'camera_datetime_observed': '2026-11-20 08:40', 'clock_adjusted': 'no',
     'camera_datetime_after': '', 'card_changed': 'si', 'batteries_changed': 'si',
     'moved': 'no', 'lat': '', 'lon': '', 'height_m': '', 'bearing_deg': '',
@@ -162,16 +164,32 @@ class TestTheFormsObligations(unittest.TestCase):
             visit_form.read(workbook(changed(moved='si')))
         self.assertIn('lon', str(cm.exception))
 
-    def test_a_retiro_leaves_no_campaign_open(self):
-        """The vocabulary defines retiro as leaving the site without equipment, so a
-        campaign named there contradicts the visit type."""
+    def test_the_salida_is_written_as_the_pipeline_slug(self):
+        """The team reads `otoño 2026`; folders and tables say `otono_2026`. The
+        record must hold the spelling the pipeline joins on."""
+        row = visit_form.read(workbook(changed(maintenance_campaign='otoño 2026')))[0]
+        self.assertEqual(row['maintenance_campaign'], 'otono_2026')
+
+    def test_every_visit_names_its_salida(self):
+        """A retiro too: it belongs to a salida and closes that salida's campaign."""
         with self.assertRaises(visit_form.VisitFormError) as cm:
             visit_form.read(workbook(changed(visit_type='retiro',
-                                             campaign_opened='otono_2027')))
-        self.assertIn('campaign_opened', str(cm.exception))
-        row = visit_form.read(workbook(changed(visit_type='retiro',
-                                               campaign_opened='')))[0]
-        self.assertEqual(row['campaign_opened'], '')
+                                             maintenance_campaign='')))
+        self.assertIn('maintenance_campaign', str(cm.exception))
+
+    def test_a_slug_typed_by_hand_is_refused(self):
+        """Only the list's own spelling; a second dialect is how two names for one
+        salida get into the record."""
+        with self.assertRaises(visit_form.VisitFormError) as cm:
+            visit_form.read(workbook(changed(maintenance_campaign='otono_2026')))
+        self.assertIn('maintenance_campaign', str(cm.exception))
+
+    def test_witness_photos_are_asked_every_visit(self):
+        with self.assertRaises(visit_form.VisitFormError) as cm:
+            visit_form.read(workbook(changed(witness_photo_departure='')))
+        self.assertIn('witness_photo_departure', str(cm.exception))
+        row = visit_form.read(workbook(changed(witness_photo_arrival='no')))[0]
+        self.assertEqual(row['witness_photo_arrival'], 'no')
 
     def test_an_unsigned_coordinate_is_signed(self):
         """Bosque Pehuen is south and west, so the sheet carries a magnitude and the
@@ -257,7 +275,7 @@ class TestAppending(unittest.TestCase):
         visit_form.ingest(workbook(GOOD), first)
         before = first.read_text(encoding='utf-8')
         visit_form.ingest(workbook(changed(visit_date='2027-05-14',
-                                           campaign_opened='primavera_2027')), first)
+                                           maintenance_campaign='otoño 2027')), first)
         self.assertTrue(first.read_text(encoding='utf-8').startswith(before))
 
 
@@ -298,6 +316,20 @@ class TestTheRenderedTemplateLoads(unittest.TestCase):
                 if field is not None:
                     offered[field.column] = values
         return offered
+
+    def test_the_worked_examples_pass_the_loader(self):
+        """The `Ejemplo` sheet is what a technician copies. Its rows were positional
+        and fell three columns out of step as fields were added, unnoticed, because
+        nothing read them. Read them back the way a filled form is read."""
+        examples = list(self.wb['Ejemplo'].iter_rows(min_row=2, values_only=True))
+        self.assertTrue(examples)
+        target = self.wb[visit_form.SHEET]
+        for i, row in enumerate(examples, start=2):
+            for j, value in enumerate(row, start=1):
+                target.cell(i, j, value)
+        path = Path(tempfile.mkdtemp()) / 'ejemplo.xlsx'
+        self.wb.save(path)
+        self.assertEqual(len(visit_form.read(path)), len(examples))
 
     def test_the_template_headers_are_the_declared_labels(self):
         ws = self.wb[visit_form.SHEET]

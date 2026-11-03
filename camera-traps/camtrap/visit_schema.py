@@ -64,6 +64,7 @@ WHY DATE CELLS ARE TEXT
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from camtrap import stations
@@ -74,36 +75,53 @@ CSV_BOOLEAN = {'si': 'yes', 'no': 'no', 'no se sabe': 'unknown'}
 
 SI_NO = ('si', 'no')
 SI_NO_NS = ('si', 'no', 'no se sabe')
-VISIT_TYPES = ('instalacion', 'revision', 'retiro', 'mantencion')
+VISIT_TYPES = ('instalacion', 'revision', 'retiro', 'inspeccion')
 
-# Which campaign a visit CLOSES is never written down — the form collects only the
-# campaign it opens, because the one it closes is always the one the previous visit
-# to that same station opened (see `campaign_opened`'s `why`). Deriving it is what
-# makes it impossible for the sheet to contradict itself, so the derivation needs to
-# know which visit types touch the card:
+# The form records the SALIDA a visit belongs to (`maintenance_campaign`) — the one
+# fact the team knows at the tree. Which campaign a visit closes and which it opens
+# are both derived from it (`anchors._derive_campaigns`), so no cell can contradict
+# another. The derivation needs to know which visit types touch the card:
 #
 #   instalacion  no card was in the ground        closes nothing, opens one
 #   revision     the card is swapped              closes one, opens the next
 #   retiro       the card comes out for good      closes one, opens nothing
-#   mantencion   the card is NOT touched          closes nothing, opens nothing
+#   inspeccion   the card is NOT touched          closes nothing, opens nothing
 #
-# `mantencion` is the reason this cannot be read off `campaign_opened` alone: the
-# technician writes the campaign that is still open, and reading that as "opened
-# again" would close a campaign that never ended.
+# A visit that closes a campaign closes the one its salida is named for: campaigns
+# are named for the salida that retrieves their cards. The campaign a visit opens is
+# therefore the salida of the next visit to that station that closes one.
+#
+# `inspeccion` was `mantencion` until 2026-11-03, renamed so that "mantención" means
+# one thing on the form — the salida — and not also a visit type. No record row ever
+# used it.
 CLOSES_CAMPAIGN = ('revision', 'retiro')
 OPENS_CAMPAIGN = ('instalacion', 'revision')
 
 # Bumped when a column is added, removed or redefined. Stamped on the glossary so a
 # filled workbook can be dated without opening a diff.
-SCHEMA_VERSION = '1.0'
+# 2.0 (2026-11-03): campaign_opened -> maintenance_campaign; witness photo fields;
+# visit type mantencion -> inspeccion.
+SCHEMA_VERSION = '2.0'
 
-# A campaign is named for the season its cards are RETRIEVED in, so the dropdown is
-# generated from that rule rather than enumerated — an enumeration would have to be
-# edited every year, and the year it is forgotten is the year someone free-types.
+# A campaign is named for the season its cards are RETRIEVED in, which is the season
+# of the salida that retrieves them. The dropdown is generated from that rule rather
+# than enumerated — an enumeration would have to be edited every year, and the year
+# it is forgotten is the year someone free-types.
 CAMPAIGN_SEASONS = ('otono', 'primavera')
 CAMPAIGN_YEARS = range(2025, 2036)
 CAMPAIGNS = tuple(f'{season}_{year}'
                   for year in CAMPAIGN_YEARS for season in CAMPAIGN_SEASONS)
+
+# What the team reads on the sheet, and the slug the pipeline names folders and
+# tables with. This is the only place the two spellings meet.
+_SEASON_LABEL = {'otono': 'otoño', 'primavera': 'primavera'}
+CAMPAIGN_LABELS = {f'{_SEASON_LABEL[c.split("_")[0]]} {c.split("_")[1]}': c
+                   for c in CAMPAIGNS}
+
+
+def campaign_slug(label: str) -> str:
+    """`'otoño 2026'` -> `'otono_2026'`. Raises KeyError on anything off the list."""
+    return CAMPAIGN_LABELS[label.strip()]
 
 # The reserve, not the country. Derived from `plataforma-territorial/data/`: the
 # boundary spans lat −39.46463..−39.42249 and lon −71.76328..−71.72494, and all 27
@@ -176,6 +194,8 @@ class VisitField:
     is_text: bool = False        # force cell to text so Excel cannot reparse it
     length: int | None = None    # exact character count, for the text date formats
     prefix: str = ''             # required leading string, e.g. CAM-
+    # Option as read on the sheet -> value written to the CSV, when they differ.
+    csv_values: Mapping[str, str] | None = None
 
     @property
     def has_list(self) -> bool:
@@ -228,21 +248,24 @@ VISIT_FIELDS: tuple[VisitField, ...] = (
         example='revision',
         width=14,
         why='instalacion = se deja una cámara donde no había. revision = se cambia '
-            'la tarjeta (cierra una campaña y abre la siguiente). mantencion = se '
+            'la tarjeta (cierra una campaña y abre la siguiente). inspeccion = se '
             'visita sin cambiar tarjeta. retiro = se levanta la cámara y el sitio '
             'queda sin equipo.',
     ),
     VisitField(
-        column='campaign_opened',
-        label='Campaña que se ABRE (tarjetas que quedan puestas)',
+        column='maintenance_campaign',
+        label='Campaña de mantención',
         fmt='lista',
-        options=CAMPAIGNS,
-        example='primavera_2026',
-        width=20,
-        why='La campaña se nombra por la temporada en que se RETIRARÁN las tarjetas '
-            'que se están dejando ahora. NO se anota la campaña que se cierra: es '
-            'siempre la que abrió la visita anterior a esa misma estación, así que '
-            'se deduce sola y nunca puede contradecir al registro.',
+        options=tuple(CAMPAIGN_LABELS),
+        csv_values=CAMPAIGN_LABELS,
+        example='otoño 2026',
+        width=18,
+        why='Nombre de la salida de mantención en que se hace esta visita, por '
+            'temporada y año. Todas las cámaras revisadas en la misma salida llevan '
+            'el mismo nombre, aunque la salida dure varias semanas o cruce de mes '
+            '(otoño 2025 fue del 14 de mayo al 11 de junio). Es la campaña de las '
+            'tarjetas que se RETIRAN en esta visita; la campaña de las tarjetas que '
+            'quedan puestas se deduce sola de la salida siguiente.',
     ),
     VisitField(
         column='observers',
@@ -326,6 +349,32 @@ VISIT_FIELDS: tuple[VisitField, ...] = (
             'denominador y contarla hasta esa fecha.',
     ),
     VisitField(
+        column='witness_photo_arrival',
+        label='Foto testigo AL LLEGAR (antes de sacar la tarjeta)',
+        fmt='lista',
+        options=SI_NO,
+        example='si',
+        width=18,
+        why='Al llegar, ANTES de tocar la cámara: una persona se pone frente a ella '
+            'mostrando la pantalla del celular con la hora, y la hace disparar. La '
+            'foto queda en la tarjeta que se retira y fecha el FIN de esa campaña. '
+            'Si el reloj de la cámara falló, esta foto es lo único que permite '
+            'repararlo (así se perdieron fechas en CT15, CT18 y CT19). Si la cámara '
+            'no funcionaba, responder no.',
+    ),
+    VisitField(
+        column='witness_photo_departure',
+        label='Foto testigo AL IRSE (con la tarjeta nueva)',
+        fmt='lista',
+        options=SI_NO,
+        example='si',
+        width=18,
+        why='Antes de irse, con la tarjeta nueva ya puesta: la misma foto, persona '
+            'frente a la cámara mostrando la hora del celular. Queda en la tarjeta '
+            'nueva y fecha el INICIO de la campaña siguiente. En un retiro no hay '
+            'tarjeta nueva: responder no.',
+    ),
+    VisitField(
         column='camera_datetime_observed',
         label='Fecha y hora EN LA PANTALLA de la cámara',
         fmt=FMT_DATETIME,
@@ -353,7 +402,7 @@ VISIT_FIELDS: tuple[VisitField, ...] = (
     ),
     VisitField(
         column='camera_datetime_after',
-        label='Pantalla DESPUÉS del ajuste',
+        label='Fecha y hora EN LA PANTALLA DESPUÉS del ajuste',
         fmt=FMT_DATETIME,
         required=REQ_IF_ADJUSTED,
         example='',

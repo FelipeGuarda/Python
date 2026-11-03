@@ -252,27 +252,42 @@ def _station_rows() -> list[list]:
     return rows
 
 
-EXAMPLE_ROWS = [
+# Keyed by column, not by position: positional rows silently shifted every time a
+# field was added (they were three columns out of step by 2026-11-03).
+_EXAMPLES = [
     # A normal revision with a clock that is NOT adjusted — the reading is one hour
     # behind the reference and stays that way on the sheet. This is the case the old
     # form destroyed by asking for `clock_action=shifted, -1.0` instead.
-    ['CT01', '2026-05-15', '09:40', 'revision', 'primavera_2026', 'TA, SC', 'CAM-01',
-     'si', '2026-05-15 08:40', 'no', '', 'si', 'si', 'no',
-     None, None, None, None, None,
-     'Sin novedad. La pantalla va 1 h atrás del teléfono; NO se ajustó.'],
+    dict(station_id='CT01', visit_date='2026-05-15', visit_time='09:40',
+         visit_type='revision', maintenance_campaign='otoño 2026', observers='TA, SC',
+         camera_unit_id='CAM-01', camera_working='si', aim_intact='si',
+         witness_photo_arrival='si', witness_photo_departure='si',
+         camera_datetime_observed='2026-05-15 08:40', clock_adjusted='no',
+         card_changed='si', batteries_changed='si', moved='no',
+         notes='Sin novedad. La pantalla va 1 h atrás del teléfono; NO se ajustó.'),
     # A dead camera: no screen to read, so the datetime is blank and `camera_working`
-    # carries the reason. The unit that replaced it is named with its CAM- prefix.
-    ['CT18', '2026-05-15', '12:10', 'revision', 'primavera_2026', 'TA, SC', 'CAM-28',
-     'no', '', 'no', '', 'si', 'si', 'no',
-     None, None, None, None, None,
-     'No prendía, se cambió la CT a otra. Equipo retirado: CAM-18.'],
+    # carries the reason. No arrival photo is possible; the replacement unit takes
+    # the departure one. It is named with its CAM- prefix.
+    dict(station_id='CT18', visit_date='2026-05-15', visit_time='12:10',
+         visit_type='revision', maintenance_campaign='otoño 2026', observers='TA, SC',
+         camera_unit_id='CAM-28', camera_working='no', aim_intact='si',
+         stop_reason='apagada al llegar', last_known_working='2026-03-14',
+         witness_photo_arrival='no', witness_photo_departure='si',
+         clock_adjusted='no', card_changed='si', batteries_changed='si', moved='no',
+         notes='No prendía, se cambió la CT a otra. Equipo retirado: CAM-18.'),
     # A move: the five position columns are filled only here, and the coordinates
     # carry their signs.
-    ['CT07', '2026-05-16', '11:05', 'revision', 'primavera_2026', 'TA', 'CAM-07',
-     'si', '2026-05-16 11:05', 'no', '', 'si', 'no', 'si',
-     -39.44921, -71.73588, 1.6, 210, 4.5,
-     'Se corrió 30 m al sur del sendero, la vegetación tapaba el lente.'],
+    dict(station_id='CT07', visit_date='2026-05-16', visit_time='11:05',
+         visit_type='revision', maintenance_campaign='otoño 2026', observers='TA',
+         camera_unit_id='CAM-07', camera_working='si', aim_intact='no',
+         witness_photo_arrival='si', witness_photo_departure='si',
+         camera_datetime_observed='2026-05-16 11:05', clock_adjusted='no',
+         card_changed='si', batteries_changed='no', moved='si',
+         lat=-39.44921, lon=-71.73588, height_m=1.6, bearing_deg=210,
+         detection_distance_m=4.5,
+         notes='Se corrió 30 m al sur del sendero, la vegetación tapaba el lente.'),
 ]
+EXAMPLE_ROWS = [[row.get(f.column) for f in VISIT_FIELDS] for row in _EXAMPLES]
 
 
 def _build_glossary(wb: Workbook):

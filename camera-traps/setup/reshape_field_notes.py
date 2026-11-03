@@ -1,7 +1,7 @@
 """
 setup/reshape_field_notes.py — ONE-TIME: field_notes.csv takes the form's shape.
 
-RUN ONCE, ON 2026-08-26, AND NEVER AGAIN
+RUN ONCE, ON 2026-08-26, AND NEVER AGAIN (superseded 2026-11-03 by reshape_field_notes_salida.py)
 
     `setup/build_visit_template.py` renders the visit form from
     `camtrap/visit_schema.py`, and `camtrap/visit_form.py` reads a filled one back.

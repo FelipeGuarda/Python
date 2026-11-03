@@ -89,7 +89,27 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-11-03 — **four "unrepairable" clocks were not, and the midnight rule is
+**Last Updated:** 2026-11-03 (b) — **the visit form asks for the salida, and two witness photos.**
+Visit form 2.0 (`SCHEMA_VERSION` 2.0, branch `feat/visit-form-campaign`, stacked on the clock fix):
+- **"Campaña que se ABRE" → "Campaña de mantención".** A dropdown of salidas (`otoño 2026`) that
+  writes the pipeline slug (`otono_2026`), required on every visit.
+  `anchors._derive_campaigns` derives both the closed campaign (the salida's, if the previous
+  card-touching visit left a card) and the opened one (whatever the next closing visit closes).
+  The team found naming a future salida confusing (Felipe).
+- **Visit type** `mantencion` → `inspeccion`, so "mantención" means only the salida.
+- **New fields:** `witness_photo_arrival` / `witness_photo_departure` (sí/no, before the clock
+  reading). They anchor the end of the closing deployment and the start of the next.
+- **Label:** "Pantalla DESPUÉS del ajuste" → "Fecha y hora EN LA PANTALLA DESPUÉS del ajuste".
+- **One-time conversion.** `field_notes.csv` was converted by `setup/reshape_field_notes_salida.py`
+  (snapshot in `legacy/`): all 107 rows reproduce every opening and closing against the previous
+  implementation, and dry-run ingest of all three campaigns gives identical windows and verdicts.
+  `FieldRecord.load` now refuses a file holding `campaign_opened` or `campaign_closed`.
+- **Tests:** 331 (1 pre-existing Windows-only failure in `test_flatten`). The `Ejemplo` sheet rows
+  were positional and three columns out of step; now keyed by column and read back by a test.
+
+**Integration Status:** `Ready` (template regenerated; no filled v1.0 copy existed).
+
+**Prior — 2026-11-03** — **four "unrepairable" clocks were not, and the midnight rule is
 structural now.** Felipe saw no problem in CT08's raw images while the deployment timeline marked
 it unrepairable; all 11 refused deployments were re-audited. Four were false refusals:
 - **CT08 otoño 2025**: the clock was set a month behind (field sheet: "dicen septiembre, debe decir

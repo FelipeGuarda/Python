@@ -48,12 +48,24 @@ class TestSchema(unittest.TestCase):
             declared = sum(bool(x) for x in (f.options, f.bounds, f.length, f.prefix))
             self.assertLessEqual(declared, 1, f'{f.column} declares {declared} rules')
 
-    def test_the_closed_campaign_is_never_asked_for(self):
-        """It is the campaign the previous visit to that station opened, so asking
-        for it would let the sheet contradict itself."""
+    def test_only_the_salida_is_asked_for(self):
+        """Both campaigns a visit closes and opens follow from its salida and the
+        station's sequence; asking for either would let the sheet contradict itself."""
         cols = {f.column for f in VISIT_FIELDS}
-        self.assertIn('campaign_opened', cols)
+        self.assertIn('maintenance_campaign', cols)
+        self.assertNotIn('campaign_opened', cols)
         self.assertNotIn('campaign_closed', cols)
+
+    def test_every_salida_label_maps_to_a_campaign_slug(self):
+        from camtrap import visit_schema
+        self.assertEqual(visit_schema.campaign_slug('otoño 2026'), 'otono_2026')
+        self.assertEqual(set(visit_schema.CAMPAIGN_LABELS.values()),
+                         set(visit_schema.CAMPAIGNS))
+
+    def test_mantencion_is_not_a_visit_type(self):
+        """'Mantención' names the salida; one word, one meaning on the form."""
+        from camtrap import visit_schema
+        self.assertNotIn('mantencion', visit_schema.VISIT_TYPES)
 
     def test_visit_rows_never_ask_for_standing_site_facts(self):
         """grid_id and elevation belong to the site, live once in `Estaciones`, and
