@@ -1,7 +1,7 @@
 ---
 title: "Interacciones de especies en Bosque Pehuén: estado del análisis"
 subtitle: "Documento interno — fototrampeo, octubre 2024 a mayo 2026"
-date: "16 de octubre de 2026 (actualizado el 5 de noviembre de 2026)"
+date: "16 de octubre de 2026 (actualizado el 6 de noviembre de 2026)"
 lang: es
 ---
 
@@ -19,11 +19,14 @@ después.
 |---|---|---|
 | (i) Tasas de detección | **Hecho** | La **liebre** cae fuertemente desde diciembre de 2025 en las estaciones con reloj válido, pero sigue presente en CT18, cuyo reloj falló (sección 2.2) |
 | (ii) Patrones espaciales | **Parcial** | Descriptivo. Modelos de ocupación preliminares, todavía no citables (sección 3.2) |
-| (iii) Patrones temporales | **Hecho** | **Los nativos coinciden poco en el horario con el perro**, en los dos marcos de tiempo (sección 4.3) |
+| (iii) Patrones temporales | **Hecho** | **Los nativos coinciden poco en el horario con el perro**, en los dos marcos de tiempo, y el resultado resiste todas las pruebas de sensibilidad (secciones 4.3 y 4.5). El culpeo mantiene su horario respecto del sol durante todo el año (sección 4.4) |
 | (iv) Espacio y tiempo juntos | **No iniciado** | Es el principal vacío del proyecto (sección 5) |
 
 El resultado más sólido es temporal: el culpeo y la güiña son nocturnos y el perro es
-estrictamente diurno. Todavía no sabemos si es evitación o solo el horario propio del perro.
+estrictamente diurno. Se mantiene al cambiar el umbral de independencia, al quitar las
+estaciones más cargadas o las cercanas a las casas de los guardaparques, y al quitar
+cualquier estación por separado (sección 4.5). Todavía no sabemos si es evitación o solo el
+horario propio del perro.
 
 El hallazgo que más pide explicación es la liebre. Era la segunda especie más registrada.
 Desde diciembre de 2025 deja de aparecer en las cámaras con reloj válido, que siguen
@@ -69,7 +72,9 @@ Cada sección sigue el mismo orden: **qué se hizo** (con una breve descripción
 Hay **27 estaciones (CT01–CT27)** entre 861 y 1.408 m de altitud. Las estaciones de
 menor altitud están en el norte de la reserva (CT06, CT09, CT19) y las más altas en el sureste
 (CT01, CT05, CT27). CT27 se instaló en diciembre de 2025 y queda fuera del polígono de la
-reserva. CT01 y CT20 se reubicaron a mediados de 2025. El mapa muestra su posición actual.
+reserva. CT01 y CT20 se reubicaron a mediados de 2025. **CT09 y CT19** están a una distancia
+parecida de las casas de los guardaparques. Se tratan juntas como posiblemente sesgadas por
+el paso de personas y animales domésticos (sección 4.5). El mapa muestra su posición actual.
 
 ![Estaciones de fototrampeo, con su número y altitud.](../figures/05_station_map.png)
 
@@ -139,7 +144,7 @@ eventos.
 | Güiña | 16 |
 | Puma | 15 |
 
-**Los registros están concentrados.** CT03 y CT09 reúnen el 34 % de todos los eventos. 56 de
+**Los registros están concentrados.** CT03 y CT09 reúnen el 33 % de todos los eventos (138 de 415). 56 de
 los 185 eventos del culpeo están en CT03. Tres estaciones (CT17, CT23 y CT27) nunca
 registraron una especie focal con hora válida.
 
@@ -373,6 +378,9 @@ registró) y registrando otras especies. CT18 no está en esa lista: ahí la lie
 3. **Cambio de los sitios que usa.** La liebre deja las estaciones del norte (CT09, CT19,
    CT20) y del interior y se concentra en otros puntos, CT18 entre ellos.
 
+Un dato a tener presente en las tres: **el 52 % de los eventos de liebre (68 de 131) viene de
+CT09 y CT19**, las dos estaciones cercanas a las casas de los guardaparques (sección 1.1).
+
 **Cómo distinguirlas.** Hay tres pasos concretos (sección 7):
 
 - **Fechar las fotos de CT18.** Con un testigo de terreno para los tramos sin punto de
@@ -395,8 +403,11 @@ arreglo.
   en mayo de 2026. Si se registra la altura exacta por estación en cada visita (sección 7),
   puede entrar como covariable de la tasa y de la detección (p) en los modelos de ocupación.
   Cambia qué animales pequeños se detectan.
-- **Sensibilidad al umbral de independencia.** Repetir las tasas con umbrales de 15, 30 y 60
-  minutos para mostrar que el resultado no depende de esa elección. Lo pedirá un revisor.
+- **Sensibilidad al umbral de independencia. Hecho el 6 de noviembre de 2026.** Con umbrales
+  de 15, 30 y 60 minutos salen 427, 415 y 410 eventos. Casi todo el cambio está en la liebre
+  (139 / 131 / 129) y el perro (53 / 49 / 49); el culpeo queda igual (185 / 185 / 184). La
+  caída de la liebre entre los dos otoños es de 12,7 veces con 30 y con 60 minutos, y de 13,9
+  veces con 15. El solapamiento se revisa en la sección 4.5.
 - **Recuperar fotos sin hora** (sección 1.4). CT08, CT10 y CT13 ya se recuperaron el 3 de
   noviembre de 2026. Con testigos de terreno para CT15 (enero–junio 2025) se recuperan 6
   fotos de puma y 1 de jabalí. Con testigos para CT18 (noviembre 2025 – mayo 2026) se
@@ -431,7 +442,7 @@ arreglo.
 - **Perro**: hasta 5 estaciones en el verano 2025-26, con los registros concentrados en CT09
   y CT03.
 - **Puma** figura en 8 estaciones en el mapa de presencia.
-- Los registros en general están **concentrados**: CT03 y CT09 reúnen el 34 % de los eventos
+- Los registros en general están **concentrados**: CT03 y CT09 reúnen el 33 % de los eventos
   (sección 1.3).
 
 ## 3.2 Qué se hizo: ocupación (preliminar)
@@ -489,8 +500,8 @@ ocasión solo reparte la misma información de otra manera.
   seguido. Se ajusta al caso de CT09.
 - **Actividad humana como covariable.** Las 1.674 imágenes de personas y vehículos dan una
   medida de uso humano por estación. Puede explicar la presencia del perro y, en la pregunta
-  (iv), la nocturnidad de los nativos. Conecta además con CT19, cerca de las casas de los
-  guardaparques.
+  (iv), la nocturnidad de los nativos. Conecta además con CT09 y CT19, cerca de las casas de
+  los guardaparques.
 - **Ganado y ciervo rojo.** El vacuno es el animal más fotografiado y el ciervo rojo es un
   invasor que hoy no se analiza. Pueden entrar como factores de perturbación o como especies
   focales; esto último cambiaría el alcance del estudio.
@@ -505,8 +516,8 @@ ocasión solo reparte la misma información de otra manera.
 
 # 4. Pregunta (iii): patrones temporales
 
-**Estado: hecho** para la actividad diaria y el solapamiento. **Pendiente** la variación
-entre temporadas.
+**Estado: hecho** para la actividad diaria, el solapamiento, la variación entre temporadas y
+la sensibilidad del solapamiento. **Pendientes** dos pruebas de sensibilidad (sección 4.6).
 
 ## 4.1 Curvas de actividad
 
@@ -633,16 +644,88 @@ Se calculó para los diez pares nativo–nativo y nativo–invasor. Hora del rel
 - **Pares con puma: sin conclusión.** Los intervalos van de Bajo a Alto. Con 15 eventos no se
   puede afirmar nada.
 
-## 4.4 Qué se podría hacer: variación entre temporadas y ambiente
+## 4.4 Variación entre temporadas
 
-- **Cambios de actividad entre temporadas.** Comparar el horario y el nivel de actividad del
-  culpeo entre invierno y verano. Responde si los nativos ajustan su horario a lo largo del
-  año. Es barato: los módulos necesarios ya existen.
+**La pregunta.** ¿Cambia una especie su horario entre la mitad cálida del año (primavera y
+verano) y la mitad fría (otoño e invierno)?
+
+**Método.** Se comparan las curvas de actividad de las dos mitades con el coeficiente de
+solapamiento (sección 4.3) y con una **prueba de aleatorización** (Rowcliffe et al. 2014): se
+mezclan los eventos de ambas mitades, se reparten al azar muchas veces (999), y se mira si
+las curvas reales difieren más de lo que difieren las del azar. Un valor p bajo indica que las
+dos mitades no vienen de una misma curva. Los años se juntan, y solo entran las especies con
+al menos 30 eventos en cada mitad: **culpeo** (89 / 96) y **liebre** (66 / 65). El perro (35 /
+14), el puma, la güiña y el jabalí no alcanzan.
+
+**Los dos marcos responden preguntas distintas.** En hora del reloj, una especie nocturna se
+ve distinta entre mitades aunque su conducta no cambie, simplemente porque la noche de junio
+dura 5,6 horas más que la de diciembre. En hora solar el largo del día ya está descontado, así
+que **una diferencia que sobrevive en hora solar es un cambio de conducta**.
+
+| Especie (cálida / fría) | Hora del reloj | Hora solar |
+|---|---|---|
+| Zorro culpeo (89 / 96) | 0,80 [0,69–0,90], **p = 0,027** | 0,85 [0,75–0,93], **p = 0,20** |
+| Liebre (66 / 65) | 0,70 [0,56–0,83], p = 0,007 | 0,66 [0,54–0,79], p = 0,001 |
+
+![Actividad en la mitad cálida y la fría del año, en los dos marcos de tiempo.](../figures/07_seasonal_activity.png)
+
+**Cómo leerlo.**
+
+- **El culpeo no cambia de horario; cambia el largo de la noche.** Sus dos mitades difieren en
+  hora del reloj y no en hora solar. Mantiene su horario respecto del amanecer y la puesta
+  durante todo el año.
+- **La liebre no se puede leer como un efecto de la temporada.** Difiere en los dos marcos
+  (en la mitad fría aparece un pico antes del amanecer), pero cada mitad viene de otras
+  estaciones y de otros años. La mitad cálida es sobre todo CT09 (55 %) y CT04. La mitad fría
+  es CT20 (35 %), CT19 y CT09. Además la mitad fría es casi toda de 2025. La diferencia puede
+  ser de lugar, de año o de temporada, y estos datos no permiten separarlas.
+
+![Zorro culpeo en las cuatro estaciones del año, en hora solar. Descriptivo: el invierno
+queda bajo el mínimo de 30 eventos.](../figures/07_seasonal_activity_culpeo.png)
+
+## 4.5 ¿Resiste el solapamiento a otras decisiones de análisis?
+
+**Método.** Se repitió el solapamiento de los diez pares cambiando, una a la vez, decisiones
+que un revisor podría cuestionar:
+
+| Variante | Qué pone a prueba |
+|---|---|
+| Umbral de independencia de 15 y de 60 minutos | Que el resultado no dependa de los 30 minutos |
+| Sin CT03 ni CT09 | Que no lo sostengan las dos estaciones con un tercio de los eventos |
+| Sin CT09 ni CT19 | Que no lo produzcan las estaciones cercanas a las casas de los guardaparques |
+| **Dejar una estación fuera**, para cada una de las 27 | Qué estación mueve cada par, sin elegirla de antemano |
+
+Con otro umbral, los eventos se recalculan dentro del análisis y se verifica que, con 30
+minutos, la cuenta coincide exactamente con la publicada (los mismos 415 eventos, formados por
+las mismas fotos).
+
+![Solapamiento por par bajo cada variante.](../figures/08_sensitivity_overlap.png)
+
+**Qué muestra.**
+
+- **Nativos y perro: Bajo en todas las variantes**, en los dos marcos y quitando cualquier
+  estación. Sin las estaciones de los guardaparques la separación crece: culpeo × perro baja de
+  0,33 a 0,27 [0,17–0,38]. Los perros cercanos a las casas coinciden algo más con el horario
+  nocturno de los nativos. Esas estaciones no producen el resultado: lo debilitan.
+- **De 80 combinaciones, 10 cambian de categoría.** Todas pasan de una categoría compuesta a
+  otra vecina, o al revés, porque el intervalo queda en el borde de 0,50 o de 0,75. Ninguna
+  pasa a una conclusión opuesta. Sin CT03 ni CT09, culpeo × liebre pasa de Moderado–Alto a
+  Alto (0,82 a 0,85).
+- **Los pares con puma dependen de una o dos estaciones.** Al quitar CT04, que tiene 2 de los
+  15 eventos de puma, puma × liebre baja 0,14 y puma × jabalí 0,13. Con tan pocos eventos es
+  lo esperable, y confirma que de esos pares no se puede afirmar nada (sección 4.3).
+
+![Cambio del solapamiento al dejar fuera cada estación. Una × indica que el valor cruza 0,50 o
+0,75.](../figures/08_sensitivity_loo_station.png)
+
+## 4.6 Qué se podría hacer: ambiente y sensibilidad pendiente
+
 - **Luna y clima sobre la actividad del culpeo.** La fase lunar es una prueba clásica para
   carnívoros nocturnos, y 185 eventos alcanzan. La estación meteorológica aporta temperatura
   y lluvia de cada noche.
-- **Análisis de sensibilidad que pedirá un revisor.**
-  - Límites de temporada por solsticios y equinoccios.
+- **Las dos pruebas de sensibilidad que faltan.**
+  - Límites de temporada por solsticios y equinoccios, en vez del primer día del mes. Afecta
+    las tasas por temporada y la sección 4.4.
   - Amanecer calculado contra el amanecer medido por la estación meteorológica.
 
 **Método que conviene excluir:** las razones de evitación–atracción, porque el método fue
@@ -673,8 +756,8 @@ comparten: culpeo × liebre (138 y 112), culpeo × perro (140 y 46) y liebre × 
   tarda el culpeo en aparecer después de un perro, y compararlo con lo que pasaría si los
   tiempos fueran al azar. El "azar" se construye **permutando** los registros: se reordenan
   muchas veces y se ve qué tan extremo es el valor real (Niedballa et al. 2019).
-- **Sensibilidad.** Repetir el solapamiento sin CT03 y CT09, para ver si dos estaciones
-  sostienen el resultado.
+- **Sensibilidad. Hecho** (sección 4.5): sin CT03 ni CT09, y dejando fuera cada estación, el
+  solapamiento de los nativos con el perro sigue siendo Bajo.
 - El poder estadístico es bajo y hay que decirlo.
 
 ---
@@ -683,14 +766,17 @@ comparten: culpeo × liebre (138 y 112), culpeo × perro (140 y 46) y liebre × 
 
 - **Que los nativos evitan al perro.** Un solapamiento bajo entre un zorro nocturno y un
   perro diurno ligado a personas es lo esperable aunque ninguno reaccione al otro. Hoy el
-  resultado describe una **separación de horarios**, no una **evitación**. Responderlo es la
-  pregunta (iv).
+  resultado describe una **separación de horarios**, no una **evitación**. Que la separación
+  resista todas las pruebas de la sección 4.5 la hace más sólida, pero no la convierte en
+  evitación. Responderlo es la pregunta (iv).
 - **Que la liebre ocupa menos territorio que el culpeo.** Se detecta en menos estaciones,
   pero eso puede deberse a una detección desigual entre estaciones. Además faltan
   descriptores del hábitat de cada cámara.
 - **Ningún valor de ocupación (ψ)** hasta reajustarlo con errores estándar.
 - **Nada sobre puma, güiña ni jabalí más allá de su presencia.** Están bajo cualquier
   umbral de muestra razonable para modelos.
+- **Que la liebre cambie de horario entre temporadas.** Sus dos mitades del año vienen de
+  estaciones y años distintos (sección 4.4).
 - **Que la caída de la liebre es una disminución.** Ver sección 2.2. Tampoco que la liebre
   desaparece del arreglo: CT18 la sigue registrando después de noviembre de 2025.
 
@@ -730,12 +816,12 @@ En orden de valor frente a lo que los datos permiten:
 | 2 | Prueba de si el perro desplaza a los nativos | (iv) | 5 |
 | 3 | Seguimiento de la liebre | (i) | 2.2, 7 |
 | 4 | Recuperar fotos sin hora | (i), (iii) | 1.4, 2.3 |
-| 5 | Cambios de actividad entre temporadas | (iii) | 4.4 |
+| 5 | ~~Cambios de actividad entre temporadas~~ **Hecho** | (iii) | 4.4 |
 | 6 | Usar las imágenes de personas y vehículos | (ii), (iv) | 3.3 |
 | 7 | Ganado y ciervo rojo | (ii) | 3.3 |
-| 8 | Luna y clima sobre la actividad del culpeo | (iii) | 4.4 |
+| 8 | Luna y clima sobre la actividad del culpeo | (iii) | 4.6 |
 | 9 | Altura de cámara como variable | (i) | 2.3 |
-| 10 | Análisis de sensibilidad que pedirá un revisor | todas | 2.3, 4.4, 5 |
+| 10 | Análisis de sensibilidad: **parcial** (hechos umbral, estaciones y dejar una fuera; faltan límites de temporada y amanecer medido) | todas | 2.3, 4.5, 4.6 |
 | 11 | Simulación de poder estadístico | todas | 2.3 |
 
 ---
@@ -772,6 +858,12 @@ mismos datos, para ver cuánto varía y construir su intervalo de confianza.
 
 **Permutación.** Reordenar los datos al azar muchas veces para construir lo que se esperaría
 si no hubiera ningún efecto, y comparar el valor real con eso.
+
+**Prueba de aleatorización.** Mezclar los datos de dos grupos, repartirlos al azar muchas
+veces y ver si la diferencia real es mayor que las que produce el azar.
+
+**Dejar una estación fuera.** Repetir un cálculo quitando una estación a la vez, para ver
+cuánto depende el resultado de cada una.
 
 **Hora solar (doble anclaje).** Posición de una detección respecto del amanecer y la puesta
 de ese día, trasladada a un día de referencia del sitio.

@@ -575,7 +575,12 @@ sizes. Its "Open items" list is the analysis backlog.
   removed. Without the ranger stations it separates further: culpeo × perro goes from 0.33 to 0.27,
   and liebre loses 52 % of its episodes (131 → 63). The single-station influence is concentrated in
   the puma pairs (n = 15; CT04 alone moves puma × liebre by −0.14). Rule recorded upstream in
-  camera-traps MANUAL-SALUD-DATOS §10F.3.1 (plus the English §4G.5 and the `episodes.py` docstring).
+  camera-traps MANUAL-SALUD-DATOS §10F.3.1 (plus the English §4G.5 and the `episodes.py` docstring). Third pass: both status
+  documents updated. In the full one, the new §4.4 covers seasonal variation and the new §4.5
+  sensitivity; the old §4.4 is now §4.6 and lists only what is pending. CT09 and CT19 are named
+  as the ranger stations, and 34 % is corrected to 33 %. The threshold result is in §2.3, the
+  liebre 52 % in §2.2, and §6 and §8 are updated. Both `.docx` files were re-rendered on Linux
+  with `render.sh`, which also brings the 2026-11-05 fixes into the full `.docx`.
   **Integration Status:** `In Progress [REMAINING: (b) solstice/equinox season limits; (d)
   measured vs computed sunrise; status-doc §4 update]`.
   **Blockers/Notes:** The threshold sensitivity is consumer-side by decision. camera-traps

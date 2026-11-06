@@ -1,7 +1,7 @@
 ---
 title: "Interacciones de especies en Bosque Pehuén: síntesis del estado del análisis"
 subtitle: "Resumen breve de *estado-analisis-2026-11* — fototrampeo, octubre 2024 a mayo 2026"
-date: "5 de noviembre de 2026"
+date: "6 de noviembre de 2026"
 lang: es
 ---
 
@@ -16,7 +16,7 @@ número.
 |---|---|---|
 | (i) Tasas de detección | **Hecho** | La liebre cae fuertemente desde diciembre de 2025 en las estaciones con reloj válido, pero sigue presente en CT18 |
 | (ii) Patrones espaciales | **Parcial** | Descriptivo hecho. Ocupación preliminar, todavía no citable |
-| (iii) Patrones temporales | **Hecho** | Los nativos coinciden poco en el horario con el perro, en hora del reloj y en hora solar |
+| (iii) Patrones temporales | **Hecho** | Los nativos coinciden poco en el horario con el perro, en hora del reloj y en hora solar, y resiste todas las pruebas de sensibilidad. El culpeo mantiene su horario respecto del sol todo el año |
 | (iv) Espacio y tiempo juntos | **No iniciado** | Principal vacío del proyecto |
 
 ---
@@ -58,12 +58,13 @@ hecho. Por eso (ii) se trata hoy como uso de sitios y distribución.
 
 - **CT27** se instaló el 11 de diciembre de 2025 y queda fuera del polígono de la reserva.
 - **CT01** y **CT20** se reubicaron a mediados de 2025.
-- **CT19** está cerca de las casas de los guardaparques.
+- **CT09** y **CT19** están a una distancia parecida de las casas de los guardaparques. Se
+  tratan juntas como posiblemente sesgadas.
 - **Cambios de altura:** CT09 se elevó a unos 2 m el 14 de mayo de 2025 y CT19 el 5 de junio
   de 2025. CT20 se trasladó a un punto abierto junto al sendero el 9 de junio de 2025. En mayo
   de 2026 se elevaron todas las cámaras a 1,5–2 m.
 
-**Concentración.** CT03 y CT09 reúnen el 34 % de los eventos. CT17, CT23 y CT27 nunca
+**Concentración.** CT03 y CT09 reúnen el 33 % de los eventos. CT17, CT23 y CT27 nunca
 registraron una especie focal con hora válida.
 
 ## 1.2 Esfuerzo y contenido
@@ -134,7 +135,7 @@ entre 1 evento y uno por foto.*
 | Tasa de detección | Compara especies y temporadas con distinto esfuerzo | Eventos por 100 días-cámara, por especie, estación y temporada | Culpeo estable (1–3). Perro con máximo en el verano 2025-26 (0,61). Puma sin eventos fechados en otoño ni invierno | Hecho |
 | Serie de la liebre | Sigue a la liebre estación por estación | Tabla estación × temporada y verificación de artefactos (cámaras activas, fotos no identificables, identificación) | Entre los dos otoños cae de 0,66 a 0,05. Todas las estaciones quedan en silencio desde diciembre de 2025, salvo CT18 (9–11 eventos sin fecha). Parte de la caída se explica por la elevación de CT09 | Hecho; interpretación abierta |
 | Altura de cámara como variable | Separa el efecto de la altura del efecto biológico | Covariable en la tasa y en la detección (p) | Diría cuánto de la caída de la liebre es instalación | No hecho; requiere la altura registrada por visita |
-| Sensibilidad al umbral | Muestra que el resultado no depende de los 30 min | Repetir con 15, 30 y 60 min | Respaldo ante un revisor | No hecho |
+| Sensibilidad al umbral | Muestra que el resultado no depende de los 30 min | Repetir con 15, 30 y 60 min | 427 / 415 / 410 eventos. Caída de la liebre entre otoños: 12,7 veces (30 y 60 min), 13,9 (15 min) | Hecho |
 | Recuperar fotos sin hora | Devuelve fotos a los análisis con fecha | Fotos testigo de hora conocida por tramo | CT15: 6 pumas. CT18: 9 liebres, 2 pumas, 7 culpeos. CT19: liebres, en parte | Parcial (CT08, CT10 y CT13 hechos) |
 | Simulación de poder | Dice cuánto muestreo falta | Simular campañas o estaciones adicionales | Cuándo puma, güiña y jabalí entrarían en los modelos | No hecho |
 
@@ -151,7 +152,7 @@ noviembre–diciembre de 2025 y con los datos de invierno y primavera de 2026.
 | Análisis | Qué hace | Cómo lo hace | Hallazgo principal (o qué produciría) | Estado |
 |---|---|---|---|---|
 | Mapas de presencia y riqueza | Muestra dónde se vio cada especie | Presencia o ausencia y número de especies focales por estación; incluye fotos sin hora | Puma en 8 estaciones | Hecho |
-| Mapas de burbujas | Muestra dónde se concentran los registros | Círculo proporcional a los eventos de cada estación | CT03 y CT09 reúnen el 34 % de los eventos | Hecho |
+| Mapas de burbujas | Muestra dónde se concentran los registros | Círculo proporcional a los eventos de cada estación | CT03 y CT09 reúnen el 33 % de los eventos | Hecho |
 | Ocupación ingenua | Proporción de sitios con la especie | Estaciones con al menos un registro / estaciones muestreando | Culpeo 16–44 % por temporada. Perro hasta 5 estaciones | Hecho |
 | Ocupación de una temporada (MacKenzie et al. 2002) | Separa uso del sitio (ψ) de detectabilidad (p) | Historial de detección por ocasiones de 14 días; cálculo propio | Culpeo, invierno 2025: ψ ≈ 0,54, p = 0,20, ingenua 0,40. Perro: ψ 0,41–0,45 con p 0,03–0,08, un resultado que depende más del modelo que de los datos. Puma, güiña y jabalí no se pueden modelar | Preliminar, no citable |
 | Largo de la ocasión | Justifica los 14 días | Barrido de 1 a 14 días | ψ estable entre 3 y 14 días (culpeo 0,50–0,54) | Hecho |
@@ -170,17 +171,18 @@ noviembre–diciembre de 2025 y con los datos de invierno y primavera de 2026.
 
 # 4. Pregunta (iii): patrones temporales
 
-**Estado: hecho** la actividad diaria y el solapamiento. Pendiente la variación entre
-temporadas.
+**Estado: hecho** la actividad diaria, el solapamiento, la variación entre temporadas y la
+sensibilidad del solapamiento. Pendientes dos pruebas de sensibilidad.
 
 | Análisis | Qué hace | Cómo lo hace | Hallazgo principal (o qué produciría) | Estado |
 |---|---|---|---|---|
 | Curvas de actividad | Describe el horario de cada especie | Densidad de kernel circular (von Mises, paquete `overlap`); mínimo 30 eventos | Culpeo nocturno, con máximo cerca de las 22:00. Liebre crepuscular y nocturna. Perro estrictamente diurno. Güiña, jabalí y puma bajo el umbral | Hecho |
 | Hora solar de doble anclaje | Corrige el cambio anual del amanecer y la puesta (2,9 h) | Cada detección se ubica respecto del amanecer y la puesta de su día, en un día de referencia fijo (06:42 / 18:52) | Los picos se afinan. El día de referencia se fijó porque si no la misma detección se movía 42 min | Hecho |
 | Solapamiento entre pares | Mide cuánto coinciden dos horarios | Coeficiente Δ1/Δ4 (Ridout y Linkie 2009), 1.000 bootstraps, categorías de Monterroso | Nativos × perro: **Bajo** en ambos marcos (culpeo 0,33; güiña 0,26). Nativos × liebre: alto. Pares con puma: sin conclusión. Con hora solar cambian de categoría 3 de 10 pares, ninguno a la conclusión opuesta | Hecho |
-| Variación entre temporadas | Muestra si los nativos ajustan su horario en el año | Curvas del culpeo, invierno contra verano | Plasticidad estacional del horario | No hecho; barato |
+| Variación entre temporadas | Muestra si una especie ajusta su horario en el año | Mitad cálida contra mitad fría, en los dos marcos; solapamiento y prueba de aleatorización | Culpeo: difiere en hora del reloj (p = 0,027) y no en hora solar (p = 0,20); cambia el largo de la noche, no su horario. Liebre: difiere en ambos, pero cada mitad viene de otras estaciones y años; no se puede leer como temporada | Hecho |
+| Sensibilidad del solapamiento | Muestra que el resultado no depende de decisiones de análisis | Umbral de 15 y 60 min; sin CT03 ni CT09; sin CT09 ni CT19 (guardaparques); dejar fuera cada una de las 27 estaciones | Nativos × perro: Bajo en todas. Sin guardaparques se separa más (culpeo × perro 0,33 → 0,27). Los pares con puma dependen de una o dos estaciones (CT04) | Hecho |
 | Luna y clima | Prueba efectos ambientales sobre la actividad | Fase lunar, temperatura y lluvia de la estación meteorológica | Efecto de la luz lunar sobre el culpeo (185 eventos alcanzan) | No hecho |
-| Sensibilidad | Respaldo ante un revisor | Límites de temporada por solsticios; amanecer medido frente al calculado | Robustez de las curvas | No hecho |
+| Sensibilidad pendiente | Respaldo ante un revisor | Límites de temporada por solsticios; amanecer medido frente al calculado | Robustez de las curvas y de las tasas | No hecho |
 
 **Se excluyen** las razones de evitación–atracción, porque el método fue refutado.
 
@@ -196,7 +198,7 @@ liebre (138 / 112), culpeo × perro (140 / 46) y liebre × perro (124 / 46).
 |---|---|---|---|---|
 | Actividad según el sitio | Muestra si el perro cambia el horario de los nativos | Curva del culpeo en estaciones con y sin perro (o según la actividad humana) | Si el culpeo es más nocturno donde hay perros, hay indicio de desplazamiento | No hecho |
 | Tiempo entre encuentros | Muestra si una especie evita el sitio que otra acaba de usar | Tiempo del perro al culpeo en estaciones compartidas, contra un azar construido por permutación (Niedballa et al. 2019) | Distingue evitación de simple separación de horarios | No hecho; poder bajo |
-| Sensibilidad sin CT03 ni CT09 | Muestra si dos estaciones sostienen el resultado | Repetir el solapamiento excluyéndolas | Robustez del resultado principal | No hecho |
+| Sensibilidad sin CT03 ni CT09 | Muestra si dos estaciones sostienen el resultado | Repetir el solapamiento excluyéndolas, y dejando fuera cada estación | Nativos × perro sigue Bajo (sección 4) | Hecho |
 
 ---
 
@@ -205,6 +207,8 @@ liebre (138 / 112), culpeo × perro (140 / 46) y liebre × perro (124 / 46).
 - Que los nativos **evitan** al perro. Hoy solo se muestra una separación de horarios.
 - Que la liebre ocupa menos territorio que el culpeo.
 - Ningún valor de ψ, hasta reajustarlo con errores estándar.
+- Que la liebre cambie de horario entre temporadas: sus dos mitades del año vienen de
+  estaciones y años distintos.
 - Nada sobre puma, güiña ni jabalí más allá de su presencia.
 - Que la caída de la liebre sea una disminución. Tampoco que la liebre haya desaparecido:
   CT18 la sigue registrando.
@@ -233,10 +237,10 @@ qué día de referencia se usa (el promedio del sitio o el equinoccial).
 | 2 | Prueba de si el perro desplaza a los nativos | (iv) |
 | 3 | Seguimiento de la liebre | (i) |
 | 4 | Recuperar fotos sin hora | (i), (iii) |
-| 5 | Cambios de actividad entre temporadas | (iii) |
+| 5 | ~~Cambios de actividad entre temporadas~~ **Hecho** | (iii) |
 | 6 | Imágenes de personas y vehículos | (ii), (iv) |
 | 7 | Ganado y ciervo rojo | (ii) |
 | 8 | Luna y clima sobre la actividad del culpeo | (iii) |
 | 9 | Altura de cámara como variable | (i) |
-| 10 | Análisis de sensibilidad | todas |
+| 10 | Análisis de sensibilidad: **parcial** (faltan límites de temporada y amanecer medido) | todas |
 | 11 | Simulación de poder estadístico | todas |
