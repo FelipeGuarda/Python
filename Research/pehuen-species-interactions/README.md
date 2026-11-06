@@ -125,6 +125,8 @@ Rscript R/03_activity_patterns.R      # 24 h kernel density activity curves (poo
 Rscript R/04_temporal_overlap.R       # Δ1/Δ4 pairwise overlap + CI + Monterroso category, both frames
 Rscript R/05_spatial_distribution.R   # presence maps + episode bubble maps, natives by season
 Rscript R/06_seasonal_detection_maps.R  # bubble maps per season PERIOD, chronological
+Rscript R/07_seasonal_activity.R      # warm vs cold half of the year, per species, both frames
+Rscript R/08_sensitivity.R            # overlap under alternative choices (no CT03/CT09, 15/60-min gap)
 ```
 
 Outside the chain, one evidence script:
@@ -391,7 +393,7 @@ surveyed**), `effort` (surveyed days per cell) and `occasions` (start, end). It 
   with a low-p caveat. Puma, guiña and jabalí are detected at 0–4 stations per season and
   are not estimable by occupancy.
 
-### Overlap (script 04)
+### Overlap (script 04; rules in `R/00_activity.R`)
 
 Estimator per pair from the smaller sample (Ridout & Linkie 2009): Δ4 when
 `min(n_A, n_B) ≥ 50`, Δ1 otherwise; 1000 bootstrap resamples for the 95% CI,
@@ -467,6 +469,35 @@ the ten pairs, maximum 0.54, and **all ten categories changed** when it was fixe
 camtrapR prints inside each per-pair plot was correct all along, and nothing
 compared the two.
 
+### Seasonal activity (script 07)
+
+Compares the warm half of the year (primavera + verano) with the cold half (otoño +
+invierno). The halves come from `season_of()`, years are pooled, and only species with at
+least `ACTIVITY_MIN_EPISODES` (30) in each half are compared: culpeo and liebre. Each
+comparison reports Δ with its CI, and the p-value of a randomisation test
+(`activity::compareCkern`). Monterroso categories are not used, because they compare two
+species, not one species with itself. **The two frames answer different questions.** In
+clock time, a difference includes the 5.6 h change in night length. In solar time, day
+length has been removed, so any remaining difference is behaviour. The table also reports
+which stations each half comes from, and a panel is flagged when its busiest station
+differs between halves.
+
+### Sensitivity (script 08)
+
+Re-runs the 10 overlap pairs under each variant and compares them with `base`. The variants
+are `busiest_two` (without CT03 and CT09, a third of all episodes: a *leverage* check),
+`no_rangers` (without CT09 and CT19, both at a similar distance from the park rangers' homes,
+so both are treated as biased: a *bias* check), and 15/60-min gaps. It also runs leave-one-station-out over
+all 27 registry stations, with point estimates only (`overlap_point()`), and writes
+`data/sensitivity_loo_station.csv` and a heatmap. `base` is recomputed, which is recomputed under the same seeding. It also writes episode
+counts and the liebre autumn rates per gap. **The threshold variants are computed here, not
+by camera-traps.** The producer publishes exactly one episode definition (`episode_30min`).
+A sensitivity threshold perturbs that definition and is never a count in a figure, so it
+lives in the consumer that needs it (decision of 2026-11-06). The copy is guarded: at 30 min
+it must reproduce `episode_30min` exactly, the same rows in the same episodes, or the script
+stops. It cannot see clock segments, which are not published, so `gap_60` could merge across
+a reset. The bound is the 30 → 60 difference itself (5 episodes).
+
 ### Seasonal maps (script 06)
 
 Only species with at least `MIN_EPISODES` (30) independent episodes get a figure.
@@ -525,7 +556,30 @@ sizes. Its "Open items" list is the analysis backlog.
 
 ## Project status
 
-- **Last Updated:** 2026-11-05
+- **Last Updated:** 2026-11-06
+- **What Changed (2026-11-06):** Branch `feat/seasonal-activity-sensitivity`. New
+  `R/00_activity.R` holds the activity-curve and overlap rules that used to live inside `03`
+  and `04` (smoothing, 30-episode floor, Δ1/Δ4, `basic0`, Monterroso categories), so `07`/`08`
+  reuse them instead of restating them. Moving them changed no number: `overlap_stats.csv` and
+  all 40 figures from 03/04 are byte-identical before and after. New `07_seasonal_activity.R`:
+  culpeo differs between halves in clock time (p = 0.027) but not in solar time (Δ 0.85,
+  p = 0.20), so its seasonal difference is day length. Liebre differs in both frames
+  (p = 0.007 / 0.001), but its halves come from different stations (warm: CT09 55 %; cold:
+  CT20 35 %, CT19) and mostly different years, so the result does not isolate season. New
+  `08_sensitivity.R`: 7 of 60 variant rows change Monterroso category, all of them to or from
+  a compound label at a band edge. Native × perro stays **Low** in every variant. Max |ΔΔ|
+  is 0.07. Liebre autumn decline: 12.7× at 30 and 60 min, 13.9× at 15 min. Episode totals:
+  427 / 415 / 410 at 15 / 30 / 60 min. Tests: 172 assertions OK (`test_overlap.R` now sources
+  `00_activity.R` instead of parsing 04's text). Second pass the same day: `no_rangers` variant (CT09 + CT19)
+  and leave-one-station-out. Native × perro stays Low in every variant and with any single station
+  removed. Without the ranger stations it separates further: culpeo × perro goes from 0.33 to 0.27,
+  and liebre loses 52 % of its episodes (131 → 63). The single-station influence is concentrated in
+  the puma pairs (n = 15; CT04 alone moves puma × liebre by −0.14). Rule recorded upstream in
+  camera-traps MANUAL-SALUD-DATOS §10F.3.1 (plus the English §4G.5 and the `episodes.py` docstring).
+  **Integration Status:** `In Progress [REMAINING: (b) solstice/equinox season limits; (d)
+  measured vs computed sunrise; status-doc §4 update]`.
+  **Blockers/Notes:** The threshold sensitivity is consumer-side by decision. camera-traps
+  publishes only `episode_30min`, and research variants are not added to the producer schema.
 - **What Changed (2026-11-05):** New `docs/sintesis-estado-analisis-2026-11.md` (+ `.docx`, rendered on
   Linux): a short brief of the status document. It has the same sections, one table per question
   (análisis · qué hace · cómo · hallazgo · estado), a per-camera data-loss table and a table of loss

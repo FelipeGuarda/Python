@@ -1,0 +1,5 @@
+"species","frame","n_warm","n_cold","estimator","overlap","ci_low","ci_high","p_same_distribution","stations_warm","top_station_warm","stations_cold","top_station_cold","station_mix_differs"
+"Liebre","clock",66,65,"Dhat4",0.697236224436643,0.561845501326957,0.829179842940193,0.00700700700700701,9,"CT09 (55 %)",9,"CT20 (35 %)",TRUE
+"Liebre","solar",66,65,"Dhat4",0.662441656211171,0.537752582719012,0.788297129845777,0.001001001001001,9,"CT09 (55 %)",9,"CT20 (35 %)",TRUE
+"Zorro culpeo","clock",89,96,"Dhat4",0.796090792634928,0.690791631744162,0.895332062566721,0.027027027027027,12,"CT03 (34 %)",18,"CT03 (27 %)",FALSE
+"Zorro culpeo","solar",89,96,"Dhat4",0.849111897667378,0.752564633930738,0.93143739584141,0.195195195195195,12,"CT03 (34 %)",18,"CT03 (27 %)",FALSE

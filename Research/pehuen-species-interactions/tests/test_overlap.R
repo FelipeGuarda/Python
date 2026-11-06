@@ -1,6 +1,6 @@
 # tests/test_overlap.R
 # ─────────────────────────────────────────────────────────────────────────────
-# Tests for estimate_overlap() in R/04_temporal_overlap.R. Base R plus `overlap`,
+# Tests for estimate_overlap() in R/00_activity.R. Base R plus `overlap`,
 # same style as the other two test files. Run:
 #
 #     conda run -n pehuen-analysis Rscript tests/test_overlap.R
@@ -25,10 +25,10 @@
 #   rather than shipping a plausible wrong number.
 #
 # SOURCING
-#   04_temporal_overlap.R runs its whole analysis on source(), so this file cannot
-#   source it. It re-declares the two constants it needs and defines the function
-#   under test by extracting it from the script text — which means the test reads
-#   the SHIPPING definition, not a copy that could drift from it.
+#   Until 2026-11-06 the estimator lived inside 04_temporal_overlap.R, which runs
+#   its whole analysis on source(), so this file lifted it out of the script text
+#   with parse(). It now lives in R/00_activity.R and is sourced directly: still
+#   the SHIPPING definition, with no text surgery.
 # ─────────────────────────────────────────────────────────────────────────────
 
 library(here)
@@ -45,23 +45,9 @@ check <- function(label, ok) {
   }
 }
 
-# Pull the real definitions out of the script rather than restating them: a copy
-# here would be a second place the estimator rule lives, which is the class of
-# defect this file exists to catch.
-src <- readLines(here::here("R", "04_temporal_overlap.R"))
-grab_line <- function(pattern) src[grep(pattern, src)[1]]
-grab_block <- function(start_pattern, end_pattern) {
-  i <- grep(start_pattern, src)[1]
-  j <- grep(end_pattern, src)
-  j <- j[j > i][1]
-  paste(src[i:j], collapse = "\n")
-}
-eval(parse(text = grab_line("^N_BOOT <-")))
-eval(parse(text = grab_line("^CI_TYPE <-")))
-eval(parse(text = grab_line("^SMALLER_N_DHAT4_MIN <-")))
-eval(parse(text = grab_block("^estimate_overlap <- function", "^\\}$")))
+source(here::here("R", "00_activity.R"))
 
-check("estimate_overlap was extracted from the script", is.function(estimate_overlap))
+check("estimate_overlap is defined by R/00_activity.R", is.function(estimate_overlap))
 check("SMALLER_N_DHAT4_MIN came with it", identical(SMALLER_N_DHAT4_MIN, 50))
 check("CI_TYPE is a bootCI row name", CI_TYPE %in% c("norm", "norm0", "basic", "basic0", "perc"))
 # ?bootCI: "'basic' and 'norm' are appropriate if you are using the bias-corrected

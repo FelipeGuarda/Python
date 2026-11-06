@@ -44,6 +44,7 @@ source(here::here("R", "00_contract.R"))
 source(here::here("R", "00_admissibility.R"))
 source(here::here("R", "00_figures.R"))
 source(here::here("R", "00_timeofday.R"))
+source(here::here("R", "00_activity.R"))
 dir.create(here("figures"), showWarnings = FALSE)
 dir.create(here("figures", "activity_individual"), showWarnings = FALSE)
 
@@ -114,62 +115,9 @@ n_fixed <- stabilize_dated_pngs(here("figures", "activity_individual"))
 message(sprintf("Saved per-species plots to figures/activity_individual/ (%d renamed off camtrapR's dated names)", n_fixed))
 
 
-# ── 3. Compute kernel densities for multi-species ggplot2 figures ─────────────
-# camtrapR::activityDensity() overlays only one species per figure.  For the
-# Fig-2 equivalent with multiple species on a single 24-hour axis, we compute
-# the kernel densities manually using overlap::densityFit(), which returns a
-# density vector at 512 equally-spaced points from 0 to 2π.  We then convert
-# the radian grid back to hours (0–24) for a readable x-axis.
+# ── 3. Kernel densities for multi-species ggplot2 figures ─────────────────────
+# activity_density() lives in R/00_activity.R, with the smoothing rule it applies.
 
-activity_density <- function(record_table, species_lbl, frame = "clock") {
-  # (a) The episodes' position on the 24-hour circle, in the requested frame of
-  #     reference. Both columns are built in 01_load_data.R by R/00_timeofday.R,
-  #     which owns both conversions; this function selects, it does not derive.
-  time_col <- switch(frame,
-                     clock = "time_rad",
-                     solar = "time_solar_rad",
-                     stop(sprintf("activity_density(): unknown frame '%s'.", frame)))
-  times <- record_table %>%
-    filter(Species == species_lbl) %>%
-    pull(.data[[time_col]])
-
-  if (length(times) < 10) {
-    warning(sprintf("Only %d episodes for %s — density may be unreliable.", length(times), species_lbl))
-  }
-
-  # (b) Fit von Mises kernel density at 512 points spanning the full circle.
-  #
-  #     ONE SMOOTHING FOR EVERY FIGURE IN THE PROJECT (2026-09-15). This was
-  #     `bw = 1.5`, hardcoded for all six species and commented as "the default
-  #     bandwidth (in radians)". It was neither. `bw` here is the von Mises
-  #     CONCENTRATION parameter — higher means LESS smoothing — and the package's
-  #     own data-driven values for these species run 4.7 (guiña) to 22.4 (liebre),
-  #     so 1.5 was three to fifteen times more smoothing than anything else in the
-  #     project used.
-  #
-  #     That mattered because camtrapR draws the other curves. `overlap::densityPlot`,
-  #     which camtrapR::activityDensity() calls for the per-species panels in section
-  #     2 of THIS script, and which activityOverlap() calls for 04's overlap figures,
-  #     computes `bw <- getBandWidth(A, kmax = 3) / adjust` with adjust = 1. Calling
-  #     getBandWidth() here is that same expression, so the ggplot overlays, the
-  #     camtrapR panels and the overlap plots now draw one curve per species instead
-  #     of three.
-  fit <- densityFit(times, grid = seq(0, 2 * pi, length.out = 512),
-                    bw = getBandWidth(times, kmax = 3))
-
-  # (c) Convert radians back to hours for the x-axis — and rescale the density with
-  #     it. densityFit() returns density per RADIAN; plotted against an hours axis
-  #     it would integrate to 24/(2*pi) = 3.82, not to 1, and the y-axis would read
-  #     3.82x higher than camtrapR's panels for the identical curve. densityPlot()
-  #     applies exactly this factor internally via its xscale = 24 argument.
-  #     Verified 2026-09-15: after this, ours and camtrapR's curves agree to 1e-16.
-  data.frame(
-    species_label = species_lbl,
-    frame         = frame,
-    hour          = seq(0, 24, length.out = 512),
-    density       = fit * (2 * pi / 24)
-  )
-}
 
 density_df <- bind_rows(lapply(SPECIES_ORDER, function(sp)
                  activity_density(record_table, sp, "clock"))) %>%
@@ -299,7 +247,7 @@ message("Saved figures/03_activity_all_species.png")
 # figure whose subject is a difference between two curves would invite reading a
 # difference that is sampling noise. The figure says which are missing and why.
 
-FRAME_MIN_EPISODES <- 30
+FRAME_MIN_EPISODES <- ACTIVITY_MIN_EPISODES   # R/00_activity.R
 
 frame_n <- record_table %>% count(Species, name = "n")
 frame_species <- frame_n %>% filter(n >= FRAME_MIN_EPISODES) %>% pull(Species)
