@@ -89,7 +89,13 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-11-03 (b) — **the visit form asks for the salida, and two witness photos.**
+**Last Updated:** 2026-11-05 — **the day-boundary rule survives pandas 3.** `_day_boundary_artefacts`
+looked up per-day bounds with `Series.map`. Under pandas 3 (the Linux `camtrap` env) that raises when
+the mapper is empty: no frame known, or every frame a lead or every frame a lag. It now uses `reindex`, with the
+same semantics. Two regression tests; **333 tests OK** on Linux. Both 2026-11-03 branches are
+fast-forwarded into `main`. **Integration Status:** `Ready`.
+
+**Prior (2026-11-03 b)** — **the visit form asks for the salida, and two witness photos.**
 Visit form 2.0 (`SCHEMA_VERSION` 2.0, branch `feat/visit-form-campaign`, stacked on the clock fix):
 - **"Campaña que se ABRE" → "Campaña de mantención".** A dropdown of salidas (`otoño 2026`) that
   writes the pipeline slug (`otono_2026`), required on every visit.

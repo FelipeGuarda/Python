@@ -414,8 +414,14 @@ def _day_boundary_artefacts(stamps: pd.Series, name_mmdd: pd.Series) -> pd.Serie
     other = frame[~frame['lag']]
     first_non_lag = other.groupby('day')['stamp'].min()
 
-    tail = frame['stamp'] >= frame['day'].map(last_non_lead).fillna(pd.Timestamp.min)
-    head = frame['stamp'] <= frame['day'].map(first_non_lag).fillna(pd.Timestamp.max)
+    # Look-up by reindex, not Series.map: under pandas 3, map() with an EMPTY datetime
+    # mapper raises (it casts the mapper to float64). The mapper is empty whenever every
+    # known frame is a lead (or a lag), or no frame is known at all.
+    def per_day(bound: pd.Series) -> pd.Series:
+        return pd.Series(bound.reindex(frame['day']).to_numpy(), index=frame.index)
+
+    tail = frame['stamp'] >= per_day(last_non_lead).fillna(pd.Timestamp.min)
+    head = frame['stamp'] <= per_day(first_non_lag).fillna(pd.Timestamp.max)
     forgiven = (frame['lead'] & tail) | (frame['lag'] & head)
     return forgiven.reindex(stamps.index, fill_value=False).astype(bool)
 

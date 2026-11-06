@@ -636,6 +636,24 @@ class TestDayBoundaryArtefact(unittest.TestCase):
         d = clocks.diagnose(self._frames(rows), station='CT_X')
         self.assertTrue(all(s.coherent for s in d.segments), d.notes)
 
+    def test_no_known_frame_does_not_crash(self):
+        """No frame carries both a stamp and a parseable MMDD: nothing to forgive.
+
+        Regression 2026-11-05: under pandas 3 the empty per-day look-up raised
+        TypeError inside Series.map.
+        """
+        stamps = pd.Series(pd.to_datetime(['2025-03-18 12:00', '2025-03-18 13:00']))
+        mmdd = pd.Series([None, None], dtype=object)
+        out = clocks._day_boundary_artefacts(stamps, mmdd)
+        self.assertEqual(out.tolist(), [False, False])
+
+    def test_every_frame_a_lead_does_not_crash(self):
+        """Every known frame is a lead, so there is no non-lead frame per day."""
+        stamps = pd.Series(pd.to_datetime(['2025-03-18 23:59:28', '2025-03-18 23:59:29']))
+        mmdd = pd.Series(['0319', '0319'])
+        out = clocks._day_boundary_artefacts(stamps, mmdd)
+        self.assertEqual(out.tolist(), [True, True])
+
     def test_midday_mismatch_is_still_refused(self):
         """The CT19/CT16/CT18 shape: hours from midnight. Must stay incoherent."""
         rows = [(f'0318{i:04d}.JPG', f'2025-03-18 12:{i:02d}:00') for i in range(1, 20)]
