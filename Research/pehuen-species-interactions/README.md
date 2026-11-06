@@ -525,7 +525,18 @@ sizes. Its "Open items" list is the analysis backlog.
 
 ## Project status
 
-- **Last Updated:** 2026-11-03
+- **Last Updated:** 2026-11-05
+- **What Changed (2026-11-05):** New `docs/sintesis-estado-analisis-2026-11.md` (+ `.docx`, rendered on
+  Linux): a short brief of the status document. It has the same sections, one table per question
+  (análisis · qué hace · cómo · hallazgo · estado), a per-camera data-loss table and a table of loss
+  types. `render.sh` renders it too. `fix/clock-false-refusals` and `feat/visit-form-campaign`
+  fast-forwarded into `main`. Three fixes to the full document: CT19 is only partly recoverable (68
+  clock segments, one witness per segment); the §2.1 effort range now reads 438–2.292; and the
+  frontmatter date carries the 5 Nov update. Its `.docx` is NOT re-rendered (do it on Windows).
+  **Integration Status:** `Ready`.
+  **Blockers/Notes:** Fixed `camtrap/clocks.py::_day_boundary_artefacts`, which crashed under pandas 3
+  (Linux env) on an empty per-day look-up. It now uses reindex. Two regression tests added; camera-traps
+  333/333 OK. §3.2 now explains 26 vs 25 stations in invierno 2025: CT16 was sampling but clock-failed in both deployments. Both documents renamed `*-2026-10.*` → `*-2026-11.*` (older entries below keep the old name).
 - **What Changed (2026-11-03):** `docs/estado-analisis-2026-10.md` restructured around the team's
   research questions — (i) detection rates, (ii) spatial patterns, (iii) temporal patterns, plus
   (iv) space × time, added because the expected results include it. Each section reads *what was

@@ -1,7 +1,7 @@
 ---
 title: "Interacciones de especies en Bosque Pehuén: estado del análisis"
 subtitle: "Documento interno — fototrampeo, octubre 2024 a mayo 2026"
-date: "16 de octubre de 2026"
+date: "16 de octubre de 2026 (actualizado el 5 de noviembre de 2026)"
 lang: es
 ---
 
@@ -214,8 +214,11 @@ pierde CT18. En CT15 se pierden 6 fotos de enero a junio de 2025. Esto importa p
 pregunta (i): **esas 6 fotos sin fecha podrían ser de otoño de 2025**, la temporada en la que
 el puma aparece sin registros.
 
-Hay un caso equivalente para la liebre: **65 fotos en CT19 entre febrero y junio de 2025**,
-con el reloj pendiente de un testigo. Si se encuentra uno, esas fotos se recuperan.
+Para la liebre hay un caso más difícil: **65 fotos en CT19 entre febrero y junio de 2025**.
+El reloj de CT19 se reinició de fábrica una y otra vez. El despliegue quedó partido en **68
+tramos de reloj**, y 8 de ellos tienen el registro contradictorio. Un testigo corrige solo
+el tramo en que cae. Por eso esas fotos **se recuperan solo en parte**: haría falta un testigo
+por tramo, y los tramos contradictorios no se recuperan.
 
 **Cuántos eventos se pierden.** Aunque no se conozca la fecha, en muchos casos sí se puede
 contar los eventos. Cuando el reloj es coherente pero sin punto de referencia, la distancia
@@ -235,7 +238,8 @@ Todas las campañas, todas las estaciones donde la especie aparece, con o sin re
 | Perro | 13 | CT15 (1), CT18 (4), CT19 (2) | 49 | 5–7 | 9–12 |
 
 Los rangos amplios vienen de dos casos con el registro del reloj contradictorio: el jabalí de
-CT18 (33 fotos, entre 1 y 33 eventos) y la liebre de CT19 (65 fotos). La liebre de CT18 incluye
+CT18 (33 fotos, entre 1 y 33 eventos) y la liebre de CT19 (65 fotos repartidas en tramos
+coherentes y contradictorios). La liebre de CT18 incluye
 además 9 fotos de primavera 2025, el despliegue que queda pendiente de revisión. Solo para la última
 campaña (otoño 2026), la pérdida se concentra en CT18, la única estación con reloj dañado:
 
@@ -263,7 +267,7 @@ la sección 2.2.
 
 **Método: tasa de detección.** Es el número de eventos independientes por cada 100
 días-cámara. Dividir por el esfuerzo permite comparar temporadas en que funcionaron distintas
-cantidades de cámaras (de 292 a 2.249 días-cámara, sección 1.2). La tasa mide cuántas veces
+cantidades de cámaras (de 438 a 2.292 días-cámara útiles por temporada, sección 1.2). La tasa mide cuántas veces
 se fotografía una especie, no cuántos animales hay: depende también de cuánto se mueven, de
 dónde está la cámara y de su altura.
 
@@ -393,10 +397,12 @@ arreglo.
   Cambia qué animales pequeños se detectan.
 - **Sensibilidad al umbral de independencia.** Repetir las tasas con umbrales de 15, 30 y 60
   minutos para mostrar que el resultado no depende de esa elección. Lo pedirá un revisor.
-- **Recuperar fotos sin hora** (sección 1.4). Con testigos de terreno para CT15 (enero–junio
-  2025) y para CT19 (febrero–junio 2025) se recuperan 6 fotos de puma, 1 de jabalí y 65 de
-  liebre. CT08, CT10 y CT13 ya se recuperaron el 3 de noviembre de 2026. Con testigos para CT18 (noviembre 2025 – mayo 2026) se recuperan además las fechas
-  de 9 fotos de liebre, 2 de puma y 7 de culpeo.
+- **Recuperar fotos sin hora** (sección 1.4). CT08, CT10 y CT13 ya se recuperaron el 3 de
+  noviembre de 2026. Con testigos de terreno para CT15 (enero–junio 2025) se recuperan 6
+  fotos de puma y 1 de jabalí. Con testigos para CT18 (noviembre 2025 – mayo 2026) se
+  recuperan las fechas de 9 fotos de liebre, 2 de puma y 7 de culpeo. Las 65 fotos de
+  liebre de CT19 (febrero–junio 2025) se recuperan solo en parte: el reloj quedó en 68
+  tramos, y cada uno necesitaría su propio testigo.
 - **Simulación de poder estadístico.** Estimar cuántas campañas o estaciones más se necesitan
   para que puma, güiña y jabalí entren en los análisis de ocupación y solapamiento. Convierte
   el problema de muestra en una recomendación de diseño de muestreo.
@@ -455,7 +461,9 @@ ocasión solo reparte la misma información de otra manera.
 - **Zorro culpeo**, invierno 2025: usa cerca del **54 %** de las estaciones. Donde está, cada
   ocasión de 14 días tiene una probabilidad de 0,20 de fotografiarlo. Se vio en el 40 % de las
   estaciones (10 de 25); el resto de la diferencia son estaciones usadas donde no se
-  fotografió.
+  fotografió. Son 25 y no las 26 de la sección 1.2 porque CT16 estuvo operando ese invierno,
+  pero con el reloj dañado en sus dos despliegues: cuenta como estación muestreando, pero no
+  aporta ocasiones con fecha al modelo.
 - **Perro**, invierno 2025: ψ ≈ 0,41–0,45 con ocasiones de 7 a 14 días, pero con p de
   0,03–0,08. Según el modelo, la mayoría de las estaciones
   que usa nunca lo registran. La conclusión depende más del modelo que de los datos.
@@ -703,8 +711,9 @@ No son análisis, pero varios análisis dependen de ellas:
   (sección 2.2).
 - **Invierno 2026.** Revisar la liebre en cuanto llegue la próxima campaña (sección 2.2).
 - **Testigos para relojes.** Buscar fotos con hora real conocida para CT15 (otoño 2025), para
-  CT19 (febrero–junio 2025) y para CT18 (noviembre 2025 – mayo 2026), esta última
-  la más urgente por la liebre (secciones 1.4 y 2.2).
+  CT19 (febrero–junio 2025; un testigo por tramo, recuperación solo parcial) y para CT18
+  (noviembre 2025 – mayo 2026), esta última la más urgente por la liebre (secciones 1.4
+  y 2.2).
 - **Altura de cámara.** Registrar la altura exacta por estación en cada visita (sección 2.3).
 - **Descriptores de hábitat por cámara.** Necesarios para la ocupación con covariables y la
   selección de hábitat (sección 3.3).
