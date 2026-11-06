@@ -1909,6 +1909,37 @@ equivocado:
 Las dos últimas se agregaron el 26 de agosto de 2026, cuando se midió que dos de tres copias de
 la regla de eventos ya discrepaban.
 
+### 10F.3.1 Una variante de sensibilidad no es una segunda definición
+
+Un análisis de sensibilidad pregunta si un resultado resiste otra elección razonable: otro
+umbral de independencia, otras estaciones, otros límites de temporada. Para eso el consumidor
+necesita la regla **perturbada**, no una segunda regla.
+
+> **Regla.** El productor publica **una** definición por decisión: la que sostiene toda cifra
+> publicada (hoy, `episode_30min`). Las variantes de sensibilidad se calculan en el consumidor
+> que las necesita y **nunca se piden como columnas nuevas** de la tabla canónica.
+>
+> **Qué se rompe.** Una columna agregada para la sensibilidad de un estudio es un requisito de
+> ese consumidor que moldea la tabla canónica. Es la dirección invertida que prohíbe §10F.2.
+>
+> **Condiciones.** La copia del consumidor sólo es admisible si cumple las tres:
+>
+> 1. **Queda dentro del análisis de sensibilidad.** No vive en un módulo compartido, no se
+>    guarda como tabla y nunca produce una cifra publicada. Su salida es un enunciado de
+>    robustez ("el resultado se mantiene a 15 y a 60 min").
+> 2. **Se verifica contra el canon en cada corrida.** En el valor publicado tiene que
+>    reproducir exactamente la salida del productor (las mismas filas agrupadas en los mismos
+>    eventos), y si no la reproduce, se detiene. Las copias de 2026-08 discreparon porque
+>    nadie las comparaba; ésta se compara siempre.
+> 3. **Declara lo que no sabe, y lo acota.** Lo que sólo el productor conoce (por ejemplo, los
+>    tramos de reloj, que no se publican) se nombra, y el error que puede introducir se acota
+>    con una cifra.
+>
+> *Observado.* pehuen-species-interactions, `R/08_sensitivity.R` (2026-11-06): umbrales de 15 y
+> 60 min. A 30 min reproduce `episode_30min` fila por fila (415 eventos). Como no ve los tramos
+> de reloj, a 60 min podría unir dos eventos a través de un reinicio: a lo más la diferencia
+> 30 → 60, 5 eventos.
+
 ### 10F.4 Qué tiene que tener el control para contar como control
 
 Tres cosas, y ninguna es opcional:
@@ -1933,6 +1964,7 @@ Tres cosas, y ninguna es opcional:
 | Versión de esquema distinta y se sigue igual | El consumidor asume que las columnas nuevas no le importan | Depende de la columna; puede ser silencioso | Comparar la versión publicada contra la única que el consumidor declara saber leer | Del consumidor |
 | Un rechazo correcto se ve como una caída | El veredicto es correcto y llega con la forma equivocada | La operación: nadie distingue un rechazo de un error | Mensaje y código de salida, nunca un error sin manejar | Del consumidor |
 | El consumidor vuelve a decidir algo del productor | Una segunda implementación de una regla | Discrepó en 515 filas y en un 33 % de eventos, medido | La lista de §10F.3 es la prueba a aplicar | Del consumidor |
+| Una variante de sensibilidad se vuelve una segunda definición | La copia del consumidor sale de su análisis, o deja de compararse con el canon | Toda cifra que la use sin saberlo | Las tres condiciones de §10F.3.1; en particular, reproducir el canon en el valor publicado o detenerse | Del consumidor |
 | El consumidor lee un intermedio en vez de la tabla | Lee la exportación revisada, o un CSV corregido | Números distintos "de los mismos datos" | Se borra la ruta alternativa, no se documenta | Del consumidor |
 
 **Cómo leer esta tabla.** Es la única del manual donde la columna de fixtures no nombra ninguna

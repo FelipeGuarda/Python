@@ -1436,6 +1436,34 @@ can be evaluated.
 > moved a little", but "row X was added because of decision Y".*
 
 ---
+#### 4G.5 A sensitivity variant is not a second definition
+
+> **Rule.** The producer publishes **one** definition per decision: the one behind every
+> published number (today, `episode_30min`). Sensitivity variants (another independence
+> threshold, other stations, other season limits) are computed in the consumer that needs
+> them, and are **never requested as new canonical columns**.
+>
+> **Break point.** A column added for one study's sensitivity run is that consumer's
+> requirement shaping the canonical table, which is the reversed direction that §4G.3 forbids.
+>
+> **Conditions.** A consumer copy is admissible only if it meets all three:
+>
+> 1. **It stays inside the sensitivity analysis.** It does not live in a shared module, is not
+>    saved as a table, and never produces a published number. Its output is a robustness
+>    statement ("the result holds at 15 and 60 min").
+> 2. **It is checked against the canon on every run.** At the published value it must
+>    reproduce the producer's output exactly (the same rows grouped into the same episodes),
+>    and stop if it does not. The copies of 2026-08 drifted because nothing compared them;
+>    this one is always compared.
+> 3. **It states what it cannot see, and bounds it.** Producer-only knowledge (for example,
+>    clock segments, which are not published) is named, and the error it could cause is
+>    bounded with a number.
+>
+> *Observed.* pehuen-species-interactions, `R/08_sensitivity.R` (2026-11-06): 15- and 60-min
+> thresholds. At 30 min it reproduces `episode_30min` row for row (415 episodes). Blind to
+> clock segments, at 60 min it could merge two episodes across a reset: at most the 30 → 60
+> difference, 5 episodes.
+
 ## Part 5 — The time model
 
 This part is placed before the analyses because every time-based product depends on it, and

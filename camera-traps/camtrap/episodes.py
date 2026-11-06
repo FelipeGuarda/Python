@@ -41,6 +41,10 @@ WHY THE THRESHOLD IS IN THE COLUMN NAME
     parameter at read time, so two analyses cannot quietly compare figures built on
     different definitions of one event. Felipe's decision, 2026-08-24.
 
+    This governs PUBLISHED definitions only. A sensitivity threshold (15, 60 min) is
+    not a second definition and is never added here: the consumer computes it, under
+    the conditions of MANUAL-SALUD-DATOS §10F.3.1. Felipe's decision, 2026-11-06.
+
 WHAT GETS NO EPISODE
 
     A row with no identified species, and a row with no clock — 419 animal rows carry
