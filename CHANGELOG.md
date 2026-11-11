@@ -6,6 +6,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-11-11 — camera-traps: el README dice dónde va cada archivo
+
+**Integration Status:** camera-traps `Ready`. Sólo documentación; sin cambios de código ni de contrato.
+
+### Changed
+- `README.md` § Project Structure: una regla escrita para la ubicación de cada archivo. En la raíz
+  van los comandos que se corren en cada campaña, en `setup/` la preparación, en `scripts/` las
+  verificaciones y en los paquetes las librerías. La raíz se agrupa por mitad, cada una con su
+  entorno: ingesta (`camtrap`) y clasificador (`species-classifier`).
+
+### Fixed
+- El árbol omitía `export_best_images.py` y `environment-classifier.yml`.
+- El árbol describía `config.yaml` como «per-campaign configuration (edit before each run)».
+  Su propio encabezado dice lo contrario.
+
+### Deferred
+- Pasar la I/O y la reparación de `timestamps.py` a `camtrap/` y dejar en la raíz un CLI
+  delgado. Hoy `timestamps.py` lo importan `anchor_candidates.py`, `propose_anchors.py` y
+  `tests/test_timestamps.py`. Espera a que cierre la compuerta V2 y requiere design-first.
+- El árbol tampoco lista algunos módulos de `camtrap/`, `setup/`, `tests/` y `scripts/`
+  (p. ej. `deployments.py`, `episodes.py`, `visit_form.py`, `verify_order.py`).
+
+---
+
 ## 2026-11-03c — camera-traps: el formulario de visita pregunta por la salida
 
 ### Changed

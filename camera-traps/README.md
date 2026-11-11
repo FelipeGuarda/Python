@@ -597,15 +597,30 @@ CEILING, not a measurement.
 
 ## Project Structure
 
+**Where a file goes.** The root holds the commands run on *every* campaign, invoked
+from `camera-traps/` as `python <name>.py`. `setup/` holds once-per-campaign or
+one-time preparation commands; `scripts/` holds ad-hoc verification. `camtrap/` and
+`classify_campaign/` are libraries — imported, never run. Known exception:
+`timestamps.py` is both a command and a library (`anchor_candidates.py`,
+`propose_anchors.py` and `tests/test_timestamps.py` import it); its I/O and repair
+logic should move into `camtrap/`, leaving a thin CLI at the root.
+
 ```
 camera-traps/
 ├── README.md                    ← this file
-├── config.yaml                  ← per-campaign configuration (edit before each run)
-├── environment.yml              ← conda environment definition
-├── run_classification.py        ← Step 2: CLIP classification entry point
-├── timestamps.py                ← Step 4b: segment-aware clock repair (ingest gate)
+│
+│   # ingest chain — env: environment.yml (camtrap)
+├── environment.yml              ← conda env for the ingest chain + tests
 ├── anchor_candidates.py         ← Step 4a: the short list of possible clock anchors
 ├── propose_anchors.py           ← Step 4a-bis: field visits → reviewable anchor rows
+├── timestamps.py                ← Step 4b: segment-aware clock repair (ingest gate)
+│
+│   # classifier half — env: environment-classifier.yml (species-classifier)
+├── environment-classifier.yml   ← conda env for CLIP, the review app and exports
+├── config.yaml                  ← FIXED filenames, thresholds, CLIP model. NOT
+│                                  per-campaign: the campaign dir is passed per run
+├── run_classification.py        ← Step 2: CLIP classification entry point
+├── export_best_images.py        ← top-N images per species/station → exports/
 │
 ├── camtrap/                     ← boundary layer (one module per external format)
 │   ├── stations.py              ← canonical station convention CT01..CT27 + aliases
