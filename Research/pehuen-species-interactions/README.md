@@ -271,11 +271,9 @@ Campaign survives as provenance. It is still what the producer publishes, still 
 decides admissibility, still carried in every intermediate table. It is no longer an
 axis anything is plotted against.
 
-The boundary rule is one table, `SEASON_BOUNDARIES`. Moving to solstice/equinox dates —
-under discussion, and arguably right at 38°S where photoperiod is what the seasons
-proxy for, and what `activity::transtime()` anchors on — changes that table and no
-caller. Astronomical dates drift between years, so that version needs a per-year table
-rather than (month, day).
+The boundary rule is one table, `SEASON_BOUNDARIES`. Solstice/equinox boundaries were
+considered and are **out of scope for this research** (decision 2026-11-12); the
+meteorological month boundaries are final.
 
 ### Two frames of reference (`R/00_timeofday.R`)
 
@@ -556,7 +554,25 @@ sizes. Its "Open items" list is the analysis backlog.
 
 ## Project status
 
-- **Last Updated:** 2026-11-06
+- **Last Updated:** 2026-11-12
+- **What Changed (2026-11-12):** Branch `docs/scope-cut`. Scope decision: five candidate
+  analyses are **out of scope for this research** and removed from both status documents
+  (§2.3, §3.3, §4.6, §8) and from the methods-menu backlog: moon and weather effects on
+  culpeo activity; the two pending sensitivity checks (solstice/equinox season limits,
+  measured vs computed sunrise); the power simulation, including the Rota co-occurrence power
+  check (multi-species occupancy stays excluded on the site-count argument); livestock and red
+  deer as covariables or focal species; distance to the ranger houses as an occupancy
+  covariable (the finished `no_rangers` sensitivity variant stays). The sensitivity line in
+  §8 is now **Hecho**. Remaining sequence: (1) human-activity index per station × season
+  (people + vehicles), (2) occupancy in `unmarked` with altitude + human index on ψ and
+  effort on p, plus Royle–Nichols for liebre, each behind an anchor test against our own
+  null fit and a simulation-recovery test, (3) culpeo activity at stations with vs without
+  perro and high vs low human index, (4) perro → culpeo time-to-encounter (Niedballa 2019),
+  exploratory.
+  **Integration Status:** `In Progress [REMAINING: human-activity index; unmarked occupancy +
+  Royle–Nichols; activity by site; time-to-encounter]`.
+  **Blockers/Notes:** `unmarked` is not installed in `pehuen-analysis`. Both `.docx` re-rendered
+  on Windows (pandoc 3.11). `fix/clock-false-refusals` is already in `main` and can be deleted.
 - **What Changed (2026-11-06):** Branch `feat/seasonal-activity-sensitivity`. New
   `R/00_activity.R` holds the activity-curve and overlap rules that used to live inside `03`
   and `04` (smoothing, 30-episode floor, Δ1/Δ4, `basic0`, Monterroso categories), so `07`/`08`

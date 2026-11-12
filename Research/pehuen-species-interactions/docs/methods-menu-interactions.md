@@ -840,13 +840,9 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
       The A2 rule therefore reads: interpret pooled curves for
       culpeo and liebre, plot-but-do-not-interpret perro (46), and no curve at all
       for jabalí (18), guiña (14) or puma (12).)**
-- [ ] **Settle the Rota question with a power check, not a citation.** §B3 says do not
-      fit it; `References/FMA_camera_trap_methods_synthesis.md.pdf` ranks it first.
-      Decision 2026-09-15: simulate at this array's own site count, occasion grid and
-      observed detection probabilities and measure bias and CI coverage. For a paper,
-      "not identifiable at our n, and here is the simulation" is a stronger exclusion
-      than someone else's 400-site threshold. `R/07_power_cooccurrence.R`, after the
-      detection-history module.
+- [~] ~~Settle the Rota question with a power check, not a citation.~~ **Out of scope
+      for this research (decision 2026-11-12).** No power simulation in this pass; Rota
+      multi-species occupancy stays excluded on the §B3 site-count argument.
 - [x] Build the detection-history / occasion module (`R/00_detection_history.R`)
       **(2026-10-06.** Season required, `OCCASION_DAYS = 14` measured in §B0.1,
       unsurveyed occasions NA. Surveyed-day rule shared with 02 as
@@ -890,13 +886,9 @@ research group to Bosque Pehuén, and the most obvious collaboration or peer-rev
       called it a sensitivity run. The argument for promoting it: at 39.4°S over 19 months it
       is clock time that needs defending, not solar. The argument against: it reverses the
       producer's own framing. Affects prose, not code — both frames are computed either way.
-- [ ] **Decide whether the season boundary becomes astronomical.** Calendar months
-      are a proxy for photoperiod, and photoperiod is what the seasons stand in for at
-      38°S — it is also what `activity::transtime()` anchors on, so an activity analysis
-      and a seasonal stratum currently answer to two different definitions of the year.
-      `R/00_seasons.R` is built for the swap: it is one boundary table, and no caller
-      changes. Astronomical dates drift a day or two between years, so that version
-      needs a per-year table rather than (month, day).
+- [x] ~~Decide whether the season boundary becomes astronomical.~~ **Decided
+      2026-11-12: no.** Calendar-month boundaries are final for this research, and the
+      solstice/equinox sensitivity run is out of scope.
 - [ ] **Read the raw data the way Smith (2025) requires.** Smith's empirical defence of
       independence filters (against Peral et al. 2022) turns on inspecting what the
       retained detections actually are — animals resting or feeding in front of a

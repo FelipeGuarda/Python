@@ -1,7 +1,7 @@
 ---
 title: "Interacciones de especies en Bosque Pehuén: estado del análisis"
 subtitle: "Documento interno — fototrampeo, octubre 2024 a mayo 2026"
-date: "16 de octubre de 2026 (actualizado el 6 de noviembre de 2026)"
+date: "16 de octubre de 2026 (actualizado el 12 de noviembre de 2026)"
 lang: es
 ---
 
@@ -414,9 +414,6 @@ arreglo.
   recuperan las fechas de 9 fotos de liebre, 2 de puma y 7 de culpeo. Las 65 fotos de
   liebre de CT19 (febrero–junio 2025) se recuperan solo en parte: el reloj quedó en 68
   tramos, y cada uno necesitaría su propio testigo.
-- **Simulación de poder estadístico.** Estimar cuántas campañas o estaciones más se necesitan
-  para que puma, güiña y jabalí entren en los análisis de ocupación y solapamiento. Convierte
-  el problema de muestra en una recomendación de diseño de muestreo.
 
 ---
 
@@ -500,11 +497,7 @@ ocasión solo reparte la misma información de otra manera.
   seguido. Se ajusta al caso de CT09.
 - **Actividad humana como covariable.** Las 1.674 imágenes de personas y vehículos dan una
   medida de uso humano por estación. Puede explicar la presencia del perro y, en la pregunta
-  (iv), la nocturnidad de los nativos. Conecta además con CT09 y CT19, cerca de las casas de
-  los guardaparques.
-- **Ganado y ciervo rojo.** El vacuno es el animal más fotografiado y el ciervo rojo es un
-  invasor que hoy no se analiza. Pueden entrar como factores de perturbación o como especies
-  focales; esto último cambiaría el alcance del estudio.
+  (iv), la nocturnidad de los nativos.
 
 **Métodos que conviene excluir explícitamente, citando por qué:**
 
@@ -517,7 +510,7 @@ ocasión solo reparte la misma información de otra manera.
 # 4. Pregunta (iii): patrones temporales
 
 **Estado: hecho** para la actividad diaria, el solapamiento, la variación entre temporadas y
-la sensibilidad del solapamiento. **Pendientes** dos pruebas de sensibilidad (sección 4.6).
+la sensibilidad del solapamiento.
 
 ## 4.1 Curvas de actividad
 
@@ -718,15 +711,7 @@ las mismas fotos).
 ![Cambio del solapamiento al dejar fuera cada estación. Una × indica que el valor cruza 0,50 o
 0,75.](../figures/08_sensitivity_loo_station.png)
 
-## 4.6 Qué se podría hacer: ambiente y sensibilidad pendiente
-
-- **Luna y clima sobre la actividad del culpeo.** La fase lunar es una prueba clásica para
-  carnívoros nocturnos, y 185 eventos alcanzan. La estación meteorológica aporta temperatura
-  y lluvia de cada noche.
-- **Las dos pruebas de sensibilidad que faltan.**
-  - Límites de temporada por solsticios y equinoccios, en vez del primer día del mes. Afecta
-    las tasas por temporada y la sección 4.4.
-  - Amanecer calculado contra el amanecer medido por la estación meteorológica.
+## 4.6 Método que conviene excluir
 
 **Método que conviene excluir:** las razones de evitación–atracción, porque el método fue
 refutado.
@@ -818,11 +803,8 @@ En orden de valor frente a lo que los datos permiten:
 | 4 | Recuperar fotos sin hora | (i), (iii) | 1.4, 2.3 |
 | 5 | ~~Cambios de actividad entre temporadas~~ **Hecho** | (iii) | 4.4 |
 | 6 | Usar las imágenes de personas y vehículos | (ii), (iv) | 3.3 |
-| 7 | Ganado y ciervo rojo | (ii) | 3.3 |
-| 8 | Luna y clima sobre la actividad del culpeo | (iii) | 4.6 |
-| 9 | Altura de cámara como variable | (i) | 2.3 |
-| 10 | Análisis de sensibilidad: **parcial** (hechos umbral, estaciones y dejar una fuera; faltan límites de temporada y amanecer medido) | todas | 2.3, 4.5, 4.6 |
-| 11 | Simulación de poder estadístico | todas | 2.3 |
+| 7 | Altura de cámara como variable | (i) | 2.3 |
+| 8 | ~~Análisis de sensibilidad~~ **Hecho** (umbral, estaciones y dejar una fuera) | todas | 2.3, 4.5 |
 
 ---
 
