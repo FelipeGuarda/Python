@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loos
 
 ---
 
+## 2026-11-12 — pehuen: recorte de alcance · camera-traps: episodios de personas y etiquetas de co-presencia
+
+**Integration Status:** pehuen `In Progress [REMAINING: índice humano; ocupación unmarked +
+Royle–Nichols; actividad por sitio; tiempo entre encuentros]`. camera-traps `In Progress
+[REMAINING: rebuild + publish; app de revisión (unidad C); pasada retro de 164 imágenes de perro]`.
+
+### Changed
+- pehuen (`docs/scope-cut`, committed): cinco análisis fuera de esta investigación (luna y clima,
+  sensibilidades de solsticio y amanecer medido, simulación de poder incl. Rota, ganado y ciervo,
+  distancia a guardaparques como covariable). Ambos documentos de estado y sus `.docx`, menú de
+  métodos, README.
+- camera-traps (`feat/copresence-tags`, WIP): `episodes.py` da episodio a filas `human`/`vehicle`
+  (sujeto = especie o tipo); nuevo `camtrap/copresence.py` lee `observationTags` (`with:human`,
+  `with:vehicle`) → columnas `with_human`, `with_vehicle` (TRUE / FALSE en alcance declarado / NA).
+  Verificado con datos reales: ninguna columna existente cambia, 777 eventos animales, +293
+  episodios de personas y vehículos. Parquets aún sin reconstruir ni publicar.
+
+### Deferred
+- Republicar el contrato (sin bump de schema). Unidad C (modo «Etiquetas» en la app de revisión).
+  `verify()` no comprueba las columnas reales del parquet. Prioridad de etiquetado sin documentar
+  en MANUAL-SALUD-DATOS.
+
 ## 2026-11-11 — camera-traps: el README dice dónde va cada archivo
 
 **Integration Status:** camera-traps `Ready`. Sólo documentación; sin cambios de código ni de contrato.

@@ -29,6 +29,7 @@ def _frame(**over) -> pd.DataFrame:
         "file_name": "01010001.JPG", "rel_path": "CT05/01010001.JPG",
         "observation_comments": "Puma", "classification_probability": 0.91,
         "episode_30min": "otono_2025|CT05|Puma concolor|1",
+        "with_human": pd.NA, "with_vehicle": pd.NA,
     }
     row.update(over)
     return pd.DataFrame([row])

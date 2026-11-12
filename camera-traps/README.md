@@ -89,7 +89,19 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-11-05 — **the day-boundary rule survives pandas 3.** `_day_boundary_artefacts`
+**Last Updated:** 2026-11-12 — **people and vehicles get episodes; co-presence tags.** Branch
+`feat/copresence-tags`, WIP. `episodes.py` keys an episode on its subject (species, else
+`human`/`vehicle`). New `camtrap/copresence.py` reads Camtrap DP `observationTags`
+(`with:human`, `with:vehicle`) into `with_human` / `with_vehicle`: TRUE where tagged, FALSE
+only inside a campaign's declared `CHECKED` scope, NA elsewhere. Typos and tags that contradict
+the labelling priority (perro > person > vehicle) stop the ingest. A real-data rebuild changed
+no existing column, kept 777 animal events and added 293 person/vehicle events. It was then
+restored; **the parquets are not rebuilt or republished yet**, so
+`test_the_committed_state_file_matches_the_committed_parquets` fails on the branch.
+**Integration Status:** `In Progress [REMAINING: rebuild + publish; review-app tag mode (unit C);
+164-image perro retro pass; verify() reads columns from code, not parquet]`.
+
+**Previous (2026-11-05):** **the day-boundary rule survives pandas 3.** `_day_boundary_artefacts`
 looked up per-day bounds with `Series.map`. Under pandas 3 (the Linux `camtrap` env) that raises when
 the mapper is empty: no frame known, or every frame a lead or every frame a lag. It now uses `reindex`, with the
 same semantics. Two regression tests; **333 tests OK** on Linux. Both 2026-11-03 branches are

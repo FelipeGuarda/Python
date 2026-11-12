@@ -1,5 +1,21 @@
 # FMA Project Status
 
+**Last updated:** 2026-11-12 — **pehuen recorta alcance; camera-traps cuenta personas y vehículos.**
+
+**What Changed:** pehuen deja fuera cinco análisis (ver CHANGELOG). En camera-traps
+(`feat/copresence-tags`, sin merge): episodios para filas `human`/`vehicle` y etiquetas de
+co-presencia en `observationTags` → `with_human` / `with_vehicle`, porque casi todo perro es el
+perro del guardaparque y cada imagen lleva una sola etiqueta (perro > persona > vehículo).
+
+**Integration Status:** camera-traps `In Progress [REMAINING: rebuild + publish; unidad C en la
+app; pasada retro de 164 perros (Windows)]`. pehuen `Pending [camera-traps republish]`.
+
+**Blockers/Notes:** sin bump de schema: el contrato no hashea el parquet, así que pehuen no se
+entera hasta re-correr `01`. En la rama, el test de estado publicado falla hasta republicar.
+Reparto Linux/Windows en la sesión 2026-11-12 del vault.
+
+---
+
 **Last updated:** 2026-10-15 — **los dos documentos de calidad de camera-traps alcanzan al schema 5.**
 
 **What Changed:** `MANUAL-SALUD-DATOS.md` y `CONTRASTE-SILVA-RODRIGUEZ-2025.md` se auditaron

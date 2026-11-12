@@ -45,11 +45,26 @@ WHY THE THRESHOLD IS IN THE COLUMN NAME
     not a second definition and is never added here: the consumer computes it, under
     the conditions of MANUAL-SALUD-DATOS §10F.3.1. Felipe's decision, 2026-11-06.
 
+WHAT AN EPISODE IS ABOUT — ITS SUBJECT
+
+    An identified species, or — on a row with no species — the Camtrap DP type
+    `human` or `vehicle`. People and vehicles are kept apart because the template
+    records them apart; a consumer that wants "human presence" combines them. Added
+    2026-11-12 (Felipe): pehuen compares dog activity against human activity, and an
+    uncounted human frame has no events to compare. Animal ids are unchanged by it —
+    a species row's subject is its species, exactly as before.
+
+    One frame carries ONE label (Camtrap DP via Timelapse2 has no second observation
+    per image; measured 0 multi-row images across all three reviewed exports). Felipe's
+    labelling priority decides which: perro > person > vehicle. What else was in the
+    frame lives in `observationTags`, resolved by camtrap/copresence.py, not here.
+
 WHAT GETS NO EPISODE
 
-    A row with no identified species, and a row with no clock — 419 animal rows carry
-    a station and no datetime, and they are valid PRESENCE records. `pd.NA`, so a
-    consumer counting `nunique()` cannot mistake them for an event of their own.
+    A row with no subject (blank, unknown, an unnamed animal), and a row with no clock
+    — 419 animal rows carry a station and no datetime, and they are valid PRESENCE
+    records. `pd.NA`, so a consumer counting `nunique()` cannot mistake them for an
+    event of their own.
 
     Rows whose time-of-day is untrustworthy DO get episodes (33 rows, all
     `offset_from_last_real_proxy`). A whole-segment offset is constant, so relative
@@ -64,6 +79,8 @@ from datetime import timedelta
 
 import pandas as pd
 
+from camtrap import exports
+
 #: In the column name as well, deliberately. See the module docstring.
 GAP_MINUTES = 30
 GAP = timedelta(minutes=GAP_MINUTES)
@@ -77,11 +94,29 @@ COLUMN = f'episode_{GAP_MINUTES}min'
 #: it, because no two campaigns at one station are within 30 minutes of each other —
 #: so this costs nothing and it is the only key computable at ingest, where one
 #: campaign's table is written alone.
-KEY = ('campaign', 'station_canonical', 'species_latin')
+KEY = ('campaign', 'station_canonical', 'subject')
+
+#: Types that are a subject in their own right on a row with no species.
+SUBJECT_TYPES = frozenset({exports.TYPE_HUMAN, exports.TYPE_VEHICLE})
+
+
+def subject(frame: pd.DataFrame) -> pd.Series:
+    """What each row's episode would be about: species, else human/vehicle, else ''.
+
+    A species wins whatever the type says, so an animal row's subject is exactly the
+    species it was keyed on before people and vehicles had episodes.
+    """
+    species = frame['species_latin'].fillna('').astype(str).str.strip()
+    if 'observation_type' in frame.columns:
+        kind = frame['observation_type'].fillna('').astype(str).str.strip()
+    else:
+        kind = pd.Series('', index=frame.index, dtype=object)
+    return species.where(species.ne(''), kind.where(kind.isin(SUBJECT_TYPES), ''))
 
 
 def label(frame: pd.DataFrame, segments: pd.Series | None = None) -> pd.Series:
-    """One episode id per row — `otono_2026|CT14|Puma concolor|3` — or `pd.NA`.
+    """One episode id per row — `otono_2026|CT14|Puma concolor|3`,
+    `otono_2026|CT14|human|2` — or `pd.NA`.
 
     `segments` is the per-row clock segment, from timestamps.py. Passing None treats
     the frame as one segment, which is correct only for a frame with no clock
@@ -89,21 +124,21 @@ def label(frame: pd.DataFrame, segments: pd.Series | None = None) -> pd.Series:
     """
     ids = pd.Series(pd.NA, index=frame.index, dtype='string')
 
-    species = frame['species_latin'].fillna('').astype(str).str.strip()
+    about = subject(frame)
     when = pd.to_datetime(frame['datetime'], errors='coerce')
     if segments is None:
         segment = pd.Series('', index=frame.index, dtype=object)
     else:
         segment = pd.Series(segments, index=frame.index).fillna('').astype(str).str.strip()
 
-    eligible = species.ne('') & when.notna()
+    eligible = about.ne('') & when.notna()
     if not eligible.any():
         return ids
 
     work = pd.DataFrame({
         'campaign': frame['campaign'].astype(str),
         'station_canonical': frame['station_canonical'].astype(str),
-        'species_latin': species,
+        'subject': about,
         'segment': segment,
         'when': when,
     })[eligible]

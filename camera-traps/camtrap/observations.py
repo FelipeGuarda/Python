@@ -52,7 +52,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from camtrap import exports, stations
-from camtrap import episodes
+from camtrap import copresence, episodes
 from classify_campaign.species import spanish_to_latin
 
 CAMPAIGNS_ROOT = Path(__file__).resolve().parents[1] / "data" / "campaigns"
@@ -99,6 +99,12 @@ CANONICAL_COLUMNS: dict[str, str] = {
     # different gap is a different column, so two analyses cannot compare counts built
     # on different definitions of one event. See camtrap/episodes.py.
     "episode_30min":     "string",
+    # What else was in the frame, below its label in Felipe's priority (perro > person
+    # > vehicle). TRUE = tagged; FALSE = checked and absent; NA = not checked, or not a
+    # row that could carry it. Appended last so no existing column moves.
+    # See camtrap/copresence.py.
+    "with_human":        "boolean",
+    "with_vehicle":      "boolean",
 }
 
 DEDUP_KEY = ["camera_num", "file_name", "datetime"]
@@ -371,6 +377,9 @@ def resolve_review(reviewed: pd.DataFrame) -> pd.DataFrame:
 # every reviewed row arrive looking unreviewed.
 REVIEW_COLUMNS = [
     "scientificName", "observationComments", "reviewOutcome", "classificationProbability",
+    # Co-presence tags (2026-11-12) — what else was in a frame that carries one label.
+    # Read from the review only, like the verdict: see camtrap/copresence.py.
+    "observationTags",
 ]
 REVIEWED_FLAG = "_reviewed"
 
@@ -555,6 +564,18 @@ def to_canonical(corrected: pd.DataFrame, campaign: str) -> pd.DataFrame:
     out[episodes.COLUMN] = episodes.label(out, segments=src.get("clock_segment"))
     print(f"    {episodes.COLUMN}: {out[episodes.COLUMN].nunique(dropna=True)} episode(s) "
           f"over {int(out[episodes.COLUMN].notna().sum())} row(s)")
+
+    together = copresence.resolve(
+        src.get("observationTags", pd.Series("", index=src.index)),
+        out["observation_type"], out["species_latin"],
+        reviewed=out["review_resolution"] != RESOLUTION_SWEEP_ONLY,
+        campaign=campaign,
+    )
+    for col in together.columns:
+        out[col] = together[col]
+        print(f"    {col}: {int(together[col].eq(True).sum())} TRUE, "
+              f"{int(together[col].eq(False).sum())} FALSE, "
+              f"{int(together[col].isna().sum())} unknown")
 
     # Reindexed, not just cast: CANONICAL_COLUMNS declares an order and the written
     # table should match it, so the contract can be asserted as written rather than as

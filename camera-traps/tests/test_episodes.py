@@ -141,6 +141,82 @@ class TestWhatGetsNoEpisode(unittest.TestCase):
         self.assertEqual(int(episodes.label(df).notna().sum()), 0)
 
 
+def typed(rows) -> pd.DataFrame:
+    """`rows` are (minutes, station, observation_type, species, segment)."""
+    return pd.DataFrame([
+        {'campaign': 'otono_2026', 'station_canonical': station,
+         'observation_type': kind, 'species_latin': species,
+         'datetime': None if minutes is None else BASE + timedelta(minutes=minutes),
+         'segment': segment}
+        for minutes, station, kind, species, segment in rows
+    ])
+
+
+def n_typed(rows) -> int:
+    df = typed(rows)
+    return int(episodes.label(df, segments=df['segment']).nunique(dropna=True))
+
+
+class TestPeopleAndVehiclesAreSubjects(unittest.TestCase):
+    """Added 2026-11-12. The same 30-minute rule, applied to `human` and `vehicle`
+    rows, which carry no species. The rule itself does not change, so these mirror the
+    species tests above rather than inventing new behaviour."""
+
+    def test_zero_twenty_forty_people_is_two_events(self):
+        """The gap is measured from the event's FIRST frame: 40 is 40 minutes after 0,
+        so it opens a second event although it is only 20 after the frame before it."""
+        self.assertEqual(n_typed([(0, 'CT14', 'human', '', '1'),
+                                  (20, 'CT14', 'human', '', '1'),
+                                  (40, 'CT14', 'human', '', '1')]), 2)
+
+    def test_exactly_the_threshold_starts_a_new_person_event(self):
+        self.assertEqual(n_typed([(0, 'CT14', 'human', '', '1'),
+                                  (30, 'CT14', 'human', '', '1')]), 2)
+
+    def test_a_second_under_the_threshold_does_not(self):
+        df = typed([(0, 'CT14', 'human', '', '1')])
+        df.loc[1] = {'campaign': 'otono_2026', 'station_canonical': 'CT14',
+                     'observation_type': 'human', 'species_latin': '',
+                     'datetime': BASE + timedelta(minutes=29, seconds=59),
+                     'segment': '1'}
+        self.assertEqual(episodes.label(df, segments=df['segment']).nunique(), 1)
+
+    def test_a_person_and_a_vehicle_in_different_frames_are_two_events(self):
+        """Different frames, different subjects, separate series — as two species are.
+        A consumer combines them into 'human presence' if it wants to."""
+        self.assertEqual(n_typed([(0, 'CT14', 'human', '', '1'),
+                                  (0, 'CT14', 'vehicle', '', '1')]), 2)
+
+    def test_a_person_and_a_dog_at_one_minute_are_two_events(self):
+        self.assertEqual(n_typed([(0, 'CT14', 'human', '', '1'),
+                                  (0, 'CT14', 'animal', 'Canis lupus familiaris', '1')]), 2)
+
+    def test_the_id_names_the_type(self):
+        df = typed([(0, 'CT14', 'vehicle', '', '1')])
+        self.assertEqual(episodes.label(df, segments=df['segment']).iloc[0],
+                         'otono_2026|CT14|vehicle|1')
+
+    def test_a_clock_reset_splits_a_person_event(self):
+        self.assertEqual(n_typed([(0, 'CT14', 'human', '', '1'),
+                                  (5, 'CT14', 'human', '', '2')]), 2)
+
+    def test_blank_and_unknown_get_none(self):
+        df = typed([(0, 'CT14', 'blank', '', '1'), (0, 'CT14', 'unknown', '', '1'),
+                    (0, 'CT14', 'animal', '', '1')])
+        self.assertEqual(int(episodes.label(df, segments=df['segment']).notna().sum()), 0)
+
+    def test_a_person_with_no_clock_gets_none(self):
+        df = typed([(None, 'CT14', 'human', '', '1')])
+        self.assertTrue(pd.isna(episodes.label(df, segments=df['segment']).iloc[0]))
+
+    def test_a_species_wins_over_the_type(self):
+        """An animal row's subject is its species whatever the type column says, which
+        is what keeps every animal id identical to the ids before this change."""
+        df = typed([(0, 'CT14', 'human', 'Puma concolor', '1')])
+        self.assertEqual(episodes.label(df, segments=df['segment']).iloc[0],
+                         'otono_2026|CT14|Puma concolor|1')
+
+
 class TestOrderIndependence(unittest.TestCase):
 
     def test_row_order_does_not_change_the_answer(self):
@@ -161,22 +237,25 @@ class TestThePublishedTables(unittest.TestCase):
         df = read_campaigns(*CAMPAIGN_ORDER)
         self.assertIn(episodes.COLUMN, df.columns)
 
-    def test_only_identified_animals_have_episodes(self):
-        """The column answers "how many independent detections of this species", so a
-        blank or a human frame has no episode by construction."""
+    def test_only_a_subject_has_an_episode(self):
+        """An episode is about a species, a person or a vehicle. Blank and unknown
+        frames have none by construction, and every animal episode names a species."""
         df = read_campaigns(*CAMPAIGN_ORDER)
         with_id = df[df[episodes.COLUMN].notna()]
-        self.assertEqual(set(with_id.observation_type), {'animal'})
-        self.assertFalse((with_id.species_latin == '').any())
+        self.assertTrue(set(with_id.observation_type) <= {'animal', 'human', 'vehicle'})
+        animals = with_id[with_id.observation_type == 'animal']
+        self.assertFalse((animals.species_latin == '').any())
         self.assertFalse(with_id.datetime.isna().any())
 
-    def test_the_count_is_the_one_the_corrected_rule_produces(self):
-        """777 across the three campaigns, measured 2026-11-03. It was 696 on
-        2026-08-26; the 81 added events are the four deployments readmitted that day
-        (CT08 x2, CT10, CT13 — their rows gained a valid stamp, hence an episode).
+    def test_the_animal_count_is_the_one_the_corrected_rule_produces(self):
+        """777 animal events across the three campaigns, measured 2026-11-03. It was
+        696 on 2026-08-26; the 81 added events are the four deployments readmitted that
+        day (CT08 x2, CT10, CT13 — their rows gained a valid stamp, hence an episode).
         The stale predecessor rule gave 523 against 696; a drop of that size would
-        mean the rule regressed rather than the data changing."""
-        self.assertEqual(episodes.count(read_campaigns(*CAMPAIGN_ORDER)), 777)
+        mean the rule regressed rather than the data changing. People and vehicles
+        (2026-11-12) are counted apart, so this number must not move with them."""
+        df = read_campaigns(*CAMPAIGN_ORDER)
+        self.assertEqual(episodes.count(df[df.observation_type == 'animal']), 777)
 
 
 if __name__ == '__main__':
