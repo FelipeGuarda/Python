@@ -174,8 +174,12 @@ def _resolve_rel_path(row: pd.Series) -> str:
 #
 #   1. The review NAMES an animal, the sweep says human or vehicle -> animal wins.
 #      A vehicle moving through the park carries people, and dogs follow them, so all
-#      three are in frame at once and only one observationType fits. Ranking is
-#      animal > vehicle > human. 37 rows: 13 Perro, 23 Caballo, 1 Vaca.
+#      three are in frame at once and only one observationType fits. 37 rows: 13
+#      Perro, 23 Caballo, 1 Vaca. This rule only ranks animal above the rest; between
+#      person and vehicle the reviewer's Timelapse category is kept as-is. Felipe's
+#      labelling order is animal > person > vehicle (2026-11-13; it replaced an
+#      "animal > vehicle > human" written here on 2026-08-19, which nothing enforced).
+#      The order is enforced in camtrap/copresence.PRIORITY, manual §4F.6.
 #
 #   2. The review NEGATES the animal, the sweep says animal -> the review wins.
 #      Here the sweep's `animal` is the false positive the review is correcting, so

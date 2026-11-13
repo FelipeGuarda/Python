@@ -3,7 +3,7 @@
 ### Manual de extremo a extremo: del terreno al contrato
 
 **Fundación Mar Adentro · Bosque Pehuén**
-Documento vigente. Edición 2026-10-15.
+Documento vigente. Edición 2026-11-13.
 
 > Este es el documento autoritativo. Existe una edición en inglés
 > (`DATA-HEALTH-MANUAL.md`) que **no se mantiene al día** y que sólo debe usarse como
@@ -970,7 +970,34 @@ la fecha y la razón, y se rechaza si falta cualquiera de las tres.
 > puede saber si una campaña se firmó a propósito o se saltó con apuro. Un archivo lleva un
 > nombre y una fecha, y **viaja con los datos**.
 
-### 4F.6 Tabla de vigilancia — Fase 4
+### 4F.6 Una categoría por imagen, y el orden cuando hay más de una cosa
+
+La plantilla de Timelapse2 admite **una sola observación por imagen**: medido el 2026-11-12,
+ninguna de las tres exportaciones revisadas tiene una imagen con más de una fila. Cuando en el
+cuadro hay más de una cosa, la persona elige una, y la elige por un orden fijo.
+
+> **Regla.** Prioridad de etiquetado: **animal > persona > vehículo**. Una imagen con un perro
+> y una persona es `animal`; una con una persona y una camioneta es `human`; `vehicle` se usa
+> sólo cuando no se ve ni animal ni persona.
+>
+> **Qué se rompe sin ella.** Sin un orden fijo, la misma escena se etiqueta distinto según el
+> día, y el conteo de cada categoría pasa a depender de quién revisó y no de lo que ocurrió.
+> Con el orden fijo lo que se pierde es **predecible**: siempre lo que está más abajo.
+
+**Y lo que el orden esconde, que es la razón del §5F.6.** El guardaparques que camina con sus
+perros queda como `animal: Canis lupus familiaris`, y la persona no está en la tabla. *Observado
+2026-11-12: casi todas las imágenes de perro son los perros del guardaparques en días de
+terreno.* Un análisis que lea "perro" como perro de vida libre está leyendo, en buena parte,
+presencia del equipo. La etiqueta de co-presencia (§5F.6) recupera lo que el orden esconde sin
+cambiar la etiqueta.
+
+> *Esta regla no estuvo escrita hasta 2026-11-12, y mientras tanto convivieron dos versiones:
+> el ingreso documentaba animal > vehículo > persona (2026-08-19), y la convención de
+> co-presencia animal > persona > vehículo. Rige la segunda, que es la que se aplica al
+> etiquetar. El ingreso nunca ordenó persona contra vehículo — conserva la categoría elegida en
+> Timelapse —, así que la discrepancia sólo decidía qué etiqueta se admite en qué fila.*
+
+### 4F.7 Tabla de vigilancia — Fase 4
 
 | Error vigilado | Qué significa | Análisis que depende de que no ocurra | Qué lo revisa | Fixtures que lo sostienen |
 |---|---|---|---|---|
@@ -982,6 +1009,7 @@ la fecha y la razón, y se rechaza si falta cualquiera de las tres.
 | La exportación no cubre todas las imágenes | Filas revisadas que no existen en la exportación total | El ingreso completo: no se puede diagnosticar lo que no está | `timestamps.py` aborta salvo `--allow-unmatched` | `TestReviewedRowsMustBeCovered` |
 | Ausencia de fotos con persona no investigada | O nadie gatilló la cámara, o la revisión no ocurrió | Ambas cosas importan, y son distintas | El control se detiene y obliga a distinguirlas | `TestTheRule`, `TestReadTotalExport` |
 | El umbral o la versión del detector cambian sin quedar escritos | Dos campañas vieron distintas imágenes antes de la revisión | Toda comparación de tasas entre campañas, sin que nada lo advierta | El metadato viaja en el JSON; la declaración vive en §4F.2 | *Sin fixture — es declaración, no cálculo* |
+| Una imagen con varias cosas se etiqueta sin orden fijo | La misma escena queda `human` un día y `vehicle` otro | Conteos por categoría, y qué etiqueta de co-presencia se admite | Orden animal > persona > vehículo (§4F.6), aplicado por `copresence.PRIORITY` | `TestThePriority` (6 casos) |
 
 26 tests en 4 clases (`tests/test_exports.py`).
 
@@ -1104,8 +1132,8 @@ Cada fila registra **de dónde salió su veredicto** (`review_resolution`), no s
 | **R4** | Comentario genérico o de nota | `unknown`, pero etiquetado según de qué tipo | Demasiado genérico para nombrar una especie, pero no es nada |
 | **R5** | Comentario no reconocido | **Nada: se detiene el ingreso** | No se adivina |
 
-Cuando hay varios sujetos en la foto: cualquier animal identificado, después vehículo,
-después persona.
+Cuando hay varios sujetos en la foto: cualquier animal identificado, después persona, después
+vehículo (§4F.6). Lo que queda debajo no se pierde si se anota como co-presencia (§5F.6).
 
 **R5 es la que hace que esto funcione.** Un comentario que el sistema no conoce **no se ignora
 y no se adivina**: aborta el ingreso. La alternativa — tratar lo desconocido como vacío — es
@@ -1118,7 +1146,70 @@ exactamente el modo de falla del §0.4: un conjunto más chico, sin mensaje de e
 > cerrar aguas arriba. Se borró en vez de enseñarle las reglas nuevas, porque enseñarle habría
 > creado un segundo lugar al que la próxima corrección tendría que llegar.*
 
-### 5F.6 Tabla de vigilancia — Fase 5
+### 5F.6 Lo que también estaba en el cuadro: etiquetas de co-presencia
+
+**Qué es.** Una anotación que acompaña a la etiqueta sin reemplazarla: "en esta imagen de perro
+también hay una persona". Va en `observationTags`, el campo que la plantilla y el estándar
+Camtrap DP ya traen para esto, así que no cambia ni la plantilla ni el estándar.
+
+| Etiqueta | Significa | Puede ir en |
+|---|---|---|
+| `with:human` | También hay una persona | imágenes `animal` |
+| `with:vehicle` | También hay un vehículo | imágenes `animal` y `human` |
+
+Dos etiquetas se separan con `|` (`with:human|with:vehicle`). En la tabla canónica se
+convierten en dos columnas, `with_human` y `with_vehicle` (Fase 8).
+
+> **Regla 1.** Una etiqueta sólo puede nombrar algo que está **por debajo** de la etiqueta de
+> la imagen en el orden del §4F.6. `with:human` en una imagen `vehicle` significa que el orden
+> no se siguió, y el ingreso **se detiene** en vez de adivinar cuál de las dos cosas está mal.
+> Lo mismo con un error de tipeo: `with:humna` no se ignora.
+>
+> **Qué se rompe sin ella.** Una etiqueta mal escrita que se ignora se lee como "no había
+> nadie", que es justo el dato que la etiqueta existe para dar.
+
+> **Regla 2.** Una etiqueta vacía significa "estaba solo" **sólo dentro de un alcance
+> declarado**: las campañas, y dentro de ellas las especies, que alguien revisó de verdad
+> buscando compañía (`copresence.CHECKED`). Fuera de ese alcance, vacío es **desconocido**
+> (`NA`), no `FALSE`. Una etiqueta presente es `TRUE` en cualquier parte: una persona observada
+> es evidencia, se haya declarado o no la campaña.
+>
+> **Qué se rompe sin ella.** Las tres campañas publicadas se revisaron antes de que la
+> convención existiera. Leer sus etiquetas vacías como "el perro andaba solo" convertiría la
+> ausencia de una convención en un hallazgo sobre perros.
+
+**Cómo se anota.** En la app de revisión (`phase1_labeling/app.py`), con dos modos:
+
+| Modo | Para qué | Qué puede cambiar |
+|---|---|---|
+| **Revisión** | Toda campaña nueva. Las casillas "Con persona" y "Con vehículo" están bajo cada imagen y se guardan con cualquiera de los dos botones de confirmar | Especie, resultado y etiquetas |
+| **Etiquetas** | La pasada retroactiva sobre campañas revisadas antes de que existieran las casillas. Hoy: las 164 imágenes de perro de las tres campañas publicadas | **Sólo** `observationTags` |
+
+> **Regla 3.** La pasada retroactiva **no reconstruye** el CSV revisado: lo edita en su lugar
+> y sólo toca `observationTags`. Las demás celdas, el orden de las filas, la codificación y los
+> fines de línea se escriben tal como se leyeron.
+>
+> **Qué se rompe sin ella.** El CSV revisado es un registro, no un caché (§5F.2). *Medido
+> 2026-11-13: volver a exportar otoño 2025 por la vía normal habría perdido las 830 decisiones
+> — el CSV revisado escribe `CT09\x.JPG`, el clasificado `CT09/x.JPG`, y la app los comparaba
+> como texto — y habría descartado 12 imágenes revisadas que el CSV clasificado no tiene.* Por
+> eso la exportación normal ahora **se niega** si una imagen ya decidida faltaría en el archivo
+> nuevo, y remite al modo Etiquetas.
+
+> **Regla 4.** La fecha de revisión (`classificationTimestamp`) es la del momento en que se
+> decidió, y se conserva en todo guardado posterior.
+>
+> **Qué se rompe sin ella.** Hasta 2026-11-13 cada exportación re-estampaba todas las filas:
+> reabrir una campaña movía todas sus fechas de revisión al día en que se reabrió, y una pasada
+> de etiquetas habría hecho parecer que la campaña entera se revisó ese día.
+
+**El orden de trabajo de la pasada retroactiva**, porque el alcance se declara **después** de
+mirar y no antes: (1) modo Etiquetas sobre cada campaña, grupo Perro; (2) el CSV revisado de
+cada campaña se copia desde el disco de la campaña a `data/campaigns/<campaña>/`; (3) recién
+entonces se agrega la campaña a `copresence.CHECKED` con la especie revisada; (4) se reconstruye
+con `timestamps.py` y se publica el contrato (Fase 9).
+
+### 5F.7 Tabla de vigilancia — Fase 5
 
 | Error vigilado | Qué significa | Análisis que depende de que no ocurra | Qué lo revisa | Fixtures que lo sostienen |
 |---|---|---|---|---|
@@ -1133,9 +1224,16 @@ exactamente el modo de falla del §0.4: un conjunto más chico, sin mensaje de e
 | El acuerdo humano-máquina se presenta como tasa de error | Se afirma una calidad que no se midió | La credibilidad de todo lo demás que se reporte | §5F.4 lo enuncia; ninguna prueba puede impedir una frase mal escrita | *Sin fixture — es redacción* |
 | No se registra quién clasificó la campaña | No se puede reconstruir quién decidió qué | Trazabilidad, y el reconocimiento que exige cualquier publicación | El registro de la campaña | *Sin fixture — es procedimiento* |
 | Las filas se desalinean al resolver | El veredicto se aplica a la fila equivocada | Todo | Invariantes de alineación | `FrameShape`, `RowSetIsTheExport` |
+| Una persona o un vehículo escondido bajo la etiqueta de mayor rango | El guardaparques con sus perros queda sólo como "perro" | Todo análisis de perro, y cualquier índice de presencia humana | Etiquetas de co-presencia en `observationTags` (§5F.6) | `TestComposeAndParse`, `TestPeopleAndVehiclesAreSubjects` |
+| Una etiqueta mal escrita o contra el orden | `with:humna`, o `with:human` en una imagen `vehicle` | La co-presencia: el error se leería como "solo" | El ingreso se detiene; la app no deja guardarla | `TestTheVocabulary`, `TestThePriority`, `TestWriteTags` |
+| Vacío leído como "solo" donde nadie miró | Campañas revisadas antes de la convención | Toda medida de perros acompañados contra perros solos | `NA` fuera de `copresence.CHECKED` | `TestScope` (5 casos) |
+| La pasada retroactiva reescribe el registro revisado | Decisiones, imágenes o fechas perdidas al guardar etiquetas | La Fase 5 completa de esa campaña | El modo Etiquetas sólo toca `observationTags`; la exportación normal se niega a perder decisiones | `TestTheCommittedRecordsSurviveUntouched`, `TestWriteReview` |
+| Reabrir una campaña re-estampa las fechas de revisión | Todas las fechas pasan al día en que se reabrió | Saber cuándo se decidió cada imagen | La fecha se fija al confirmar y se conserva | `TestWriteReview` |
 
 20 tests en 6 clases (`tests/test_review_resolution.py`), 11 en 2
-(`tests/test_ingest_frame.py`).
+(`tests/test_ingest_frame.py`), 18 en 4 (`tests/test_copresence.py`), 13 en 5
+(`tests/test_review_record.py`).
+
 ---
 
 ## Fase 6 — Diagnóstico del reloj
@@ -1667,7 +1765,7 @@ buena por una razón que no aplica a todas las preguntas.
 | | |
 |---|---|
 | **Entra** | Todo lo anterior |
-| **Sale** | `data/campaigns/<campaña>/observations.parquet` — 17 columnas |
+| **Sale** | `data/campaigns/<campaña>/observations.parquet` — 19 columnas |
 | **Quién lo hace** | `camtrap/observations.py`, vía `timestamps.py` |
 | **Qué decide** | Una tabla, una gramática, con banderas de validez |
 
@@ -1698,7 +1796,14 @@ buena por una razón que no aplica a todas las preguntas.
 
 Por eso la columna `episode_30min` existe: la regla de independencia (30 minutos, por
 campaña/estación/especie, medida desde la **última detección retenida**, sin cruzar segmento de
-reloj) se calcula una vez, acá.
+reloj) se calcula una vez, acá. Desde 2026-11-13 el sujeto de un evento es la especie, o
+`human` / `vehicle` en las filas de persona y vehículo, que antes no tenían evento: 232 y 61
+eventos nuevos, y los 777 eventos de animales con exactamente los mismos identificadores.
+
+Y por eso existen `with_human` y `with_vehicle`: las etiquetas de co-presencia (§5F.6) se
+interpretan una vez, acá (`copresence.resolve`), con su regla de alcance incluida. Un
+consumidor que leyera `observationTags` por su cuenta tendría que saber qué campañas se
+revisaron, y lo olvidaría.
 
 ### 8F.4 Claves, no atributos
 
@@ -1749,7 +1854,8 @@ tiempo**. Es reciclaje del contador `MMDDnnnn.JPG` entre años, y **no se debe d
 | Se deduplican colisiones legítimas de nombre | El contador recicla entre años; 31 casos, 0 con misma hora | Conteos, a la baja y sin señal | La clave incluye la marca de tiempo | `TestThePublishedTables` |
 | La regla de eventos no viaja en la tabla | Cada lector la reimplementa; dos copias ya discrepaban un 33 % | Todo conteo de eventos independientes | Se calcula acá, en `episode_30min` | `TestTheGapIsMeasuredFromTheLastRetainedDetection`, `TestTheKey` |
 | Un evento cruza un segmento de reloj | Se agrupan detecciones cuyo orden no es comparable | Conteos de eventos, inflados a la baja | El segmento corta el episodio | `TestAnEpisodeCannotCrossAClockSegment` |
-| Un episodio asignado a una fila sin especie o sin hora | Se cuenta como evento algo que no lo es | Conteos de eventos | `pd.NA` explícito para esas filas | `TestWhatGetsNoEpisode` |
+| Un episodio asignado a una fila sin sujeto o sin hora | Se cuenta como evento algo que no lo es | Conteos de eventos | `pd.NA` explícito para esas filas. Persona y vehículo **sí** tienen sujeto desde 2026-11-13 | `TestWhatGetsNoEpisode`, `TestPeopleAndVehiclesAreSubjects` |
+| La co-presencia no viaja en la tabla | Cada lector interpreta `observationTags` por su cuenta y olvida el alcance | Toda medida de perros acompañados | `with_human` / `with_vehicle` se calculan acá | `TestScope`, `TestSchemaIsTheContract` |
 | El resultado depende del orden de las filas | La misma tabla da conteos distintos | La reproducibilidad completa | Etiquetado independiente del orden | `TestOrderIndependence` |
 | Filas revisadas ausentes de la exportación total | No se puede diagnosticar lo que no está | El ingreso se detiene, correctamente | `timestamps.py` aborta salvo `--allow-unmatched` | `TestReviewedRowsMustBeCovered` |
 | Una campaña sin revisar llega al ingreso | El control de la Fase 4 se saltó | Todo conteo | El control se aplica también acá, en el ingreso | `TestTheGateStopsIngest` |
@@ -1757,7 +1863,7 @@ tiempo**. Es reciclaje del contador `MMDDnnnn.JPG` entre años, y **no se debe d
 | Una estación desplegada sin imágenes, descartada | Se borran ~620 días-cámara reales | El denominador de la campaña | Se publican con `has_media = false` | `test_stations_deployed_without_images_are_published` |
 | "Sin imágenes" tratado como "no vio nada" | Cuatro estaciones grababan video | El denominador: se reescala toda tasa de otoño 2025 | `media_status` da la **razón**, no sólo el hecho | `TestMediaStatusIsAReasonNotAMeasurement` (6 casos) |
 
-21 tests en 4 clases (`tests/test_canonical_state.py`), 19 en 6 (`tests/test_episodes.py`), 16
+24 tests en 5 clases (`tests/test_canonical_state.py`), 29 en 7 (`tests/test_episodes.py`), 16
 en 4 (`tests/test_deployments.py`).
 
 ---
@@ -1803,9 +1909,9 @@ olvidó de volver a publicar.
 | | |
 |---|---|
 | `schema_version` | **5** |
-| Columnas | 17, en orden declarado |
-| `otono_2025` | 8.997 filas · 21 estaciones · 3.816 días-cámara |
-| `primavera_2025` | 16.904 filas · 26 estaciones · 5.178 días-cámara |
+| Columnas | 19, en orden declarado |
+| `otono_2025` | 8.997 filas · 21 estaciones · 3.824 días-cámara |
+| `primavera_2025` | 16.904 filas · 26 estaciones · 5.170 días-cámara |
 | `otono_2026` | 9.906 filas · 27 estaciones · 3.981 días-cámara |
 | Registro de estaciones | `stations_sha256` del `estaciones.geojson` · `n_stations_registry` 27 |
 
@@ -1819,8 +1925,13 @@ a los consumidores.
 
 **Los días-cámara son el subconjunto con imágenes**, deliberadamente: es el que hace pareja con
 el número de filas. Otoño 2025 tiene por eso **dos** cifras publicadas y hay que elegir la que
-corresponde a la pregunta: 3.816 sobre 21 estaciones para cualquier cosa leída de la tabla
-canónica, y 4.318 sobre 25 para cualquier cosa que cuente el video.
+corresponde a la pregunta: 3.824 sobre 21 estaciones para cualquier cosa leída de la tabla
+canónica, y 4.326 sobre 25 para cualquier cosa que cuente el video.
+
+**Por qué esos números cambiaron el 2026-11-13.** La corrección del retiro de CT10 en otoño 2025
+(05-28 → 06-05, 2026-11-03) llegó a `deployments.csv` pero no al contrato: ocho días-cámara
+pasaron de primavera a otoño y el contrato siguió diciendo 3.816 y 5.178 durante diez días.
+`verify()` no lo vio porque publicaba los campos de esfuerzo sin compararlos. Ahora los compara.
 
 ### 9F.3 Tabla de vigilancia — Fase 9
 
@@ -1828,7 +1939,9 @@ canónica, y 4.318 sobre 25 para cualquier cosa que cuente el video.
 |---|---|---|---|---|
 | Las tablas se reconstruyeron y no se re-publicó | El contrato describe datos que ya no están | Todo consumidor corre sobre datos distintos, en silencio | `canonical_state.verify()`, y es un test | `TestPublishedFileIsCurrent` |
 | El ingreso publica su propio contrato | La verificación siempre concuerda consigo misma | La verificación entera: no podría fallar nunca | Publicar es un comando aparte, `--publish` | `TestPublishedFileIsCurrent` |
-| Un cambio de filas pasa desapercibido | 3.359 filas se volvieron 35.807 y nadie lo notó | Toda cifra publicada. **Ya ocurrió** | `diff()` compara campo por campo | `TestDiffDetectsRealChanges` (9 casos) |
+| Un cambio de filas pasa desapercibido | 3.359 filas se volvieron 35.807 y nadie lo notó | Toda cifra publicada. **Ya ocurrió** | `diff()` compara campo por campo | `TestDiffDetectsRealChanges` (10 casos) |
+| Se re-publicó `deployments.csv` y no el contrato | El esfuerzo publicado quedó viejo | Toda tasa: es el denominador. **Ya ocurrió**: el retiro corregido de CT10 estuvo diez días sin llegar al contrato | `diff()` compara `n_deployments`, `n_deployments_with_media`, `camera_days` y `deployments_sha256` | `test_republished_deployments_without_republish_is_caught` |
+| Un parquet de una construcción anterior se publica como actual | Las columnas del contrato salen del código, no del archivo | Todo consumidor: el contrato promete columnas que el archivo no tiene | Cada parquet tiene que tener exactamente las columnas del código, o no se publica ni se verifica | `TestParquetIsHeldToTheCode` |
 | Una columna agregada o reordenada | El orden es parte del contrato | Cualquier consumidor que lea por posición | `diff()` detecta agregado **y** reorden | `TestDiffDetectsRealChanges` |
 | `deployments.csv` editado a mano | Es generado, no mantenido | El denominador de esfuerzo | Se compara con una construcción fresca | `TestPublishedFiles` |
 | `media_absence.csv` con una declaración huérfana | Se excusa esfuerzo de una estación ya ingresada | El denominador | Toda fila declarada tiene que corresponder a un vacío real | `test_the_declared_absences_match_the_committed_file` |
@@ -1838,7 +1951,7 @@ canónica, y 4.318 sobre 25 para cualquier cosa que cuente el video.
 | Una estación de la tabla sin fila en el registro | Sus registros no tienen posición | Un join por estación pierde esa estación en silencio | Toda etiqueta observada tiene que estar en el registro | `test_every_observed_station_is_in_the_registry` |
 | Un clon en Windows reescribe los fines de línea de un archivo con hash | `core.autocrlf` convierte LF en CRLF al hacer checkout; los bytes ya no son los que se publicaron | La verificación del registro: el consumidor rechaza un archivo **correcto**. **Ya ocurrió** (2026-10-06) | `.gitattributes` fija `eol=lf` en `estaciones.geojson` y en cada `deployments.csv`. El pin rige el checkout: un clon anterior al 2026-10-05 conserva sus CRLF hasta volver a sacar esos archivos | **Ninguno.** La protección es configuración, no test; `git status` aparece limpio aunque el hash no coincida |
 
-21 tests en 4 clases (`tests/test_canonical_state.py`), 16 en 4 (`tests/test_deployments.py`).
+24 tests en 5 clases (`tests/test_canonical_state.py`), 16 en 4 (`tests/test_deployments.py`).
 
 ---
 
