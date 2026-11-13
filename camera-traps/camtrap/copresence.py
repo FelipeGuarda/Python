@@ -67,10 +67,16 @@ class InvalidObservationTag(ValueError):
     """A tag outside the vocabulary, or one the labelling priority forbids on its row."""
 
 
+def join(ticked) -> str:
+    """The `observationTags` value for a collection of tags, in vocabulary order.
+    '' for nothing. Order is fixed so the same ticks always write the same cell."""
+    chosen = set(ticked)
+    return SEPARATOR.join(tag for tag in TAGS if tag in chosen)
+
+
 def compose(human: bool, vehicle: bool) -> str:
     """The `observationTags` value for what the reviewer ticked. '' for nothing."""
-    chosen = [tag for tag, on in ((TAG_HUMAN, human), (TAG_VEHICLE, vehicle)) if on]
-    return SEPARATOR.join(chosen)
+    return join(tag for tag, on in ((TAG_HUMAN, human), (TAG_VEHICLE, vehicle)) if on)
 
 
 def parse(value: str) -> frozenset[str]:
@@ -80,8 +86,10 @@ def parse(value: str) -> frozenset[str]:
     return frozenset(p for p in parts if p)
 
 
-def _allowed(kind: str) -> frozenset[str]:
-    """Tags a row of this type may carry: those naming a type ranked below it."""
+def allowed_tags(kind: str) -> frozenset[str]:
+    """Tags a row of this type may carry: those naming a type ranked below it.
+    Public because the review app offers exactly these, and nothing it offers may be
+    something the ingest would then refuse."""
     if kind not in PRIORITY:
         return frozenset()
     below = set(PRIORITY[PRIORITY.index(kind) + 1:])
@@ -117,7 +125,7 @@ def resolve(
     problems: dict[str, int] = {}
     for value, k in zip(parsed, kind):
         unknown = value - TAGS.keys()
-        forbidden = (value & TAGS.keys()) - _allowed(k)
+        forbidden = (value & TAGS.keys()) - allowed_tags(k)
         for tag in sorted(unknown):
             problems[f'{tag!r} (not a tag)'] = problems.get(f'{tag!r} (not a tag)', 0) + 1
         for tag in sorted(forbidden):
@@ -137,7 +145,7 @@ def resolve(
     out = pd.DataFrame(index=tags.index)
     for tag, column in COLUMNS.items():
         present = parsed.map(lambda s, t=tag: t in s)
-        applicable = kind.map(lambda k, t=tag: t in _allowed(k))
+        applicable = kind.map(lambda k, t=tag: t in allowed_tags(k))
         col = pd.Series(pd.NA, index=tags.index, dtype='boolean')
         col[applicable & in_scope] = False
         col[present] = True
