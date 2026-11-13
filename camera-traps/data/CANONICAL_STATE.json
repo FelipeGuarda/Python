@@ -17,7 +17,9 @@
     "rel_path",
     "observation_comments",
     "classification_probability",
-    "episode_30min"
+    "episode_30min",
+    "with_human",
+    "with_vehicle"
   ],
   "dtypes": {
     "campaign": "string",
@@ -36,7 +38,9 @@
     "rel_path": "string",
     "observation_comments": "string",
     "classification_probability": "Float64",
-    "episode_30min": "string"
+    "episode_30min": "string",
+    "with_human": "boolean",
+    "with_vehicle": "boolean"
   },
   "campaigns": {
     "otono_2025": {
@@ -82,8 +86,8 @@
       "n_valid_effort_false": 640,
       "n_deployments": 26,
       "n_deployments_with_media": 21,
-      "camera_days": 3816,
-      "deployments_sha256": "8942f5dd3b2e4e810d41bd3fde6bab47d044884bce5e740ea5128476d0d1299f"
+      "camera_days": 3824,
+      "deployments_sha256": "b0a6dda62f722c075962d381e336c07da244b093367081957d7144538afebfb9"
     },
     "primavera_2025": {
       "n_rows": 16904,
@@ -133,8 +137,8 @@
       "n_valid_effort_false": 140,
       "n_deployments": 26,
       "n_deployments_with_media": 26,
-      "camera_days": 5178,
-      "deployments_sha256": "f677af24b99adb963b3ccce74fcb49a905d790cb18a4db50055a98f02c288b1b"
+      "camera_days": 5170,
+      "deployments_sha256": "368bb3c030beaa47bc2675d85ae635d51e9ac982e2bff2e09ba531ba5d79bbaf"
     },
     "otono_2026": {
       "n_rows": 9906,
