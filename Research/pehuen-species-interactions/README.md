@@ -554,7 +554,18 @@ sizes. Its "Open items" list is the analysis backlog.
 
 ## Project status
 
-- **Last Updated:** 2026-11-12
+- **Last Updated:** 2026-11-13
+- **What Changed (2026-11-13):** No analysis change. The producer republished its contract with
+  `with_human` / `with_vehicle` and corrected effort (otoño 2025 camera_days 3816→3824, primavera
+  5178→5170, from CT10's retrieval fix), so the stamp refused once; `R/01_load_data.R` was re-run
+  and `contract_compare` is clean. `08_sensitivity.R` header now records solstice limits as out of
+  scope. Committed on camera-traps' branch `feat/copresence-tags` (`7639530`).
+  **Integration Status:** `In Progress [REMAINING: re-run 01 keeping human/vehicle rows;
+  perro-accompaniment measure; human-activity index; unmarked occupancy + Royle–Nichols; activity
+  by site; time-to-encounter]`.
+  **Blockers/Notes:** Co-presence columns are all NA until the Windows retro pass fills
+  `copresence.CHECKED`; the perro-accompaniment measure can use time proximity (person/vehicle
+  event within 30 min at the same station) meanwhile. `unmarked` still not installed.
 - **What Changed (2026-11-12):** Branch `docs/scope-cut`. Scope decision: five candidate
   analyses are **out of scope for this research** and removed from both status documents
   (§2.3, §3.3, §4.6, §8) and from the methods-menu backlog: moon and weather effects on

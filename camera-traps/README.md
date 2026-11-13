@@ -89,7 +89,23 @@ the question you think it is.
 
 ## Status
 
-**Last Updated:** 2026-11-12 — **people and vehicles get episodes; co-presence tags.** Branch
+**Last Updated:** 2026-11-13 — **contract republished with `with_*`; review app gets co-presence
+checkboxes and an Etiquetas mode.** Branch `feat/copresence-tags` (pushed, `7639530`). Rebuilt all
+three campaigns and republished: same rows, existing columns identical, 777 animal events with
+identical ids, +232 person / +61 vehicle events; `with_*` all NA until `CHECKED` is filled. The
+publish also caught stale effort from CT10's retrieval fix (camera_days 3816→3824, 5178→5170).
+`verify()` now compares the deployment fields and holds each parquet's columns to the code. New
+`phase1_labeling/review_record.py` owns the reviewed CSV: `write_tags()` edits only
+`observationTags` (byte-identical round-trip on all three committed CSVs); `write_review()` refuses
+to drop decided images (otoño 2025 would have lost all 830 decisions); review dates are set at
+decision time. Manual §4F.6 (labelling order animal > person > vehicle, replacing the unenforced
+August "vehicle > person") and §5F.6 (co-presence). **377 tests OK** on Linux.
+**Integration Status:** `In Progress [REMAINING: try the app on real images (Windows); 164-image
+perro retro pass; copy reviewed CSVs into git; fill CHECKED; rebuild + publish; merge to main]`.
+**Blockers/Notes:** pehuen's contract stamp was refreshed by re-running its `01`. The reviewed-CSV
+filename is still restated in `timestamps.py` and `export_best_images.py`.
+
+**Previous (2026-11-12):** **people and vehicles get episodes; co-presence tags.** Branch
 `feat/copresence-tags`, WIP. `episodes.py` keys an episode on its subject (species, else
 `human`/`vehicle`). New `camtrap/copresence.py` reads Camtrap DP `observationTags`
 (`with:human`, `with:vehicle`) into `with_human` / `with_vehicle`: TRUE where tagged, FALSE
@@ -98,8 +114,7 @@ the labelling priority (perro > person > vehicle) stop the ingest. A real-data r
 no existing column, kept 777 animal events and added 293 person/vehicle events. It was then
 restored; **the parquets are not rebuilt or republished yet**, so
 `test_the_committed_state_file_matches_the_committed_parquets` fails on the branch.
-**Integration Status:** `In Progress [REMAINING: rebuild + publish; review-app tag mode (unit C);
-164-image perro retro pass; verify() reads columns from code, not parquet]`.
+**Integration Status:** superseded by 2026-11-13.
 
 **Previous (2026-11-05):** **the day-boundary rule survives pandas 3.** `_day_boundary_artefacts`
 looked up per-day bounds with `Series.map`. Under pandas 3 (the Linux `camtrap` env) that raises when
