@@ -20,8 +20,8 @@
 #   Plus leave-one-station-out over all 27 registry stations: point estimates only
 #   (overlap_point()), so the station that moves each pair most is named rather than
 #   chosen in advance.
-#   Planned: season boundaries at solstices/equinoxes (needs a `boundaries`
-#   argument in R/00_seasons.R; not done yet).
+#   Not done: season boundaries at solstices/equinoxes are out of scope for this
+#   research (decision 2026-11-12); calendar-month boundaries are final.
 #
 # WHY THE THRESHOLD VARIANTS ARE COMPUTED HERE, NOT BY THE PRODUCER (2026-11-06)
 #   camera-traps owns the episode rule (camtrap/episodes.py) and publishes exactly
