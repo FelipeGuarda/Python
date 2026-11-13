@@ -147,6 +147,16 @@ class TestDiffDetectsRealChanges(unittest.TestCase):
         problems = canonical_state.diff(published, self.current)
         self.assertTrue(any("stations_sha256" in p for p in problems), problems)
 
+    def test_republished_deployments_without_republish_is_caught(self):
+        """CT10's corrected retrieval (ee1b24d): deployments.csv moved, the contract did not."""
+        published = json.loads(json.dumps(self.current))
+        published["campaigns"]["otono_2025"]["camera_days"] -= 8
+        published["campaigns"]["otono_2025"]["deployments_sha256"] = "0" * 64
+        problems = canonical_state.diff(published, self.current)
+        self.assertTrue(any("otono_2025.camera_days" in p for p in problems), problems)
+        self.assertTrue(any("otono_2025.deployments_sha256" in p for p in problems), problems)
+
+
 
 class TestConsumerGuard(unittest.TestCase):
     def test_canonical_frame_passes(self):
@@ -172,6 +182,32 @@ class TestConsumerGuard(unittest.TestCase):
         df = _frame()
         df["my_own_derived_column"] = 1
         canonical_state.assert_columns(df, canonical_state.build())
+
+
+class TestParquetIsHeldToTheCode(unittest.TestCase):
+    def test_a_parquet_from_an_older_build_is_refused(self):
+        """Columns come from the code, so a stale parquet must not publish as current."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for c in canonical_state.PUBLISHED_CAMPAIGNS:
+                (root / c).mkdir()
+                frame = _frame(campaign=c)
+                if c == "primavera_2025":
+                    frame = frame.drop(columns=["with_human", "with_vehicle"])
+                frame.to_parquet(root / c / observations.CANONICAL_FILENAME)
+            with self.assertRaises(canonical_state.CanonicalStateError) as ctx:
+                canonical_state.build(root=root)
+            self.assertIn("primavera_2025", str(ctx.exception))
+
+    def test_a_current_parquet_builds(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for c in canonical_state.PUBLISHED_CAMPAIGNS:
+                (root / c).mkdir()
+                _frame(campaign=c).to_parquet(root / c / observations.CANONICAL_FILENAME)
+            self.assertEqual(canonical_state.build(root=root)["n_rows_total"], 3)
 
 
 class TestPublishedFileIsCurrent(unittest.TestCase):

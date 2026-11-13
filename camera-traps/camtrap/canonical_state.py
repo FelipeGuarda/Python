@@ -122,7 +122,17 @@ def _describe_deployments(campaign: str, root: Path) -> dict:
 
 
 def _describe(campaign: str, root: Path) -> dict:
-    df = pd.read_parquet(root / campaign / CANONICAL_FILENAME)
+    path = root / campaign / CANONICAL_FILENAME
+    df = pd.read_parquet(path)
+    # The contract's column list is the code's, so the file has to be held to it here.
+    # Without this a parquet left over from an older build published (and verified) as
+    # if it had the current columns, which is the 2026-11-12 gap.
+    if list(df.columns) != list(CANONICAL_COLUMNS):
+        raise CanonicalStateError(
+            f"{path} has columns {list(df.columns)}, but the code declares "
+            f"{list(CANONICAL_COLUMNS)}. The parquet predates the code: re-run "
+            f"`python timestamps.py --campaign {campaign}` before publishing."
+        )
     dt = pd.to_datetime(df["datetime"], errors="coerce")
     reviewed = df["review_resolution"] != "sweep_only"
     return {
@@ -219,7 +229,13 @@ def diff(published: dict, current: dict) -> list[str]:
         if p is None:
             out.append(f"{name}: absent from the published state")
             continue
-        for key in ("n_rows", "n_stations", "n_reviewed", "n_animal_rows"):
+        # The deployment fields are effort, a denominator: a stale value rescales every
+        # rate downstream without a visible symptom. Until 2026-11-13 they were published
+        # but not compared, so CT10's corrected retrieval (ee1b24d) sat unpublished for
+        # ten days while this gate passed.
+        for key in ("n_rows", "n_stations", "n_reviewed", "n_animal_rows",
+                    "n_deployments", "n_deployments_with_media", "camera_days",
+                    "deployments_sha256"):
             if p.get(key) != c[key]:
                 out.append(f"{name}.{key}: published {p.get(key)} != current {c[key]}")
     # Without this, a regenerated GeoJSON that nobody re-published would pass the
