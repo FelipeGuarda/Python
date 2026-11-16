@@ -217,7 +217,10 @@ if (file.exists(rt_path)) {
   tb <- split(rt$time_rad, rt$Species)
   t1 <- tb[["Zorro culpeo"]]; t2 <- tb[["Liebre"]]
   set.seed(1); real <- estimate_overlap(t1, t2, n_boot = 100)
-  check("Zorro culpeo x Liebre selects Dhat4 (161 / 129)", real$estimator == "Dhat4")
+  # The label reads n from the data: a hard-coded "161 / 129" here outlived the
+  # 2026-11-03 clock recovery (now 185 / 131) because nothing ever compared it.
+  check(sprintf("Zorro culpeo x Liebre selects Dhat4 (%d / %d)", length(t1), length(t2)),
+        real$estimator == "Dhat4")
   check("...and agrees with the number camtrapR prints in the plot panel",
         isTRUE(all.equal(real$estimate,
                          unname(overlapEst(t1, t2, type = "Dhat4")),
@@ -239,6 +242,10 @@ if (file.exists(rt_path)) {
     row <- csv[csv$frame == "clock" & csv$sp1 == "Zorro culpeo" & csv$sp2 == "Liebre", ]
     check("overlap_stats.csv carries that same estimate (clock frame)",
           nrow(row) == 1 && isTRUE(all.equal(row$estimate, real$estimate, tolerance = 1e-6)))
+    # A CSV older than the record table fails here, by name, rather than as a
+    # bare estimate mismatch.
+    check(sprintf("...and the same n as the record table (%d / %d)", length(t1), length(t2)),
+          nrow(row) == 1 && row$n1 == length(t1) && row$n2 == length(t2))
     check("the frame changes the number -- it is not a duplicated block",
           {
             cl <- csv[csv$frame == "clock", ]
