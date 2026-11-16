@@ -18,6 +18,12 @@
 #
 # OUTPUT FILES  (data/ inside the project)
 #   - records_all.rds        one row per IMAGE, focal species, all campaigns
+#   - records_identified.rds same shape, EVERY identified species (records_all is its
+#                            focal subset). For questions about non-focal animals,
+#                            e.g. Caballo in 09, without adding them to 02-08's loops
+#   - human_activity.rds     one row per IMAGE labelled human or vehicle: the team's
+#                            footprint. Kept apart from records_*, whose every row
+#                            is an animal, so no species loop can pick it up
 #   - deployments.rds        one row per (campaign, station): window, effort, media
 #   - stations_sf.rds        sf points, one per station
 #   - boundary_sf.rds        reserve boundary
@@ -140,7 +146,12 @@ message(sprintf("Loaded %d stations from %s", nrow(stations_sf), basename(PATH_G
 # Columns this project reads. A missing one stops the load; extra ones are ignored.
 NEEDED <- c("campaign", "station_canonical", "datetime", "valid_date",
             "valid_time_of_day", "valid_effort", "repair_method", "observation_type",
-            "species_latin", "review_outcome", "review_resolution", EPISODE_COLUMN)
+            "species_latin", "review_outcome", "review_resolution", EPISODE_COLUMN,
+            "with_human", "with_vehicle")
+
+# The one place this project decides "this frame's clock can be trusted for time of
+# day", from the producer's own flags. Animals and people go through the same rule.
+time_admissible_flag <- function(df) !is.na(df$datetime) & df$valid_date & df$valid_time_of_day
 
 read_canonical <- function(campaign) {
   path <- file.path(CAMPAIGNS_DIR, campaign, "observations.parquet")
@@ -187,16 +198,28 @@ read_canonical <- function(campaign) {
     ) %>%
     select(campaign, station_id, datetime, valid_date, valid_time_of_day, valid_effort,
            repair_method, species_latin, review_outcome, review_resolution,
-           all_of(EPISODE_COLUMN))
+           all_of(EPISODE_COLUMN), with_human, with_vehicle)
 
-  message(sprintf("  [%s] %d rows in table; %d identified-animal records (%d species).",
-                  campaign, nrow(raw), nrow(clean), n_distinct(clean$species_latin)))
-  list(records = clean, station_effort = station_effort)
+  # People and vehicles: the same reading of the clock, no species, and `subject`
+  # in place of a label. with_* are absent on purpose: they are tags ON animal rows.
+  people <- raw %>%
+    filter(observation_type %in% c("human", "vehicle")) %>%
+    mutate(datetime = as.POSIXct(datetime, tz = "UTC"), station_id = station_canonical,
+           subject = observation_type) %>%
+    select(campaign, station_id, datetime, valid_date, valid_time_of_day, valid_effort,
+           subject, all_of(EPISODE_COLUMN))
+  people$time_admissible <- time_admissible_flag(people)
+
+  message(sprintf("  [%s] %d rows in table; %d identified-animal records (%d species); %d human/vehicle.",
+                  campaign, nrow(raw), nrow(clean), n_distinct(clean$species_latin),
+                  nrow(people)))
+  list(records = clean, people = people, station_effort = station_effort)
 }
 
 message("\nReading canonical tables...")
 loaded         <- lapply(CAMPAIGNS, read_canonical)
 records_raw    <- bind_rows(lapply(loaded, `[[`, "records"))
+human_activity <- bind_rows(lapply(loaded, `[[`, "people"))
 station_effort <- bind_rows(lapply(loaded, `[[`, "station_effort"))
 
 
@@ -262,7 +285,8 @@ records_joined <- records_raw %>%
   left_join(st_drop_geometry(stations_sf) %>% select(id, altitude_m),
             by = c("station_id" = "id"))
 
-unmatched <- filter(records_joined, !station_id %in% stations_sf$id)
+unmatched <- bind_rows(records_joined, human_activity) %>%
+  filter(!station_id %in% stations_sf$id)
 if (nrow(unmatched) > 0) {
   refuse(sprintf(
     paste0("%d records at station(s) absent from %s: %s.\n",
@@ -276,8 +300,7 @@ if (nrow(unmatched) > 0) {
 
 # ── 7. Species filter, labels, admissibility flag ────────────────────────────
 
-records_all <- records_joined %>%
-  { if (!is.null(SPECIES_FILTER)) filter(., species_latin %in% SPECIES_FILTER) else . } %>%
+records_identified <- records_joined %>%
   mutate(
     species_label = ifelse(species_latin %in% names(FOCAL_SPECIES),
                            FOCAL_SPECIES[species_latin], species_latin),
@@ -301,11 +324,16 @@ records_all <- records_joined %>%
     #                   consequence: flattened peaks and overestimated activity level.
     # Neither replaces the other. 03 and 04 report both and the difference IS a result.
     time_rad       = clock_rad(datetime),
-    time_solar_rad = solar_rad(datetime),
-    # A FLAG, not a filter. Presence needs a station, not a clock; activity needs
-    # both. Each script asks for the rule it needs through R/00_admissibility.R.
-    time_admissible = !is.na(datetime) & valid_date & valid_time_of_day
+    time_solar_rad = solar_rad(datetime)
   )
+# A FLAG, not a filter. Presence needs a station, not a clock; activity needs both.
+# Each script asks for the rule it needs through R/00_admissibility.R.
+records_identified$time_admissible <- time_admissible_flag(records_identified)
+
+# The focal subset every script from 02 to 08 reads. Filtering after the mutate moves
+# nothing: every derived column above is computed row by row.
+records_all <- records_identified %>%
+  { if (!is.null(SPECIES_FILTER)) filter(., species_latin %in% SPECIES_FILTER) else . }
 
 message(sprintf(
   "\nFinal dataset: %d records across %d stations and %d campaigns. (SPECIES_FILTER: %s)",
@@ -373,6 +401,8 @@ message(sprintf("record_table: %d episodes (vs %d images in records_all).",
 # downstream scripts keep refusing, which is the correct state for a half-built data/.
 
 saveRDS(records_all,  here("data", "records_all.rds"))
+saveRDS(records_identified, here("data", "records_identified.rds"))
+saveRDS(human_activity,     here("data", "human_activity.rds"))
 saveRDS(deployments,  here("data", "deployments.rds"))
 saveRDS(stations_sf,  here("data", "stations_sf.rds"))
 saveRDS(st_read(PATH_BOUNDARY, quiet = TRUE), here("data", "boundary_sf.rds"))
@@ -381,5 +411,5 @@ saveRDS(stations_ct,  here("data", "stations_ct.rds"))
 
 contract_stamp_write(state, CAMPAIGNS)
 
-message("\nSaved data/: records_all, deployments, stations_sf, boundary_sf, record_table, stations_ct, contract_stamp.json")
+message("\nSaved data/: records_all, records_identified, human_activity, deployments, stations_sf, boundary_sf, record_table, stations_ct, contract_stamp.json")
 message("Run 02_detection_summary.R next.")

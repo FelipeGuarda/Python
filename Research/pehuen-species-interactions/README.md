@@ -127,6 +127,7 @@ Rscript R/05_spatial_distribution.R   # presence maps + episode bubble maps, nat
 Rscript R/06_seasonal_detection_maps.R  # bubble maps per season PERIOD, chronological
 Rscript R/07_seasonal_activity.R      # warm vs cold half of the year, per species, both frames
 Rscript R/08_sensitivity.R            # overlap under alternative choices (no CT03/CT09, 15/60-min gap)
+Rscript R/09_domestic_accompaniment.R # Perro/Caballo visits with people: tag in frame or person/vehicle within 30 min
 ```
 
 Outside the chain, one evidence script:
@@ -554,7 +555,27 @@ sizes. Its "Open items" list is the analysis backlog.
 
 ## Project status
 
-- **Last Updated:** 2026-11-13
+- **Last Updated:** 2026-11-16
+- **What Changed (2026-11-16):** `01` now also writes `human_activity.rds` (stills labelled
+  person or vehicle: 565 / 540 / 569 per campaign, matching the contract) and
+  `records_identified.rds` (every identified species; `records_all` is its focal subset), and
+  carries `with_human` / `with_vehicle`. Every existing output is identical on its existing
+  columns. New `R/00_accompaniment.R` owns "was this visit in the company of people": tag in the
+  frame, or a person/vehicle at the same station-campaign within `ACCOMPANIMENT_WINDOW_MIN`
+  (30, a separate decision from the episode gap). New `R/09_domestic_accompaniment.R` and
+  `tests/test_accompaniment.R` (19 checks). First reading, proximity only:
+  - Perro: 12 of 49 timed episodes accompanied (near a person 6, near a vehicle 8; an
+    episode can have both). Of the 37 without evidence, 14 are at CT09.
+  - Caballo: 0 of 14 timed episodes accompanied, 8 of them at CT19. None of otoño 2025's 26
+    Caballo stills has a usable clock.
+  - Both figures are lower bounds until the tags are published.
+  **Integration Status:** `In Progress [REMAINING: co-presence tags (Windows retro pass; Caballo
+  proposed for the scope too); team-presence index; unmarked occupancy + Royle–Nichols; activity
+  by site; time-to-encounter]`.
+  **Blockers/Notes:** a handler in the same frame as the animal is visible only as a tag, so
+  proximity cannot see the most direct case. 2 human episodes (otoño 2025 CT13, CT15) have a
+  valid date but not a valid time of day, so they're outside timed analyses (230 of the
+  producer's 232).
 - **What Changed (2026-11-13):** No analysis change. The producer republished its contract with
   `with_human` / `with_vehicle` and corrected effort (otoño 2025 camera_days 3816→3824, primavera
   5178→5170, from CT10's retrieval fix), so the stamp refused once; `R/01_load_data.R` was re-run

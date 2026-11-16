@@ -13,8 +13,10 @@ módulos. 377 tests OK en Linux.
 
 **Integration Status:** camera-traps `In Progress [REMAINING: unidad C sobre imágenes reales;
 pasada retro de 164 perros; copiar CSVs revisados; llenar CHECKED + publicar (Windows); merge a
-main]`. pehuen `In Progress [REMAINING: re-correr 01 con filas human/vehicle; medida de
-acompañamiento del perro; ocupación unmarked + Royle–Nichols]`.
+main]`. pehuen `In Progress [REMAINING: etiquetas de co-presencia (pasada retro; se propone sumar
+Caballo); índice de presencia del equipo; ocupación unmarked + Royle–Nichols]`. 2026-11-16: `01`
+entrega `human_activity.rds` y `records_identified.rds`. `09_domestic_accompaniment.R`, solo por
+proximidad: Perro 12/49 episodios acompañados, Caballo 0/14 (cota inferior hasta las etiquetas).
 
 **Blockers/Notes:** la rama `feat/copresence-tags` no se mergea hasta la pasada retro. El CSV
 revisado de otoño 2025 no deriva de su CSV del clasificador (12 imágenes de más, causa
