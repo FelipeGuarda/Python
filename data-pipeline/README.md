@@ -4,7 +4,19 @@
 **Status:** Built and operational. All 5 phases complete.
 **Role in ecosystem:** Core plumbing. Every other project reads from the DuckDB database this pipeline maintains.
 
-**Last Updated:** 2026-08-24 — the camera-trap path is rebuilt and the canonical contract is verified
+**Last Updated:** 2026-11-16 — the warehouse reads contract v5, and `--ct` runs again
+**What Changed:** `SUPPORTED_SCHEMA_VERSION` 3 → 5, read deliberately. `eventID` is now copied
+from camera-traps' `episode_30min`, and `withHuman`/`withVehicle` are carried into `ct_observations`.
+`tc_coords()` reads `camera-traps/data/campaigns/estaciones.csv`, as the platform backend does.
+`--ct` had failed with `KeyError: 'camera_traps'` since 2026-09-03, when that section left
+`stations.yaml`. Rebuild reconciled 35,807 rows; `--ct-check` reports current. Only the four
+recovered clocks moved (time-admissible rows 31,713 → 34,698).
+**Integration Status:** `Ready`.
+**Blockers/Notes:** `stations_sha256` is not verified, because it hashes the GeoJSON and this
+pipeline reads the CSV. No test suite still (V2-REVIEW 1.10). B10 (gate errors as a traceback,
+not exit 1) still open. Backup: `fma_data.duckdb.bak-2026-11-16-pre-ct-v5`.
+
+**Previous (2026-08-24):** the camera-trap path is rebuilt and the canonical contract is verified
 **What Changed:** `ct_deployments` / `ct_media` / `ct_observations` rebuilt from camera-traps'
 `observations.parquet` — **35,807 rows across 74 deployments** (21 + 26 + 27 stations, the real
 deployment history), reconciling exactly against the published contract. They previously held 2,948

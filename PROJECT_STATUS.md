@@ -19,9 +19,12 @@ acompañamiento del perro; ocupación unmarked + Royle–Nichols]`.
 **Blockers/Notes:** la rama `feat/copresence-tags` no se mergea hasta la pasada retro. El CSV
 revisado de otoño 2025 no deriva de su CSV del clasificador (12 imágenes de más, causa
 desconocida): el export en modo normal se niega a guardarlo. `test_overlap.R` (n = 161/129) no
-cuadra con la síntesis (185/131): sin verificar. **DuckDB está detrás del contrato:** el gate de
-data-pipeline espera schema 3 y el contrato está en 5, así que `--ct-check` rechaza antes de comparar
-nada: no se sabe qué versión de los datos de cámaras sirve la plataforma. El Informe Anual 2025 tampoco se ha re-corrido.
+cuadra con la síntesis (185/131): resuelto el mismo día (la síntesis estaba bien; la etiqueta del
+test había quedado vieja). **DuckDB al día con el contrato v5 (2026-11-16):** data-pipeline lee el
+schema 5, `eventID` = `episode_30min`, `withHuman`/`withVehicle` en `ct_observations`, y las
+coordenadas salen de `estaciones.csv` (`--ct` estaba roto desde 2026-09-03 por la sección
+`camera_traps:` que dejó de existir en `stations.yaml`). `--ct-check` reporta al día. El Informe
+Anual 2025 no se ha re-corrido.
 
 ---
 
@@ -153,7 +156,8 @@ y el anclaje a hora solar quedan desbloqueados por el lado de los datos.
 - data-pipeline: `Pending [bump deliberado 3 → 5]`.
 
 **Blockers/Notes.**
-- **data-pipeline sigue en schema 3 y se niega en ejecución desde 2026-08-26**: `ct_*` en DuckDB
+- ~~**data-pipeline sigue en schema 3**~~ **Resuelto 2026-11-16** (ver la entrada de cabecera). Texto original:
+  **data-pipeline sigue en schema 3 y se niega en ejecución desde 2026-08-26**: `ct_*` en DuckDB
   está congelado en la última ingesta v3. Quedó fuera de esta sesión por decisión; lo que implica
   llevarlo a 5 está en V2-REVIEW §0-septies.
 - **`review_outcome` vacío → `not_applicable` no se agrupó, y no movería ningún stamp**, porque el
@@ -278,6 +282,8 @@ métodos y el `FMA_camera_trap_methods_synthesis.pdf` se contradicen y los dos e
 
 **Blockers/Notes.** `stations_sha256` **llegó** el 2026-10-05 (schema 5, consumido y verificado);
 queda `review_outcome` vacío → `not_applicable`, que invalidará el stamp cuando llegue.
+~~⚠️ **`data-pipeline` sigue en schema 3**~~ **Resuelto 2026-11-16:** `eventID` ahora llega al almacén;
+la plataforma todavía no lo usa (sigue contando fotos y calculando su propio solapamiento). Texto original:
 ⚠️ **`data-pipeline` sigue en schema 3 y por lo tanto REHÚSA contra el contrato publicado.** No es
 un bump de número: su propio mensaje de error lo dice, y la causa real es que `episode_30min` —
 la columna que agregó el schema 4 — no aparece en `src/`, mientras `schema.sql` declara `eventID`
@@ -1078,13 +1084,16 @@ checkboxes and an Etiquetas mode (unit C). 2026-11-16: reviewed-CSV filename cen
 completed. 377 tests OK on Linux.
 **Integration Status:** `In Progress [REMAINING: unit C on real images, 164-image Perro retro pass,
 copy reviewed CSVs into git, fill CHECKED + republish (all Windows); merge feat/copresence-tags]`.
-Consumers: pehuen reads the contract directly (stamp fresh as of 2026-11-13). **data-pipeline does not**:
-see Blockers.
+Consumers: pehuen reads the contract directly (stamp fresh as of 2026-11-13). data-pipeline is current
+with v5 as of 2026-11-16 (`--ct-check` passes).
 **Blockers/Notes:**
-- **DuckDB is behind the contract.** `python run_fetch.py --ct-check` (2026-11-16) refuses: the gate in
-  `data-pipeline/src/canonical_gate.py` was written against schema 3, the contract is at 5. So the check stops
-  before comparing anything, and which version of the camera data the platform serves is unknown. Fix is deliberate:
-  update `src/parsers/canonical_ct.py` against `CANONICAL_COLUMNS`, not a version bump.
+- **DuckDB caught up with the contract on 2026-11-16.** The gate reads schema 5. `eventID` is copied
+  from `episode_30min` (777 animal + 293 person/vehicle events), and `withHuman`/`withVehicle` are
+  carried through. Coordinates now come from `estaciones.csv`: `--ct` had failed since 2026-09-03,
+  when the `camera_traps:` section of `stations.yaml` went away. What moved in the warehouse: only
+  the four recovered clocks (CT08/CT10/CT13 otoño 2025, CT08 primavera 2025). Time-admissible rows
+  went 31,713 → 34,698; labels and coordinates are unchanged. Not verified: `stations_sha256` (it
+  hashes the GeoJSON, and the pipeline reads the CSV). Platform still counts stills, not events.
 - **Informe Anual 2025 not re-run** since otoño 2025 and primavera 2025 were re-ingested.
   `REPORT_CAMPAIGNS` is now `(otono_2025, primavera_2025)`, but `data/prep_log.txt` still shows the old
   `pv_2025_2026` run and the `.docx` dates from 2026-08-14. Its numbers will move; mirror `figures/` first.
@@ -1117,7 +1126,7 @@ see Blockers.
 | Episodes (30 min) | Done | `camtrap/episodes.py`; animals, people and vehicles |
 | Co-presence tags | Schema done; data pending | `with_*` NA until the retro pass |
 | Published contract | Done | `camtrap/canonical_state.py --publish`; consumers verify it |
-| DuckDB ingestion | **Stale** | schema 3 gate vs schema 5 contract |
+| DuckDB ingestion | Done (2026-11-16) | v5; `eventID` from `episode_30min`; `--ct-check` passes |
 | Informe Anual 2025 | **Needs re-run** | inputs changed after re-ingest |
 | Species image export | Done | `export_best_images.py` → `exports/` (gitignored) |
 | EfficientNetV2 fine-tuning | Planned | |
@@ -1219,7 +1228,9 @@ distancia sónica a superficie (sólo hasta 2021-09-30), más housekeeping.
 - [ ] **CT18 — relojes.** Otoño 2026: los 5 segmentos se rechazan por diseño (`valid_effort=FALSE`) hasta tener un ancla de terreno; mirar `11190001.JPG` y la fecha de instalación en el cuaderno. Otoño 2026 ya está en el contrato, así que la nota antigua de «no ingestar» no aplica. Primavera 2025: nombres de archivo +30/31 d respecto al sello; necesita diseño propio.
 - [x] **Render del DOCX del Informe Anual 2025 v2 (2026-08-14).** `bash camera-traps/Anual-reports/2025/render.sh` con pandoc 3.1.3 → `informe_anual_2025.docx`, 1.4 MB, figuras embebidas. Ojo: las cifras del informe se moverán con el re-ingest, así que este DOCX corresponde a la tabla canónica de 2026-07-30 (369 eventos). `figures/` respaldado en `figures_pre_reingest/`.
 - [ ] **Re-correr el Informe Anual 2025** (2026-11-16). Otoño 2025 y primavera 2025 se re-ingestaron después del DOCX de 2026-08-14; `prep_log.txt` aún muestra `pv_2025_2026`. Respaldar `figures/` antes, y hacer el diff de cifras a propósito.
-- [ ] **DuckDB detrás del contrato de cámaras** (2026-11-16). `run_fetch.py --ct-check` rechaza: `data-pipeline/src/canonical_gate.py` espera schema 3, el contrato está en 5. Actualizar `src/parsers/canonical_ct.py` contra `CANONICAL_COLUMNS` y re-ingestar.
+- [x] **DuckDB detrás del contrato de cámaras** — resuelto 2026-11-16. Gate en v5, `eventID` desde `episode_30min`, coordenadas desde `estaciones.csv`. `--ct-check` al día. Respaldo: `fma_data.duckdb.bak-2026-11-16-pre-ct-v5`.
+- [ ] **Verificar coordenadas de data-pipeline contra el contrato.** `stations_sha256` hashea `estaciones.geojson`; data-pipeline y la plataforma leen `estaciones.csv`. O el contrato hashea también el CSV, o los consumidores leen el GeoJSON.
+- [ ] **La plataforma cuenta fotos, no eventos.** `ct_observations.eventID` ya existe; `backend/routers/detections.py` no lo usa. Cambia conteos publicados: requiere su propia sesión.
 - [ ] **Subir bundle `source_code_CT_2025/` a Drive de FMA** (2026-06-03). Zip de 2.7 MB autocontenido, listo para entregar al colega. Decidir antes si se commitea o sólo Drive + borrar local. *(2026-11-16: commiteado en `bd1cbc9` el 2026-06-03 y sacado del repo en `e08b448` el 2026-06-04; recuperable desde git. Si se subió a Drive no consta en ninguna sesión. Es una foto congelada del informe previo a la tabla canónica, así que quedó obsoleto: regenerar solo cuando se re-corra el informe.)*
 - [ ] **Flora plot coordinates** — not yet available.
 - [ ] **Aves en BP/** — notebooks de comparación de listados de aves y Excel; sigue sin README (verificado 2026-11-16). Parece ser referencia taxonómica para el listado de especies. Documentar antes de usarla en la plataforma.

@@ -187,10 +187,11 @@ def _observations(df: pd.DataFrame) -> pd.DataFrame:
         "observationID": df["_observation"],
         "deploymentID": df["_deployment"],
         "mediaID": df["_media"],
-        # Empty in all three campaigns (measured 2026-08-20). Left NULL rather than
-        # invented; independent events are computed by the consumers that need them,
-        # each of which states its own gap rule.
-        "eventID": None,
+        # COPIED from `episode_30min` (contract v4): camera-traps owns the 30-min
+        # independence rule since 2026-08-26, after three downstream copies disagreed.
+        # Already campaign-scoped ('otono_2025|CT01|<subject>|1'). NULL on blank and
+        # unknown rows, and on stills with no trustworthy clock.
+        "eventID": _blank_to_none(df["episode_30min"]),
         "eventStart": df["datetime"],
         "eventEnd": df["datetime"],
         "observationType": df["observation_type"],
@@ -210,5 +211,8 @@ def _observations(df: pd.DataFrame) -> pd.DataFrame:
         "validTimeOfDay": df["valid_time_of_day"].astype("boolean"),
         "validEffort": df["valid_effort"].astype("boolean"),
         "repairMethod": _blank_to_none(df["repair_method"]),
+        # Co-presence, carried as published: NA means "not checked", not "absent".
+        "withHuman": df["with_human"].astype("boolean"),
+        "withVehicle": df["with_vehicle"].astype("boolean"),
         "source": SOURCE,
     })

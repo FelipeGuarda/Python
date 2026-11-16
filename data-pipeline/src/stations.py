@@ -1,24 +1,28 @@
 """
 Station registry loader.
 
-Reads `plataforma-territorial/data/stations.yaml`, which is GENERATED from
-`camera-traps/data/campaigns/estaciones.csv` by
-`camera-traps/setup/build_station_registry.py`. That CSV owns station identity;
-this file reads a projection of it, and the YAML must not be hand-edited.
+Camera-trap coordinates come from `camera-traps/data/campaigns/estaciones.csv`, read
+directly: that CSV owns station identity and position. Same source and same refusal
+rule as `plataforma-territorial/backend/stations.py`, so the warehouse and the map
+cannot disagree about where a camera is.
 
-Until 2026-08-24 this docstring called stations.yaml "the single source of truth"
-while it held 26 stations against the other two registries' 27 — so CT27's otoño
-2026 images ingested with no coordinates and nothing raised. A file three modules
-call canonical is only canonical if something checks; that check now lives in
-`camera-traps/tests/test_station_registry.py`.
+Until 2026-09-03 the registry builder spliced a `camera_traps:` section into
+`plataforma-territorial/data/stations.yaml` and this module read it from there. The
+splice was removed (it made the producer know a consumer's file layout); the platform
+moved to the CSV the same day, this module did not, and `run_fetch.py --ct` failed
+with KeyError 'camera_traps' until 2026-11-16. stations.yaml now holds only `reserve`
+and `weather`.
 
-Default resolution assumes the FMA monorepo layout (data-pipeline/ and
-plataforma-territorial/ as siblings under one parent). Override via
-FMA_STATIONS_YAML env var when the layout differs (e.g. container deployments).
+NOT VERIFIED against the contract: CANONICAL_STATE.json hashes estaciones.geojson,
+not this CSV. See SUPPORTED_SCHEMA_VERSION in src/canonical_gate.py.
+
+Override with CT_STATION_REGISTRY (registry) or FMA_STATIONS_YAML (yaml) when the
+layout differs (e.g. container deployments).
 """
 
 from __future__ import annotations
 
+import csv
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -28,6 +32,10 @@ import yaml
 _ENV_VAR = "FMA_STATIONS_YAML"
 
 # data-pipeline/src/stations.py → parents[2] = monorepo root
+_REGISTRY_ENV_VAR = "CT_STATION_REGISTRY"
+_DEFAULT_REGISTRY = (
+    Path(__file__).resolve().parents[2] / "camera-traps" / "data" / "campaigns" / "estaciones.csv"
+)
 _DEFAULT_PATH = (
     Path(__file__).resolve().parents[2] / "plataforma-territorial" / "data" / "stations.yaml"
 )
@@ -47,7 +55,20 @@ def load_stations() -> dict:
         return yaml.safe_load(f)
 
 
+@lru_cache(maxsize=1)
 def tc_coords() -> dict[int, tuple[float, float]]:
-    """TC camera number (1..N) → (lat, lon)."""
-    data = load_stations()
-    return {int(cam["tc"]): (float(cam["lat"]), float(cam["lon"])) for cam in data["camera_traps"]}
+    """Camera number (CT07 -> 7) → (lat, lon), from the producer's registry.
+
+    An empty coordinate cell is NOT RECORDED; a station without a position is refused
+    rather than written to the warehouse as NULL or (0, 0).
+    """
+    path = Path(os.getenv(_REGISTRY_ENV_VAR, str(_DEFAULT_REGISTRY)))
+    with open(path, encoding="utf-8", newline="") as f:
+        rows = [r for r in csv.DictReader(f) if (r.get("station_id") or "").strip()]
+    coords = {}
+    for r in rows:
+        sid = r["station_id"].strip()
+        if not (r.get("lat") or "").strip() or not (r.get("lon") or "").strip():
+            raise ValueError(f"{path.name}: station {sid} has no coordinates")
+        coords[int(sid[2:])] = (float(r["lat"]), float(r["lon"]))
+    return coords

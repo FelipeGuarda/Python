@@ -47,7 +47,20 @@ _DEFAULT_PATH = (
 #: camera_days and a hash of deployments.csv. Nothing here had to change to CHECK them:
 #: fingerprint() hashes the whole campaign description, so a hand-edited deployments.csv
 #: moves its sha256, moves the fingerprint, and the gate reports the database stale.
-SUPPORTED_SCHEMA_VERSION = 3
+#:
+#: 4 (read 2026-11-16) adds `episode_30min`, the independence rule moved upstream.
+#: canonical_ct copies it into `eventID`; it does not recompute it.
+#:
+#: 5 (read 2026-11-16) adds `stations_sha256` / `n_stations_registry`, the hash of
+#: camera-traps' estaciones.geojson. DELIBERATELY NOT VERIFIED HERE: this pipeline takes
+#: coordinates from plataforma-territorial/data/stations.yaml, not from that GeoJSON, so
+#: checking the hash would prove a file we never read is unchanged. Verifying coordinates
+#: means reading them from the published registry -- a separate change, still open.
+#:
+#: `with_human` / `with_vehicle` arrived 2026-11-13 without a bump (the contract does not
+#: hash the parquet). canonical_ct carries them; they are NA until camera-traps fills
+#: copresence.CHECKED.
+SUPPORTED_SCHEMA_VERSION = 5
 
 
 class CanonicalGateError(RuntimeError):

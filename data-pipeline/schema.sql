@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS ct_observations (
     observationID             TEXT PRIMARY KEY,
     deploymentID              TEXT NOT NULL,
     mediaID                   TEXT,
-    eventID                   TEXT,   -- always NULL: measured empty in all three campaigns
+    eventID                   TEXT,   -- camera-traps' episode_30min, copied; NULL on blank/unknown
     eventStart                TIMESTAMP,
     eventEnd                  TIMESTAMP,
     observationType           TEXT,   -- 'animal'|'human'|'blank'|'unknown'|'vehicle'
@@ -114,6 +114,8 @@ CREATE TABLE IF NOT EXISTS ct_observations (
     validTimeOfDay            BOOLEAN,-- the time of day is trustworthy
     validEffort               BOOLEAN,-- the row counts toward camera-days
     repairMethod              TEXT,   -- how the timestamp got here, or why it did not
+    withHuman                 BOOLEAN,-- co-presence; NULL = not checked, not absent
+    withVehicle               BOOLEAN,
     source                    TEXT NOT NULL
 );
 
