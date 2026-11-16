@@ -1,5 +1,30 @@
 # FMA Project Status
 
+**Last updated:** 2026-11-16 — **camera-traps republica el contrato con `with_*` y la app de revisión marca co-presencia.**
+
+**What Changed:** (2026-11-13) parquets reconstruidos y `CANONICAL_STATE.json` republicado con
+`with_human`/`with_vehicle` (todo NA mientras `CHECKED` esté vacío): mismas filas, 777 eventos
+animales idénticos, +232 eventos de persona y +61 de vehículo; el esfuerzo de CT10 por fin llega al
+contrato (3.824 / 5.170 cámara-días). Unidad C construida: casillas de co-presencia en modo Revisión
+y un modo Etiquetas que solo toca `observationTags`. Manual §4F.6 (orden animal > persona >
+vehículo) y §5F.6. (2026-11-16) limpieza: el nombre del CSV revisado vive una sola vez
+(`camtrap/observations.REVIEWED_FILENAME`), y el árbol del README de camera-traps cubre todos los
+módulos. 377 tests OK en Linux.
+
+**Integration Status:** camera-traps `In Progress [REMAINING: unidad C sobre imágenes reales;
+pasada retro de 164 perros; copiar CSVs revisados; llenar CHECKED + publicar (Windows); merge a
+main]`. pehuen `In Progress [REMAINING: re-correr 01 con filas human/vehicle; medida de
+acompañamiento del perro; ocupación unmarked + Royle–Nichols]`.
+
+**Blockers/Notes:** la rama `feat/copresence-tags` no se mergea hasta la pasada retro. El CSV
+revisado de otoño 2025 no deriva de su CSV del clasificador (12 imágenes de más, causa
+desconocida): el export en modo normal se niega a guardarlo. `test_overlap.R` (n = 161/129) no
+cuadra con la síntesis (185/131): sin verificar. **DuckDB está detrás del contrato:** el gate de
+data-pipeline espera schema 3 y el contrato está en 5, así que `--ct-check` rechaza antes de comparar
+nada: no se sabe qué versión de los datos de cámaras sirve la plataforma. El Informe Anual 2025 tampoco se ha re-corrido.
+
+---
+
 **Last updated:** 2026-11-12 — **pehuen recorta alcance; camera-traps cuenta personas y vehículos.**
 
 **What Changed:** pehuen deja fuera cinco análisis (ver CHANGELOG). En camera-traps
@@ -1038,36 +1063,65 @@ That gives the real 264,943-row weather series rather than the old 90-day Open-M
 
 ---
 
-### 3. Camera Traps (`camera-traps/`) — FASE 1 OPERATIVA · Informe Anual 2025 publicado y corregido
+### 3. Camera Traps (`camera-traps/`) — CONTRATO CANÓNICO PUBLICADO · co-presencia en curso · Informe 2025 desactualizado
 
-CLIP classification pipeline and Streamlit review UI are production-quality. Four campaigns reviewed: Otoño 2025, Primavera 2025, Primavera-verano 2025-2026, and Otoño 2026 (latest). Species list sourced from canonical `data-pipeline/species.yaml` via sibling loader (Track B, 2026-04-27) — 29 CLIP species + 4 non-CLIP entries (33 total).
+Ingest chain (flatten → MegaDetector → Timelapse2 sweep → CLIP + review app → `timestamps.py`) writes one
+`observations.parquet` per campaign: one row per still, schema 5, 19 columns, published as a checkable
+contract in `data/CANONICAL_STATE.json`. Three campaigns, named for the season they are retrieved in;
+`pv_2025_2026` was a second review pass, not a campaign, and is retired. Full history in
+`camera-traps/README.md` §Status.
 
-**Last Updated:** 2026-08-14
-**What Changed:** Attribution joined conservation and ordering as a flatten precondition, enforced twice over. `stations.names_a_station()` recognises a station *folder* by name — precise, and it can say which folder to move. New `camtrap/provenance.py` recognises a second camera by its *frames* and enumerates nothing, so an intruder folder called anything at all is caught; validated at 0 false positives over 28,178 real files before being wired in. The top-level station check also became fatal by default. 120 tests pass. Also rendered the Informe Anual 2025 v2 DOCX and mirrored `figures/` → `figures_pre_reingest/`. Prior session: primavera_2025 flattened, `pv_2025_2026` identified as a review pass (2026-08-13).
-**Integration Status:** Pending [Timelapse2 sweeps — Windows only] · otoño 2025 needs one CSV copied. The Timelapse2 sweep is the sole Windows-bound step: **MegaDetector runs on this Linux box** (RTX 4070 + AddaxAI + `md_v5a.0.0.pt`), and the ingest chain reads CSVs without ever opening an image. Otoño 2025 passed the gate on 2026-08-13, so copying its `ImageData_total.csv` (8,997 rows) off the Windows machine unblocks `anchor_candidates.py` → `propose_anchors.py` → `timestamps.py` entirely on Linux.
-**Prior What Changed (2026-08-03):** Clock repair is now segment-aware end to end. `timestamps.py` consumes `camtrap/clocks.py` and applies one offset **per segment** instead of one per station; the full-category export gate (`camtrap/exports.py`) is enforced at ingest, at export time (`python -m camtrap.exports`) and at flatten; `anchor_candidates.py` produces the short list of frames that could become clock anchors. `valid_effort` joined the canonical schema as a station-level flag. 59 fixtures pass. Prior sessions: `camtrap/` boundary package + canonical `observations.parquet` (2026-07-30, report 419 → 369 events), DCIM manifest at flatten time + `clocks.py` (2026-07-31).
-**Prior Integration Status (2026-08-03):** Pending [Timelapse2 full-category sweeps]. The pipeline is complete and validated on a scratch copy, but **all four campaigns are rejected by the export gate** — none has an all-images export with `person`/`vehicle` assigned, so no campaign can be re-ingested and DuckDB ingestion (`python run_fetch.py --ct`) stays held. For otoño 2026 the evidence already exists: MegaDetector found 595 person frames the sweep never recorded.
-**Blockers/Notes (2026-08-14):** (0a) **Horario-de-invierno is decided: no DST correction, ever** — the pipeline should store the *instant* plus each deployment's fixed UTC offset, not naive civil time, and the analysis should run in sun-anchored time. Three implementation pieces pending, none started; the **field-protocol change is the only one that expires** (record both clocks as raw readings; stop adjusting camera clocks). See the header entry. (0) **The one cheap unblock:** copy otoño 2025's `ImageData_total.csv` (8,997 rows, gate-passing) off the Windows box into `data/campaigns/otono_2025/` — the ingest chain never opens an image, so that single file is all that stands between Linux and a full otoño 2025 ingest. The campaign images are not synced here (`CAMPAÑAS DE RECOLECCION/{Otoño 2025, Primavera 2025}` are empty). (0b) **MegaDetector is no longer Windows-bound** — RTX 4070 + AddaxAI + `md_v5a.0.0.pt` are installed on the Linux box; only Timelapse2 (.NET) still requires Windows. Older, from 2026-08-03: (1) The Timelapse2 sweep is the only thing on the critical path. (2) CT18's install date + any maintenance visit still needed from the field notebook — now the difference between recovering segment 0's 10 frames and losing them; inspect `11190001.JPG`. (3) Do the older campaigns have install photos? Decides whether otoño 2025's 143 dropped records are recoverable. (4) pehuen's R scripts hardcode `C:/Users/USUARIO/...` (`R/01_load_data.R:50–58`) so step 7 cannot run on Linux until parameterised. (5) Re-flatten every campaign with the new script before re-ingesting — the DCIM manifest only exists for runs made after 2026-07-31. Older, still open: re-map `100EK113` to CT5 (confirmed by photo, not re-ingested); run `render.sh` on Linux for the Informe Anual 2025 `.docx`; decide whether `source_code_CT_2025/` goes to git or only Drive.
+**Last Updated:** 2026-11-16
+**What Changed:** Contract republished 2026-11-13 with `with_human`/`with_vehicle` (all NA until the
+retro tag pass fills `copresence.CHECKED`) and corrected effort for CT10. Review app gained co-presence
+checkboxes and an Etiquetas mode (unit C). 2026-11-16: reviewed-CSV filename centralised, README tree
+completed. 377 tests OK on Linux.
+**Integration Status:** `In Progress [REMAINING: unit C on real images, 164-image Perro retro pass,
+copy reviewed CSVs into git, fill CHECKED + republish (all Windows); merge feat/copresence-tags]`.
+Consumers: pehuen reads the contract directly (stamp fresh as of 2026-11-13). **data-pipeline does not**:
+see Blockers.
+**Blockers/Notes:**
+- **DuckDB is behind the contract.** `python run_fetch.py --ct-check` (2026-11-16) refuses: the gate in
+  `data-pipeline/src/canonical_gate.py` was written against schema 3, the contract is at 5. So the check stops
+  before comparing anything, and which version of the camera data the platform serves is unknown. Fix is deliberate:
+  update `src/parsers/canonical_ct.py` against `CANONICAL_COLUMNS`, not a version bump.
+- **Informe Anual 2025 not re-run** since otoño 2025 and primavera 2025 were re-ingested.
+  `REPORT_CAMPAIGNS` is now `(otono_2025, primavera_2025)`, but `data/prep_log.txt` still shows the old
+  `pv_2025_2026` run and the `.docx` dates from 2026-08-14. Its numbers will move; mirror `figures/` first.
+- Otoño 2025's reviewed CSV does not derive from its classifier CSV (12 extra reviewed images, cause
+  unknown); normal-mode export refuses to save that campaign.
+- Clocks still refused by design: CT15, CT16 ×2, CT17, CT19, CT18 otoño 2026. CT18 primavera 2025
+  (filenames +30/31 d ahead of the stamp) needs its own design.
+- `test_flatten` fails on Windows only (path separator).
+- MegaDetector runs on Linux (RTX 4070 + AddaxAI); only the Timelapse2 sweep and the campaign images
+  are Windows-bound.
+
+| Campaign | Rows (stills) | Stations | Animal rows | Species | Camera-days |
+|---|---|---|---|---|---|
+| `otono_2025` | 8,997 | 21 / 26 deployments | 707 | 25 | 3,824 |
+| `primavera_2025` | 16,904 | 26 | 494 | 16 | 5,170 |
+| `otono_2026` | 9,906 | 27 | 1,321 | 25 | 3,981 |
+
+(from `CANONICAL_STATE.json`, 2026-11-13. Animal rows are stills, not 30-min events.)
 
 | Component | Status | Notes |
 |---|---|---|
-| MegaDetector integration | Done | Via AddaxAI on Windows desktop |
-| CLIP classification | Done | `run_classification.py` — CSV-only workflow, no DB dependency |
-| Streamlit review UI | Done | `phase1_labeling/app.py` — handles empty filePath column |
-| GIS data (KML → GeoJSON) | Done | Boundary + 26 station coordinates (TC-26 fixed 2026-03-30) |
-| Otoño 2025 classification | Done | 697 animal obs reviewed |
-| Primavera-verano 2025-2026 | Done | 500 animal obs reviewed |
-| Otoño 2026 (May 2026 pull) | Reviewed; ingest blocked by export gate | 1785 obs / 27 deployments (CT_02 + CT_12 have no animal records — alias rows added 2026-08-03). Needs a full-category Timelapse2 sweep before re-ingest; CT18's 5 clock segments are all refused pending an anchor. |
-| Species image export | Done | `export_best_images.py`: auto-discovers campaigns; 155 species images + 103 station images in `exports/` (gitignored); filenames traceable to source |
-| **Informe Anual 2025** | **Done (v2)** | `Anual-reports/2025/` — markdown source, 6 figuras, pipeline reproducible, revisión visual aplicada (2026-06-02). **369 eventos** tras la tabla canónica (2026-07-30; antes 419), 11 especies, 22/26 CTs con detecciones. Las cifras pueden moverse otra vez cuando se re-ingesten las campañas — figuras previas en `figures_pre_canonical/`. |
-| EfficientNetV2 fine-tuning | Planned | Needs ≥50 reviewed images/species — now viable for common species |
-| Otoño 2025 videos | Deferred | 2,593 videos, MegaDetector not run — process post-migration on Linux |
-
-**Pre-migration GPU work: COMPLETE.** Both campaigns reviewed and exported. Ready for OS migration.
-
-**Post-migration next steps (Linux):** Ingest reviewed CSVs into DuckDB (Phase 3.1 in plataforma-territorial); station thumbnails in `exports/*/stations/` are ready for `plataforma-territorial/data/thumbnails/`.
-
-Note: `config.yaml` and `NEXT_SESSION.md` have Windows paths — intentional (raw analysis runs on Windows desktop).
+| Flatten + attribution/order/conservation gates | Done | `setup/flatten_for_camtrapdp.py`, `camtrap/provenance.py` |
+| MegaDetector | Done | AddaxAI; runs on Windows and Linux |
+| Export gate (full-category sweep) | Done | `camtrap/exports.py`; refuses animal-only exports |
+| CLIP classification | Done | `run_classification.py` |
+| Review app | Done; unit C untested on real images | `phase1_labeling/app.py` + `review_record.py`; Revisión + Etiquetas modes |
+| Clock repair | Done | `camtrap/clocks.py`, segment-aware; unrepairable segments are refused, not guessed |
+| Field visit form + station registry | Done | `camtrap/visit_schema.py`, `visit_form.py`, `data/campaigns/estaciones.csv` |
+| Deployments / effort | Done | `camtrap/deployments.py`; feeds `camera_days` |
+| Episodes (30 min) | Done | `camtrap/episodes.py`; animals, people and vehicles |
+| Co-presence tags | Schema done; data pending | `with_*` NA until the retro pass |
+| Published contract | Done | `camtrap/canonical_state.py --publish`; consumers verify it |
+| DuckDB ingestion | **Stale** | schema 3 gate vs schema 5 contract |
+| Informe Anual 2025 | **Needs re-run** | inputs changed after re-ingest |
+| Species image export | Done | `export_best_images.py` → `exports/` (gitignored) |
+| EfficientNetV2 fine-tuning | Planned | |
+| Video | Excluded by policy | the export gate refuses video (2026-08-19) |
 
 ---
 
@@ -1161,12 +1215,14 @@ distancia sónica a superficie (sólo hasta 2021-09-30), más housekeeping.
 - [ ] **BP boundary delimitation** — polygon under review. Confirm which version to use.
 - [x] **Otoño 2025 camera trap processing** — done. Both campaigns reviewed, backed up, species images exported.
 - [x] **Informe Anual 2025 — revisión visual ciervo/güiña aplicada (2026-06-02).** Ciervo rojo 7 → 1 cámara, Güiña 7 → 6 cámaras. Pipeline ampliado (`apply_verdicts.py`), informe re-escrito con sec. 1.6 documentando el protocolo. Ver `camera-traps/Anual-reports/2025/data/correction_log.txt`.
-- [ ] **100EK113 → CT5 re-mapping.** Sospecha confirmada visualmente (sesión 2026-05-27 + verdicts 2026-06-02) pero aún no re-ingestado en DuckDB ni en los CSVs de campaña.
-- [ ] **Otoño 2026 — CT_18 timestamp fix (2026-06-17).** 135 rows con DateTime 2017-01-01 (reloj de la cámara reseteado a fábrica). Cuaderno de campo tiene la fecha real de despliegue; cuando esté a mano, re-timestampear y correr `python run_fetch.py --ct` en Linux. Mientras tanto, **no ingestar** Otoño 2026 (config.yaml ya lo deja anotado).
+- [x] **100EK113 → CT5 re-mapping.** En `data/campaigns/station_aliases.csv` (`primavera_2025,100EK113,5`) y primavera 2025 re-ingestada desde entonces. Llega a DuckDB solo cuando se re-ingeste (ver ítem del gate schema 3 vs 5).
+- [ ] **CT18 — relojes.** Otoño 2026: los 5 segmentos se rechazan por diseño (`valid_effort=FALSE`) hasta tener un ancla de terreno; mirar `11190001.JPG` y la fecha de instalación en el cuaderno. Otoño 2026 ya está en el contrato, así que la nota antigua de «no ingestar» no aplica. Primavera 2025: nombres de archivo +30/31 d respecto al sello; necesita diseño propio.
 - [x] **Render del DOCX del Informe Anual 2025 v2 (2026-08-14).** `bash camera-traps/Anual-reports/2025/render.sh` con pandoc 3.1.3 → `informe_anual_2025.docx`, 1.4 MB, figuras embebidas. Ojo: las cifras del informe se moverán con el re-ingest, así que este DOCX corresponde a la tabla canónica de 2026-07-30 (369 eventos). `figures/` respaldado en `figures_pre_reingest/`.
-- [ ] **Subir bundle `source_code_CT_2025/` a Drive de FMA** (2026-06-03). Zip de 2.7 MB autocontenido, listo para entregar al colega. Decidir antes si se commitea o sólo Drive + borrar local.
+- [ ] **Re-correr el Informe Anual 2025** (2026-11-16). Otoño 2025 y primavera 2025 se re-ingestaron después del DOCX de 2026-08-14; `prep_log.txt` aún muestra `pv_2025_2026`. Respaldar `figures/` antes, y hacer el diff de cifras a propósito.
+- [ ] **DuckDB detrás del contrato de cámaras** (2026-11-16). `run_fetch.py --ct-check` rechaza: `data-pipeline/src/canonical_gate.py` espera schema 3, el contrato está en 5. Actualizar `src/parsers/canonical_ct.py` contra `CANONICAL_COLUMNS` y re-ingestar.
+- [ ] **Subir bundle `source_code_CT_2025/` a Drive de FMA** (2026-06-03). Zip de 2.7 MB autocontenido, listo para entregar al colega. Decidir antes si se commitea o sólo Drive + borrar local. *(2026-11-16: commiteado en `bd1cbc9` el 2026-06-03 y sacado del repo en `e08b448` el 2026-06-04; recuperable desde git. Si se subió a Drive no consta en ninguna sesión. Es una foto congelada del informe previo a la tabla canónica, así que quedó obsoleto: regenerar solo cuando se re-corra el informe.)*
 - [ ] **Flora plot coordinates** — not yet available.
-- [ ] **Aves en BP/** — contains bird list comparison notebooks and Excel files. No README. Appears to be taxonomic reference data for camera trap species list. Document before using in platform.
+- [ ] **Aves en BP/** — notebooks de comparación de listados de aves y Excel; sigue sin README (verificado 2026-11-16). Parece ser referencia taxonómica para el listado de especies. Documentar antes de usarla en la plataforma.
 - [x] **Meteo tab** — label fixed to "Última medición", wind rose moved below charts (larger).
 - [x] **Comparison mode** — implemented. Two-period comparison with stacked charts, side-by-side wind roses, dual stats table.
 - [x] **Fire risk backend** — `fire_risk.py` ported to FastAPI with real DuckDB data.

@@ -30,6 +30,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from camtrap.observations import REVIEWED_FILENAME
+
 from classify_campaign.species import (
     common_names as _load_common_names,
     spanish_to_latin as _load_spanish_to_latin,
@@ -133,7 +135,7 @@ def find_campaigns(campaigns_base: Path) -> list[dict]:
         if not season_dir.is_dir():
             continue
         for candidate in [season_dir, season_dir / "Fotos"]:
-            csv_path = candidate / "new_labeled_data_reviewed.csv"
+            csv_path = candidate / REVIEWED_FILENAME
             json_path = candidate / "timelapse_recognition_file.json"
             if csv_path.exists() and json_path.exists():
                 campaigns.append({
@@ -284,7 +286,7 @@ def main():
     campaigns = find_campaigns(campaigns_base)
     if not campaigns:
         print(f"No campaigns found in {campaigns_base}")
-        print("Each campaign folder must contain new_labeled_data_reviewed.csv "
+        print(f"Each campaign folder must contain {REVIEWED_FILENAME} "
               "and timelapse_recognition_file.json (at root or in Fotos/).")
         return
 

@@ -57,6 +57,9 @@ from classify_campaign.species import spanish_to_latin
 
 CAMPAIGNS_ROOT = Path(__file__).resolve().parents[1] / "data" / "campaigns"
 CANONICAL_FILENAME = "observations.parquet"
+# The review app's output, one per campaign: what the canonical table is built from.
+# Written by phase1_labeling/review_record.py, read by timestamps.py.
+REVIEWED_FILENAME = "new_labeled_data_reviewed.csv"
 
 # The contract. Consumers may rely on these names and dtypes.
 CANONICAL_COLUMNS: dict[str, str] = {

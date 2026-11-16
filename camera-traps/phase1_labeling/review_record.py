@@ -39,8 +39,8 @@ from pathlib import Path
 import pandas as pd
 
 from camtrap import copresence
+from camtrap.observations import REVIEWED_FILENAME  # re-exported: rr.REVIEWED_FILENAME
 
-REVIEWED_FILENAME = "new_labeled_data_reviewed.csv"
 CLASSIFIED_BY = "CLIP zero-shot + human review"
 
 # Timelapse2 Camtrap DP columns this module reads or writes.

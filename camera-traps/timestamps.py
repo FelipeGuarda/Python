@@ -149,7 +149,7 @@ from camtrap.clocks import (
     SegmentRepair,
 )
 from camtrap import observations
-from camtrap.observations import CANONICAL_FILENAME, write_canonical
+from camtrap.observations import CANONICAL_FILENAME, REVIEWED_FILENAME, write_canonical
 
 
 # =============================================================================
@@ -792,7 +792,7 @@ def main(argv=None) -> int:
         print(f'ERROR: campaign dir not found: {campaign_dir}', file=sys.stderr)
         return 2
 
-    reviewed_csv  = campaign_dir / 'new_labeled_data_reviewed.csv'
+    reviewed_csv  = campaign_dir / REVIEWED_FILENAME
     anchor_csv    = campaign_dir / ANCHOR_FILENAME
     field_notes   = Path(args.data_root) / FIELD_NOTES_FILENAME
     corrected_csv = campaign_dir / 'new_labeled_data_corrected.csv'

@@ -4,46 +4,45 @@ Automated species identification pipeline for camera-trap deployments at Fundaci
 
 ---
 
-## ⚠️ Read this before re-ingesting a campaign
+## ⚠️ Read this before re-ingesting a campaign or re-running the 2025 report
 
-Three standing hazards. Each one is silent — nothing in the pipeline will stop you.
+*Revised 2026-11-16.* The August re-ingest this block used to warn about has happened: all three
+campaigns are in the published contract (`data/CANONICAL_STATE.json`, schema 5). Two hazards remain (§1,
+§3). §2 and the attribution gap are closed, and are kept for their reasoning. Nothing in the pipeline
+will stop you on §1.
 
-### 1. Re-ingesting will move the 2025 annual report's numbers — mirror `figures/` first
+### 1. The 2025 annual report is behind its inputs — mirror `figures/` before re-running it
 
-`REPORT_CAMPAIGNS` in `Anual-reports/2025/py/01_data_prep.py:71` is
-`("otono_2025", "primavera_2025", "pv_2025_2026")` — **three of the four campaigns**.
-Any re-ingest of any of them changes the published report.
+`REPORT_CAMPAIGNS` in `Anual-reports/2025/py/01_data_prep.py:86` is
+`("otono_2025", "primavera_2025")`. Both campaigns were re-ingested after the report last ran. Its
+`data/prep_log.txt` still shows a `pv_2025_2026` run, and `informe_anual_2025.docx` dates from
+2026-08-14. **Re-running it will move the published numbers.**
 
 ```bash
 cp -r Anual-reports/2025/figures Anual-reports/2025/figures_pre_<date>
 ```
 
-The 2026-07-30 re-ingest already moved it **419 → 369 events**, and
-`figures_pre_canonical/` exists because of it. The next one is bigger:
+The earlier backups (`figures_pre_canonical/`, `figures_pre_reingest/`) are no longer on disk. They
+are in git history, last at `e0f554c`. The 2026-07-30 rebuild moved the report **419 → 369 events**.
 
-| Campaign | Current `observations.parquet` | After re-ingest | Why |
-|---|---|---|---|
-| `primavera_2025` | 1,960 obs, **14 stations** | 16,904 images, **26 stations** | The 2026-08-13 download is the full campaign; the existing parquet is a partial ingest |
-| `otono_2025` | — | 8,997 files | Re-downloaded 2026-08-12 with DCIM subfolders |
-| `pv_2025_2026` | 792 obs, 21 stations | see §2 | Not a campaign |
+| Campaign | In the published contract (2026-11-13) |
+|---|---|
+| `otono_2025` | 8,997 stills, 21 stations with media, 707 animal rows, 3,824 camera-days |
+| `primavera_2025` | 16,904 stills, 26 stations, 494 animal rows, 5,170 camera-days |
 
-Do the diff deliberately. A number that moves for a known reason is a correction;
-the same number moving unnoticed is a defect.
+Do the diff deliberately. A number that moves for a known reason is a correction; the same number
+moving unnoticed is a defect.
 
-### 2. `pv_2025_2026` is not a campaign — it is a second review pass
+### 2. `pv_2025_2026` is not a campaign — resolved 2026-08-19
 
 The field record (`data/campaigns/field_notes.csv`) has exactly three transitions:
-`otono_2025` → `primavera_2025` → `otono_2026`. **Campaigns are named for the season
-they are *retrieved* in**, so the deployment that ran May 2025 → Jan 2026 is
-`primavera_2025`. `pv_2025_2026` appears nowhere in it — it is a second Timelapse2 pass
-over the same SD cards (396 shared `(camera, file_name)` keys; see
-`label_conflicts_primavera_vs_pv_2026-05-27.csv`).
-
-`CAMPAIGN_ORDER` in `camtrap/observations.py:75` currently treats them as **consecutive
-campaigns**, deduplicating by precedence. That is the wrong shape for two readings of
-one deployment — but pv holds *adjudicated* labels (a naive dedup once nearly demoted a
-puma), so it cannot simply be dropped. **Unresolved.** Decide it before re-ingesting
-either one.
+`otono_2025` → `primavera_2025` → `otono_2026`. **Campaigns are named for the season they are
+*retrieved* in**, so the deployment that ran May 2025 → Jan 2026 is `primavera_2025`. `pv_2025_2026`
+was a second Timelapse2 review pass over the same SD cards. While it sat in `CAMPAIGN_ORDER` it
+outranked primavera and restored April labels over the new review (606 overlapping keys). It was
+dropped from `CAMPAIGN_ORDER` (`camtrap/observations.py:128`) and from `REPORT_CAMPAIGNS` once
+primavera's re-review finished. **If anything still names it, that thing is stale.** The report's
+`prep_log.txt` is the known case (§1).
 
 ### 3. CT16's clock is corrupt, not offset — no anchor can repair it
 
@@ -60,6 +59,10 @@ Related, from the same download — **~9 stations carry January frames in a depl
 opened in May/June** (CT03, CT05, CT08, CT14, CT17, CT23, CT24, CT26), i.e. clock
 resets detectable from the deployment window alone. Filename-MMDD evidence, preliminary
 until the sweep lands.
+
+*Update 2026-11-16:* the sweep has landed and primavera 2025 is re-ingested. `camtrap/clocks.py`
+now decides each of these at ingest, and CT16 is still among the refused clocks. The current
+list of refused clocks is under [Status](#status).
 
 ### And one gap the pipeline used to leave — closed 2026-08-14
 
@@ -103,7 +106,9 @@ August "vehicle > person") and §5F.6 (co-presence). **377 tests OK** on Linux.
 **Integration Status:** `In Progress [REMAINING: try the app on real images (Windows); 164-image
 perro retro pass; copy reviewed CSVs into git; fill CHECKED; rebuild + publish; merge to main]`.
 **Blockers/Notes:** pehuen's contract stamp was refreshed by re-running its `01`. The reviewed-CSV
-filename is still restated in `timestamps.py` and `export_best_images.py`.
+filename now lives once, as `REVIEWED_FILENAME` in `camtrap/observations.py` (2026-11-16);
+`Anual-reports/2025/py/list_ciervo_guina_images.py` still writes it out, alongside its hardcoded
+Windows repo path.
 
 **Previous (2026-11-12):** **people and vehicles get episodes; co-presence tags.** Branch
 `feat/copresence-tags`, WIP. `episodes.py` keys an episode on its subject (species, else
@@ -642,6 +647,14 @@ camera-traps/
 ├── propose_anchors.py           ← Step 4a-bis: field visits → reviewable anchor rows
 ├── timestamps.py                ← Step 4b: segment-aware clock repair (ingest gate)
 │
+├── data/                        ← the field record + per-campaign inputs and outputs
+│   ├── CANONICAL_STATE.json     ← the published contract (canonical_state.py)
+│   └── campaigns/               ← estaciones.csv, field_notes.csv, station_aliases.csv,
+│                                  Registro de visitas CT.xlsx, one folder per campaign
+├── docs/                        ← MANUAL-SALUD-DATOS, CONTRASTE-SILVA-RODRIGUEZ-2025, V2-REVIEW
+├── GIS/                         ← station KMLs and the coordinate workbook (reference only)
+├── exports/                     ← export_best_images.py output (not in the contract)
+│
 │   # classifier half — env: environment-classifier.yml (species-classifier)
 ├── environment-classifier.yml   ← conda env for CLIP, the review app and exports
 ├── config.yaml                  ← FIXED filenames, thresholds, CLIP model. NOT
@@ -656,6 +669,12 @@ camera-traps/
 │   ├── anchors.py               ← what the FIELD RECORD asserts: deployment windows,
 │   │                              the anchor CSV, and visit→anchor pairing
 │   ├── visit_schema.py          ← what a field visit must record; coordinate rules
+│   ├── visit_form.py            ← how a filled visit workbook becomes field-record rows
+│   ├── deployments.py           ← how long each camera was actually in the ground
+│   ├── provenance.py            ← whether a deployment folder is ONE camera's output
+│   ├── episodes.py              ← when two detections are one event (independence rule)
+│   ├── copresence.py            ← what else was in the frame (observationTags → with_*)
+│   ├── canonical_state.py       ← the published contract consumers verify
 │   ├── exports.py               ← the two Timelapse2 exports + full-category gate
 │   └── detections.py            ← the MegaDetector JSON
 │
@@ -664,22 +683,43 @@ camera-traps/
 │   ├── test_anchors.py          ← a visit is not an anchor; witness vs navigational
 │   ├── test_visit_schema.py     ← what the field form refuses, and why (incl. CT26)
 │   ├── test_exports.py          ← the export gate + its override
-│   └── test_timestamps.py       ← the PLUMBING (per-segment offsets reach the rows)
+│   ├── test_timestamps.py       ← the PLUMBING (per-segment offsets reach the rows)
+│   ├── test_ingest_frame.py     ← which rows the canonical table has
+│   ├── test_review_resolution.py ← the reviewer-verdict rules (resolve_review)
+│   ├── test_review_record.py    ← how review decisions reach the reviewed CSV
+│   ├── test_deployments.py      ← the effort denominator's silent failure modes
+│   ├── test_provenance.py       ← one deployment, one capture story
+│   ├── test_episodes.py         ← the independence rule
+│   ├── test_copresence.py       ← co-presence tags
+│   ├── test_canonical_state.py  ← the published contract actually gates
+│   ├── test_station_registry.py ← station identity, registry vs GeoJSON
+│   ├── test_visit_form.py       ← what a filled visit workbook may become
+│   └── test_flatten.py          ← flatten naming decisions (fails on Windows: `\` vs `/`)
 │
 ├── classify_campaign/           ← CLIP classification package
 │   ├── clip_classifier.py       ← zero-shot CLIP classifier (cosine similarity)
 │   ├── cropping.py              ← MegaDetector bbox crop + resize
-│   └── data_loader.py           ← loads animals from ImageData_animals.csv + MD JSON
+│   ├── data_loader.py           ← loads animals from ImageData_animals.csv + MD JSON
+│   └── species.py               ← species catalog loader (local copy)
 │
 ├── phase1_labeling/             ← human review Streamlit app
-│   └── app.py                   ← review UI (batch by species, export reviewed CSV)
+│   ├── app.py                   ← review UI (batch by species, Etiquetas mode)
+│   └── review_record.py         ← the reviewer's decisions on disk (reviewed CSV I/O)
 │
 ├── setup/                       ← pre-processing utilities (run once per campaign)
 │   ├── build_field_notes.py     ← ONE-TIME: legacy/ monitoring workbook → field_notes.csv
 │   ├── build_visit_template.py  ← Step 0-ter: visit schema → "Registro de visitas CT.xlsx"
+│   ├── build_station_registry.py ← estaciones.csv → GeoJSON (the registry owns identity)
+│   ├── reshape_field_notes.py   ← ONE-TIME: field_notes.csv takes the form's shape
+│   ├── reshape_field_notes_salida.py ← ONE-TIME: the record stores the salida
+│   ├── add_malfunction_columns.py ← ONE-TIME: the record gains the malfunction columns
+│   ├── _fileops.py              ← shared filesystem helpers for setup/
 │   ├── flatten_for_camtrapdp.py ← flatten per-camera subfolders to deployment level
 │   ├── fix_unicode_filenames.py ← NFD → NFC filename normalization (Synology sync fix)
 │   └── create_junction.py       ← Windows junction for accented-path workaround
+│
+├── scripts/
+│   └── verify_order.py          ← capture order vs datetimes where no DCIM manifest exists
 │
 └── Anual-reports/               ← deliverable reports (separate from the pipeline above)
     ├── 2022_2024_legacy methodology.pdf
